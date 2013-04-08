@@ -1,4 +1,5 @@
 #include <QPainter>
+#include <QEvent>
 #include "ledwidget.h"
 
    // QRadialGradient ( const QPointF & center, qreal centerRadius, const QPointF & focalPoint, qreal focalRadius )
@@ -27,16 +28,27 @@ void LEDWidget::paintEvent(QPaintEvent *)
    painter.translate(width() / 2, height() / 2);
    painter.scale(side / 200.0, side / 200.0);
 
-   QPen pen(Qt::black);
+   QPen pen(isEnabled() ? Qt::black : Qt::darkGray);
    painter.setPen(pen);
 
    QRadialGradient gradient(QPointF(.0, .0), 100.0, QPointF(20.0, -25.0));
    gradient.setColorAt(0.0, Qt::white);
-   gradient.setColorAt(0.6, m_ledOn ? m_onColor : m_offColor);
+
+   if (isEnabled())
+      gradient.setColorAt(0.6, m_ledOn ? m_onColor : m_offColor);
+   else
+      gradient.setColorAt(0.6, Qt::gray);
+
    QBrush brush(gradient);
    painter.setBrush(brush);
 
    painter.drawEllipse(QPoint(0, 0), 96, 96);
+}
+
+void LEDWidget::changeEvent(QEvent *event)
+{
+   if (event->type() == QEvent::EnabledChange)
+      update();
 }
 
 void LEDWidget::setState(bool on)

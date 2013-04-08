@@ -1,2 +1,2 @@
-HEADERS += $(PWD)/ledwidget.h
-SOURCES += $(PWD)/ledwidget.cc
+HEADERS += $$PWD/ledwidget.h
+SOURCES += $$PWD/ledwidget.cc
