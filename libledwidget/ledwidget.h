@@ -36,6 +36,7 @@ class LEDWidget: public QWidget
 
    protected:
       virtual void paintEvent(QPaintEvent *event);
+      virtual void changeEvent(QEvent *event);
 
    private:
       bool m_ledOn;
