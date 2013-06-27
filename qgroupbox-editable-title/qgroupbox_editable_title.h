@@ -11,6 +11,9 @@ class GroupBox: public QGroupBox
    public:
       GroupBox(const QString &title, QWidget *parent = 0);
 
+      /** Access to the QLineEdit that's used to edit the title.
+       * Use this to set custom validators or input masks. The Default
+       * validator makes sure the title is not empty. */
       QLineEdit *titleLineEdit()
       { return m_lineEdit; }
 
