@@ -70,9 +70,15 @@ void TCPConnection::start_read_request()
 void TCPConnection::handle_read_request(const boost::system::error_code &ec, std::size_t n_bytes)
 {
   if (!ec) {
-    MessagePtr msg(Message::deserialize(request_buf_));
-    request_handler_(msg, boost::bind(&TCPConnection::response_ready_callback,
-          shared_from_this(), _1, _2));
+    try {
+      MessagePtr msg(Message::deserialize(request_buf_));
+      request_handler_(msg, boost::bind(&TCPConnection::response_ready_callback,
+            shared_from_this(), _1, _2));
+    } catch (const std::runtime_error &) {
+      response_buf_  = Message::make_error_response(error_type::invalid_type)->serialize();
+      response_size_ = htons(response_buf_.size());
+      start_write_response();
+    }
   } else {
     connection_manager_.stop(shared_from_this());
   }

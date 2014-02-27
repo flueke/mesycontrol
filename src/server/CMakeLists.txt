@@ -5,6 +5,7 @@ set(MESYCONTROL_SERVER_SRCS
     main.cc
     mrc1_connection.cc
     mrc1_reply_parser.cc
+    request_dispatcher.cc
     tcp_connection.cc
     tcp_connection_manager.cc
     tcp_server.cc

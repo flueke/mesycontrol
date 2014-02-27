@@ -25,6 +25,25 @@ bool Message::operator==(const MessagePtr &o) const
   return (*this == *o);
 }
 
+bool Message::is_mrc1_command() const
+{
+  switch (type) {
+    case message_type::request_scanbus:
+    case message_type::request_rc_on:
+    case message_type::request_rc_off:
+    case message_type::request_reset:
+    case message_type::request_copy:
+    case message_type::request_read:
+    case message_type::request_set:
+    case message_type::request_mirror_read:
+    case message_type::request_mirror_set:
+      return true;
+    default:
+      break;
+  }
+  return false;
+}
+
 std::string Message::get_mrc1_command_string() const
 {
   /* boost::format prints unit8_t as a char which can result in the output of

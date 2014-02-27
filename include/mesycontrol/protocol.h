@@ -56,6 +56,7 @@ namespace error_type
     mrc_comm_error      = 7,
     silenced            = 8,
     unknown_error       = 9,
+    mrc_connect_error
   };
 } // namespace ErrorType
 
@@ -82,6 +83,7 @@ struct Message
   bool operator==(const Message &o) const;
   bool operator==(const MessagePtr &o) const;
 
+  bool is_mrc1_command() const;
   std::string get_mrc1_command_string() const;
   std::vector<unsigned char> serialize() const;
 

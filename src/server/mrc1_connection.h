@@ -26,12 +26,9 @@ class MRC1Connection:
       connecting,
       initializing,
       running,
-      connect_failed,
-      init_failed,
-      timed_out
     };
 
-    static const int default_timeout_ms;
+    static const boost::posix_time::time_duration default_timeout;
 
     MRC1Connection(boost::asio::io_service &io_service);
 
@@ -43,23 +40,17 @@ class MRC1Connection:
      * connection. Use start() to start it again. */
     void stop();
 
-    boost::posix_time::time_duration get_timeout() const
-    {
-      return m_timeout;
-    }
-
-    void set_timeout(const boost::posix_time::time_duration &timeout)
-    {
-      m_timeout = timeout;
-    }
-
     bool write_command(const MessagePtr &command,
-        ResponseHandler &response_handler);
+        ResponseHandler response_handler);
+    bool command_in_progress() const { return m_current_command; }
 
+    boost::posix_time::time_duration get_timeout() const { return m_timeout; }
+    void set_timeout(const boost::posix_time::time_duration &timeout) { m_timeout = timeout; }
     Status get_status() const { return m_status; }
-    bool is_initialized() const { return m_status == running; }
+    bool is_initializing() const { return m_status == initializing; }
+    bool is_running() const { return m_status == running; }
+    bool is_stopped() const { return m_status == stopped; }
     boost::system::error_code get_last_error() const { return m_last_error; }
-    void reset_last_error() { m_last_error = boost::system::error_code(); }
 
     virtual ~MRC1Connection() {};
 
@@ -107,7 +98,7 @@ class MRC1Connection:
         boost::asio::streambuf &read_buffer,
         ReadWriteCallback completion_handler) = 0;
 
-    static const char *response_line_terminator;
+    static const std::string response_line_terminator;
     static const char command_terminator;
 
   private:
@@ -116,6 +107,7 @@ class MRC1Connection:
     void handle_start(const boost::system::error_code &ec);
     void handle_init(const boost::system::error_code &ec);
     void handle_timeout(const boost::system::error_code &ec);
+    void stop(const boost::system::error_code &reason);
 
     friend class MRC1Initializer;
 
