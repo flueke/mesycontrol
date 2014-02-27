@@ -24,11 +24,11 @@ class TCPServer: private boost::noncopyable
     void handle_accept(const boost::system::error_code &ec);
 
 
-    boost::asio::io_service &io_service_;
-    boost::asio::ip::tcp::acceptor acceptor_;
-    TCPConnectionManager connection_manager_;
-    TCPConnectionPtr new_connection_;
-    RequestHandler request_handler_;
+    boost::asio::io_service &m_io_service;
+    boost::asio::ip::tcp::acceptor m_acceptor;
+    TCPConnectionManager m_connection_manager;
+    TCPConnectionPtr m_new_connection;
+    RequestHandler m_request_handler;
 };
 
 } // namespace mesycontrol

@@ -21,8 +21,6 @@
  *   request_handler
  * - logging
  * - exception safety
- * - ipv6
- * - bind address
  */
 
 namespace po = boost::program_options;
@@ -31,8 +29,12 @@ using namespace mesycontrol;
 enum exit_codes
 {
   exit_success = 0,
-  exit_error_options = 1,  // indicates wrong or missing options
-  exit_error_listen = 2    // indicates that listening for tcp connections failed
+  exit_options_error = 1,         // indicates wrong or missing options
+  exit_address_in_use = 2,
+  exit_address_not_available = 3,
+  exit_permission_denied = 4,
+  exit_bad_listen_address = 5,
+  exit_unknown_error = 127
 };
 
 int main(int argc, char *argv[])
@@ -42,8 +44,11 @@ int main(int argc, char *argv[])
     ("version,V", "print version and exit")
     ("help,h",    "print help message and exit")
     
+    ("listen-address", po::value<std::string>()->default_value("::"),
+     "server listening address (IPv4 in dotted decimal form or IPv6 in hex notation)")
+
     ("listen-port", po::value<unsigned short>()->default_value(23000),
-     "local listening port")
+     "server listening port")
 
     ("mrc-serial-port", po::value<std::string>(),
      "connect to MRC using the given serial port (conflicts with mrc-host)")
@@ -65,7 +70,7 @@ int main(int argc, char *argv[])
     po::notify(option_map);
   } catch (const po::error &e) {
     std::cerr << "Error parsing command line: " << e.what() << std::endl;
-    return exit_error_options;
+    return exit_options_error;
   }
 
   if (option_map.count("help")) {
@@ -80,7 +85,7 @@ int main(int argc, char *argv[])
 
   if (option_map.count("mrc-serial-port") && option_map.count("mrc-host")) {
     std::cerr << "Error: both --mrc-serial-port and --mrc-host given" << std::endl;
-    return exit_error_options;
+    return exit_options_error;
   }
 
   boost::asio::io_service io_service;
@@ -98,25 +103,44 @@ int main(int argc, char *argv[])
         option_map["mrc-port"].as<unsigned short>());
   } else {
     std::cerr << "Error: neither --mrc-serial-port nor --mrc-host given" << std::endl;
-    return exit_error_options;
+    return exit_options_error;
   }
 
   RequestDispatcher dispatcher(mrc1_connection);
 
-  using boost::asio::ip::tcp;
-
-  tcp::endpoint listen_endpoint(tcp::v4(), option_map["listen-port"].as<unsigned short>());
-
   boost::shared_ptr<TCPServer> tcp_server;
 
   try {
+    namespace ip = boost::asio::ip;
+
+    ip::tcp::endpoint listen_endpoint(
+        ip::address::from_string(option_map["listen-address"].as<std::string>()),
+        option_map["listen-port"].as<unsigned short>());
+
     tcp_server = boost::make_shared<TCPServer>(
         boost::ref(io_service),
         listen_endpoint,
         boost::bind(&RequestDispatcher::dispatch, &dispatcher, _1, _2));
+
   } catch (const boost::system::system_error &e) {
     std::cerr << "Failed starting TCP server component: " << e.what() << std::endl;
-    return exit_error_listen;
+
+    namespace errc = boost::system::errc;
+    const boost::system::error_code ec(e.code());
+
+    if (ec == errc::address_in_use)
+      return exit_address_in_use;
+
+    if (ec == errc::address_not_available)
+      return exit_address_not_available;
+
+    if (ec == errc::permission_denied)
+      return exit_permission_denied;
+
+    if (ec == errc::invalid_argument)
+      return exit_bad_listen_address;
+
+    return exit_unknown_error;
   }
 
   boost::asio::signal_set signal_set(io_service);
