@@ -1,15 +1,15 @@
-#ifndef UUID_5ea71e49_6caf_4643_8009_8c6a6194fc52
-#define UUID_5ea71e49_6caf_4643_8009_8c6a6194fc52
+#ifndef UUID_58b6e1c6_a658_437d_9cfa_88bef33193d1
+#define UUID_58b6e1c6_a658_437d_9cfa_88bef33193d1
 
 #include "config.h"
 #include <boost/asio.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/noncopyable.hpp>
-#include <boost/scoped_ptr.hpp>
-#include <deque>
+#include <boost/signals2.hpp>
+#include <boost/system/error_code.hpp>
 #include <string>
+#include <queue>
 #include <mesycontrol/protocol.h>
-#include "handler_types.h"
 
 namespace mesycontrol
 {
@@ -19,51 +19,62 @@ class TCPClient:
   private boost::noncopyable
 {
   public:
+    typedef boost::signals2::signal<void ()> void_signal;
+    typedef boost::signals2::signal<void (const boost::system::error_code &)> error_code_signal;
+    typedef boost::function<void (const MessagePtr &, const MessagePtr &)> ResponseHandler;
+
     explicit TCPClient(boost::asio::io_service &io_service);
 
-    void connect_to(const std::string &hostname, const std::string &service_or_port);
-    void disconnect() { if(socket_.is_open()) socket_.close(); }
-    bool is_connected() const { return socket_.is_open(); }
-    void stop() {
-      disconnect();
-      work_.reset();
-    }
+    void connect(const std::string &hostname, const std::string &service);
+    void connect(const std::string &hostname, unsigned short port);
+    void disconnect();
+    bool is_connected() const;
 
-    void queue_request(protocol::Message request, ResponseHandler response_handler);
-    size_t get_queue_size() const { return requests_.size(); }
+    void queue_request(const MessagePtr &msg, ResponseHandler response_handler);
+
+    boost::signals2::connection connect_sig_connecting(const void_signal::slot_type &slot);
+    boost::signals2::connection connect_sig_connected(const void_signal::slot_type &slot);
+    boost::signals2::connection connect_sig_disconnected(const void_signal::slot_type &slot);
+    boost::signals2::connection connect_sig_error(const error_code_signal::slot_type &slot);
 
   private:
     void handle_resolve(const boost::system::error_code &ec, boost::asio::ip::tcp::resolver::iterator it);
-    void handle_connect(const boost::system::error_code& ec, boost::asio::ip::tcp::resolver::iterator it);
+    void handle_connect(const boost::system::error_code &ec, boost::asio::ip::tcp::resolver::iterator it);
 
-    void start_write_request();
-    void handle_write_request(const boost::system::error_code &ec, size_t n_bytes);
+    void start_write_message();
+    void handle_write_message(const boost::system::error_code &ec, size_t n_bytes);
 
-    void start_read_response_size();
-    void handle_read_response_size(const boost::system::error_code &ec, size_t n_bytes);
+    void start_read_message_size();
+    void handle_read_message_size(const boost::system::error_code &ec, size_t n_bytes);
 
-    void start_read_response();
-    void handle_read_response(const boost::system::error_code &ec, size_t n_bytes);
+    void start_read_message();
+    void handle_read_message(const boost::system::error_code &ec, size_t n_bytes);
 
-    boost::asio::io_service &io_service_;
+    void start_deadline(const boost::posix_time::time_duration &duration);
+    void cancel_deadline();
+    void handle_deadline(const boost::system::error_code &ec);
 
-    boost::asio::ip::tcp::resolver resolver_;
-    boost::asio::ip::tcp::socket socket_;
+    boost::asio::io_service &m_io_service;
+    boost::asio::ip::tcp::resolver m_resolver;
+    boost::asio::ip::tcp::socket m_socket;
+    boost::asio::deadline_timer m_deadline;
 
-    std::string hostname_;
-    std::string port_;
+    std::string m_hostname;
+    std::string m_port;
 
-    typedef std::deque<std::pair<protocol::Message, ResponseHandler> > RequestQueue;
+    typedef std::deque<std::pair<MessagePtr, ResponseHandler> > RequestQueue;
+    RequestQueue m_request_queue;
 
-    RequestQueue requests_;
+    uint16_t m_request_size;
+    std::vector<unsigned char> m_request_buffer;
 
-    uint16_t request_size_;
-    std::vector<unsigned char> request_buf_;
-
-    uint16_t response_size_;
-    std::vector<unsigned char> response_buf_;
+    uint16_t m_response_size;
+    std::vector<unsigned char> m_response_buffer;
     
-    boost::scoped_ptr<boost::asio::io_service::work> work_;
+    void_signal sig_connecting;
+    void_signal sig_connected;
+    void_signal sig_disconnected;
+    error_code_signal sig_error;
 };
 
 } // namespace mesycontrol

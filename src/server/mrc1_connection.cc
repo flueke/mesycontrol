@@ -306,6 +306,12 @@ void MRC1SerialConnection::start_impl(ErrorCodeCallback completion_handler)
     m_port.set_option(asio::serial_port::parity(asio::serial_port::parity::none));
     m_port.set_option(asio::serial_port::stop_bits(asio::serial_port::stop_bits::one));
     m_port.set_option(asio::serial_port::flow_control(asio::serial_port::flow_control::none));
+#ifndef BOOST_WINDOWS
+    if (tcflush(m_port.native_handle(), TCIOFLUSH) < 0) {
+        BOOST_THROW_EXCEPTION(boost::system::system_error(
+                    errno, boost::system::system_category(), "tcflush"));
+    }
+#endif
     completion_handler(boost::system::error_code());
   } catch (const boost::system::system_error &e) {
     completion_handler(e.code());
@@ -377,6 +383,7 @@ void MRC1TCPConnection::start_impl(ErrorCodeCallback completion_handler)
     tcp::resolver::iterator endpoint_iter(m_resolver.resolve(query));
     asio::connect(m_socket, endpoint_iter);
     m_socket.set_option(asio::ip::tcp::no_delay(true));
+    completion_handler(boost::system::error_code());
   } catch (const boost::system::system_error &e) {
     completion_handler(e.code());
   }
