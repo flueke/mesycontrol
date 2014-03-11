@@ -40,6 +40,11 @@ class MRC1Connection:
      * connection. Use start() to start it again. */
     void stop();
 
+    /** Send the given \c command to the MRC1, using the given \c
+     * response_handler as a response callback.
+     * Returns false if is_running() is false or a command is already in
+     * progress. Otherwise true is returned and the command will be written to
+     * the MRC1. */
     bool write_command(const MessagePtr &command,
         ResponseHandler response_handler);
     bool command_in_progress() const { return m_current_command; }
