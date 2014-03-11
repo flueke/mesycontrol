@@ -88,7 +88,7 @@ bool MRC1ReplyParser::parse_scanbus(const std::string &reply_line)
 
   if (regex_match(reply_line, matches, re_header)) {
     m_response->type = message_type::response_scanbus;
-    m_response->bus  = boost::lexical_cast<uint8_t>(matches[1]);
+    m_response->bus  = boost::lexical_cast<unsigned int>(matches[1]);
     return false;
   } else if (regex_match(reply_line, matches, re_body)) {
     size_t dev = boost::lexical_cast<size_t>(matches[1]);
