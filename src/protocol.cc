@@ -153,11 +153,7 @@ MessagePtr Message::deserialize(const std::vector<unsigned char> &data)
 
   message_type::MessageType type = static_cast<message_type::MessageType>(data[0]);
 
-  if (data.size() == 0)
-    BOOST_THROW_EXCEPTION(std::runtime_error("invalid message type"));
-
   if (data.size() != get_message_size(type)) {
-    std::cerr << __PRETTY_FUNCTION__ << "data.size() = " << data.size() << ", expected = " << Message::get_message_size(type) << ", type = " << type << std::endl;
     BOOST_THROW_EXCEPTION(std::runtime_error("wrong message size"));
   }
 

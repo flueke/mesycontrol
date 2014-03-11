@@ -56,7 +56,7 @@ namespace error_type
     mrc_comm_error      = 7,
     silenced            = 8,
     unknown_error       = 9,
-    mrc_connect_error
+    mrc_connect_error   = 10
   };
 } // namespace ErrorType
 
@@ -68,12 +68,14 @@ typedef boost::shared_ptr<Message> MessagePtr;
 struct Message
 {
   message_type::MessageType type;
-  boost::uint8_t            bus;
-  boost::uint8_t            dev;
-  boost::uint8_t            par;
-  boost::uint16_t           val;
-  error_type::ErrorType     error_value;
-  bool                      bool_value;
+  boost::uint8_t            bus;          // bus number [0..1]
+  boost::uint8_t            dev;          // device number [0..15]
+  boost::uint8_t            par;          // parameter address [0..255]
+  boost::uint16_t           val;          // value [0..65535]
+  error_type::ErrorType     error_value;  // error messages only
+  bool                      bool_value;   // bool messages only
+  // Scanbus response - 16 pairs of (device id code, rc status).
+  // Device id code=0 means no device is connected
   boost::array<std::pair<boost::uint8_t, bool>, 16> bus_data;
 
   Message()
