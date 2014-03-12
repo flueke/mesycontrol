@@ -23,7 +23,13 @@ class Command:
         pass
 
     def run(self, connection):
-        raise NotImplementedError
+        data = self.msg.serialize();
+        connection.sendall(struct.pack('!H', len(data)))
+        connection.sendall(data)
+
+        in_sz = struct.unpack('!H', connection.recv(2))[0]
+        data  = connection.recv(in_sz)
+        return Message.deserialize(data)
 
 class ReadCommand(Command):
     def __init__(self, *args):
@@ -34,34 +40,20 @@ class ReadCommand(Command):
 
         self.msg = Message(msg_type, bus=int(args[1]), dev=int(args[2]), par=int(args[3]))
 
-    def run(self, connection):
-        data = self.msg.serialize();
-        connection.sendall(struct.pack('!H', len(data)))
-        connection.sendall(data)
-
-        in_sz = struct.unpack('!H', connection.recv(2))[0]
-        data  = connection.recv(in_sz)
-        return Message.deserialize(data)
-
 class SetCommand(Command):
     def __init__(self, *args):
         Command.__init__(self)
+        msg_type = 'request_set'
+        if args[0] in ('set_mirror', 'sm'):
+          msg_type = 'request_mirror_set'
+
+        self.msg = Message(msg_type, bus=int(args[1]), dev=int(args[2]), par=int(args[3]), val=int(args[4]))
+
 
 class ScanbusCommand(Command):
     def __init__(self, *args):
         Command.__init__(self)
-        print args
-        self.bus = int(args[1])
-
-    def run(self, connection):
-        msg = Message('request_scanbus', bus=self.bus)
-        data = msg.serialize();
-        connection.sendall(struct.pack('!H', len(data)))
-        connection.sendall(data)
-
-        in_sz = struct.unpack('!H', connection.recv(2))[0]
-        data  = connection.recv(in_sz)
-        return Message.deserialize(data)
+        self.msg = Message('request_scanbus', bus=int(args[1]))
 
 g_commands = {
         'read': ReadCommand,

@@ -29,6 +29,9 @@ def str_scanbus_response(msg):
 
   return ret
 
+def str_error_response(msg):
+  return "%s(%s)" % (msg.get_type_name(), ErrorInfo.by_code[msg.error_code]['name'])
+
 class MessageInfo:
   info_list = [
       # requests
@@ -53,7 +56,7 @@ class MessageInfo:
         'format_args': ('bus', 'dev', 'par')
         },
       { 'code': 5,
-        'name': 'request_set',
+        'name': 'request_mirror_set',
         'format': 'BBBH',
         'format_args': ('bus', 'dev', 'par', 'val')
         },
@@ -113,7 +116,8 @@ class MessageInfo:
       { 'code': 61,
         'name': 'response_error',
         'format': 'B',
-        'format_args': ('error_code',)
+        'format_args': ('error_code',),
+        'str_func': str_error_response
         },
       ]
 
@@ -127,6 +131,51 @@ class MessageInfo:
   @staticmethod
   def get_type_names():
     return MessageInfo.by_name.keys()
+
+class ErrorInfo:
+  info_list = [
+      { 'code': 1,
+        'name': 'invalid_type'
+        },
+      { 'code': 2,
+        'name': 'invalid_size'
+        },
+      { 'code': 3,
+        'name': 'bus_out_of_range'
+        },
+      { 'code': 4,
+        'name': 'dev_out_of_range'
+        },
+      { 'code': 5,
+        'name': 'mrc_no_response'
+        },
+      { 'code': 6,
+        'name': 'mrc_comm_timeout'
+        },
+      { 'code': 7,
+        'name': 'mrc_comm_error'
+        },
+      { 'code': 8,
+        'name': 'silenced'
+        },
+      { 'code': 9,
+        'name': 'unknown_error'
+        },
+      { 'code': 10,
+        'name': 'mrc_connect_error'
+        },
+      ]
+
+  by_name = {}
+  by_code = {}
+
+  for info in info_list:
+    by_code[info['code']] = info
+  by_name[info['name']] = info
+
+  @staticmethod
+  def get_error_names():
+    return ErrorInfo.by_name.keys()
 
 class Message:
   def __init__(self, type_code, **kwargs):
@@ -202,3 +251,5 @@ if __name__ == "__main__":
   assert msg.par == msg_deserialized.par
 
   print msg_deserialized
+
+# vim:sw=2:sts=2
