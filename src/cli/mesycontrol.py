@@ -196,8 +196,9 @@ if __name__ == "__main__":
   serial_data = msg.serialize()
   msg_deserialized = Message.deserialize(serial_data)
 
-  print msg_deserialized.get_type_name()
-  print msg_deserialized.bus
-  print msg_deserialized.dev
-  print msg_deserialized.par
+  assert msg.get_type_name() == msg_deserialized.get_type_name()
+  assert msg.bus == msg_deserialized.bus
+  assert msg.dev == msg_deserialized.dev
+  assert msg.par == msg_deserialized.par
+
   print msg_deserialized
