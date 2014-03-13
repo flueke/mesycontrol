@@ -68,6 +68,8 @@ void RequestDispatcher::try_send_mrc1_request()
     handle_mrc1_response(m_mrc1_request_queue.front().first, Message::make_error_response(error_type::mrc_connect_error));
   } else {
     std::cerr << __PRETTY_FUNCTION__ << ": calling mrc write command" << std::endl;
+    std::cerr << __PRETTY_FUNCTION__ << ": message type = " << m_mrc1_request_queue.front().first->type << std::endl;
+    std::cerr << __PRETTY_FUNCTION__ << ": message = " << m_mrc1_request_queue.front().first->get_mrc1_command_string() << std::endl;
     m_mrc1_connection->write_command(m_mrc1_request_queue.front().first,
         boost::bind(&RequestDispatcher::handle_mrc1_response, this, _1, _2));
   }
