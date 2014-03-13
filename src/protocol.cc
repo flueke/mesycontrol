@@ -58,13 +58,13 @@ std::string Message::get_mrc1_command_string() const
     case message_type::request_scanbus:
       return boost::str(boost::format("SC %1%\r") % ibus);
     case message_type::request_rc_on:
-      return boost::str(boost::format("ON %1%\r") % ibus);
+      return boost::str(boost::format("ON %1% %2%\r") % ibus % idev);
     case message_type::request_rc_off:
-      return boost::str(boost::format("OFF %1%\r") % ibus);
+      return boost::str(boost::format("OFF %1% %2%\r") % ibus % idev);
     case message_type::request_reset:
-      return boost::str(boost::format("RST %1%\r") % ibus);
+      return boost::str(boost::format("RST %1% %2%\r") % ibus % idev);
     case message_type::request_copy:
-      return boost::str(boost::format("CP %1%\r") % ibus);
+      return boost::str(boost::format("CP %1% %2%\r") % ibus % idev);
     case message_type::request_read:
       return boost::str(boost::format("RE %1% %2% %3%\r") % ibus % idev % ipar);
     case message_type::request_mirror_read:
