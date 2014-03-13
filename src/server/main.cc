@@ -12,6 +12,7 @@
 #include "mrc1_connection.h"
 #include "request_dispatcher.h"
 #include "tcp_server.h"
+#include "git_sha1.h"
 
 /* TODO
  * - scanbus 3 shuts down the mrc connection cause of a timeout. fix this!
@@ -82,7 +83,7 @@ int main(int argc, char *argv[])
   }
 
   if (option_map.count("version")) {
-    std::cout << "mesycontrol_server - revision " << GIT_SHA1 << std::endl;
+    std::cout << "mesycontrol_server - git revision " << g_GIT_SHA1 << std::endl;
     return exit_success;
   }
 
