@@ -55,6 +55,21 @@ class ScanbusCommand(Command):
         Command.__init__(self)
         self.msg = Message('request_scanbus', bus=int(args[1]))
 
+class RcCommand(Command):
+    """
+    Modify device remote control setting.
+    on  <bus> <dev>
+    off <bus> <dev>
+    rc  <bus> <dev> (0|1)
+    """
+    def __init__(self, *args):
+        Command.__init__(self)
+        msg_type = 'request_rc_on'
+        if args[0] == 'off' or (args[0] == 'rc' and not int(args[3])):
+            msg_type = 'request_rc_off'
+
+        self.msg = Message(msg_type, bus=int(args[1]), dev=int(args[2]))
+
 g_commands = {
         'read': ReadCommand,
         're': ReadCommand,
@@ -67,13 +82,18 @@ g_commands = {
         'sm': SetCommand,
 
         'sc': ScanbusCommand,
-        'scanbus': ScanbusCommand
+        'scanbus': ScanbusCommand,
+
+        'on': RcCommand,
+        'off': RcCommand,
+        'rc': RcCommand  
         }
 
 def parse_command(in_str):
     args = in_str.split()
-    class_ = g_commands[args[0]]
-    return class_(*args)
+    #class_ = g_commands[args[0]]
+    class_ = g_commands.get(args[0], None)
+    return class_(*args) if not class_ is None else None
 
 if __name__ == "__main__":
     socket.setdefaulttimeout(5)
@@ -99,5 +119,9 @@ if __name__ == "__main__":
         if len(in_line) == 0:
             continue
         command = parse_command(in_line)
-        output = command.run(connection)
-        print output
+        if command is None:
+            print "Error: unknown command."
+            print "Available commands:", g_commands.keys()
+        else:
+            output = command.run(connection)
+            print output
