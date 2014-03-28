@@ -92,21 +92,21 @@ struct Message
   static MessagePtr deserialize(const std::vector<unsigned char> &data);
   static size_t get_message_size(message_type::MessageType type);
 
-  static MessagePtr make_scanbus_request(uint8_t bus);
-  static MessagePtr make_read_request(uint8_t bus, uint8_t dev, uint8_t par, bool mirror = false);
-  static MessagePtr make_set_request(uint8_t bus, uint8_t dev, uint8_t par, uint16_t value, bool mirror = false);
-  static MessagePtr make_set_rc_request(uint8_t bus, uint8_t dev, bool on);
-  static MessagePtr make_reset_request(uint8_t bus, uint8_t dev);
-  static MessagePtr make_copy_request(uint8_t bus, uint8_t dev);
+  static MessagePtr make_scanbus_request(boost::uint8_t bus);
+  static MessagePtr make_read_request(boost::uint8_t bus, boost::uint8_t dev, boost::uint8_t par, bool mirror = false);
+  static MessagePtr make_set_request(boost::uint8_t bus, boost::uint8_t dev, boost::uint8_t par, boost::uint16_t value, bool mirror = false);
+  static MessagePtr make_set_rc_request(boost::uint8_t bus, boost::uint8_t dev, bool on);
+  static MessagePtr make_reset_request(boost::uint8_t bus, boost::uint8_t dev);
+  static MessagePtr make_copy_request(boost::uint8_t bus, boost::uint8_t dev);
   static MessagePtr make_is_master_request();
   static MessagePtr make_acquire_master_request();
   static MessagePtr make_silent_mode_status_request();
 
-  static MessagePtr make_scanbus_response(uint8_t bus,
-      const boost::array<std::pair<uint8_t, bool>, 16> &bus_data);
+  static MessagePtr make_scanbus_response(boost::uint8_t bus,
+      const boost::array<std::pair<boost::uint8_t, bool>, 16> &bus_data);
 
   static MessagePtr make_read_or_set_response(message_type::MessageType request_type,
-      uint8_t bus, uint8_t dev, uint8_t par, uint16_t val);
+      boost::uint8_t bus, boost::uint8_t dev, boost::uint8_t par, boost::uint16_t val);
 
   static MessagePtr make_bool_response(bool bool_value);
   static MessagePtr make_error_response(error_type::ErrorType error);
