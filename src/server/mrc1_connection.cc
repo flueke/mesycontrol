@@ -267,7 +267,6 @@ void MRC1Connection::start_read_line(
     ReadWriteCallback completion_handler)
 {
   if (is_running() || is_initializing()) {
-    std::cerr << "mrc1: start_read_line" << std::endl;
     m_timeout_timer.expires_from_now(get_timeout());
     m_timeout_timer.async_wait(boost::bind(&MRC1Connection::handle_timeout, shared_from_this(), _1));
     start_read_line_impl(read_buffer, completion_handler);

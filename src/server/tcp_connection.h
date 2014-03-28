@@ -42,6 +42,8 @@ class TCPConnection
 
     void response_ready_callback(const MessagePtr &request, const MessagePtr &reply);
 
+    std::string connection_string() const;
+
     boost::asio::ip::tcp::socket socket_;
     TCPConnectionManager &connection_manager_;
     RequestHandler request_handler_;
@@ -51,6 +53,8 @@ class TCPConnection
 
     uint16_t response_size_;
     std::vector<unsigned char> response_buf_;
+
+    std::string m_connection_string;
 };
 
 typedef boost::shared_ptr<TCPConnection> TCPConnectionPtr;

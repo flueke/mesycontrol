@@ -75,7 +75,7 @@ bool MRC1ReplyParser::parse_read_or_set(const std::string &reply_line)
       boost::lexical_cast<unsigned int>(matches[1]),
       boost::lexical_cast<unsigned int>(matches[2]),
       boost::lexical_cast<unsigned int>(matches[3]),
-      boost::lexical_cast<uint16_t>(matches[4]));
+      boost::lexical_cast<boost::uint16_t>(matches[4]));
 
   return true;
 }

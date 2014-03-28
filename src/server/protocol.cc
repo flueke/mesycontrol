@@ -212,7 +212,7 @@ MessagePtr Message::deserialize(const std::vector<unsigned char> &data)
 
   if (ret->type == message_type::response_scanbus) {
     for (int i=0; i<32; i+=2) {
-      uint8_t idc = data[i+2];
+      boost::uint8_t idc = data[i+2];
       bool     on = data[i+3];
       ret->bus_data[i/2] = std::make_pair(idc, on);
     }
@@ -258,7 +258,7 @@ size_t Message::get_message_size(message_type::MessageType type)
     return 0;
 }
 
-MessagePtr Message::make_scanbus_request(uint8_t bus)
+MessagePtr Message::make_scanbus_request(boost::uint8_t bus)
 {
   MessagePtr ret(boost::make_shared<Message>());
   ret->type = message_type::request_scanbus;
@@ -266,7 +266,7 @@ MessagePtr Message::make_scanbus_request(uint8_t bus)
   return ret;
 }
 
-MessagePtr Message::make_read_request(uint8_t bus, uint8_t dev, uint8_t par, bool mirror)
+MessagePtr Message::make_read_request(boost::uint8_t bus, boost::uint8_t dev, boost::uint8_t par, bool mirror)
 {
   MessagePtr ret(boost::make_shared<Message>());
   ret->type = mirror ? message_type::request_mirror_read : message_type::request_read;
@@ -276,7 +276,7 @@ MessagePtr Message::make_read_request(uint8_t bus, uint8_t dev, uint8_t par, boo
   return ret;
 }
 
-MessagePtr Message::make_set_request(uint8_t bus, uint8_t dev, uint8_t par, uint16_t value, bool mirror)
+MessagePtr Message::make_set_request(boost::uint8_t bus, boost::uint8_t dev, boost::uint8_t par, boost::uint16_t value, bool mirror)
 {
   MessagePtr ret(boost::make_shared<Message>());
   ret->type = mirror ? message_type::request_mirror_set : message_type::request_set;
@@ -287,7 +287,7 @@ MessagePtr Message::make_set_request(uint8_t bus, uint8_t dev, uint8_t par, uint
   return ret;
 }
 
-MessagePtr Message::make_set_rc_request(uint8_t bus, uint8_t dev, bool on)
+MessagePtr Message::make_set_rc_request(boost::uint8_t bus, boost::uint8_t dev, bool on)
 {
   MessagePtr ret(boost::make_shared<Message>());
   ret->type = on ? message_type::request_rc_on : message_type::request_rc_off;
@@ -296,7 +296,7 @@ MessagePtr Message::make_set_rc_request(uint8_t bus, uint8_t dev, bool on)
   return ret;
 }
 
-MessagePtr Message::make_reset_request(uint8_t bus, uint8_t dev)
+MessagePtr Message::make_reset_request(boost::uint8_t bus, boost::uint8_t dev)
 {
   MessagePtr ret(boost::make_shared<Message>());
   ret->type = message_type::request_reset;
@@ -305,7 +305,7 @@ MessagePtr Message::make_reset_request(uint8_t bus, uint8_t dev)
   return ret;
 }
 
-MessagePtr Message::make_copy_request(uint8_t bus, uint8_t dev)
+MessagePtr Message::make_copy_request(boost::uint8_t bus, boost::uint8_t dev)
 {
   MessagePtr ret(boost::make_shared<Message>());
   ret->type = message_type::request_copy;
@@ -314,7 +314,7 @@ MessagePtr Message::make_copy_request(uint8_t bus, uint8_t dev)
   return ret;
 }
 
-MessagePtr Message::make_scanbus_response(uint8_t bus, const boost::array<std::pair<uint8_t, bool>, 16> &bus_data)
+MessagePtr Message::make_scanbus_response(boost::uint8_t bus, const boost::array<std::pair<boost::uint8_t, bool>, 16> &bus_data)
 {
   MessagePtr ret(boost::make_shared<Message>());
   ret->type     = message_type::response_scanbus;
@@ -323,7 +323,7 @@ MessagePtr Message::make_scanbus_response(uint8_t bus, const boost::array<std::p
   return ret;
 }
 
-MessagePtr Message::make_read_or_set_response(message_type::MessageType request_type, uint8_t bus, uint8_t dev, uint8_t par, uint16_t val)
+MessagePtr Message::make_read_or_set_response(message_type::MessageType request_type, boost::uint8_t bus, boost::uint8_t dev, boost::uint8_t par, boost::uint16_t val)
 {
   MessagePtr ret(boost::make_shared<Message>());
   switch (request_type) {
