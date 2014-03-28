@@ -38,7 +38,7 @@
 #     emit device_value_changed(bus, dev, par)
 
 
-import signal, struct, sys
+import logging, Queue, signal, struct, sys
 from PyQt4 import QtCore, QtGui, QtNetwork, uic
 from PyQt4.QtCore import pyqtSignal
 from PyQt4.Qt import Qt
@@ -47,19 +47,27 @@ from mesycontrol import Message, MessageInfo
 class TCPClient(QtCore.QObject):
   sig_connecting       = pyqtSignal('QString', int)
   sig_connected        = pyqtSignal('QString', int)
-  sig_disconnected     = pyqtSignal()
+  sig_disconnected     = pyqtSignal('QString', int)
+  sig_socket_error     = pyqtSignal(int)
   sig_message_received = pyqtSignal(object)
   sig_queue_empty      = pyqtSignal()
 
   def __init__(self, parent = None):
-    super(QtCore.QObject, self).__init__(parent)
+    super(TCPClient, self).__init__(parent)
     self.host = self.port = None
-    self.socket = QtNetwork.QTcpSocket()
+    self._request_queue = Queue.Queue()
+    self._write_in_progress = False
+    self._response_size = None
+
+    self.socket = QtNetwork.QTcpSocket(self)
     self.socket.connected.connect(self._slt_connected)
     self.socket.disconnected.connect(self._slt_disconnected)
-    self._request_queue = []
+    self.socket.error.connect(self._slt_socket_error)
+    self.socket.bytesWritten.connect(self._slt_socket_bytesWritten)
+    self.socket.readyRead.connect(self._slt_socket_readyRead)
 
   def connect(self, host, port):
+    self.disconnect()
     self.host = host
     self.port = port
     self.sig_connecting.emit(host, port)
@@ -68,39 +76,44 @@ class TCPClient(QtCore.QObject):
   def disconnect(self):
     if self.is_connected():
       self.socket.disconnectFromHost()
+      if self.socket.state() != QtNetwork.QAbstractSocket.UnconnectedState:
+        self.socket.waitForDisconnected()
 
   def is_connected(self):
-    return self.socket.isValid()
+    return self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState
 
   def queue_request(self, message):
-    was_empty = len(self._request_queue) == 0
-    self._request_queue.append(message)
+    was_empty = self._request_queue.empty()
+    self._request_queue.put(message)
     if was_empty:
       self._start_write_message()
 
   def get_request_queue_size(self):
-    return len(self._request_queue)
+    return self._request_queue.qsize()
 
   def _start_write_message(self):
-    if self.is_connected():
-      msg_data = self._request_queue[0].serialize()
+    if self.is_connected() and not self._write_in_progress:
+      message = self._request_queue.get()
+      self._write_in_progress = True
+      logging.debug("TCPClient: writing message: %s" % message)
+      msg_data = message.serialize()
       data = struct.pack('!H', len(msg_data)) + msg_data
       self.socket.write(data)
-      self._start_read_message()
 
-  def _start_read_message(self):
-    if self.is_connected():
-      loop = QtCore.QEventLoop()
-      self.socket.readyRead.connect(loop.quit)
-      self.sig_disconnected.connect(loop.quit)
-      loop.exec_()
+  def _slt_socket_bytesWritten(self, n_bytes):
+    self._write_in_progress = False
 
-      in_sz = struct.unpack('!H', self.socket.read(2))[0]
-      msg_data = self.socket.read(in_sz)
-      msg = Message.deserialize(msg_data)
-      self._request_queue.pop(0)
-      self.sig_message_received.emit(msg)
-      if len(self._request_queue):
+  def _slt_socket_readyRead(self):
+    if self._response_size is None and self.socket.bytesAvailable() >= 2:
+      self._response_size = struct.unpack('!H', self.socket.read(2))[0]
+
+    if self._response_size is not None and self.socket.bytesAvailable() >= self._response_size:
+      response_data = self.socket.read(self._response_size)
+      message = Message.deserialize(response_data)
+      self._response_size = None
+      logging.debug("TCPClient: received message: %s" % message)
+      self.sig_message_received.emit(message)
+      if not self._request_queue.empty():
         self._start_write_message()
       else:
         self.sig_queue_empty.emit()
@@ -109,7 +122,14 @@ class TCPClient(QtCore.QObject):
     self.sig_connected.emit(self.host, self.port)
 
   def _slt_disconnected(self):
-    self.sig_disconnected.emit()
+    self.sig_disconnected.emit(self.host, self.port)
+    self.host = self.port = None
+    self._request_queue = Queue.Queue()
+    self._write_in_progress = False
+    self._response_size = None
+
+  def _slt_socket_error(self, socket_error):
+    self.sig_socket_error.emit(socket_error)
 
 class MRCModel(QtCore.QObject):
   # Emitted after a scanbus response has been received. The argument is the
@@ -118,8 +138,6 @@ class MRCModel(QtCore.QObject):
 
   # Emitted after a value has been read. Args are bus, dev, par, value
   sig_parameter_value_changed = pyqtSignal(int, int, int, int)
-
-  sig_queue_request = pyqtSignal(object)
 
   def __init__(self, mrc_client, parent = None):
     super(QtCore.QObject, self).__init__(parent)
@@ -138,19 +156,18 @@ class MRCModel(QtCore.QObject):
     self.mrc_client.sig_connected.connect(self._slt_client_connected)
     self.mrc_client.sig_message_received.connect(self._slt_message_received)
     self.mrc_client.sig_queue_empty.connect(self._slt_client_queue_empty)
-    self.sig_queue_request.connect(self.mrc_client.queue_request)
 
   def scanbus(self, bus):
-    self.sig_queue_request.emit(Message('request_scanbus', bus=bus))
+    self.mrc_client.queue_request(Message('request_scanbus', bus=bus))
 
   def read_parameter(self, bus, dev, par):
-    self.sig_queue_request.emit(Message('request_read', bus=bus, dev=dev, par=par))
+    self.mrc_client.queue_request(Message('request_read', bus=bus, dev=dev, par=par))
 
   def set_parameter(self, bus, dev, par, value):
-    self.sig_queue_request.emit(Message('request_set', bus=bus, dev=dev, par=par, val=value))
+    self.mrc_client.queue_request(Message('request_set', bus=bus, dev=dev, par=par, val=value))
 
   def set_rc(self, bus, dev, rc):
-    self.sig_queue_request.emit(Message('request_rc_on' if rc else 'request_rc_off', bus=bus, dev=dev))
+    self.mrc_client.queue_request(Message('request_rc_on' if rc else 'request_rc_off', bus=bus, dev=dev))
 
   def add_poll_parameter(self, bus, dev, par):
     self.poll_set.add((bus, dev, par))
@@ -161,9 +178,9 @@ class MRCModel(QtCore.QObject):
     self.poll_set.discard((bus, dev, par))
 
   def _slt_client_connected(self, host, port):
-    print "Connected to %s:%d" % (host, port)
-    self.sig_queue_request.emit(Message('request_scanbus', bus=0))
-    self.sig_queue_request.emit(Message('request_scanbus', bus=1))
+    print "Connected to %s:%d. Scanning busses." % (host, port)
+    self.mrc_client.queue_request(Message('request_scanbus', bus=0))
+    self.mrc_client.queue_request(Message('request_scanbus', bus=1))
 
   def _slt_message_received(self, msg):
     if msg.get_type_name() == 'response_scanbus':
@@ -186,15 +203,13 @@ class MainWindow(QtGui.QMainWindow):
   def __init__(self, parent = None):
     super(MainWindow, self).__init__(parent)
 
+    QtCore.QCoreApplication.instance().aboutToQuit.connect(self.on_qapp_quit)
+
     # load the ui
     uic.loadUi('ui/mainwin.ui', self)
 
     self.client = TCPClient()
-    self.client_thread = QtCore.QThread()
-    self.client.moveToThread(self.client_thread)
-    self.client_thread.start()
-    self.client.sig_message_received.connect(self._slt_message_received)
-    self.client.connect("localhost", 23000)
+    self.client.connect('localhost', 23000)
 
     self.mrc_model = MRCModel(self.client)
     self.bus_widget = BusWidget(self.mrc_model, self)
@@ -202,10 +217,9 @@ class MainWindow(QtGui.QMainWindow):
     self._add_subwindow(self.bus_widget, "Bus Info")
     self._device_windows = {0:{}, 1:{}}
 
-  def __del__(self):
+
+  def on_qapp_quit(self):
     self.client.disconnect()
-    self.client_thread.quit()
-    self.client_thread.wait()
 
   def _add_subwindow(self, widget, title):
     subwin = self.mdiArea.addSubWindow(widget)
@@ -214,17 +228,15 @@ class MainWindow(QtGui.QMainWindow):
     subwin.show()
     return subwin
 
-  def _slt_message_received(self, message):
-    print message
-
   def _slt_open_device_window(self, bus, dev):
     if not self._device_windows[bus].has_key(dev):
       widget = GenericDeviceWidget(bus, dev, self.mrc_model, self)
       self._device_windows[bus][dev] = self._add_subwindow(widget, "%d:%d" % (bus, dev))
 
-    self._device_windows[bus][dev].raise_()
-    self._device_windows[bus][dev].showNormal()
-    self._device_windows[bus][dev].activateWindow()
+    subwin = self._device_windows[bus][dev]
+    subwin.show()
+    subwin.widget().show()
+    self.mdiArea.setActiveSubWindow(subwin)
 
 class BusWidget(QtGui.QWidget):
   sig_open_device_window = pyqtSignal(int, int)
@@ -245,7 +257,11 @@ class BusWidget(QtGui.QWidget):
     self._slt_bus_data_changed(self.mrc_model.bus_data)
     self.mrc_model.sig_bus_data_changed.connect(self._slt_bus_data_changed)
 
-    layout = QtGui.QHBoxLayout()
+    scanbus_button = QtGui.QPushButton("Scanbus")
+    scanbus_button.clicked.connect(self._slt_scanbus_button_clicked)
+
+    layout = QtGui.QVBoxLayout()
+    layout.addWidget(scanbus_button)
     layout.addWidget(self.tree_widget)
     self.setLayout(layout)
 
@@ -289,6 +305,10 @@ class BusWidget(QtGui.QWidget):
     elif column == 2 and item.mrc_bus_data['idc'] > 0:
       self.mrc_model.set_rc(bus, dev, not rc)
       self.mrc_model.scanbus(bus)
+
+  def _slt_scanbus_button_clicked(self):
+    self.mrc_model.scanbus(0)
+    self.mrc_model.scanbus(1)
 
 class GenericDeviceWidget(QtGui.QWidget):
   def __init__(self, bus, dev, mrc_model, parent = None):
@@ -350,13 +370,17 @@ class GenericDeviceWidget(QtGui.QWidget):
         print "invalid value given!"
 
 def signal_handler(*args):
+  print "signal handler"
   QtGui.QApplication.quit()
 
 if __name__ == "__main__":
+  logging.basicConfig(level=logging.DEBUG, format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
+
   signal.signal(signal.SIGINT, signal_handler)
   app = QtGui.QApplication(sys.argv)
   mainwin = MainWindow()
   mainwin.show()
+  mainwin.showNormal()
   sys.exit(app.exec_())
 
 # vim:sw=2:sts=2
