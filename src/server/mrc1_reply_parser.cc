@@ -62,7 +62,7 @@ bool MRC1ReplyParser::parse_line(const std::string &reply_line)
 
 bool MRC1ReplyParser::parse_read_or_set(const std::string &reply_line)
 {
-  static const boost::regex re_read_or_set("^[SERM]{2}\\ (\\d+)\\ (\\d+)\\ (\\d+)\\ (\\d+)\\s*$");
+  static const boost::regex re_read_or_set("^[SERM]{2}\\ (\\d+)\\ (\\d+)\\ (\\d+)\\ (-?)(\\d+)\\s*$");
   boost::smatch matches;
 
   if (!regex_match(reply_line, matches, re_read_or_set)) {
@@ -70,12 +70,22 @@ bool MRC1ReplyParser::parse_read_or_set(const std::string &reply_line)
     return true;
   }
 
+  boost::uint16_t value(boost::lexical_cast<boost::uint16_t>(matches[5]));
+
+  /* If a negative value was given calculate an unsigned value from it using
+   * value = 2^(16-1) - value.
+   * So far I've only seen negative values when reading the MHV4 channel
+   * voltage value while negative polarity is active. */
+  if (matches[4] == "-") {
+    value = (1<<15) - value;
+  }
+
   m_response = Message::make_read_or_set_response(
       m_request->type,
       boost::lexical_cast<unsigned int>(matches[1]),
       boost::lexical_cast<unsigned int>(matches[2]),
       boost::lexical_cast<unsigned int>(matches[3]),
-      boost::lexical_cast<boost::uint16_t>(matches[4]));
+      value);
 
   return true;
 }
