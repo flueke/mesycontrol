@@ -42,7 +42,7 @@ import logging, Queue, signal, struct, sys
 from PyQt4 import QtCore, QtGui, QtNetwork, uic
 from PyQt4.QtCore import pyqtSignal
 from PyQt4.Qt import Qt
-from mesycontrol import Message, MessageInfo
+from mesycontrol.protocol import Message
 
 class TCPClient(QtCore.QObject):
   sig_connecting       = pyqtSignal('QString', int)
@@ -56,8 +56,9 @@ class TCPClient(QtCore.QObject):
     super(TCPClient, self).__init__(parent)
     self.host = self.port = None
     self._request_queue = Queue.Queue()
-    self._write_in_progress = False
+    self._request_in_progress = False
     self._response_size = None
+    self._max_queue_size = 0
 
     self.socket = QtNetwork.QTcpSocket(self)
     self.socket.connected.connect(self._slt_connected)
@@ -65,6 +66,9 @@ class TCPClient(QtCore.QObject):
     self.socket.error.connect(self._slt_socket_error)
     self.socket.bytesWritten.connect(self._slt_socket_bytesWritten)
     self.socket.readyRead.connect(self._slt_socket_readyRead)
+
+  def __del__(self):
+    logging.debug("TCPClient: max request queue size was %d" % self._max_queue_size)
 
   def connect(self, host, port):
     self.disconnect()
@@ -85,6 +89,7 @@ class TCPClient(QtCore.QObject):
   def queue_request(self, message):
     was_empty = self._request_queue.empty()
     self._request_queue.put(message)
+    self._max_queue_size = max(self._max_queue_size, self.get_request_queue_size())
     if was_empty:
       self._start_write_message()
 
@@ -92,25 +97,31 @@ class TCPClient(QtCore.QObject):
     return self._request_queue.qsize()
 
   def _start_write_message(self):
-    if self.is_connected() and not self._write_in_progress:
-      message = self._request_queue.get()
-      self._write_in_progress = True
-      logging.debug("TCPClient: writing message: %s" % message)
-      msg_data = message.serialize()
-      data = struct.pack('!H', len(msg_data)) + msg_data
-      self.socket.write(data)
+    if self.is_connected() and not self._request_in_progress:
+      try:
+        message = self._request_queue.get(False)
+        self._request_in_progress = True
+        logging.debug("TCPClient: writing message: %s" % message)
+        msg_data = message.serialize()
+        data = struct.pack('!H', len(msg_data)) + msg_data
+        self.socket.write(data)
+      except Queue.Empty:
+        logging.debug("TCPClient: message queue is empty")
+        return
 
   def _slt_socket_bytesWritten(self, n_bytes):
-    self._write_in_progress = False
+    pass
 
   def _slt_socket_readyRead(self):
     if self._response_size is None and self.socket.bytesAvailable() >= 2:
       self._response_size = struct.unpack('!H', self.socket.read(2))[0]
 
     if self._response_size is not None and self.socket.bytesAvailable() >= self._response_size:
+      # TODO: add and catch Message.deserialize() exceptions
       response_data = self.socket.read(self._response_size)
       message = Message.deserialize(response_data)
       self._response_size = None
+      self._request_in_progress = False
       logging.debug("TCPClient: received message: %s" % message)
       self.sig_message_received.emit(message)
       if not self._request_queue.empty():
@@ -129,6 +140,7 @@ class TCPClient(QtCore.QObject):
     self._response_size = None
 
   def _slt_socket_error(self, socket_error):
+    logging.error("TCPClient %s:%d: %s" % (self.host, self.port, self.socket.errorString()))
     self.sig_socket_error.emit(socket_error)
 
 class MRCModel(QtCore.QObject):
@@ -179,8 +191,8 @@ class MRCModel(QtCore.QObject):
 
   def _slt_client_connected(self, host, port):
     print "Connected to %s:%d. Scanning busses." % (host, port)
-    self.mrc_client.queue_request(Message('request_scanbus', bus=0))
-    self.mrc_client.queue_request(Message('request_scanbus', bus=1))
+    self.scanbus(0)
+    self.scanbus(1)
 
   def _slt_message_received(self, msg):
     if msg.get_type_name() == 'response_scanbus':
@@ -380,7 +392,4 @@ if __name__ == "__main__":
   app = QtGui.QApplication(sys.argv)
   mainwin = MainWindow()
   mainwin.show()
-  mainwin.showNormal()
   sys.exit(app.exec_())
-
-# vim:sw=2:sts=2
