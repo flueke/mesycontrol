@@ -38,11 +38,24 @@
 #     emit device_value_changed(bus, dev, par)
 
 
-import logging, Queue, signal, struct, sys
+import logging
+import os
+import Queue
+import signal
+import struct
+import sys
 from PyQt4 import QtCore, QtGui, QtNetwork, uic
 from PyQt4.QtCore import pyqtSignal
 from PyQt4.Qt import Qt
 from mesycontrol.protocol import Message
+
+def find_data_file(filename):
+   if getattr(sys, 'frozen', False):
+      datadir = os.path.join(os.path.dirname(sys.executable), os.path.dirname(os.readlink(sys.executable)))
+   else:
+      datadir = os.path.dirname(__file__)
+
+   return os.path.join(datadir, filename)
 
 class TCPClient(QtCore.QObject):
   sig_connecting       = pyqtSignal('QString', int)
@@ -218,7 +231,7 @@ class MainWindow(QtGui.QMainWindow):
     QtCore.QCoreApplication.instance().aboutToQuit.connect(self.on_qapp_quit)
 
     # load the ui
-    uic.loadUi('ui/mainwin.ui', self)
+    uic.loadUi(find_data_file('ui/mainwin.ui'), self)
 
     self.client = TCPClient()
     self.client.connect('localhost', 23000)

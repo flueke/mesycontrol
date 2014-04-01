@@ -39,4 +39,6 @@ if(WIN32)
     target_link_libraries(${MESYCONTROL_SERVER_TARGET} ${WINDOWS_LIBS})
 endif(WIN32)
 
+install(TARGETS ${MESYCONTROL_SERVER_TARGET} RUNTIME DESTINATION bin)
+
 # vim:tw=0

@@ -16,7 +16,7 @@ import readline
 import socket
 import struct
 import sys
-from mesycontrol import Message
+from mesycontrol.protocol import Message
 
 class Command:
     def __init__(self):

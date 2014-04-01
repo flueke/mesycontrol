@@ -1,0 +1,28 @@
+from cx_Freeze import setup, Executable
+import os
+import sys
+
+# Dependencies are automatically detected, but it might need
+# fine tuning.
+buildOptions = dict(
+      packages = [],
+      excludes = [],
+      include_files = [(os.path.join('${CMAKE_CURRENT_SOURCE_DIR}', 'ui'), 'ui')],
+      init_script = os.path.join('${CMAKE_CURRENT_SOURCE_DIR}', 'cxfreeze_ConsoleSetLibPath.py'),
+      path = sys.path + ['${CMAKE_CURRENT_SOURCE_DIR}']
+      )
+
+import sys
+base_gui = 'Win32GUI' if sys.platform=='win32' else None
+
+executables = [
+    Executable(os.path.join('${CMAKE_CURRENT_SOURCE_DIR}', 'mesycontrol_gui.py'), base=base_gui),
+    Executable(os.path.join('${CMAKE_CURRENT_SOURCE_DIR}', 'mesycontrol_cli.py'), base=None)
+]
+
+setup(name='mesycontrol',
+      version = '1.0',
+      description = 'mesycontrol',
+      options = dict(build_exe = buildOptions),
+      executables = executables,
+      )
