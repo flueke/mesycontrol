@@ -58,6 +58,42 @@ class DeviceConfigXML(object):
 
         device_configs = []
 
+        for config_node in element.iter('device_config'):
+            device_config = DeviceConfig()
+
+            n = config_node.find('device_description_name')
+            device_config.device_description = n.text if n is not None else None
+
+            n = config_node.find('device_description_file')
+            device_config.device_description_file = n.text if n is not None else None
+
+            n = config_node.find('alias')
+            device_config.alias = n.text if n is not None else None
+
+            n = config_node.find('mrc_address')
+            device_config.mrc_address = n.text if n is not None else None
+
+            n = config_node.find('mesycontrol_server')
+            device_config.mesycontrol_server = n.text if n is not None else None
+
+            n = config_node.find('bus_number')
+            device_config.bus_number = n.text if n is not None else None
+
+            n = config_node.find('device_number')
+            device_config.device_number = n.text if n is not None else None
+
+            for param_node in config_node.iter('parameter'):
+                param = ParameterConfig()
+                param.address = param_node.find('address').text
+                param.value   = param_node.find('value').text
+
+                n = param_node.find('alias')
+                param.alias = n.text if n is not None else None
+
+                device_config.parameters.append(param)
+
+            device_configs.append(device_config)
+
         return (device_descriptions, device_configs)
 
     @staticmethod

@@ -51,7 +51,10 @@ from mesycontrol.protocol import Message
 
 def find_data_file(filename):
    if getattr(sys, 'frozen', False):
-      datadir = os.path.join(os.path.dirname(sys.executable), os.path.dirname(os.readlink(sys.executable)))
+      exe = sys.executable
+      while os.path.islink(exe):
+         exe = os.path.abspath(os.path.join(os.path.dirname(exe), os.readlink(exe)))
+      datadir = os.path.dirname(exe)
    else:
       datadir = os.path.dirname(__file__)
 
@@ -161,7 +164,7 @@ class MRCModel(QtCore.QObject):
   # complete bus_data dict.
   sig_bus_data_changed = pyqtSignal(dict)
 
-  # Emitted after a value has been read. Args are bus, dev, par, value
+  # Emitted after a value has been read or set. Args are bus, dev, par, value
   sig_parameter_value_changed = pyqtSignal(int, int, int, int)
 
   def __init__(self, mrc_client, parent = None):

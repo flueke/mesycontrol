@@ -37,8 +37,8 @@ class DeviceConfig(object):
 class ParameterConfig(object):
     def __init__(self):
         self.address = None #: Numeric address or parameter description name
-        self.alias   = None #: Optional user defined alias for the parameter.
         self.value   = None #: The parameters unsigned short value.
+        self.alias   = None #: Optional user defined alias for the parameter.
 
 # Where to store aliases for MRCs? Probably in the clients connection list.
 # Then MRC aliases could be used in device configurations instead of some kind
@@ -50,7 +50,7 @@ class ParameterConfig(object):
 # * Zero or more device descriptions
 # * Zero or more device configurations
 # * At least one of the above must be present
-# * An optional file description
+# * An optional file description/comment.
 # * The device configurations may reference file-internal device descriptions,
 #   built-in device descriptions and possibly filenames containing device
 #   descriptions.
