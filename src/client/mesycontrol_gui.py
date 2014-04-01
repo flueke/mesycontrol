@@ -53,7 +53,11 @@ def find_data_file(filename):
    if getattr(sys, 'frozen', False):
       exe = sys.executable
       while os.path.islink(exe):
-         exe = os.path.abspath(os.path.join(os.path.dirname(exe), os.readlink(exe)))
+         lnk = os.readlink(exe)
+         if os.path.isabs(lnk):
+            exe = lnk
+         else:
+            exe = os.path.abspath(os.path.join(os.path.dirname(exe), lnk))
       datadir = os.path.dirname(exe)
    else:
       datadir = os.path.dirname(__file__)
