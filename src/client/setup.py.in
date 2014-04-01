@@ -21,7 +21,7 @@ executables = [
 ]
 
 setup(name='mesycontrol',
-      version = '1.0',
+      version = '0.1', # TODO: use CMAKE variables here
       description = 'mesycontrol',
       options = dict(build_exe = buildOptions),
       executables = executables,
