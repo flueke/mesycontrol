@@ -1,0 +1,43 @@
+* server
+  - logging
+  - exception safety
+  - auto reconnect to mrc (forever? a certain number of times? longer timeouts in between?)
+  - timeouts
+  - rework request dispatcher as it doesn't know about which TCPConnection
+    queues a request
+  - add max connections feature
+
+* gui client
+  - multi connection support
+  - automatic server starting / stopping / logging if a direct (non-server)
+    connection is requested
+  - present all mrcs and devices in some nice widget
+  - allow bus rescans, reconnects, etc.
+  - open device window on click. by default uses a device specific widget if
+    present, otherwise (and by user request) opens the device as a generic
+    device
+  - load and save device description files
+  - load and save device config files, optionally including the description
+    (needed for generic devices _if_ saved with named parameters) as otherwise
+    the config can't be loaded. Alternative: prompt for a generic device
+    description.
+
+* cli client
+  - commands and grammar
+  - non blocking, timeout aware client (could probably re-use the gui TCPClient)
+  - multi connection support. Needs a way to specify which mrc to address with commands
+  - commands: connect, connections list, disconnect, set, read, scanbus, load
+    device config, read device config (could be added just like a mrc
+    connection), verify device state == expected device config state
+  - expressions:
+    * compare param value to a given value / another param (eq, gt, lt, le, ...)
+
+* python lib:
+  - specify names to export from modules
+
+* protocol
+  - add master client feature so that only one client has write access
+  - add parameter_set, silent_mode_changed, master_changed, etc. notifications
+    (param set is important if using multiple gui clients. they should be
+    notified about changed params)
+  - add status request to get the status of the mrc connection (e.g. connected, reconnecting, ...)

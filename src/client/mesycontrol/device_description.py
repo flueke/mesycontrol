@@ -29,7 +29,7 @@ class ParameterDescription(object):
 
 class DeviceDescription(object):
     def __init__(self):
-        self.idc  = None        #: Device IDC
+        self.idc  = None        #: Device Identifier Code
         self.name = None        #: Device name (e.g. MHV4). Should be unique.
         self.parameters = []    #: List of ParameterDescription objects
 
