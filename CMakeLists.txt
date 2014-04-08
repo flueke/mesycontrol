@@ -16,4 +16,7 @@ add_subdirectory(src)
 add_subdirectory(doc)
 
 set(CPACK_GENERATOR "TBZ2")
+set(CPACK_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${CMAKE_SYSTEM}")
 include(CPack)
+
+# vim:tw=0

@@ -9,7 +9,7 @@ set(PYTHON_SOURCES
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol_cli.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_config.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_config_xml.py"
-   "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_desc_mhv4.py"
+   "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_description_mhv4.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_description.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol_gui.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/__init__.py"
