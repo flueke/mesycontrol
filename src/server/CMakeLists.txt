@@ -28,7 +28,7 @@ option(BOOST_ASIO_ENABLE_HANDLER_TRACKING "enable boost::asio handler tracking")
 option(BOOST_ASIO_ENABLE_BUFFER_DEBUGGING "enable boost::asio buffer debugging")
 
 add_executable(${MESYCONTROL_SERVER_TARGET} ${MESYCONTROL_SERVER_SRCS} ${MESYCONTROL_GLOBAL_SOURCES})
-target_link_libraries(${MESYCONTROL_SERVER_TARGET} ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(${MESYCONTROL_SERVER_TARGET} ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} rt)
 
 if(WIN32)
     # Statically link against the GCC and C++ libraries to avoid
