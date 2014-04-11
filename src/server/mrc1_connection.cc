@@ -1,5 +1,6 @@
 #include <boost/bind.hpp>
 #include <boost/enable_shared_from_this.hpp>
+#include <boost/log/trivial.hpp>
 #include <boost/make_shared.hpp>
 #include "mrc1_connection.h"
 
@@ -89,7 +90,7 @@ class MRC1Initializer:
         std::cerr << "mrc1 initializer: init success" << std::endl;
         m_completion_handler(boost::system::error_code());
       } else {
-        std::cerr << "mrc1 initializer: init failed" << std::endl;
+        std::cerr << "mrc1 initializer: init failed: '" << last_line << "'" << std::endl;
         // signal failure using io_error for now
         m_completion_handler(boost::system::error_code(errc::io_error, boost::system::system_category())); 
       }
@@ -134,7 +135,7 @@ void MRC1Connection::handle_start(const boost::system::error_code &ec)
       ->start();
   } else {
     std::cerr << "mrc1: start_impl failed: " << ec.message() << std::endl;
-    stop(ec);
+    stop(ec, connect_failed);
   }
 }
 
@@ -147,10 +148,11 @@ void MRC1Connection::stop()
   std::cerr << "mrc1: stopped" << std::endl;
 }
 
-void MRC1Connection::stop(const boost::system::error_code &reason)
+void MRC1Connection::stop(const boost::system::error_code &reason, Status new_status)
 {
   stop();
   m_last_error = reason;
+  m_status     = new_status;
 }
 
 void MRC1Connection::handle_init(const boost::system::error_code &ec)
@@ -160,7 +162,7 @@ void MRC1Connection::handle_init(const boost::system::error_code &ec)
     std::cerr << "mrc1: init complete: " << ec.message() << std::endl;
   } else {
     std::cerr << "mrc1: init failed: " << ec.message() << std::endl;
-    stop(ec);
+    stop(ec, init_failed);
   }
 }
 
@@ -217,10 +219,13 @@ void MRC1Connection::handle_read_line(const boost::system::error_code &ec, std::
     is.ignore(1); // consume the trailing \r
 
     if (!m_reply_parser.parse_line(reply_line)) {
+      BOOST_LOG_TRIVIAL(debug) << "Reply parser needs more input";
       /* More input needed. */
       start_read_line(m_read_buffer,
           boost::bind(&MRC1Connection::handle_read_line, shared_from_this(), _1, _2));
     } else {
+      BOOST_LOG_TRIVIAL(debug) << "Reply parser done. result type = "
+        << m_reply_parser.get_response_message()->type;
       /* Parsing complete. Call the response handler. */
       m_io_service.post(boost::bind(m_current_response_handler, m_current_command,
             m_reply_parser.get_response_message()));

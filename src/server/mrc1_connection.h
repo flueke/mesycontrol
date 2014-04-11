@@ -24,7 +24,9 @@ class MRC1Connection:
     {
       stopped,
       connecting,
+      connect_failed,
       initializing,
+      init_failed,
       running,
     };
 
@@ -56,6 +58,7 @@ class MRC1Connection:
     bool is_running() const { return m_status == running; }
     bool is_stopped() const { return m_status == stopped; }
     boost::system::error_code get_last_error() const { return m_last_error; }
+    boost::asio::io_service &get_io_service() { return m_io_service; }
 
     virtual ~MRC1Connection() {};
 
@@ -112,7 +115,7 @@ class MRC1Connection:
     void handle_start(const boost::system::error_code &ec);
     void handle_init(const boost::system::error_code &ec);
     void handle_timeout(const boost::system::error_code &ec);
-    void stop(const boost::system::error_code &reason);
+    void stop(const boost::system::error_code &reason, Status new_status = stopped);
 
     friend class MRC1Initializer;
 

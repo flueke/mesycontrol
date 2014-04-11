@@ -56,7 +56,8 @@ namespace error_type
     mrc_comm_error      = 7,
     silenced            = 8,
     unknown_error       = 9,
-    mrc_connect_error   = 10
+    mrc_connect_error   = 10,
+    mrc_initializing    = 11
   };
 } // namespace ErrorType
 

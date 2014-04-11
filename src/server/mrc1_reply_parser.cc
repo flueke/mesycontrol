@@ -96,6 +96,8 @@ bool MRC1ReplyParser::parse_scanbus(const std::string &reply_line)
   static const boost::regex re_body("^(\\d+):\\ (-|((\\d+),\\ (ON|0FF)))\\s*$"); // 0FF with 0 not O!
   boost::smatch matches;
 
+  std::cerr << __PRETTY_FUNCTION__ << "reply_line = '" << reply_line << "'" << std::endl;
+
   if (regex_match(reply_line, matches, re_header)) {
     m_response->type = message_type::response_scanbus;
     m_response->bus  = boost::lexical_cast<unsigned int>(matches[1]);

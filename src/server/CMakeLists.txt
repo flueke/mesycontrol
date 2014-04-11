@@ -5,7 +5,7 @@ if (WIN32) # Use static boost libraries for windows builds.
     set(Boost_USE_STATIC_LIBS ON)
 endif(WIN32)
 
-find_package(Boost 1.46 REQUIRED COMPONENTS program_options system date_time log regex thread)
+find_package(Boost 1.54 REQUIRED COMPONENTS chrono program_options system date_time log regex thread)
 find_package(Threads REQUIRED)
 
 include_directories(${Boost_INCLUDE_DIRS})

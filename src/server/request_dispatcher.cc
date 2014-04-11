@@ -6,7 +6,8 @@ namespace mesycontrol
 
 RequestDispatcher::RequestDispatcher(
     const boost::shared_ptr<MRC1Connection> &mrc1_connection):
-  m_mrc1_connection(mrc1_connection)
+  m_mrc1_connection(mrc1_connection),
+  m_retry_timer(mrc1_connection->get_io_service())
 {
 }
 
@@ -63,9 +64,32 @@ void RequestDispatcher::try_send_mrc1_request()
     return;
   }
 
+  if (m_mrc1_connection->get_status() == MRC1Connection::initializing) {
+    std::cerr << __PRETTY_FUNCTION__ << ": MRC1Connection is still initializing. Retrying." << std::endl;
+    m_retry_timer.expires_from_now(boost::chrono::seconds(2));
+    m_retry_timer.async_wait(boost::bind(&RequestDispatcher::handle_retry_timer, this, _1));
+    return;
+  }
+
   if (!m_mrc1_connection->is_running()) {
+    error_type::ErrorType et;
+
+    switch (m_mrc1_connection->get_status()) {
+      case MRC1Connection::connect_failed:
+        et = error_type::mrc_connect_error;
+        break;
+      case MRC1Connection::initializing:
+        et = error_type::mrc_initializing;
+        break;
+      case MRC1Connection::init_failed:
+        et = error_type::mrc_comm_error;
+        break;
+      default:
+        et = error_type::unknown_error;
+        break;
+    }
     std::cerr << __PRETTY_FUNCTION__ << ": mrc connection is not running!" << std::endl;
-    handle_mrc1_response(m_mrc1_request_queue.front().first, Message::make_error_response(error_type::mrc_connect_error));
+    handle_mrc1_response(m_mrc1_request_queue.front().first, Message::make_error_response(et));
   } else {
     std::cerr << __PRETTY_FUNCTION__ << ": calling mrc write command" << std::endl;
     std::cerr << __PRETTY_FUNCTION__ << ": message type = " << m_mrc1_request_queue.front().first->type << std::endl;
@@ -73,6 +97,11 @@ void RequestDispatcher::try_send_mrc1_request()
     m_mrc1_connection->write_command(m_mrc1_request_queue.front().first,
         boost::bind(&RequestDispatcher::handle_mrc1_response, this, _1, _2));
   }
+}
+
+void RequestDispatcher::handle_retry_timer(const boost::system::error_code &)
+{
+  try_send_mrc1_request();
 }
 
 } // namespace mesycontrol
