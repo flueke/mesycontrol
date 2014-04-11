@@ -33,19 +33,27 @@ class DeviceDescription(object):
         self.name = None        #: Device name (e.g. MHV4). Should be unique.
         self.parameters = []    #: List of ParameterDescription objects
         self._name2param = {}
+        self._address2param = {}
 
     def add_parameter(self, param):
         self.parameters.append(param)
         self._name2param[param.name] = param
-        #param.setParent(self)
+        self._address2param[param.address] = param
 
     def del_parameter(self, param):
         if param in self.parameters:
             self.parameters.remove(param)
             del self._name2param[param.name]
+            del self._address2param[param.address]
 
     def get_parameter_by_name(self, name):
         return self._name2param.get(name, None)
+
+    def get_parameter_by_address(self, address):
+       return self._address2param.get(address, None)
+
+    def get_critical_parameters(self):
+       return [p for p in self.parameters if p.critical]
 
     @staticmethod
     def fromDict(d):

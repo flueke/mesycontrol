@@ -195,11 +195,15 @@ class DeviceViewModel(QtCore.QObject):
 
     def _slt_parameterRead(self, address, value):
         self.sig_parameterRead[int, int].emit(address, value)
-        self.sig_parameterRead[str, int].emit(self._address2name(address), value)
+        param_desc = self.device_description.get_parameter_by_address(address)
+        if param_desc is not None and param_desc.name is not None:
+           self.sig_parameterRead[str, int].emit(param_desc.name, value)
 
     def _slt_parameterSet(self, address, value):
         self.sig_parameterSet[int, int].emit(address, value)
-        self.sig_parameterSet[str, int].emit(self._address2name(address), value)
+        param_desc = self.device_description.get_parameter_by_address(address)
+        if param_desc is not None and param_desc.name is not None:
+           self.sig_parameterSet[str, int].emit(param_desc.name, value)
 
 class MHV4ViewModel(DeviceViewModel):
     def __init__(self, device_model, device_description, device_config=None):

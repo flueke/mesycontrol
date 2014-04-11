@@ -13,7 +13,7 @@ class InvalidArgument(RuntimeError):
 class DeviceConfigXML(object):
     @staticmethod
     def parse_file(filename):
-        return DeviceConfigXML.parse_etree(ElementTree.ElementTree(ElementTree.parse(filename)))
+        return DeviceConfigXML.parse_etree(ElementTree.parse(filename))
 
     @staticmethod
     def parse_string(xml_str):
@@ -33,12 +33,15 @@ class DeviceConfigXML(object):
         for desc_node in element.iter('device_description'):
             device_desc      = DeviceDescription()
             device_desc.idc  = int(desc_node.find('idc').text)
-            device_desc.name = desc_node.find('name').text
+            n = desc_node.find('name')
+            device_desc.name = n.text if n is not None else None
 
             for param_node in desc_node.iter('parameter'):
                 param_desc         = ParameterDescription()
                 param_desc.address = int(param_node.find('address').text)
-                param_desc.name    = param_node.find('name').text
+
+                n = param_node.find('name')
+                param_desc.name    = n.text if n is not None else None
 
                 n = param_node.find('poll')
                 param_desc.poll = True if n is not None and int(n.text) else False
@@ -126,13 +129,16 @@ class DeviceConfigXML(object):
         tb.start("device_description", {})
 
         DeviceConfigXML._add_tag(tb, "idc", str(desc.idc))
-        DeviceConfigXML._add_tag(tb, "name", desc.name)
+        if desc.name is not None:
+            DeviceConfigXML._add_tag(tb, "name", str(desc.name))
 
         for pd in desc.parameters:
             tb.start("parameter", {})
 
             DeviceConfigXML._add_tag(tb, "address", str(pd.address))
-            DeviceConfigXML._add_tag(tb, "name", pd.name)
+
+            if pd.name is not None:
+                DeviceConfigXML._add_tag(tb, "name", str(pd.name))
 
             if pd.poll:
                 DeviceConfigXML._add_tag(tb, "poll", "1")
@@ -165,17 +171,17 @@ class DeviceConfigXML(object):
         tb.start("device_config", {})
 
         if descr_name:
-            DeviceConfigXML._add_tag(tb, "device_description_name", descr_name)
+            DeviceConfigXML._add_tag(tb, "device_description_name", str(descr_name))
         elif descr_file:
-            DeviceConfigXML._add_tag(tb, "device_description_file", descr_file)
+            DeviceConfigXML._add_tag(tb, "device_description_file", str(descr_file))
 
         if cfg.alias:
-            DeviceConfigXML._add_tag(tb, "alias", cfg.alias)
+            DeviceConfigXML._add_tag(tb, "alias", str(cfg.alias))
 
         if cfg.mrc_address:
-            DeviceConfigXML._add_tag(tb, "mrc_address", cfg.mrc_address)
+            DeviceConfigXML._add_tag(tb, "mrc_address", str(cfg.mrc_address))
         elif cfg.mesycontrol_server:
-            DeviceConfigXML._add_tag(tb, "mesycontrol_server", cfg.mesycontrol_server)
+            DeviceConfigXML._add_tag(tb, "mesycontrol_server", str(cfg.mesycontrol_server))
 
         if not cfg.bus_number is None and not cfg.device_number is None:
             DeviceConfigXML._add_tag(tb, "bus_number", str(cfg.bus_number))
@@ -188,7 +194,7 @@ class DeviceConfigXML(object):
             DeviceConfigXML._add_tag(tb, "value", str(p.value))
 
             if p.alias:
-                DeviceConfigXML._add_tag(tb, "alias", p.alias)
+                DeviceConfigXML._add_tag(tb, "alias", str(p.alias))
 
             tb.end("parameter")
 

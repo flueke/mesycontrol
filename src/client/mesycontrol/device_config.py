@@ -33,35 +33,40 @@ class DeviceConfig(QtCore.QObject):
 
     def set_alias(self, alias):
         self._alias = alias
-        self.alias_changed.emit(alias)
+        if alias is not None:
+           self.alias_changed.emit(alias)
 
     def get_mrc_address(self):
         return self._mrc_address
 
     def set_mrc_address(self, address):
         self._mrc_address = address
-        self.mrc_address_changed.emit(address)
+        if address is not None:
+           self.mrc_address_changed.emit(address)
 
     def get_mesycontrol_server(self):
         return self._mesycontrol_server
 
     def set_mesycontrol_server(self, server):
         self._mesycontrol_server = server
-        self.mesycontrol_server_changed.emit(server)
+        if server is not None:
+           self.mesycontrol_server_changed.emit(server)
 
     def get_bus_number(self):
         return self._bus_number
 
     def set_bus_number(self, bus_number):
         self._bus_number = bus_number
-        self.bus_number_changed.emit(bus_number)
+        if bus_number is not None:
+           self.bus_number_changed.emit(bus_number)
 
     def get_device_number(self):
         return self._device_number
 
     def set_device_number(self, device_number):
         self._device_number = device_number
-        self.device_number_changed.emit(device_number)
+        if device_number is not None:
+           self.device_number_changed.emit(device_number)
 
     def add_parameter(self, parameter):
         if parameter.address in self._address2param:
@@ -76,6 +81,7 @@ class DeviceConfig(QtCore.QObject):
         if parameter in self._parameters:
             self._parameters.remove(parameter)
             del self._address2param[parameter.address]
+            parameter.setParent(None)
             self.parameter_deleted.emit(parameter)
 
     def get_parameter(self, address):
@@ -132,14 +138,16 @@ class ParameterConfig(QtCore.QObject):
 
     def set_value(self, value):
         self._value = value
-        self.value_changed.emit(value)
+        if value is not None:
+           self.value_changed.emit(value)
 
     def get_alias(self):
         return self._alias
 
     def set_alias(self, alias):
         self._alias = alias
-        self.alias_changed.emit(alias)
+        if alias is not None:
+           self.alias_changed.emit(alias)
 
     value_changed = pyqtSignal(int)
     alias_changed = pyqtSignal(str)
