@@ -2,43 +2,154 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-class DeviceConfig(object):
-    def __init__(self):
-        #: Optional name of a device description or a DeviceDescription instance or None.
-        self.device_description = None  
+from PyQt4 import QtCore
+from PyQt4.QtCore import pyqtProperty
+from PyQt4.QtCore import pyqtSignal
 
-        #: Optional path to a file containing the device description to use.
-        #: self.device_description has precendence over this setting.
-        self.device_description_file = None
+class DeviceConfigError(Exception):
+    pass
 
-        #: Optional user defined alias for this device.
-        self.alias = None
+class DeviceConfig(QtCore.QObject):
+    def __init__(self, parent=None):
+        super(DeviceConfig, self).__init__(parent)
+        self._device_description = None
+        self._alias              = None
+        self._mrc_address        = None
+        self._mesycontrol_server = None
+        self._bus_number         = None
+        self._device_number      = None
+        self._parameters         = []
+        self._address2param      = {}
 
-        #: Optional mrc address specification.
-        #: Format is: <dev>@<baud> or <host>:<port>.
-        #: If specified this setting can enable auto-starting of a mesycontrol
-        #: server connecting to the given mrc.
-        self.mrc_address = None
+    def get_device_description(self):
+        return self._device_description
 
-        #: Optional address of a mesycontrol server to connect to.
-        #: Format is <host>:<port>.
-        self.mesycontrol_server = None
+    def set_device_description(self, obj):
+        self._device_description = obj
+        self.device_description_changed.emit(obj)
 
-        #: Optional bus number of the device.
-        self.bus_number = None
+    def get_alias(self):
+        return self._alias
 
-        #: Optional device number on the bus.
-        self.device_number = None
+    def set_alias(self, alias):
+        self._alias = alias
+        self.alias_changed.emit(alias)
 
-        #: The list of ParameterConfig objects containing the actual
-        #: parameter values.
-        self.parameters = []
+    def get_mrc_address(self):
+        return self._mrc_address
 
-class ParameterConfig(object):
-    def __init__(self):
-        self.address = None #: Numeric address or parameter description name
-        self.value   = None #: The parameters unsigned short value.
-        self.alias   = None #: Optional user defined alias for the parameter.
+    def set_mrc_address(self, address):
+        self._mrc_address = address
+        self.mrc_address_changed.emit(address)
+
+    def get_mesycontrol_server(self):
+        return self._mesycontrol_server
+
+    def set_mesycontrol_server(self, server):
+        self._mesycontrol_server = server
+        self.mesycontrol_server_changed.emit(server)
+
+    def get_bus_number(self):
+        return self._bus_number
+
+    def set_bus_number(self, bus_number):
+        self._bus_number = bus_number
+        self.bus_number_changed.emit(bus_number)
+
+    def get_device_number(self):
+        return self._device_number
+
+    def set_device_number(self, device_number):
+        self._device_number = device_number
+        self.device_number_changed.emit(device_number)
+
+    def add_parameter(self, parameter):
+        if parameter.address in self._address2param:
+            raise DeviceConfigError("Duplicate parameter address %d" % parameter.address)
+
+        parameter.setParent(self)
+        self._parameters.append(parameter)
+        self._address2param[parameter.address] = parameter
+        self.parameter_added.emit(parameter)
+
+    def del_parameter(self, parameter):
+        if parameter in self._parameters:
+            self._parameters.remove(parameter)
+            del self._address2param[parameter.address]
+            self.parameter_deleted.emit(parameter)
+
+    def get_parameter(self, address):
+        return self._address2param.get(address, None)
+
+    def get_parameters(self):
+        return list(self._parameters)
+
+    device_description_changed  = pyqtSignal(object)
+    alias_changed               = pyqtSignal(object)
+    mrc_address_changed         = pyqtSignal(str)
+    mesycontrol_server_changed  = pyqtSignal(str)
+    bus_number_changed          = pyqtSignal(int)
+    device_number_changed       = pyqtSignal(int)
+    parameter_added             = pyqtSignal(object)
+    parameter_deleted           = pyqtSignal(object)
+
+    #: Optional name of a device description or a DeviceDescription instance or None.
+    device_description = pyqtProperty(object,
+            get_device_description, set_device_description, notify=device_description_changed)
+
+    #: Optional user defined alias for this device.
+    alias = pyqtProperty(str, get_alias, set_alias, notify=alias_changed)
+
+    #: Optional mrc address specification.
+    #: Format is: <dev>@<baud> or <host>:<port>.
+    #: If specified this setting can enable auto-starting of a mesycontrol
+    #: server connecting to the given mrc.
+    mrc_address = pyqtProperty(str, get_mrc_address, set_mrc_address, notify=mrc_address_changed)
+
+    #: Optional address of a mesycontrol server to connect to.
+    #: Format is <host>:<port>.
+    mesycontrol_server = pyqtProperty(str, get_mesycontrol_server, set_mesycontrol_server,
+            notify=mesycontrol_server_changed)
+
+    #: Optional bus number of the device.
+    bus_number = pyqtProperty(int, get_bus_number, set_bus_number, notify=bus_number_changed)
+
+    #: Optional device number on the bus.
+    device_number = pyqtProperty(int, get_device_number, set_device_number, notify=device_number_changed)
+
+class ParameterConfig(QtCore.QObject):
+    def __init__(self, address, value=None, alias=None, parent=None):
+        super(ParameterConfig, self).__init__(parent)
+        self._address = address
+        self._value   = value
+        self._alias   = alias
+
+    def get_address(self):
+        return self._address
+
+    def get_value(self):
+        return self._value
+
+    def set_value(self, value):
+        self._value = value
+        self.value_changed.emit(value)
+
+    def get_alias(self):
+        return self._alias
+
+    def set_alias(self, alias):
+        self._alias = alias
+        self.alias_changed.emit(alias)
+
+    value_changed = pyqtSignal(int)
+    alias_changed = pyqtSignal(str)
+
+    #: Numeric address or parameter description name
+    address = pyqtProperty(int, get_address)
+    #: The parameters unsigned short value.
+    value   = pyqtProperty(int, get_value, set_value, notify=value_changed)
+    #: Optional user defined alias for the parameter.
+    alias   = pyqtProperty(str, get_alias, set_alias, notify=alias_changed)
 
 # Where to store aliases for MRCs? Probably in the clients connection list.
 # Then MRC aliases could be used in device configurations instead of some kind

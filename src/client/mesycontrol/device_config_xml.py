@@ -4,7 +4,7 @@
 
 from xml.etree import ElementTree
 from xml.etree.ElementTree import TreeBuilder
-from device_config import DeviceConfig
+from device_config import DeviceConfig, ParameterConfig
 from device_description import DeviceDescription, ParameterDescription
 
 class InvalidArgument(RuntimeError):
@@ -83,14 +83,13 @@ class DeviceConfigXML(object):
             device_config.device_number = n.text if n is not None else None
 
             for param_node in config_node.iter('parameter'):
-                param = ParameterConfig()
-                param.address = param_node.find('address').text
-                param.value   = param_node.find('value').text
+                param = ParameterConfig(address=param_node.find('address').text,
+                        value=param_node.find('value').text)
 
                 n = param_node.find('alias')
                 param.alias = n.text if n is not None else None
 
-                device_config.parameters.append(param)
+                device_config.add_parameter(param)
 
             device_configs.append(device_config)
 
@@ -182,7 +181,7 @@ class DeviceConfigXML(object):
             DeviceConfigXML._add_tag(tb, "bus_number", str(cfg.bus_number))
             DeviceConfigXML._add_tag(tb, "device_number", str(cfg.device_number))
 
-        for p in cfg.parameters:
+        for p in cfg.get_parameters():
             tb.start("parameter", {})
 
             DeviceConfigXML._add_tag(tb, "address", str(p.address))

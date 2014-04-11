@@ -15,7 +15,7 @@ class ParameterDescription(object):
         self.poll = False       #: True if this parameter should be polled repeatedly.
         self.read_only = False  #: True if this parameter is read only.
         self.critical = False   #: True if this parameter affects a critical
-                                #  device setting (e.g. HV channel on).
+                                #  device setting (e.g. MHV4 channel enable).
         self.safe_value = 0     #: Optional safe value if this parameter is critical.
 
     @staticmethod
@@ -32,6 +32,20 @@ class DeviceDescription(object):
         self.idc  = None        #: Device Identifier Code
         self.name = None        #: Device name (e.g. MHV4). Should be unique.
         self.parameters = []    #: List of ParameterDescription objects
+        self._name2param = {}
+
+    def add_parameter(self, param):
+        self.parameters.append(param)
+        self._name2param[param.name] = param
+        #param.setParent(self)
+
+    def del_parameter(self, param):
+        if param in self.parameters:
+            self.parameters.remove(param)
+            del self._name2param[param.name]
+
+    def get_parameter_by_name(self, name):
+        return self._name2param.get(name, None)
 
     @staticmethod
     def fromDict(d):
@@ -40,7 +54,7 @@ class DeviceDescription(object):
             ret.name = d['name']
             ret.idc  = int(d['idc'])
             for pd in d['parameters']:
-                ret.parameters.append(ParameterDescription.fromDict(pd))
+                ret.add_parameter(ParameterDescription.fromDict(pd))
             return ret
         except KeyError as e:
             raise MissingAttribute(e.message)

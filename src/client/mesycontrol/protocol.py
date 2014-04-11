@@ -171,19 +171,32 @@ class ErrorInfo:
 
   for info in info_list:
     by_code[info['code']] = info
-  by_name[info['name']] = info
+    by_name[info['name']] = info
 
   @staticmethod
   def get_error_names():
     return ErrorInfo.by_name.keys()
 
+class MessageError(Exception):
+  pass
+
+# TODO: override setters for bus, dev, par, value to make sure the given values
+# are valid.
 class Message:
   def __init__(self, type_code, **kwargs):
     try:
-      self.type_code = int(type_code)
+      type_code = int(type_code)
     except ValueError:
       # Assume a type name was given and convert it to a type code
-      self.type_code = MessageInfo.by_name[type_code]['code']
+      try:
+        type_code = MessageInfo.by_name[type_code]['code']
+      except KeyError:
+        raise MessageError("No such message type: %s" % type_code)
+
+    if not type_code in MessageInfo.by_code:
+      raise MessageError("No such message type: %d" % type_code)
+
+    self.type_code = type_code
 
     for k,v in kwargs.iteritems():
       setattr(self, k, v)

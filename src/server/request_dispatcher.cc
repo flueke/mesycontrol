@@ -66,7 +66,7 @@ void RequestDispatcher::try_send_mrc1_request()
 
   if (m_mrc1_connection->get_status() == MRC1Connection::initializing) {
     std::cerr << __PRETTY_FUNCTION__ << ": MRC1Connection is still initializing. Retrying." << std::endl;
-    m_retry_timer.expires_from_now(boost::chrono::seconds(2));
+    m_retry_timer.expires_from_now(boost::chrono::seconds(1));
     m_retry_timer.async_wait(boost::bind(&RequestDispatcher::handle_retry_timer, this, _1));
     return;
   }

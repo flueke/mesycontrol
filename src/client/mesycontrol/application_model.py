@@ -1,0 +1,216 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# Author: Florian Lüke <florianlueke@gmx.net>
+
+from PyQt4 import QtCore
+from PyQt4.QtCore import pyqtSignal
+from mesycontrol.protocol import Message
+
+class ApplicationModel(QtCore.QObject):
+    sig_connection_added = pyqtSignal(object)
+
+    def __init__(self, parent = None):
+        super(ApplicationModel, self).__init__(parent)
+        self.device_descriptions = set()
+        self.mrc_connections = list()
+
+    def registerConnection(self, conn):
+        conn.setParent(self)
+        self.mrc_connections.append(conn)
+        self.sig_connection_added.emit(conn)
+
+    def shutdown(self):
+        while len(self.mrc_connections):
+            conn = self.mrc_connections.pop()
+            conn.stop()
+            del conn
+
+instance = ApplicationModel()
+
+class MRCModel(QtCore.QObject):
+    #: Emitted after both mrc busses have been scanned. The argument is the
+    #: complete bus data dictionary.
+    sig_bus_data_complete   = pyqtSignal(dict)
+    #: Args: bus, dev, par, val
+    sig_parameterRead       = pyqtSignal(int, int, int, int)
+    #: Args: bus, dev, par, val
+    sig_parameterSet        = pyqtSignal(int, int, int, int)
+    #: Args: bus, dev, rc_status
+    sig_rcSet               = pyqtSignal(int, int, bool)
+
+    sig_connected           = pyqtSignal()
+    sig_disconnected        = pyqtSignal()
+
+    def __init__(self, connection, parent=None):
+        super(MRCModel, self).__init__(parent)
+        self.bus_data = {}
+        self.connection = connection
+        self.client     = connection.tcp_client
+        self.client.sig_connected.connect(self._slt_client_connected)
+        self.client.sig_disconnected.connect(self._slt_client_disconnected)
+        self.client.sig_message_received.connect(self._slt_message_received)
+        self.client.sig_queue_empty.connect(self._slt_client_queue_empty)
+
+    def scanbus(self, bus):
+      self.client.queue_request(Message('request_scanbus', bus=bus))
+
+    def readParameter(self, bus, dev, par):
+      self.client.queue_request(Message('request_read', bus=bus, dev=dev, par=par))
+
+    def setParameter(self, bus, dev, par, value):
+      self.client.queue_request(Message('request_set', bus=bus, dev=dev, par=par, val=value))
+
+    def setRc(self, bus, dev, rc):
+      self.client.queue_request(Message('request_rc_on' if rc else 'request_rc_off', bus=bus, dev=dev))
+
+    def _slt_client_connected(self, host, port):
+        print "Connected to %s:%d. Scanning busses." % (host, port)
+        self.scanbus(0)
+        self.scanbus(1)
+        self.sig_connected.emit()
+
+    def _slt_client_disconnected(self):
+        self.sig_disconnected.emit()
+
+    def _slt_message_received(self, msg):
+        if msg.get_type_name() == 'response_scanbus':
+            if msg.bus not in self.bus_data:
+                self.bus_data[msg.bus] = {}
+
+            for dev in range(16):
+                idc, rc = msg.bus_data[dev]
+
+                if idc > 0 and dev not in self.bus_data[msg.bus]:
+                    self.bus_data[msg.bus][dev] = DeviceModel(msg.bus, dev, idc, rc, mrc_model=self, parent=self)
+                elif idc > 0:
+                    self.bus_data[msg.bus][dev].rc = rc
+
+            if len(self.bus_data) == 2:
+                self.sig_bus_data_complete.emit(self.bus_data)
+
+        elif msg.get_type_name() == 'response_read':
+            self.sig_parameterRead.emit(msg.bus, msg.dev, msg.par, msg.val)
+        elif msg.get_type_name() == 'response_set':
+            self.sig_parameterSet.emit(msg.bus, msg.dev, msg.par, msg.val)
+        else:
+            print "Unhandled message type:", msg.get_type_name()
+
+    def _slt_client_queue_empty(self):
+        pass
+        #self._queue_poll_parameters()
+
+    def _queue_poll_parameters(self):
+        pass
+        #for bus, dev, par in self.poll_set:
+        #    self.read_parameter(bus, dev, par)
+
+class DeviceModel(QtCore.QObject):
+    #: Args: par, val
+    sig_parameterRead       = pyqtSignal(int, int)
+    #: Args: par, val
+    sig_parameterSet        = pyqtSignal(int, int)
+    #: Args: par, old_val, new_val
+    #sig_parameterChanged    = pyqtSignal(int, int, int)
+    #: Arg: rc_status
+    sig_rcSet               = pyqtSignal(bool)
+
+    def __init__(self, bus, dev, idc, rc, mrc_model, parent=None):
+        super(DeviceModel, self).__init__(parent)
+        self.mrc_model = mrc_model
+        self.bus       = bus
+        self.dev       = dev
+        self.idc       = idc
+        self.rc        = rc
+        self.memory   = {}
+        
+        self.mrc_model.sig_parameterRead.connect(self._slt_parameterRead)
+        self.mrc_model.sig_parameterSet.connect(self._slt_parameterSet)
+        self.mrc_model.sig_rcSet.connect(self._slt_rcSet)
+
+    def readParameter(self, address, re_read = False):
+        if not re_read and address in self.memory:
+            self.sig_parameterRead.emit(address, self.memory[address])
+        else:
+            self.mrc_model.readParameter(self.bus, self.dev, address)
+
+    def setParameter(self, address, value):
+        self.mrc_model.setParameter(self.bus, self.dev, address, value)
+
+    def addPollParameter(self, address):
+        pass
+
+    def removePollParameter(self, address):
+        pass
+
+    def setRc(self, on_off):
+        if on_off != self.rc:
+            self.mrc_model.setRc(self.bus, self.dev, on_off)
+
+    def _slt_parameterRead(self, bus, dev, address, value):
+        if bus == self.bus and dev == self.dev:
+            self.memory[address] = value
+            self.sig_parameterRead.emit(address, value)
+
+    def _slt_parameterSet(self, bus, dev, address, value):
+        if bus == self.bus and dev == self.dev:
+            self.memory[address] = value
+            self.sig_parameterSet.emit(address, value)
+
+    def _slt_rcSet(self, bus, dev, on_off):
+        if bus == self.bus and dev == self.dev:
+            self.rc = on_off
+            self.sig_rcSet.emit(on_off)
+
+
+class DeviceViewModel(QtCore.QObject):
+    sig_parameterRead    = pyqtSignal([str, int], [int, int])
+    sig_parameterSet     = pyqtSignal([str, int], [int, int])
+    sig_rcSet            = pyqtSignal(bool)
+
+    def __init__(self, device_model, device_description, device_config=None, parent=None):
+        super(DeviceViewModel, self).__init__(parent)
+
+        self.device_model       = device_model
+        self.device_description = device_description
+        self.device_config      = device_config
+
+        device_model.sig_parameterRead.connect(self._slt_parameterRead)
+        device_model.sig_parameterSet.connect(self._slt_parameterSet)
+        device_model.sig_rcSet.connect(self.sig_rcSet)
+
+    def readParameter(self, name_or_address, re_read = False):
+        self.device_model.readParameter(self._name2address(name_or_address), re_read)
+
+    def setParameter(self, name_or_address, value):
+        self.device_model.setParameter(self._name2address(name_or_address), value)
+
+    def setRc(self, on_off):
+        self.device_model.setRc(on_off)
+
+    def _name2address(self, name):
+        address = self.device_description.get_parameter_by_name(name)
+        if address is not None:
+            return address
+        return name
+
+    def _slt_parameterRead(self, address, value):
+        self.sig_parameterRead[int, int].emit(address, value)
+        self.sig_parameterRead[str, int].emit(self._address2name(address), value)
+
+    def _slt_parameterSet(self, address, value):
+        self.sig_parameterSet[int, int].emit(address, value)
+        self.sig_parameterSet[str, int].emit(self._address2name(address), value)
+
+class MHV4ViewModel(DeviceViewModel):
+    def __init__(self, device_model, device_description, device_config=None):
+        super(MHV4ViewModel, self).__init__(device_model, device_description, device_config)
+
+    def setChannelsEnabled(self, enabled):
+        for i in range(4):
+            self.setParameter("channel%d_enable_write" % i, 1 if enabled else 0)
+
+    def enableAllChannels(self):
+        self.setChannelsEnabled(True)
+
+    def disableAllChannels(self):
+        self.setChannelsEnabled(False)
