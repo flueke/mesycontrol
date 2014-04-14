@@ -102,7 +102,9 @@ class MRC1Initializer:
     std::deque<std::string> m_init_data;
 };
 
-const boost::posix_time::time_duration MRC1Connection::default_timeout(boost::posix_time::milliseconds(100));
+const boost::posix_time::time_duration
+MRC1Connection::default_timeout(boost::posix_time::milliseconds(100));
+
 const std::string MRC1Connection::response_line_terminator = "\n\r";
 const char MRC1Connection::command_terminator = '\r';
 

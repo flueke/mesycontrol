@@ -56,23 +56,23 @@ std::string Message::get_mrc1_command_string() const
 
   switch (type) {
     case message_type::request_scanbus:
-      return boost::str(boost::format("SC %1%\r") % ibus);
+      return boost::str(boost::format("SC %1%") % ibus);
     case message_type::request_rc_on:
-      return boost::str(boost::format("ON %1% %2%\r") % ibus % idev);
+      return boost::str(boost::format("ON %1% %2%") % ibus % idev);
     case message_type::request_rc_off:
-      return boost::str(boost::format("OFF %1% %2%\r") % ibus % idev);
+      return boost::str(boost::format("OFF %1% %2%") % ibus % idev);
     case message_type::request_reset:
-      return boost::str(boost::format("RST %1% %2%\r") % ibus % idev);
+      return boost::str(boost::format("RST %1% %2%") % ibus % idev);
     case message_type::request_copy:
-      return boost::str(boost::format("CP %1% %2%\r") % ibus % idev);
+      return boost::str(boost::format("CP %1% %2%") % ibus % idev);
     case message_type::request_read:
-      return boost::str(boost::format("RE %1% %2% %3%\r") % ibus % idev % ipar);
+      return boost::str(boost::format("RE %1% %2% %3%") % ibus % idev % ipar);
     case message_type::request_mirror_read:
-      return boost::str(boost::format("RM %1% %2% %3%\r") % ibus % idev % ipar);
+      return boost::str(boost::format("RM %1% %2% %3%") % ibus % idev % ipar);
     case message_type::request_set:
-      return boost::str(boost::format("SE %1% %2% %3% %4%\r") % ibus % idev % ipar % ival);
+      return boost::str(boost::format("SE %1% %2% %3% %4%") % ibus % idev % ipar % ival);
     case message_type::request_mirror_set:
-      return boost::str(boost::format("SM %1% %2% %3% %4%\r") % ibus % idev % ipar % ival);
+      return boost::str(boost::format("SM %1% %2% %3% %4%") % ibus % idev % ipar % ival);
 
     default:
       BOOST_THROW_EXCEPTION(std::runtime_error("not a mrc command request"));
