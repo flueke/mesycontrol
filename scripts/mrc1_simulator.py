@@ -30,7 +30,7 @@ class MesytecDevice:
       self.port = port
       self.id   = id_
       self.rc   = random.choice([True, False])
-      self.params = {}
+      self.params = dict((key, value) for (key, value) in ((i, 0) for i in range(256)))
 
    def setParameter(self, param, value):
       if not param in self.params:
@@ -149,24 +149,20 @@ class MRC1:
       for i in range(l):
          device = self.busses[bus][i]
          if device is not None:
-            rc_out = "ON"
-
-            if not device.rc:
-               rc_out = "0FF"
-
+            rc_out = "ON" if device.rc else "0FF"
             self.write_line("%d: %d, %s" % (i, device.id, rc_out))
          else:
             self.write_line("%d: -" % i)
 
    def rcOnOff(self, cmd, bus, port):
       rc = False
-      if cmd == "ON":
+      if cmd == "on":
          rc = True
 
       self.busses[bus][port].rc = rc
 
       for i in range(2 if self.echo_enabled else 1):
-         self.write_line("%s %d %d" % (cmd, bus, port))
+         self.write_line("%s %d %d" % (cmd.upper(), bus, port))
 
    def readParameter(self, bus, port, param):
       value = self.busses[bus][port].readParameter(param)
@@ -202,8 +198,10 @@ class MRC1ConnectionHandler(asynchat.async_chat):
       self.ibuffer.append(data)
 
    def found_terminator(self):
-      data = "".join([s for s in self.ibuffer])
-      print "found_terminator, len(data)=", len(data), " data=", data
+      # data = "".join([s for s in self.ibuffer])
+      print "found_terminator: len(self.ibuffer) before = ", len(self.ibuffer)
+      data = "".join(self.ibuffer)
+      print "found_terminator, len(data)=", len(data), " data=", data, " len(ibuffer) =", len(self.ibuffer)
       self.ibuffer = []
       self.mrc1.handle(data, self)
 
