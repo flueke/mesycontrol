@@ -21,13 +21,6 @@ from mesycontrol.mrc_treeview import MRCTreeView
 from mesycontrol.generic_device_widget import GenericDeviceWidget
 from mesycontrol.util import find_data_dir, find_data_file
 
-def wait_in_eventloop(msec):
-    loop  = QtCore.QEventLoop()
-    timer = QtCore.QTimer()
-    timer.timeout.connect(loop.quit)
-    timer.start(msec)
-    loop.exec_()
-
 class MRCConnection(QtCore.QObject):
     def __init__(self, mrc_serial_port=None, mrc_baud_rate=None,
             mrc_host=None, mrc_port=None, parent=None):

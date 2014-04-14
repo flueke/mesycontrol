@@ -46,7 +46,7 @@ class ServerProcess(QtCore.QObject):
         self.mrc_host        = None
         self.mrc_port        = ServerProcess.default_mrc_port
 
-        self.process         = QtCore.QProcess(self)
+        self.process = QtCore.QProcess(self)
         self.process.started.connect(self._slt_started)
         self.process.error.connect(self._slt_error)
         self.process.finished.connect(self._slt_finished)
