@@ -50,17 +50,6 @@ class GarbageCollector(QObject):
         for obj in gc.garbage:
             print (obj, repr(obj), type(obj))
 
-def find_data_dir(main_script_file):
-    if getattr(sys, 'frozen', False):
-        exe = sys.executable
-        while os.path.islink(exe):
-            lnk = os.readlink(exe)
-            if os.path.isabs(lnk):
-                exe = lnk
-            else:
-                exe = os.path.abspath(os.path.join(os.path.dirname(exe), lnk))
-        return os.path.dirname(exe)
-    return os.path.dirname(main_script_file)
-
+# TODO: move this to ApplicationModel
 def find_data_file(filename):
     return os.path.join(application_model.instance.data_dir, filename)

@@ -19,7 +19,7 @@ from mesycontrol import application_model
 from mesycontrol.application_model import MRCModel
 from mesycontrol.mrc_treeview import MRCTreeView
 from mesycontrol.generic_device_widget import GenericDeviceWidget
-from mesycontrol.util import find_data_dir, find_data_file
+from mesycontrol.util import find_data_file
 
 class MRCConnection(QtCore.QObject):
     def __init__(self, mrc_serial_port=None, mrc_baud_rate=None,
@@ -147,10 +147,25 @@ class MainWindow(QtGui.QMainWindow):
 def signal_handler(*args):
     QtGui.QApplication.quit()
 
+def find_data_dir():
+    if getattr(sys, 'frozen', False):
+        exe = sys.executable
+        while os.path.islink(exe):
+            lnk = os.readlink(exe)
+            if os.path.isabs(lnk):
+                exe = lnk
+            else:
+                exe = os.path.abspath(os.path.join(os.path.dirname(exe), lnk))
+        return os.path.dirname(exe)
+    return os.path.dirname(__file__)
+
 if __name__ == "__main__":
+    # Binary directory needed to locate the server binary.
     application_model.instance.bin_dir = os.path.abspath(os.path.dirname(
         sys.executable if getattr(sys, 'frozen', False) else __file__))
-    application_model.instance.data_dir = find_data_dir(__file__)
+
+    # Path to the directory where ui, xml and other datafiles are stored.
+    application_model.instance.data_dir = find_data_dir()
 
     logging.basicConfig(level=logging.DEBUG,
             format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
@@ -165,10 +180,14 @@ if __name__ == "__main__":
     timer.timeout.connect(lambda: None)
     timer.start(500)
 
+    # Confine garbage collection to the main thread to avoid crashes.
     garbage_collector = mesycontrol.util.GarbageCollector(debug=False)
+
     mainwin = MainWindow()
     mainwin.show()
     ret = app.exec_()
+
     del mainwin
     del garbage_collector
+
     sys.exit(ret)
