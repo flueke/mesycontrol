@@ -17,8 +17,8 @@
   - add status request to get the status of the mrc connection (e.g. connected, reconnecting, ...)
 
 * gui client
-  - readd poll support
-  - multi connection support
+  - XXX: fix the duplication of DeviceDescription in DeviceConfig and DeviceViewModel
+  - disconnect support
   - present all mrcs and devices in some nice widget
   - allow bus rescans, reconnects, etc.
   - open device window on click. by default uses a device specific widget if

@@ -6,12 +6,14 @@ from PyQt4 import QtCore
 from PyQt4 import QtGui
 from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import pyqtSlot
+import logging
 
 class MRCTreeView(QtGui.QWidget):
     sig_open_device_window = pyqtSignal(object)
 
     def __init__(self, parent=None):
         super(MRCTreeView, self).__init__(parent)
+        self.log = logging.getLogger("MRCTreeView")
         self.tree_widget = QtGui.QTreeWidget(self)
         self.tree_widget.setHeaderLabels(['MRC/Bus/Dev', 'IDC', 'RC'])
         self.tree_widget.itemDoubleClicked.connect(self._slt_item_doubleclicked)
@@ -30,6 +32,7 @@ class MRCTreeView(QtGui.QWidget):
     @pyqtSlot(object)
     def slt_connection_added(self, connection):
         mrc_model = connection.mrc_model
+        self.log.debug("Connection added. MRCModel=%s", str(mrc_model))
         self.bus_data_complete_mapper.setMapping(mrc_model, mrc_model)
         mrc_model.sig_bus_data_complete.connect(self.bus_data_complete_mapper.map)
 
@@ -52,6 +55,8 @@ class MRCTreeView(QtGui.QWidget):
     def _slt_bus_data_complete(self, mrc_model):
         f = lambda node: hasattr(node, 'mrc_model') and node.mrc_model == mrc_model
         mrc_node = filter(f, [self.tree_widget.topLevelItem(i) for i in range(self.tree_widget.topLevelItemCount())])[0]
+
+        self.log.debug("MRCModel=%s: scanbus complete. mrc_node=%s", str(mrc_model), str(mrc_node))
 
         for bus in range(2):
             bus_node     = mrc_node.child(bus)

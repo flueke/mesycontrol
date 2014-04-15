@@ -38,6 +38,14 @@ class MRCConnection(QtCore.QObject):
         self.server_process.sig_started.connect(self._slt_server_process_started)
         self.server_process.sig_finished.connect(self._slt_server_process_finished)
 
+        self.server_start_timer = QtCore.QTimer(self)
+        self.server_start_timer.setSingleShot(True)
+        self.server_start_timer.setInterval(1000)
+        self.server_start_timer.timeout.connect(self._slt_server_start_timer_timeout)
+
+    def get_mrc_address_string(self):
+        return self.server_process.get_mrc_address_string()
+
     def start(self):
         if not self.server_process.is_running():
             self.server_process.start()
@@ -56,6 +64,11 @@ class MRCConnection(QtCore.QObject):
         return "<unknown>"
 
     def _slt_server_process_started(self):
+        if self.server_process.is_running():
+            self.server_start_timer.start()
+
+
+    def _slt_server_start_timer_timeout(self):
         if self.server_process.is_running():
             self.tcp_client.connect(self.server_process.listen_address, self.server_process.listen_port)
 

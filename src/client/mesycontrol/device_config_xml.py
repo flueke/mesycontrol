@@ -31,14 +31,12 @@ class DeviceConfigXML(object):
         device_descriptions = []
 
         for desc_node in element.iter('device_description'):
-            device_desc      = DeviceDescription()
-            device_desc.idc  = int(desc_node.find('idc').text)
+            device_desc      = DeviceDescription(int(desc_node.find('idc').text))
             n = desc_node.find('name')
             device_desc.name = n.text if n is not None else None
 
             for param_node in desc_node.iter('parameter'):
-                param_desc         = ParameterDescription()
-                param_desc.address = int(param_node.find('address').text)
+                param_desc         = ParameterDescription(int(param_node.find('address').text))
 
                 n = param_node.find('name')
                 param_desc.name    = n.text if n is not None else None
@@ -55,7 +53,7 @@ class DeviceConfigXML(object):
                 n = param_node.find('safe_value')
                 param_desc.safe_value = int(n.text) if n is not None else 0
 
-                device_desc.parameters.append(param_desc)
+                device_desc.add_parameter(param_desc)
 
             device_descriptions.append(device_desc)
 
@@ -66,9 +64,6 @@ class DeviceConfigXML(object):
 
             n = config_node.find('device_description_name')
             device_config.device_description = n.text if n is not None else None
-
-            n = config_node.find('device_description_file')
-            device_config.device_description_file = n.text if n is not None else None
 
             n = config_node.find('alias')
             device_config.alias = n.text if n is not None else None
@@ -132,7 +127,7 @@ class DeviceConfigXML(object):
         if desc.name is not None:
             DeviceConfigXML._add_tag(tb, "name", str(desc.name))
 
-        for pd in desc.parameters:
+        for pd in desc.parameters.values():
             tb.start("parameter", {})
 
             DeviceConfigXML._add_tag(tb, "address", str(pd.address))
@@ -159,21 +154,16 @@ class DeviceConfigXML(object):
     @staticmethod
     def _device_config_to_etree(cfg, tb):
         descr_name = None
-        descr_file = None
 
         if isinstance(cfg.device_description, DeviceDescription):
             descr_name = cfg.device_description.name
         elif isinstance(cfg.device_description, str):
             descr_name = cfg.device_description
-        elif isinstance(cfg.device_description_file, str):
-            descr_file = cfg.device_description_file
 
         tb.start("device_config", {})
 
         if descr_name:
             DeviceConfigXML._add_tag(tb, "device_description_name", str(descr_name))
-        elif descr_file:
-            DeviceConfigXML._add_tag(tb, "device_description_file", str(descr_file))
 
         if cfg.alias:
             DeviceConfigXML._add_tag(tb, "alias", str(cfg.alias))

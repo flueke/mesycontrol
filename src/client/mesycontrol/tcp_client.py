@@ -69,12 +69,12 @@ class TCPClient(QtCore.QObject):
       try:
         message = self._request_queue.get(False)
         self._request_in_progress = True
-        logging.debug("TCPClient: writing message: %s" % message)
+        #logging.debug("TCPClient: writing message: %s" % message)
         msg_data = message.serialize()
         data = struct.pack('!H', len(msg_data)) + msg_data
         self.socket.write(data)
       except Queue.Empty:
-        logging.debug("TCPClient: message queue is empty")
+        #logging.debug("TCPClient: message queue is empty")
         return
 
   def _slt_socket_bytesWritten(self, n_bytes):
@@ -90,7 +90,7 @@ class TCPClient(QtCore.QObject):
       message = Message.deserialize(response_data)
       self._response_size = None
       self._request_in_progress = False
-      logging.debug("TCPClient: received message: %s" % message)
+      #logging.debug("TCPClient: received message: %s" % message)
       self.sig_message_received.emit(message)
       if not self._request_queue.empty():
         self._start_write_message()

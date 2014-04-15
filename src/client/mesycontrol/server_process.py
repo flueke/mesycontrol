@@ -92,6 +92,12 @@ class ServerProcess(QtCore.QObject):
     def get_exit_code_string(self):
         return self.exit_codes.get(self.get_exit_code(), "exit_unknown_error")
 
+    def get_mrc_address_string(self):
+        if self.mrc_serial_port is not None:
+            return "%s@%d" % (self.mrc_serial_port, int(self.mrc_baud_rate))
+        elif self.mrc_host is not None:
+            return "%s:%d" % (self.mrc_host, int(self.mrc_port))
+
     def _slt_started(self):
         self.log.info("Started %s => pid = %s" % (self._cmd_line, self.process.pid()))
         self.sig_started.emit()
@@ -106,10 +112,10 @@ class ServerProcess(QtCore.QObject):
 
     def _slt_stderr_ready(self):
         data = str(self.process.readAllStandardError())
-        self.log.debug(data)
+        #self.log.debug(data)
         self.sig_stderr.emit(data)
 
     def _slt_stdout_ready(self):
         data = str(self.process.readAllStandardOutput())
-        self.log.debug(data)
+        #self.log.debug(data)
         self.sig_stdout.emit(data)

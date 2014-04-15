@@ -58,7 +58,8 @@ class DeviceConfig(QtCore.QObject):
     def set_bus_number(self, bus_number):
         self._bus_number = bus_number
         if bus_number is not None:
-           self.bus_number_changed.emit(bus_number)
+           self._bus_number = int(bus_number)
+           self.bus_number_changed.emit(self.bus_number)
 
     def get_device_number(self):
         return self._device_number
@@ -66,7 +67,8 @@ class DeviceConfig(QtCore.QObject):
     def set_device_number(self, device_number):
         self._device_number = device_number
         if device_number is not None:
-           self.device_number_changed.emit(device_number)
+           self._device_number = int(device_number)
+           self.device_number_changed.emit(self.device_number)
 
     def add_parameter(self, parameter):
         if parameter.address in self._address2param:
@@ -126,9 +128,9 @@ class DeviceConfig(QtCore.QObject):
 class ParameterConfig(QtCore.QObject):
     def __init__(self, address, value=None, alias=None, parent=None):
         super(ParameterConfig, self).__init__(parent)
-        self._address = address
-        self._value   = value
-        self._alias   = alias
+        self._address = int(address)
+        self._value   = int(value) if value is not None else None
+        self._alias   = str(alias) if alias is not None else None
 
     def get_address(self):
         return self._address
@@ -137,17 +139,17 @@ class ParameterConfig(QtCore.QObject):
         return self._value
 
     def set_value(self, value):
-        self._value = value
-        if value is not None:
-           self.value_changed.emit(value)
+        self._value = int(value) if value is not None else None
+        if self._value is not None:
+           self.value_changed.emit(self._value)
 
     def get_alias(self):
         return self._alias
 
     def set_alias(self, alias):
-        self._alias = alias
-        if alias is not None:
-           self.alias_changed.emit(alias)
+        self._alias = str(alias) if alias is not None else None
+        if self._alias is not None:
+           self.alias_changed.emit(self._alias)
 
     value_changed = pyqtSignal(int)
     alias_changed = pyqtSignal(str)

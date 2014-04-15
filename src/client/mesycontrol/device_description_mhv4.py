@@ -31,29 +31,30 @@ description_dict = {
             ]
         }
 
+instance = DeviceDescription.fromDict(description_dict)
+
 def get_device_description():
-    return DeviceDescription.fromDict(description_dict)
+    return instance
 
 if __name__ == "__main__":
     from device_config_xml import DeviceConfigXML
     from xml.dom import minidom
     from xml.etree import ElementTree
-    xml_string = ElementTree.tostring(DeviceConfigXML.to_etree([get_device_description()]).getroot())
+
+    device_description = get_device_description()
+    xml_string = ElementTree.tostring(DeviceConfigXML.to_etree([device_description]).getroot())
     xml_string = minidom.parseString(xml_string).toprettyxml(indent='  ')
 
+    print "DeviceDescription XML for idc=%d, name=%s:" % (device_description.idc, device_description.name)
+    print
     print xml_string
     print
-
+    print "Parsing generated XML...",
 
     device_descriptions, device_configs = DeviceConfigXML.parse_string(xml_string)
 
-    print "Device Descriptions:"
-    for device_desc in device_descriptions:
-        print device_desc, device_desc.idc, device_desc.name
+    assert len(device_descriptions) == 1
+    assert len(device_configs) == 0
+    assert device_descriptions[0] == device_description
 
-
-    print "Device Configs:"
-    for device_config in device_configs:
-        print device_config
-        print dir(device_config)
-
+    print "OK!"
