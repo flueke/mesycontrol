@@ -157,7 +157,8 @@ def find_data_dir():
             else:
                 exe = os.path.abspath(os.path.join(os.path.dirname(exe), lnk))
         return os.path.dirname(exe)
-    return os.path.dirname(__file__)
+    else:
+        return os.path.dirname(__file__)
 
 if __name__ == "__main__":
     # Binary directory needed to locate the server binary.
