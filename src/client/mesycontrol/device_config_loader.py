@@ -37,7 +37,7 @@ class ConfigLoader(QtCore.QObject):
 
         for param_cfg in self.device_config.get_parameters():
             param_descr = self.device_description.get_parameter_by_address(param_cfg.address)
-            if param_descr is None or not param_descr.critical:
+            if param_descr is None or (not param_descr.critical and not param_descr.read_only):
                 self._to_set.append((param_cfg.address, param_cfg.value))
 
         for param_cfg in self.device_config.get_parameters():
@@ -79,7 +79,7 @@ class ConfigVerifier(QtCore.QObject):
                 and self.device_config is not None \
                 and self.device_description is not None
 
-        self._to_verify = [(p.address, p.value) for p in self.device_config.get_parameters()]
+        self._to_verify = [(p.address, p.value) for p in self.device_config.get_parameters() if p.value is not None]
         self.log.info("Verifying %d values", len(self._to_verify))
         self.device_model.sig_parameterRead.connect(self._slt_parameterRead)
         self._read_next_param()

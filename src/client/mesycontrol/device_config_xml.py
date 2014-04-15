@@ -81,8 +81,9 @@ class DeviceConfigXML(object):
             device_config.device_number = n.text if n is not None else None
 
             for param_node in config_node.iter('parameter'):
+                n = param_node.find('value')
                 param = ParameterConfig(address=param_node.find('address').text,
-                        value=param_node.find('value').text)
+                        value=int(n.text) if n is not None else None)
 
                 n = param_node.find('alias')
                 param.alias = n.text if n is not None else None
@@ -181,7 +182,8 @@ class DeviceConfigXML(object):
             tb.start("parameter", {})
 
             DeviceConfigXML._add_tag(tb, "address", str(p.address))
-            DeviceConfigXML._add_tag(tb, "value", str(p.value))
+            if p.value is not None:
+                DeviceConfigXML._add_tag(tb, "value", str(p.value))
 
             if p.alias:
                 DeviceConfigXML._add_tag(tb, "alias", str(p.alias))
