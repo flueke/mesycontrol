@@ -29,6 +29,8 @@
     (needed for generic devices _if_ saved with named parameters) as otherwise
     the config can't be loaded. Alternative: prompt for a generic device
     description.
+  - add connection ui
+  - logging ui
 
 * cli client
   - commands and grammar
@@ -40,3 +42,7 @@
   - expressions:
     * compare param value to a given value / another param (eq, gt, lt, le, ...)
 
+* build system
+  - fix cxfreeze prefix issue on windows
+  - add cpack installer generation
+  - enumerate com ports

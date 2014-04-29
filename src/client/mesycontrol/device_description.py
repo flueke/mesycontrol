@@ -82,7 +82,7 @@ class DeviceDescription(object):
 
     def get_parameter_by_name(self, name):
         try:
-            filter(lambda p: p.name == name, self.parameters.values())[0]
+            return filter(lambda p: p.name == name, self.parameters.values())[0]
         except IndexError:
             return None
 

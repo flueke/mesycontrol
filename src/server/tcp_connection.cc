@@ -12,13 +12,11 @@ namespace asio = boost::asio;
 namespace mesycontrol
 {
 
-TCPConnection::TCPConnection(
-    boost::asio::io_service &io_service,
-    TCPConnectionManager &manager,
-    RequestHandler request_handler)
-  : socket_(io_service)
-  , connection_manager_(manager)
-  , request_handler_(request_handler)
+TCPConnection::TCPConnection(boost::asio::io_service &io_service, TCPConnectionManager &manager)
+  : m_socket(io_service)
+  , m_connection_manager(manager)
+  , m_write_in_progress(false)
+  , m_log(log::keywords::channel="TCPConnection")
 {
 }
 
@@ -31,120 +29,131 @@ void TCPConnection::start()
 {
   static boost::format fmt("%1%:%2%");
   m_connection_string = boost::str(fmt
-      % socket_.remote_endpoint().address().to_string()
-      % socket_.remote_endpoint().port());
+      % m_socket.remote_endpoint().address().to_string()
+      % m_socket.remote_endpoint().port());
 
-  BOOST_LOG_TRIVIAL(info) << "New connection from " << connection_string();
+  BOOST_LOG_SEV(m_log, log::lvl::info) << "New connection from " << connection_string();
 
-  socket_.set_option(asio::ip::tcp::no_delay(true));
-  start_read_request_size();
+  m_socket.set_option(asio::ip::tcp::no_delay(true));
+  start_read_message_size();
 }
 
 void TCPConnection::stop()
 {
-  if (socket_.is_open()) {
-    BOOST_LOG_TRIVIAL(info) << "Closing connection from " << connection_string();
-    socket_.close();
+  if (m_socket.is_open()) {
+    BOOST_LOG_SEV(m_log, log::lvl::info) << "Closing connection from " << connection_string();
+    m_socket.close();
   }
 }
 
 boost::asio::ip::tcp::socket &TCPConnection::socket()
 {
-  return socket_;
+  return m_socket;
 }
 
-void TCPConnection::start_read_request_size()
+void TCPConnection::send_message(const MessagePtr &msg)
 {
-  BOOST_LOG_TRIVIAL(debug) << connection_string() << ": reading request size";
-
-  asio::async_read(socket_, asio::buffer(&request_size_, 2),
-      boost::bind(&TCPConnection::handle_read_request_size, shared_from_this(), _1, _2));
+  m_write_queue.push_back(msg);
+  start_write_message();
 }
 
-void TCPConnection::handle_read_request_size(const boost::system::error_code &ec, std::size_t n_bytes)
+void TCPConnection::start_read_message_size()
+{
+  BOOST_LOG_SEV(m_log, log::lvl::trace) << connection_string() << ": reading message size";
+
+  asio::async_read(m_socket, asio::buffer(&m_read_size, 2),
+      boost::bind(&TCPConnection::handle_read_message_size, shared_from_this(), _1, _2));
+}
+
+void TCPConnection::handle_read_message_size(const boost::system::error_code &ec, std::size_t n_bytes)
 {
   if (!ec) {
-    request_size_ = ntohs(request_size_);
-    BOOST_LOG_TRIVIAL(debug) << connection_string() << ": request size = " << request_size_;
+    m_read_size = ntohs(m_read_size);
 
-    if (request_size_ == 0) {
-      BOOST_LOG_TRIVIAL(error) << connection_string()
-        << ": zero request size received. Closing connection";
-      connection_manager_.stop(shared_from_this());
+    BOOST_LOG_SEV(m_log, log::lvl::trace) << connection_string()
+      << ": incoming message size = " << m_read_size;
+
+    if (m_read_size == 0) {
+      BOOST_LOG_SEV(m_log, log::lvl::error) << connection_string()
+        << ": zero request_size received";
+      m_connection_manager.stop(shared_from_this());
       return;
     }
 
-    request_buf_.clear();
-    request_buf_.resize(request_size_);
-    start_read_request();
+    m_read_buf.clear();
+    m_read_buf.resize(m_read_size);
+    start_read_message();
   } else {
-    BOOST_LOG_TRIVIAL(error) << connection_string()
-      << ": error reading request size: " << ec.message();
-    connection_manager_.stop(shared_from_this());
+    BOOST_LOG_SEV(m_log, log::lvl::error) << connection_string()
+      << ": error reading message size: " << ec.message();
+
+    m_connection_manager.stop(shared_from_this());
   }
 }
 
-void TCPConnection::start_read_request()
+void TCPConnection::start_read_message()
 {
-  BOOST_LOG_TRIVIAL(debug) << connection_string() << ": reading request";
+  BOOST_LOG_SEV(m_log, log::lvl::trace) << connection_string()
+    << ": reading message of size " << m_read_size;
 
-  asio::async_read(socket_, asio::buffer(request_buf_),
-      boost::bind(&TCPConnection::handle_read_request, shared_from_this(), _1, _2));
+  asio::async_read(m_socket, asio::buffer(m_read_buf),
+      boost::bind(&TCPConnection::handle_read_message, shared_from_this(), _1, _2));
 }
 
-void TCPConnection::handle_read_request(const boost::system::error_code &ec, std::size_t n_bytes)
+void TCPConnection::handle_read_message(const boost::system::error_code &ec, std::size_t n_bytes)
 {
   if (!ec) {
     try {
-      MessagePtr msg(Message::deserialize(request_buf_));
-      BOOST_LOG_TRIVIAL(info) << connection_string() << ": request read; type = " << msg->type;
-      request_handler_(msg, boost::bind(&TCPConnection::response_ready_callback,
-            shared_from_this(), _1, _2));
-    } catch (const std::runtime_error &) {
-      BOOST_LOG_TRIVIAL(error) << connection_string()
-        << ": could not deserialize request; sending error response";
+      MessagePtr msg(Message::deserialize(m_read_buf));
+      BOOST_LOG_SEV(m_log, log::lvl::debug) << connection_string()
+        << ": received message = " << msg->get_info_string();
+      m_connection_manager.dispatch_request(shared_from_this(), msg);
+      start_read_message_size();
+    } catch (const std::runtime_error &e) {
+      BOOST_LOG_SEV(m_log, log::lvl::error) << connection_string()
+        << ": error deserializing message: " << e.what();
 
-      response_buf_  = Message::make_error_response(error_type::invalid_type)->serialize();
-      response_size_ = htons(response_buf_.size());
-      start_write_response();
+      send_message(MessageFactory::make_error_response(error_type::invalid_message_type));
     }
   } else {
-    BOOST_LOG_TRIVIAL(error) << connection_string()
-      << ": error reading request: " << ec.message();
-    connection_manager_.stop(shared_from_this());
+    BOOST_LOG_SEV(m_log, log::lvl::error) << connection_string()
+      << ": error reading message: " << ec.message();
+    m_connection_manager.stop(shared_from_this());
   }
 }
 
-void TCPConnection::response_ready_callback(const MessagePtr &request, const MessagePtr &reply)
+void TCPConnection::start_write_message()
 {
-  BOOST_LOG_TRIVIAL(info) << connection_string()
-    << ": sending response of type " << static_cast<int>(reply->type);
+  if (m_write_queue.empty() || m_write_in_progress)
+    return;
 
-  response_buf_  = reply->serialize();
-  response_size_ = htons(response_buf_.size());
-  start_write_response();
-}
+  m_write_in_progress = true;
 
-void TCPConnection::start_write_response()
-{
+  MessagePtr msg(m_write_queue.front());
+  
+  m_write_buf  = msg->serialize();
+  m_write_size = htons(m_write_buf.size());
+
   boost::array<asio::const_buffer, 2> buffers =
   {
-      asio::buffer(&response_size_, 2),
-      asio::buffer(response_buf_)
+      asio::buffer(&m_write_size, 2),
+      asio::buffer(m_write_buf)
   };
 
-  asio::async_write(socket_, buffers,
-      boost::bind(&TCPConnection::handle_write_response, shared_from_this(), _1, _2));
+  asio::async_write(m_socket, buffers,
+      boost::bind(&TCPConnection::handle_write_message, shared_from_this(), _1, _2));
 }
 
-void TCPConnection::handle_write_response(const boost::system::error_code &ec, std::size_t n_bytes)
+void TCPConnection::handle_write_message(const boost::system::error_code &ec, std::size_t n_bytes)
 {
+  m_write_in_progress = false;
   if (!ec) {
-    start_read_request_size();
+    m_write_queue.pop_front();
+    start_write_message();
   } else {
-    BOOST_LOG_TRIVIAL(error) << connection_string()
-      << ": error writing response: " << ec.message();
-    connection_manager_.stop(shared_from_this());
+    BOOST_LOG_SEV(m_log, log::lvl::error) << connection_string()
+      << ": error writing message: " << ec.message();
+    m_connection_manager.stop(shared_from_this());
   }
 }
 

@@ -42,7 +42,7 @@ class ConfigLoader(QtCore.QObject):
 
         for param_cfg in self.device_config.get_parameters():
             param_descr = self.device_description.get_parameter_by_address(param_cfg.address)
-            if param_descr is not None and param_descr.critical:
+            if param_descr is not None and param_descr.critical and not param_descr.read_only:
                 self._to_set.append((param_cfg.address, param_cfg.value))
 
         self.log.info("Loading %d values", len(self._to_set))

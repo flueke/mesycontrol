@@ -1,11 +1,11 @@
 set(Boost_USE_MULTITHREADED ON)
-set(Boost_USE_STATIC_LIBS  ON)
+set(Boost_USE_STATIC_LIBS   ON)
 
 if (WIN32) # Use static boost libraries for windows builds.
     set(Boost_USE_STATIC_LIBS ON)
 endif(WIN32)
 
-find_package(Boost 1.54 REQUIRED COMPONENTS chrono program_options system date_time log regex thread)
+find_package(Boost 1.54 REQUIRED COMPONENTS chrono program_options system date_time log_setup log regex thread)
 find_package(Threads REQUIRED)
 
 include_directories(${Boost_INCLUDE_DIRS})
@@ -13,12 +13,13 @@ include_directories(${Boost_INCLUDE_DIRS})
 set(MESYCONTROL_SERVER_TARGET "mesycontrol_server")
 
 set(MESYCONTROL_SERVER_SRCS
-    tcp_connection.cc
+    logging.cc
     main.cc
     mrc1_connection.cc
     mrc1_reply_parser.cc
+    mrc1_request_queue.cc
     protocol.cc
-    request_dispatcher.cc
+    tcp_connection.cc
     tcp_connection.cc
     tcp_connection_manager.cc
     tcp_server.cc

@@ -3,10 +3,105 @@
 #include <boost/make_shared.hpp>
 #include <map>
 #include <stdexcept>
-#include <mesycontrol/protocol.h>
+#include "protocol.h"
 
 namespace mesycontrol
 {
+
+namespace
+{
+
+struct MessageInfo
+{
+  MessageInfo(size_t sz, const char *type_str)
+    : size(sz)
+    , type_string(type_str)
+  {}
+
+  size_t size;
+  const char *type_string;
+};
+
+typedef std::map<message_type::MessageType, MessageInfo> MessageInfoMap;
+
+const MessageInfoMap &get_message_info_map()
+{
+  static MessageInfoMap data = boost::assign::map_list_of
+    (message_type::request_scanbus,                 MessageInfo(1, "request_scanbus"))      // bus
+    (message_type::request_rc_on,                   MessageInfo(2, "request_rc_on"))        // bus dev
+    (message_type::request_rc_off,                  MessageInfo(2, "request_rc_off"))       // bus dev
+    (message_type::request_reset,                   MessageInfo(2, "request_reset"))        // bus dev
+    (message_type::request_copy,                    MessageInfo(2, "request_copy"))         // bus dev
+    (message_type::request_read,                    MessageInfo(3, "request_read"))         // bus dev par
+    (message_type::request_mirror_read,             MessageInfo(3, "request_mirror_read"))  // bus dev par
+    (message_type::request_set,                     MessageInfo(5, "request_set"))          // bus dev par val
+    (message_type::request_mirror_set,              MessageInfo(5, "request_mirror_set"))   // bus dev par val
+
+    (message_type::request_has_write_access,        MessageInfo(0, "request_has_write_access"))
+    (message_type::request_acquire_write_access,    MessageInfo(0, "request_acquire_write_access"))
+    (message_type::request_release_write_access,    MessageInfo(0, "request_release_write_access"))
+    (message_type::request_in_silent_mode,          MessageInfo(0, "request_in_silent_mode"))
+    (message_type::request_set_silent_mode,         MessageInfo(1, "request_set_silent_mode")) // bool
+
+    (message_type::response_scanbus,                MessageInfo(33, "response_scanbus"))     // bus (idc,bool){16}
+    (message_type::response_read,                   MessageInfo( 5, "response_read"))        // bus dev par val
+    (message_type::response_set,                    MessageInfo( 5, "response_set"))         // bus dev par val
+    (message_type::response_mirror_read,            MessageInfo( 5, "response_mirror_read")) // bus dev par val
+    (message_type::response_mirror_set,             MessageInfo( 5, "response_mirror_set"))  // bus dev par val
+
+    (message_type::response_bool,                   MessageInfo(1, "response_bool"))        // bool value
+    (message_type::response_error,                  MessageInfo(1, "response_error"))       // error value
+
+    (message_type::notify_write_access,             MessageInfo(1, "notify_write_access"))              // bool
+    (message_type::notify_silent_mode,              MessageInfo(1, "notify_silent_mode"))               // bool
+    (message_type::notify_set,                      MessageInfo(5, "notify_set"))                       // bus dev par val
+    (message_type::notify_mirror_set,               MessageInfo(5, "notify_mirror_set"))                // bus dev par val
+    (message_type::notify_can_acquire_write_access, MessageInfo(1, "notify_can_acquire_write_access"))  // bool
+    ;
+  return data;
+}
+
+const MessageInfo &get_message_info(message_type::MessageType type)
+{
+  const MessageInfoMap &info_map(get_message_info_map());
+  MessageInfoMap::const_iterator it = info_map.find(type);
+  if (it != info_map.end())
+    return it->second;
+  BOOST_THROW_EXCEPTION(std::runtime_error("Unhandled message type"));
+}
+
+typedef std::map<error_type::ErrorType, const char *> ErrorInfoMap;
+
+const ErrorInfoMap &get_error_info_map()
+{
+  static ErrorInfoMap data = boost::assign::map_list_of
+    (error_type::unknown_error        , "unknown_error")
+    (error_type::invalid_message_type , "invalid_message_type")
+    (error_type::invalid_message_size , "invalid_message_size")
+    (error_type::bus_out_of_range     , "bus_out_of_range")
+    (error_type::dev_out_of_range     , "dev_out_of_range")
+    (error_type::mrc_no_response      , "mrc_no_response")
+    (error_type::mrc_comm_timeout     , "mrc_comm_timeout")
+    (error_type::mrc_comm_error       , "mrc_comm_error")
+    (error_type::silenced             , "silenced")
+    (error_type::mrc_connect_error    , "mrc_connect_error")
+    (error_type::permission_denied    , "permission_denied")
+    (error_type::mrc_parse_error      , "mrc_parse_error")
+    (error_type::mrc_address_conflict , "mrc_address_conflict")
+    ;
+  return data;
+}
+
+const char *get_error_info(error_type::ErrorType type)
+{
+  const ErrorInfoMap &info_map(get_error_info_map());
+  ErrorInfoMap::const_iterator it = info_map.find(type);
+  if (it != info_map.end())
+    return it->second;
+  BOOST_THROW_EXCEPTION(std::runtime_error("Unhandled error type"));
+}
+
+} // anon namespace
 
 bool Message::operator==(const Message &o) const
 {
@@ -36,6 +131,22 @@ bool Message::is_mrc1_command() const
     case message_type::request_read:
     case message_type::request_set:
     case message_type::request_mirror_read:
+    case message_type::request_mirror_set:
+      return true;
+    default:
+      break;
+  }
+  return false;
+}
+
+bool Message::is_mrc1_write_command() const
+{
+  switch (type) {
+    case message_type::request_rc_on:
+    case message_type::request_rc_off:
+    case message_type::request_reset:
+    case message_type::request_copy:
+    case message_type::request_set:
     case message_type::request_mirror_set:
       return true;
     default:
@@ -104,6 +215,8 @@ std::vector<unsigned char> Message::serialize() const
     case message_type::response_set:
     case message_type::response_mirror_read:
     case message_type::response_mirror_set:
+    case message_type::notify_set:
+    case message_type::notify_mirror_set:
       ret.push_back(bus);
       ret.push_back(dev);
       ret.push_back(par);
@@ -119,15 +232,17 @@ std::vector<unsigned char> Message::serialize() const
       ret.push_back(dev);
       break;
 
-    case message_type::request_is_master:
-    case message_type::request_acquire_master:
+    case message_type::request_has_write_access:
+    case message_type::request_acquire_write_access:
+    case message_type::request_release_write_access:
     case message_type::request_in_silent_mode :
       break;
 
     case message_type::request_set_silent_mode:
     case message_type::response_bool:
-    case message_type::notify_master_state:
+    case message_type::notify_write_access:
     case message_type::notify_silent_mode:
+    case message_type::notify_can_acquire_write_access:
       ret.push_back(bool_value);
       break;
 
@@ -179,6 +294,8 @@ MessagePtr Message::deserialize(const std::vector<unsigned char> &data)
     case message_type::response_mirror_read: 
     case message_type::response_set: 
     case message_type::response_mirror_set:  
+    case message_type::notify_set:
+    case message_type::notify_mirror_set:
       ret->bus = data[1];
       ret->dev = data[2];
       ret->par = data[3];
@@ -194,8 +311,9 @@ MessagePtr Message::deserialize(const std::vector<unsigned char> &data)
       break;
 
     case message_type::response_bool:
-    case message_type::notify_master_state:
+    case message_type::notify_write_access:
     case message_type::notify_silent_mode:
+    case message_type::notify_can_acquire_write_access:
     case message_type::request_set_silent_mode:
       ret->bool_value = data[1];
       break;
@@ -205,8 +323,9 @@ MessagePtr Message::deserialize(const std::vector<unsigned char> &data)
       break;
 
     case message_type::request_in_silent_mode:
-    case message_type::request_acquire_master:
-    case message_type::request_is_master:
+    case message_type::request_acquire_write_access:
+    case message_type::request_has_write_access:
+    case message_type::request_release_write_access:
       break;
   }
 
@@ -221,100 +340,25 @@ MessagePtr Message::deserialize(const std::vector<unsigned char> &data)
   return ret;
 }
 
+
 size_t Message::get_message_size(message_type::MessageType type)
 {
-  static std::map<message_type::MessageType, size_t> sizes = boost::assign::map_list_of
-    (message_type::request_scanbus,         1) // bus
-    (message_type::request_rc_on,           2) // bus dev
-    (message_type::request_rc_off,          2) // bus dev
-    (message_type::request_reset,           2) // bus dev
-    (message_type::request_copy,            2) // bus dev
-    (message_type::request_read,            3) // bus dev par
-    (message_type::request_mirror_read,     3) // bus dev par
-    (message_type::request_set,             5) // bus dev par val
-    (message_type::request_mirror_set,      5) // bus dev par val
-
-    (message_type::request_is_master,       0)
-    (message_type::request_acquire_master,  0)
-    (message_type::request_in_silent_mode,  0)
-    (message_type::request_set_silent_mode, 1) // bool
-
-    (message_type::response_scanbus,       33) // bus (idc,bool){16}
-    (message_type::response_read,           5) // bus dev par val
-    (message_type::response_set,            5) // bus dev par val
-    (message_type::response_mirror_read,    5) // bus dev par val
-    (message_type::response_mirror_set,     5) // bus dev par val
-
-    (message_type::response_error,          1) // error value
-    (message_type::response_bool,           1) // bool value
-    ;
-
-    std::map<message_type::MessageType, size_t>::const_iterator it = sizes.find(type);
-
-    if (it != sizes.end()) {
-      return it->second + 1; // add one byte for the type field
-    }
-
-    return 0;
+  return get_message_info(type).size + 1; // add one byte for the type field
 }
 
-MessagePtr Message::make_scanbus_request(boost::uint8_t bus)
+std::string Message::get_info_string() const
 {
-  MessagePtr ret(boost::make_shared<Message>());
-  ret->type = message_type::request_scanbus;
-  ret->bus  = bus;
-  return ret;
+  const MessageInfo &info(get_message_info(type));
+  if (type == message_type::response_error)
+    return boost::str(boost::format("%1% (%2%)") % info.type_string % get_error_info(error_value));
+
+  if (is_mrc1_command())
+    return boost::str(boost::format("%1% (%2%)") % info.type_string % get_mrc1_command_string());
+
+  return info.type_string;
 }
 
-MessagePtr Message::make_read_request(boost::uint8_t bus, boost::uint8_t dev, boost::uint8_t par, bool mirror)
-{
-  MessagePtr ret(boost::make_shared<Message>());
-  ret->type = mirror ? message_type::request_mirror_read : message_type::request_read;
-  ret->bus  = bus;
-  ret->dev  = dev;
-  ret->par  = par;
-  return ret;
-}
-
-MessagePtr Message::make_set_request(boost::uint8_t bus, boost::uint8_t dev, boost::uint8_t par, boost::uint16_t value, bool mirror)
-{
-  MessagePtr ret(boost::make_shared<Message>());
-  ret->type = mirror ? message_type::request_mirror_set : message_type::request_set;
-  ret->bus  = bus;
-  ret->dev  = dev;
-  ret->par  = par;
-  ret->val  = value;
-  return ret;
-}
-
-MessagePtr Message::make_set_rc_request(boost::uint8_t bus, boost::uint8_t dev, bool on)
-{
-  MessagePtr ret(boost::make_shared<Message>());
-  ret->type = on ? message_type::request_rc_on : message_type::request_rc_off;
-  ret->bus  = bus;
-  ret->dev  = dev;
-  return ret;
-}
-
-MessagePtr Message::make_reset_request(boost::uint8_t bus, boost::uint8_t dev)
-{
-  MessagePtr ret(boost::make_shared<Message>());
-  ret->type = message_type::request_reset;
-  ret->bus  = bus;
-  ret->dev  = dev;
-  return ret;
-}
-
-MessagePtr Message::make_copy_request(boost::uint8_t bus, boost::uint8_t dev)
-{
-  MessagePtr ret(boost::make_shared<Message>());
-  ret->type = message_type::request_copy;
-  ret->bus  = bus;
-  ret->dev  = dev;
-  return ret;
-}
-
-MessagePtr Message::make_scanbus_response(boost::uint8_t bus, const boost::array<std::pair<boost::uint8_t, bool>, 16> &bus_data)
+MessagePtr MessageFactory::make_scanbus_response(boost::uint8_t bus, const Message::ScanbusData &bus_data)
 {
   MessagePtr ret(boost::make_shared<Message>());
   ret->type     = message_type::response_scanbus;
@@ -323,7 +367,24 @@ MessagePtr Message::make_scanbus_response(boost::uint8_t bus, const boost::array
   return ret;
 }
 
-MessagePtr Message::make_read_or_set_response(message_type::MessageType request_type, boost::uint8_t bus, boost::uint8_t dev, boost::uint8_t par, boost::uint16_t val)
+MessagePtr MessageFactory::make_read_response(boost::uint8_t bus, boost::uint8_t dev,
+    boost::uint8_t par, boost::uint16_t val, bool mirror)
+{
+  return make_read_or_set_response(
+      mirror ? message_type::request_mirror_read : message_type::request_read,
+      bus, dev, par, val);
+}
+
+MessagePtr MessageFactory::make_set_response(boost::uint8_t bus, boost::uint8_t dev,
+    boost::uint8_t par, boost::uint16_t val, bool mirror)
+{
+  return make_read_or_set_response(
+      mirror ? message_type::request_mirror_set : message_type::request_mirror_read,
+      bus, dev, par, val);
+}
+
+MessagePtr MessageFactory::make_read_or_set_response(message_type::MessageType request_type,
+    boost::uint8_t bus, boost::uint8_t dev, boost::uint8_t par, boost::uint16_t val)
 {
   MessagePtr ret(boost::make_shared<Message>());
   switch (request_type) {
@@ -350,7 +411,7 @@ MessagePtr Message::make_read_or_set_response(message_type::MessageType request_
   return ret;
 }
 
-MessagePtr Message::make_bool_response(bool bool_value)
+MessagePtr MessageFactory::make_bool_response(bool bool_value)
 {
   MessagePtr ret(boost::make_shared<Message>());
   ret->type = message_type::response_bool;
@@ -358,11 +419,47 @@ MessagePtr Message::make_bool_response(bool bool_value)
   return ret;
 }
 
-MessagePtr Message::make_error_response(error_type::ErrorType error)
+MessagePtr MessageFactory::make_error_response(error_type::ErrorType error)
 {
   MessagePtr ret(boost::make_shared<Message>());
   ret->type        = message_type::response_error;
   ret->error_value = error;
+  return ret;
+}
+
+MessagePtr MessageFactory::make_write_access_notification(bool has_write_access)
+{
+  MessagePtr ret(boost::make_shared<Message>());
+  ret->type        = message_type::notify_write_access;
+  ret->bool_value  = has_write_access;
+  return ret;
+}
+
+MessagePtr MessageFactory::make_silent_mode_notification(bool silence_active)
+{
+  MessagePtr ret(boost::make_shared<Message>());
+  ret->type        = message_type::notify_silent_mode;
+  ret->bool_value  = silence_active;
+  return ret;
+}
+
+MessagePtr MessageFactory::make_parameter_set_notification(boost::uint8_t bus, boost::uint8_t dev,
+    boost::uint8_t par, boost::uint16_t value, bool mirror)
+{
+  MessagePtr ret(boost::make_shared<Message>());
+  ret->type        = mirror ? message_type::notify_mirror_set : message_type::notify_set;
+  ret->bus = bus;
+  ret->dev = dev;
+  ret->par = par;
+  ret->val = value;
+  return ret;
+}
+
+MessagePtr MessageFactory::make_can_acquire_write_access_notification(bool can_acquire)
+{
+  MessagePtr ret(boost::make_shared<Message>());
+  ret->type        = message_type::notify_silent_mode;
+  ret->bool_value  = can_acquire;
   return ret;
 }
 

@@ -7,6 +7,7 @@ from PyQt4 import QtGui
 from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import pyqtSlot
 import logging
+import weakref
 
 class MRCTreeView(QtGui.QWidget):
     sig_open_device_window = pyqtSignal(object)
@@ -38,7 +39,7 @@ class MRCTreeView(QtGui.QWidget):
 
         mrc_item = QtGui.QTreeWidgetItem()
         mrc_item.setText(0, connection.info_string())
-        mrc_item.mrc_model = mrc_model
+        mrc_item.mrc_model = weakref.ref(mrc_model)
         self.tree_widget.addTopLevelItem(mrc_item)
         for i in range(3):
             self.tree_widget.resizeColumnToContents(i)
@@ -53,7 +54,7 @@ class MRCTreeView(QtGui.QWidget):
 
 
     def _slt_bus_data_complete(self, mrc_model):
-        f = lambda node: hasattr(node, 'mrc_model') and node.mrc_model == mrc_model
+        f = lambda node: hasattr(node, 'mrc_model') and node.mrc_model() == mrc_model
         mrc_node = filter(f, [self.tree_widget.topLevelItem(i) for i in range(self.tree_widget.topLevelItemCount())])[0]
 
         self.log.debug("MRCModel=%s: scanbus complete. mrc_node=%s", str(mrc_model), str(mrc_node))
@@ -63,23 +64,41 @@ class MRCTreeView(QtGui.QWidget):
             bus_children = [bus_node.child(i) for i in range(bus_node.childCount())]
 
             for dev in range(16):
-                if mrc_model.bus_data[bus].get(dev, None) is None:
+                # Skip over disconnected bus addresses (idc=0)
+                if mrc_model.bus_data[bus][dev][0] == 0:
                     continue
 
-                f = lambda node: hasattr(node, 'device_model') and node.device_model.dev == dev
+                f = lambda node: (hasattr(node, 'device_model')
+                        and node.device_model.bus == bus
+                        and node.device_model.dev == dev)
                 try:
                     dev_node = filter(f, bus_children)[0]
                 except IndexError:
-                    dev_node = None
+                    f = lambda node: (hasattr(node, 'bus') and hasattr(node, 'dev')
+                            and node.bus == bus
+                            and node.dev == dev)
+                    try:
+                        dev_node = filter(f, bus_children)[0]
+                    except IndexError:
+                        dev_node = None
 
                 if dev_node is None:
                     dev_node = QtGui.QTreeWidgetItem()
                     bus_node.addChild(dev_node)
+                    dev_node.bus = bus
+                    dev_node.dev = dev
+
+                device_model = mrc_model.device_models[bus].get(dev, None)
 
                 dev_node.setText(0, str(dev))
-                dev_node.device_model = mrc_model.bus_data[bus][dev]
-                dev_node.setText(1, str(dev_node.device_model.idc))
-                dev_node.setText(2, "on" if dev_node.device_model.rc else "off")
+
+                if device_model is not None:
+                    dev_node.device_model = device_model
+                    dev_node.setText(1, str(device_model.idc))
+                    dev_node.setText(2, "on" if device_model.rc else "off")
+                elif mrc_model.bus_data[bus][dev][1] not in (0, 1):
+                    dev_node.setText(1, str(mrc_model.bus_data[bus][dev][0]))
+                    dev_node.setText(2, "Address conflict")
 
     def _slt_item_doubleclicked(self, item, column):
         if not hasattr(item, 'device_model'):

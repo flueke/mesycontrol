@@ -7,6 +7,7 @@ from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import pyqtProperty
 from mesycontrol.protocol import Message
 import logging
+import weakref
 
 class ApplicationModel(QtCore.QObject):
     sig_connection_added = pyqtSignal(object)
@@ -46,12 +47,13 @@ class MRCModel(QtCore.QObject):
     def __init__(self, connection, parent=None):
         super(MRCModel, self).__init__(parent)
         self.bus_data = {}
-        self.connection = connection
-        self.client     = connection.tcp_client
-        self.client.sig_connected.connect(self._slt_client_connected)
-        self.client.sig_disconnected.connect(self._slt_client_disconnected)
-        self.client.sig_message_received.connect(self._slt_message_received)
-        self.client.sig_queue_empty.connect(self._slt_client_queue_empty)
+        self.device_models = {}
+        self.connection = weakref.ref(connection)
+        self.client     = weakref.ref(connection.tcp_client)
+        self.client().sig_connected.connect(self._slt_client_connected)
+        self.client().sig_disconnected.connect(self._slt_client_disconnected)
+        self.client().sig_message_received.connect(self._slt_message_received)
+        self.client().sig_queue_empty.connect(self._slt_client_queue_empty)
         self.poll_set = set()
         self.log = logging.getLogger("MRCModel")
 
@@ -59,16 +61,16 @@ class MRCModel(QtCore.QObject):
         return self.connection.get_mrc_address_string()
 
     def scanbus(self, bus):
-      self.client.queue_request(Message('request_scanbus', bus=bus))
+      self.client().queue_request(Message('request_scanbus', bus=bus))
 
     def readParameter(self, bus, dev, par):
-      self.client.queue_request(Message('request_read', bus=bus, dev=dev, par=par))
+      self.client().queue_request(Message('request_read', bus=bus, dev=dev, par=par))
 
     def setParameter(self, bus, dev, par, value):
-      self.client.queue_request(Message('request_set', bus=bus, dev=dev, par=par, val=value))
+      self.client().queue_request(Message('request_set', bus=bus, dev=dev, par=par, val=value))
 
     def setRc(self, bus, dev, rc):
-      self.client.queue_request(Message('request_rc_on' if rc else 'request_rc_off', bus=bus, dev=dev))
+      self.client().queue_request(Message('request_rc_on' if rc else 'request_rc_off', bus=bus, dev=dev))
 
     def addPollParameter(self, bus, dev, par):
         try:
@@ -77,7 +79,7 @@ class MRCModel(QtCore.QObject):
             par = par.address
 
         self.poll_set.add((bus, dev, par))
-        if self.client.get_request_queue_size() == 0:
+        if self.client().get_request_queue_size() == 0:
             self._slt_client_queue_empty() # Init polling
 
     def addPollParameters(self, bus, dev, pars):
@@ -102,16 +104,24 @@ class MRCModel(QtCore.QObject):
 
     def _slt_message_received(self, msg):
         if msg.get_type_name() == 'response_scanbus':
+            # TODO: handle changes to the scanbus data:
+            # device added/removed, address conflict appeared/disappeared, device idc changed
             if msg.bus not in self.bus_data:
                 self.bus_data[msg.bus] = {}
+
+            if msg.bus not in self.device_models:
+                self.device_models[msg.bus] = {}
+
+            self.bus_data[msg.bus] = msg.bus_data
 
             for dev in range(16):
                 idc, rc = msg.bus_data[dev]
 
-                if idc > 0 and dev not in self.bus_data[msg.bus]:
-                    self.bus_data[msg.bus][dev] = DeviceModel(msg.bus, dev, idc, rc, mrc_model=self, parent=self)
-                elif idc > 0:
-                    self.bus_data[msg.bus][dev].rc = rc
+                if rc in (0, 1):
+                    if idc > 0 and dev not in self.bus_data[msg.bus]:
+                        self.device_models[msg.bus][dev] = DeviceModel(msg.bus, dev, idc, rc, mrc_model=self, parent=self)
+                    elif idc > 0:
+                        self.device_models[msg.bus][dev].rc = rc
 
             if len(self.bus_data) == 2:
                 self.sig_bus_data_complete.emit(self.bus_data)
@@ -143,41 +153,41 @@ class DeviceModel(QtCore.QObject):
 
     def __init__(self, bus, dev, idc, rc, mrc_model, parent=None):
         super(DeviceModel, self).__init__(parent)
-        self.mrc_model = mrc_model
+        self.mrc_model = weakref.ref(mrc_model)
         self.bus       = bus
         self.dev       = dev
         self.idc       = idc
         self.rc        = rc
         self.memory   = {}
         
-        self.mrc_model.sig_parameterRead.connect(self._slt_parameterRead)
-        self.mrc_model.sig_parameterSet.connect(self._slt_parameterSet)
-        self.mrc_model.sig_rcSet.connect(self._slt_rcSet)
+        self.mrc_model().sig_parameterRead.connect(self._slt_parameterRead)
+        self.mrc_model().sig_parameterSet.connect(self._slt_parameterSet)
+        self.mrc_model().sig_rcSet.connect(self._slt_rcSet)
 
     def readParameter(self, address, reread = False):
         if not reread and address in self.memory:
             self.sig_parameterRead.emit(address, self.memory[address])
         else:
-            self.mrc_model.readParameter(self.bus, self.dev, address)
+            self.mrc_model().readParameter(self.bus, self.dev, address)
 
     def setParameter(self, address, value):
-        self.mrc_model.setParameter(self.bus, self.dev, address, value)
+        self.mrc_model().setParameter(self.bus, self.dev, address, value)
 
     def addPollParameter(self, address):
-        self.mrc_model.addPollParameter(self.bus, self.dev, address)
+        self.mrc_model().addPollParameter(self.bus, self.dev, address)
 
     def addPollParameters(self, params):
-        self.mrc_model.addPollParameters(self.bus, self.dev, params)
+        self.mrc_model().addPollParameters(self.bus, self.dev, params)
 
     def removePollParameter(self, address):
-        self.mrc_model.removePollParameter(self.bus, self.dev, address)
+        self.mrc_model().removePollParameter(self.bus, self.dev, address)
 
     def clearPollParameters(self):
-        self.mrc_model.removePollParameters(self.bus, self.dev)
+        self.mrc_model().removePollParameters(self.bus, self.dev)
 
     def setRc(self, on_off):
         if on_off != self.rc:
-            self.mrc_model.setRc(self.bus, self.dev, on_off)
+            self.mrc_model().setRc(self.bus, self.dev, on_off)
 
     def _slt_parameterRead(self, bus, dev, address, value):
         if bus == self.bus and dev == self.dev:
@@ -218,13 +228,19 @@ class DeviceViewModel(QtCore.QObject):
         device_model.sig_rcSet.connect(self.sig_rcSet)
 
     def readParameter(self, name_or_address, reread = False):
-        self.device_model.readParameter(self._name2address(name_or_address), reread)
+        self.device_model().readParameter(self._name2address(name_or_address), reread)
 
     def setParameter(self, name_or_address, value):
-        self.device_model.setParameter(self._name2address(name_or_address), value)
+        self.device_model().setParameter(self._name2address(name_or_address), value)
 
     def setRc(self, on_off):
-        self.device_model.setRc(on_off)
+        self.device_model().setRc(on_off)
+
+    def setDeviceModel(self, model):
+        self._device_model = weakref.ref(model)
+
+    def getDeviceModel(self):
+        return self._device_model()
 
     def setDeviceDescription(self, descr):
         self._device_description = descr
@@ -234,6 +250,12 @@ class DeviceViewModel(QtCore.QObject):
 
     def getDeviceDescription(self):
         return self._device_description
+
+    def setDeviceConfig(self, config):
+        self._device_config = weakref.ref(config) if config is not None else None
+
+    def getDeviceConfig(self):
+        return self._device_config() if self._device_config is not None else None
 
     def _name2address(self, name):
         address = self.device_description.get_parameter_by_name(name)
@@ -253,7 +275,9 @@ class DeviceViewModel(QtCore.QObject):
         if param_desc is not None and param_desc.name is not None:
            self.sig_parameterSet[str, int].emit(param_desc.name, value)
 
+    device_model       = pyqtProperty(object, getDeviceModel, setDeviceModel)
     device_description = pyqtProperty(object, getDeviceDescription, setDeviceDescription)
+    device_config      = pyqtProperty(object, getDeviceConfig, setDeviceConfig)
 
 class MHV4ViewModel(DeviceViewModel):
     def __init__(self, device_model, device_description, device_config=None):

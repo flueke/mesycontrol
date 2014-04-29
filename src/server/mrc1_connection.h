@@ -11,6 +11,7 @@
 #include <string>
 #include "handler_types.h"
 #include "mrc1_reply_parser.h"
+#include "logging.h"
 
 namespace mesycontrol
 {
@@ -30,7 +31,11 @@ class MRC1Connection:
       running,
     };
 
-    static const boost::posix_time::time_duration default_timeout;
+    /** Default timeout for read/write operations. */
+    static const boost::posix_time::time_duration default_io_timeout;
+
+    /** Default timeout between reconnect attempts. */
+    static const boost::posix_time::time_duration default_reconnect_timeout;
 
     MRC1Connection(boost::asio::io_service &io_service);
 
@@ -44,19 +49,27 @@ class MRC1Connection:
 
     /** Send the given \c command to the MRC1, using the given \c
      * response_handler as a response callback.
-     * Returns false if is_running() is false or a command is already in
-     * progress. Otherwise true is returned and the command will be written to
-     * the MRC1. */
+     * Returns false if the connection has been stopped or a command is already
+     * in progress. Otherwise true is returned and the command will be handled. */
     bool write_command(const MessagePtr &command,
         ResponseHandler response_handler);
     bool command_in_progress() const { return m_current_command; }
 
-    boost::posix_time::time_duration get_timeout() const { return m_timeout; }
-    void set_timeout(const boost::posix_time::time_duration &timeout) { m_timeout = timeout; }
+    boost::posix_time::time_duration get_io_timeout() const { return m_io_timeout; }
+    void set_io_timeout(const boost::posix_time::time_duration &timeout) { m_io_timeout = timeout; }
+
+    boost::posix_time::time_duration get_reconnect_timeout() const { return m_reconnect_timeout; }
+    void set_reconnect_timeout(const boost::posix_time::time_duration &timeout) { m_reconnect_timeout = timeout; }
+
+    bool get_auto_reconnect() const { return m_auto_reconnect; }
+    void set_auto_reconnect(bool auto_reconnect) { m_auto_reconnect = auto_reconnect; }
+
     Status get_status() const { return m_status; }
     bool is_initializing() const { return m_status == initializing; }
     bool is_running() const { return m_status == running; }
     bool is_stopped() const { return m_status == stopped; }
+    bool is_silenced() const { return m_silenced; }
+    void set_silenced(bool silenced) { m_silenced = silenced; }
     boost::system::error_code get_last_error() const { return m_last_error; }
     boost::asio::io_service &get_io_service() { return m_io_service; }
 
@@ -114,14 +127,17 @@ class MRC1Connection:
     void handle_read_line(const boost::system::error_code &ec, std::size_t bytes);
     void handle_start(const boost::system::error_code &ec);
     void handle_init(const boost::system::error_code &ec);
-    void handle_timeout(const boost::system::error_code &ec);
+    void handle_io_timeout(const boost::system::error_code &ec);
+    void handle_reconnect_timeout(const boost::system::error_code &ec);
     void stop(const boost::system::error_code &reason, Status new_status = stopped);
+    void reconnect_if_enabled();
 
     friend class MRC1Initializer;
 
     boost::asio::io_service &m_io_service;
     boost::asio::deadline_timer m_timeout_timer;
-    boost::posix_time::time_duration m_timeout;
+    boost::posix_time::time_duration m_io_timeout;
+    boost::posix_time::time_duration m_reconnect_timeout;
     MessagePtr m_current_command;
     ResponseHandler m_current_response_handler;
     std::string m_write_buffer;
@@ -129,6 +145,11 @@ class MRC1Connection:
     Status m_status;
     MRC1ReplyParser m_reply_parser;
     boost::system::error_code m_last_error;
+    bool m_silenced;
+    bool m_auto_reconnect;
+
+  protected:
+    log::Logger m_log;
 };
 
 class MRC1SerialConnection: public MRC1Connection

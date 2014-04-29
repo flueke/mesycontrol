@@ -33,16 +33,14 @@ class TCPClient(QtCore.QObject):
     self.socket.bytesWritten.connect(self._slt_socket_bytesWritten)
     self.socket.readyRead.connect(self._slt_socket_readyRead)
 
-    self.destroyed.connect(self._destroyed)
-
-  def _destroyed(self):
-    self.disconnect()
+    self.log = logging.getLogger("TCPClient")
 
   def connect(self, host, port):
     self.disconnect()
-    self.host = host
-    self.port = port
+    self.host = str(host)
+    self.port = int(port)
     self.sig_connecting.emit(host, port)
+    self.log.info("Connecting to %s:%d", self.host, self.port)
     self.socket.connectToHost(host, port)
 
   def disconnect(self):
@@ -55,6 +53,7 @@ class TCPClient(QtCore.QObject):
     return self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState
 
   def queue_request(self, message):
+    self.log.debug("Queueing message %s", message)
     was_empty = self._request_queue.empty()
     self._request_queue.put(message)
     self._max_queue_size = max(self._max_queue_size, self.get_request_queue_size())
@@ -69,28 +68,29 @@ class TCPClient(QtCore.QObject):
       try:
         message = self._request_queue.get(False)
         self._request_in_progress = True
-        #logging.debug("TCPClient: writing message: %s" % message)
         msg_data = message.serialize()
         data = struct.pack('!H', len(msg_data)) + msg_data
+        self.log.debug("Writing message %s (size=%d)", message, len(data))
         self.socket.write(data)
       except Queue.Empty:
-        #logging.debug("TCPClient: message queue is empty")
+        self.log.debug("Message queue is empty")
+        logging.debug("TCPClient: message queue is empty")
         return
 
   def _slt_socket_bytesWritten(self, n_bytes):
-    pass
+      self.log.debug("%d bytes written", n_bytes)
 
   def _slt_socket_readyRead(self):
+    self.log.debug("socket.readyRead")
     if self._response_size is None and self.socket.bytesAvailable() >= 2:
       self._response_size = struct.unpack('!H', self.socket.read(2))[0]
 
     if self._response_size is not None and self.socket.bytesAvailable() >= self._response_size:
-      # TODO: add and catch Message.deserialize() exceptions
       response_data = self.socket.read(self._response_size)
       message = Message.deserialize(response_data)
       self._response_size = None
       self._request_in_progress = False
-      #logging.debug("TCPClient: received message: %s" % message)
+      self.log.debug("Received message %s", message)
       self.sig_message_received.emit(message)
       if not self._request_queue.empty():
         self._start_write_message()
@@ -98,12 +98,12 @@ class TCPClient(QtCore.QObject):
         self.sig_queue_empty.emit()
 
   def _slt_connected(self):
-    logging.info("TCPClient: connected to %s:%d" % (self.host, self.port))
+    self.log.info("TCPClient: connected to %s:%d" % (self.host, self.port))
     self.sig_connected.emit(self.host, self.port)
     self._start_write_message()
 
   def _slt_disconnected(self):
-    logging.info("TCPClient: disconnected from %s:%d" % (self.host, self.port))
+    self.log.info("TCPClient: disconnected from %s:%d" % (self.host, self.port))
     logging.debug("TCPClient %s:%d: max request queue size was %d" %
             (self.host, self.port, self._max_queue_size))
     self.sig_disconnected.emit(self.host, self.port)

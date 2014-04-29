@@ -2,7 +2,7 @@
 #define UUID_47558d03_c9a7_4ea8_ad60_1e2e9535f1a5
 
 #include <boost/function.hpp>
-#include <mesycontrol/protocol.h>
+#include "protocol.h"
 
 namespace mesycontrol
 {

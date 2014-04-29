@@ -41,6 +41,7 @@
      <string>&amp;File</string>
     </property>
     <addaction name="actionConnect"/>
+    <addaction name="actionConnectToServer"/>
     <addaction name="actionDisconnect"/>
     <addaction name="separator"/>
     <addaction name="action_Quit"/>
@@ -92,6 +93,11 @@
   <action name="actionDisconnect">
    <property name="text">
     <string>&amp;Disconnect</string>
+   </property>
+  </action>
+  <action name="actionConnectToServer">
+   <property name="text">
+    <string>Connect to Server</string>
    </property>
   </action>
  </widget>

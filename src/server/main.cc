@@ -1,18 +1,21 @@
 #include "config.h"
+
 #include <boost/asio.hpp>
+#include <boost/assign.hpp>
 #include <boost/bind.hpp>
+#include <boost/make_shared.hpp>
 #include <boost/program_options/cmdline.hpp>
 #include <boost/program_options/option.hpp>
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/value_semantic.hpp>
 #include <boost/program_options/variables_map.hpp>
-#include <boost/make_shared.hpp>
 #include <boost/ref.hpp>
+
 #include "mrc1_connection.h"
-#include "request_dispatcher.h"
 #include "tcp_server.h"
 #include "git_sha1.h"
+#include "logging.h"
 
 /* TODO
  * - scanbus 3 shuts down the mrc connection cause of a timeout. fix this!
@@ -30,19 +33,41 @@
 namespace po = boost::program_options;
 using namespace mesycontrol;
 
-enum exit_codes
+enum exit_code
 {
-  exit_success = 0,
-  exit_options_error = 1,         // indicates wrong or missing options
-  exit_address_in_use = 2,
-  exit_address_not_available = 3,
-  exit_permission_denied = 4,
-  exit_bad_listen_address = 5,
-  exit_unknown_error = 127
+  exit_success                = 0,
+  exit_options_error          = 1, // indicates wrong or missing options
+  exit_address_in_use         = 2,
+  exit_address_not_available  = 3,
+  exit_permission_denied      = 4,
+  exit_bad_listen_address     = 5,
+  exit_unknown_error          = 127
 };
+
+std::string to_string(exit_code code)
+{
+  static std::map<exit_code, std::string> strings = boost::assign::map_list_of
+    (exit_success,                  "success")
+    (exit_options_error ,           "invalid options given")
+    (exit_address_in_use,           "listen address in use")
+    (exit_address_not_available,    "listen address not available")
+    (exit_permission_denied,        "permission denied")
+    (exit_bad_listen_address,       "bad listen address")
+    (exit_unknown_error,            "unknown error");
+
+    std::map<exit_code, std::string>::const_iterator it = strings.find(code);
+
+    if (it != strings.end())
+      return it->second;
+
+    return boost::lexical_cast<std::string>(static_cast<int>(code));
+}
 
 int main(int argc, char *argv[])
 {
+  log::init_logging();
+  log::Logger logger(log::keywords::channel="main");
+
   po::options_description options("Command line options");
   options.add_options()
     ("version,V", "print version and exit")
@@ -110,8 +135,8 @@ int main(int argc, char *argv[])
     return exit_options_error;
   }
 
-  RequestDispatcher dispatcher(mrc1_connection);
-
+  MRC1RequestQueue mrc1_request_queue(mrc1_connection);
+  TCPConnectionManager connection_manager(mrc1_request_queue);
   boost::shared_ptr<TCPServer> tcp_server;
 
   try {
@@ -124,10 +149,9 @@ int main(int argc, char *argv[])
     tcp_server = boost::make_shared<TCPServer>(
         boost::ref(io_service),
         listen_endpoint,
-        boost::bind(&RequestDispatcher::dispatch, &dispatcher, _1, _2));
-
+        boost::ref(connection_manager));
   } catch (const boost::system::system_error &e) {
-    std::cerr << "Failed starting TCP server component: " << e.what() << std::endl;
+    std::cerr << "Error: Failed starting TCP server component: " << e.what() << std::endl;
 
     namespace errc = boost::system::errc;
     const boost::system::error_code ec(e.code());
@@ -157,8 +181,17 @@ int main(int argc, char *argv[])
   signal_set.async_wait(boost::bind(&MRC1Connection::stop, mrc1_connection));
   signal_set.async_wait(boost::bind(&TCPServer::stop, tcp_server));
 
-  mrc1_connection->start();
-  io_service.run();
+  BOOST_LOG_SEV(logger, log::lvl::info) << "Starting MRC1 connection";
+
+  try {
+    mrc1_connection->start();
+    io_service.run();
+  } catch (const std::exception &e) {
+    std::cerr << "Error: Unhandled exception from io_service: " << e.what() << std::endl;
+    return exit_unknown_error;
+  }
+
+  BOOST_LOG_SEV(logger, log::lvl::info) << "mesycontrol_server exiting";
 
   return exit_success;
 }

@@ -10,17 +10,21 @@ def deserialize_scanbus_response(type_info, data):
   ret.bus = values[0]
   ret.bus_data = []
   for i in range(16):
-    ret.bus_data.append((values[1+2*i], bool(values[1+2*i+1])))
+    ret.bus_data.append((values[1+2*i], values[1+2*i+1]))
   return ret
 
 def str_scanbus_response(msg):
   ret = msg.get_type_name()
   ret += "(bus=%d: " % msg.bus
 
-  for i in range(len(msg.bus_data)):
-    idc, rc = msg.bus_data[i]
+  for i, data in enumerate(msg.bus_data):
+    idc, rc = data
+    
     idc = str(idc) if idc > 0 else '-'
-    rc  = "ON" if rc else "OFF"
+    if rc in (0, 1):
+      rc  = "ON" if rc else "OFF"
+    else:
+      rc  = 'C!'
     ret += "%d:%s,%s" % (i, idc, rc)
     if i < len(msg.bus_data)-1:
       ret += ", "
@@ -81,6 +85,37 @@ class MessageInfo:
         'format_args': ('bus', 'dev')
         },
 
+
+      { 'code': 20,
+        'name': 'request_has_write_access',
+        'format': '',
+        'format_args': ()
+        },
+
+      { 'code': 21,
+        'name': 'request_acquire_write_access',
+        'format': '',
+        'format_args': ()
+        },
+
+      { 'code': 22,
+        'name': 'request_release_write_access',
+        'format': '',
+        'format_args': ()
+        },
+
+      { 'code': 23,
+        'name': 'request_in_silent_mode',
+        'format': '',
+        'format_args': ()
+        },
+
+      { 'code': 24,
+        'name': 'request_set_silent_mode',
+        'format': '?',
+        'format_args': ('bool_value')
+        },
+
       # responses
       { 'code': 41,
         'name': 'response_scanbus',
@@ -108,16 +143,43 @@ class MessageInfo:
         'format': 'BBBH',
         'format_args': ('bus', 'dev', 'par', 'val')
         },
-      { 'code': 60,
+      { 'code': 50,
         'name': 'response_bool',
         'format': '?',
         'format_args': ('bool_value',)
         },
-      { 'code': 61,
+      { 'code': 51,
         'name': 'response_error',
         'format': 'B',
         'format_args': ('error_code',),
         'str_func': str_error_response
+        },
+
+      # Notifications
+      { 'code': 60,
+        'name': 'notify_write_access',
+        'format': '?',
+        'format_args': ('bool_value',)
+        },
+      { 'code': 61,
+        'name': 'notify_silent_mode',
+        'format': '?',
+        'format_args': ('bool_value',)
+        },
+      { 'code': 62,
+        'name': 'notify_set',
+        'format': 'BBBH',
+        'format_args': ('bus', 'dev', 'par', 'val')
+        },
+      { 'code': 63,
+        'name': 'notify_mirror_set',
+        'format': 'BBBH',
+        'format_args': ('bus', 'dev', 'par', 'val')
+        },
+      { 'code': 64,
+        'name': 'notify_can_acquire_write_access',
+        'format': '?',
+        'format_args': ('bool_value')
         },
       ]
 
@@ -134,11 +196,14 @@ class MessageInfo:
 
 class ErrorInfo:
   info_list = [
+      { 'code': 0,
+        'name': 'unknown_error'
+        },
       { 'code': 1,
-        'name': 'invalid_type'
+        'name': 'invalid_message_type'
         },
       { 'code': 2,
-        'name': 'invalid_size'
+        'name': 'invalid_message_size'
         },
       { 'code': 3,
         'name': 'bus_out_of_range'
@@ -159,11 +224,17 @@ class ErrorInfo:
         'name': 'silenced'
         },
       { 'code': 9,
-        'name': 'unknown_error'
-        },
-      { 'code': 10,
         'name': 'mrc_connect_error'
         },
+      { 'code': 10,
+        'name': 'permission_denied'
+        },
+      { 'code': 11,
+        'name': 'mrc_parse_error'
+        },
+      { 'code': 12,
+        'name': 'mrc_address_conflict'
+        }
       ]
 
   by_name = {}

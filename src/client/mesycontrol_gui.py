@@ -22,44 +22,61 @@ from mesycontrol.generic_device_widget import GenericDeviceWidget
 from mesycontrol.util import find_data_file
 
 class MRCConnection(QtCore.QObject):
-    def __init__(self, mrc_serial_port=None, mrc_baud_rate=None,
-            mrc_host=None, mrc_port=None, parent=None):
+    def __init__(self,
+            mrc_serial_port=None, mrc_baud_rate=None,
+            mrc_host=None, mrc_port=None,
+            server_host=None, server_port=None,
+            parent=None):
 
         super(MRCConnection, self).__init__(parent)
 
-        self.server_process                 = ServerProcess(self)
-        self.server_process.mrc_serial_port = mrc_serial_port
-        self.server_process.mrc_baud_rate   = mrc_baud_rate
-        self.server_process.mrc_host        = mrc_host
-        self.server_process.mrc_port        = mrc_port
+        self.server_process = None
+        if mrc_serial_port is not None or mrc_host is not None:
+            self.server_process                 = ServerProcess(self)
+            self.server_process.mrc_serial_port = str(mrc_serial_port)
+            self.server_process.mrc_baud_rate   = int(mrc_baud_rate)
+            self.server_process.mrc_host        = str(mrc_host)
+            self.server_process.mrc_port        = int(mrc_port)
+            self.server_process.sig_started.connect(self._slt_server_process_started)
+            self.server_process.sig_finished.connect(self._slt_server_process_finished)
+
+            self.server_start_timer = QtCore.QTimer(self)
+            self.server_start_timer.setSingleShot(True)
+            self.server_start_timer.setInterval(1000)
+            self.server_start_timer.timeout.connect(self._slt_server_start_timer_timeout)
+        elif server_host is not None:
+            self.server_host = str(server_host)
+            self.server_port = int(server_port)
+
         self.tcp_client                     = TCPClient(self)
         self.mrc_model                      = MRCModel(self, self)
 
-        self.server_process.sig_started.connect(self._slt_server_process_started)
-        self.server_process.sig_finished.connect(self._slt_server_process_finished)
-
-        self.server_start_timer = QtCore.QTimer(self)
-        self.server_start_timer.setSingleShot(True)
-        self.server_start_timer.setInterval(1000)
-        self.server_start_timer.timeout.connect(self._slt_server_start_timer_timeout)
-
     def get_mrc_address_string(self):
-        return self.server_process.get_mrc_address_string()
+        if self.server_process is not None:
+            return self.server_process.get_mrc_address_string()
+        else:
+            return "%s:%d" % (self.server_host, self.server_port)
 
     def start(self):
-        if not self.server_process.is_running():
+        if self.server_process is not None and not self.server_process.is_running():
             self.server_process.start()
+        elif self.server_process is None and self.tcp_client.host is None:
+            self.tcp_client.connect(self.server_host, self.server_port)
 
     def stop(self):
         self.tcp_client.disconnect()
-        self.server_process.stop()
+        if self.server_process is not None:
+            self.server_process.stop()
 
     def info_string(self):
-        if self.server_process.mrc_serial_port is not None:
-            return "%s@%s" % (self.server_process.mrc_serial_port, self.server_process.mrc_baud_rate)
+        if self.server_process is not None:
+            if self.server_process.mrc_serial_port is not None:
+                return "%s@%d" % (self.server_process.mrc_serial_port, self.server_process.mrc_baud_rate)
 
-        if self.server_process.mrc_host is not None:
-            return "%s:%s" % (self.server_process.mrc_host, self.server_process.mrc_port)
+            if self.server_process.mrc_host is not None:
+                return "%s:%d" % (self.server_process.mrc_host, self.server_process.mrc_port)
+        elif self.server_host is not None:
+            return "mesycontrol_server %s:%d" % (self.server_host, self.server_port)
 
         return "<unknown>"
 
@@ -123,6 +140,21 @@ class MainWindow(QtGui.QMainWindow):
 
     def on_actionDisconnect_triggered(self):
         print "on_actionDisconnect_triggered"
+
+    @pyqtSlot()
+    def on_actionConnectToServer_triggered(self):
+        text, ok = QtGui.QInputDialog.getText(self, "Connect to mesycontrol server", "host:port",
+                text = "localhost:23000")
+
+        if not ok:
+            return
+
+        parts = text.split(':')
+        host  = parts[0]
+        port  = int(parts[1])
+        mrc_connection = MRCConnection(server_host=host, server_port=port)
+        self.app_model.registerConnection(mrc_connection)
+        mrc_connection.start()
 
     def _add_subwindow(self, widget, title):
         subwin = self.mdiArea.addSubWindow(widget)

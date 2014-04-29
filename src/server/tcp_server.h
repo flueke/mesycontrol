@@ -5,7 +5,8 @@
 #include <boost/asio.hpp>
 #include <boost/noncopyable.hpp>
 #include "tcp_connection_manager.h"
-#include <mesycontrol/protocol.h>
+#include "protocol.h"
+#include "logging.h"
 
 namespace mesycontrol
 {
@@ -14,7 +15,8 @@ class TCPServer: private boost::noncopyable
 {
   public:
     explicit TCPServer(boost::asio::io_service &io_service,
-        boost::asio::ip::tcp::endpoint endpoint, RequestHandler req_handler);
+        boost::asio::ip::tcp::endpoint endpoint,
+        TCPConnectionManager &connection_manager);
     ~TCPServer();
 
     void stop();
@@ -26,9 +28,9 @@ class TCPServer: private boost::noncopyable
 
     boost::asio::io_service &m_io_service;
     boost::asio::ip::tcp::acceptor m_acceptor;
-    TCPConnectionManager m_connection_manager;
+    TCPConnectionManager &m_connection_manager;
     TCPConnectionPtr m_new_connection;
-    RequestHandler m_request_handler;
+    log::Logger m_log;
 };
 
 } // namespace mesycontrol

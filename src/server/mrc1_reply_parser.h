@@ -2,7 +2,8 @@
 #define UUID_5503bd19_8e1b_48bf_822e_c613b018d900
 
 #include "config.h"
-#include <mesycontrol/protocol.h>
+#include "protocol.h"
+#include "logging.h"
 
 namespace mesycontrol
 {
@@ -10,6 +11,7 @@ namespace mesycontrol
 class MRC1ReplyParser
 {
   public:
+    MRC1ReplyParser();
     void set_current_request(const MessagePtr &request);
 
     /* Parses the given line.
@@ -19,13 +21,18 @@ class MRC1ReplyParser
     MessagePtr get_response_message() const;
 
   private:
+    MessagePtr get_error_response(const std::string &reply_line); 
     bool parse_read_or_set(const std::string &reply_line);
     bool parse_scanbus(const std::string &reply_line);
+    bool parse_other(const std::string &reply_line);
 
     MessagePtr m_request;
     MessagePtr m_response;
 
-    bool m_error_reply_parsed;
+    size_t m_error_lines_to_consume;
+    bool m_scanbus_address_conflict;
+
+    log::Logger m_log;
 };
 
 } // namespace mesycontrol
