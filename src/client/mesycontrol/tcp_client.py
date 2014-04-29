@@ -78,10 +78,9 @@ class TCPClient(QtCore.QObject):
         return
 
   def _slt_socket_bytesWritten(self, n_bytes):
-      self.log.debug("%d bytes written", n_bytes)
+      pass
 
   def _slt_socket_readyRead(self):
-    self.log.debug("socket.readyRead")
     if self._response_size is None and self.socket.bytesAvailable() >= 2:
       self._response_size = struct.unpack('!H', self.socket.read(2))[0]
 

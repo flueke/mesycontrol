@@ -76,7 +76,7 @@ class MRCConnection(QtCore.QObject):
             if self.server_process.mrc_host is not None:
                 return "%s:%d" % (self.server_process.mrc_host, self.server_process.mrc_port)
         elif self.server_host is not None:
-            return "mesycontrol_server %s:%d" % (self.server_host, self.server_port)
+            return "server@%s:%d" % (self.server_host, self.server_port)
 
         return "<unknown>"
 
@@ -167,7 +167,7 @@ class MainWindow(QtGui.QMainWindow):
         key = (device_model.mrc_model, device_model.bus, device_model.dev)
         if not self._device_windows.has_key(key):
             widget = GenericDeviceWidget(device_model, self)
-            title  = "%s %d.%d" % (device_model.mrc_model.connection.info_string(), device_model.bus, device_model.dev)
+            title  = "%s %d.%d" % (device_model.mrc_model.connection().info_string(), device_model.bus, device_model.dev)
             self._device_windows[key] = self._add_subwindow(widget, title)
 
         subwin = self._device_windows[key]

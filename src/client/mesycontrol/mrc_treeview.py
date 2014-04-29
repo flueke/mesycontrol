@@ -47,7 +47,7 @@ class MRCTreeView(QtGui.QWidget):
 
         for bus in range(2):
             bus_node = QtGui.QTreeWidgetItem()
-            bus_node.setText(0, str(bus))
+            bus_node.setText(0, "bus " + str(bus))
             mrc_item.addChild(bus_node)
             bus_node.setExpanded(True)
 
@@ -90,7 +90,7 @@ class MRCTreeView(QtGui.QWidget):
 
                 device_model = mrc_model.device_models[bus].get(dev, None)
 
-                dev_node.setText(0, str(dev))
+                dev_node.setText(0, "dev " + str(dev))
 
                 if device_model is not None:
                     dev_node.device_model = device_model
@@ -118,5 +118,5 @@ class MRCTreeView(QtGui.QWidget):
 
     def _slt_scanbus_button_clicked(self):
         for mrc_node in  [self.tree_widget.topLevelItem(i) for i in range(self.tree_widget.topLevelItemCount())]:
-            mrc_node.mrc_model.scanbus(0)
-            mrc_node.mrc_model.scanbus(1)
+            mrc_node.mrc_model().scanbus(0)
+            mrc_node.mrc_model().scanbus(1)

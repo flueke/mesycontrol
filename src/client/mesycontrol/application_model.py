@@ -153,41 +153,44 @@ class DeviceModel(QtCore.QObject):
 
     def __init__(self, bus, dev, idc, rc, mrc_model, parent=None):
         super(DeviceModel, self).__init__(parent)
-        self.mrc_model = weakref.ref(mrc_model)
+        self._mrc_model = weakref.ref(mrc_model)
         self.bus       = bus
         self.dev       = dev
         self.idc       = idc
         self.rc        = rc
         self.memory   = {}
         
-        self.mrc_model().sig_parameterRead.connect(self._slt_parameterRead)
-        self.mrc_model().sig_parameterSet.connect(self._slt_parameterSet)
-        self.mrc_model().sig_rcSet.connect(self._slt_rcSet)
+        self.mrc_model.sig_parameterRead.connect(self._slt_parameterRead)
+        self.mrc_model.sig_parameterSet.connect(self._slt_parameterSet)
+        self.mrc_model.sig_rcSet.connect(self._slt_rcSet)
 
     def readParameter(self, address, reread = False):
         if not reread and address in self.memory:
             self.sig_parameterRead.emit(address, self.memory[address])
         else:
-            self.mrc_model().readParameter(self.bus, self.dev, address)
+            self.mrc_model.readParameter(self.bus, self.dev, address)
 
     def setParameter(self, address, value):
-        self.mrc_model().setParameter(self.bus, self.dev, address, value)
+        self.mrc_model.setParameter(self.bus, self.dev, address, value)
 
     def addPollParameter(self, address):
-        self.mrc_model().addPollParameter(self.bus, self.dev, address)
+        self.mrc_model.addPollParameter(self.bus, self.dev, address)
 
     def addPollParameters(self, params):
-        self.mrc_model().addPollParameters(self.bus, self.dev, params)
+        self.mrc_model.addPollParameters(self.bus, self.dev, params)
 
     def removePollParameter(self, address):
-        self.mrc_model().removePollParameter(self.bus, self.dev, address)
+        self.mrc_model.removePollParameter(self.bus, self.dev, address)
 
     def clearPollParameters(self):
-        self.mrc_model().removePollParameters(self.bus, self.dev)
+        self.mrc_model.removePollParameters(self.bus, self.dev)
 
     def setRc(self, on_off):
         if on_off != self.rc:
-            self.mrc_model().setRc(self.bus, self.dev, on_off)
+            self.mrc_model.setRc(self.bus, self.dev, on_off)
+
+    def getMRCModel(self):
+        return self._mrc_model() if self._mrc_model is not None else None
 
     def _slt_parameterRead(self, bus, dev, address, value):
         if bus == self.bus and dev == self.dev:
@@ -209,6 +212,8 @@ class DeviceModel(QtCore.QObject):
         if bus == self.bus and dev == self.dev:
             self.rc = on_off
             self.sig_rcSet.emit(on_off)
+
+    mrc_model = pyqtProperty(object, getMRCModel)
 
 
 class DeviceViewModel(QtCore.QObject):
