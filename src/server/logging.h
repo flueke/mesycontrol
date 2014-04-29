@@ -17,6 +17,7 @@ namespace keywords = boost::log::keywords;
 typedef boost::log::sources::severity_channel_logger_mt<lvl::severity_level> Logger;
 
 void init_logging();
+void set_verbosity(int verbosity);
 
 }
 }

@@ -12,6 +12,7 @@
 #include <boost/program_options/variables_map.hpp>
 #include <boost/ref.hpp>
 
+#include "accumulator.hpp"
 #include "mrc1_connection.h"
 #include "tcp_server.h"
 #include "git_sha1.h"
@@ -65,9 +66,6 @@ std::string to_string(exit_code code)
 
 int main(int argc, char *argv[])
 {
-  log::init_logging();
-  log::Logger logger(log::keywords::channel="main");
-
   po::options_description options("Command line options");
   options.add_options()
     ("version,V", "print version and exit")
@@ -90,6 +88,12 @@ int main(int argc, char *argv[])
 
     ("mrc-port", po::value<unsigned short>()->default_value(4001),
      "port number to connect to if using TCP")
+
+    ("verbose,v", accumulator<int>(),
+     "increase verbosity level (can be used multiple times)")
+
+    ("quiet,q", accumulator<int>(),
+     "decrease verbosity level (can be used multiple times)")
     ;
 
   po::variables_map option_map;
@@ -111,6 +115,11 @@ int main(int argc, char *argv[])
     std::cout << "mesycontrol_server - git revision " << g_GIT_SHA1 << std::endl;
     return exit_success;
   }
+
+  log::init_logging();
+  log::Logger logger(log::keywords::channel="main");
+
+  log::set_verbosity(option_map["verbose"].as<int>() - option_map["quiet"].as<int>());
 
   if (option_map.count("mrc-serial-port") && option_map.count("mrc-host")) {
     std::cerr << "Error: both --mrc-serial-port and --mrc-host given" << std::endl;

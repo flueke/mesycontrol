@@ -29,6 +29,23 @@ void init_logging()
         << "[" << expr::format_date_time< boost::posix_time::ptime >("TimeStamp", "%y/%m/%d %H:%M:%S.%f")
         << "] [" << std::setw(7) << boost::log::trivial::severity << "] "
         << expr::attr<std::string>("Channel") << ": " << expr::smessage);
+
+  boost::log::core::get()->set_filter(
+      boost::log::trivial::severity >= boost::log::trivial::info);
+}
+
+void set_verbosity(int verbosity)
+{
+  int sev;
+
+  sev = std::max(0, boost::log::trivial::info - verbosity);
+  sev = std::min(sev, static_cast<int>(boost::log::trivial::fatal));
+
+  boost::log::trivial::severity_level
+    new_severity = static_cast<boost::log::trivial::severity_level>(sev);
+
+  boost::log::core::get()->set_filter(
+      boost::log::trivial::severity >= new_severity);
 }
 
 }
