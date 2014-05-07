@@ -3,7 +3,7 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 from PyQt4 import QtCore
-from PyQt4.QtCore import pyqtSignal
+from PyQt4.QtCore import pyqtSignal, pyqtProperty
 import logging
 import os
 from mesycontrol import application_model
@@ -27,11 +27,11 @@ class ServerProcess(QtCore.QObject):
     default_listen_port    = 23000
     default_baud_rate      = 9600
     default_mrc_port       = 4001
+    default_verbosity      = 0
 
     sig_started  = pyqtSignal()
     sig_error    = pyqtSignal(QtCore.QProcess.ProcessError)
-    sig_finished = pyqtSignal(int, QtCore.QProcess.ExitStatus)
-    sig_stderr   = pyqtSignal(str)
+    sig_finished = pyqtSignal([int, QtCore.QProcess.ExitStatus], [str])
     sig_stdout   = pyqtSignal(str)
 
     def __init__(self, parent = None):
@@ -45,20 +45,24 @@ class ServerProcess(QtCore.QObject):
         self.mrc_baud_rate   = ServerProcess.default_baud_rate
         self.mrc_host        = None
         self.mrc_port        = ServerProcess.default_mrc_port
+        self.verbosity       = ServerProcess.default_verbosity
 
         self.process = QtCore.QProcess(self)
+        self.process.setProcessChannelMode(QtCore.QProcess.MergedChannels)
         self.process.started.connect(self._slt_started)
         self.process.error.connect(self._slt_error)
         self.process.finished.connect(self._slt_finished)
-        self.process.readyReadStandardError.connect(self._slt_stderr_ready)
         self.process.readyReadStandardOutput.connect(self._slt_stdout_ready)
 
         self.log = logging.getLogger("ServerProcess")
 
     def start(self):
-        program = os.path.join(self.binary_path, self.binary_name)
+        verb_flag = 'v' if self.verbosity > 0 else 'q'
+        verb_args = '-' + verb_flag * abs(self.verbosity)
 
         args = list()
+        if self.verbosity != 0:
+            args.append(verb_args)
         args.extend(['--listen-address', self.listen_address])
         args.extend(['--listen-port', str(self.listen_port)])
 
@@ -71,6 +75,8 @@ class ServerProcess(QtCore.QObject):
         else:
             raise InvalidArgument("Neither mrc_serial_port nor mrc_host set.")
 
+        program = os.path.join(self.binary_path, self.binary_name)
+
         self._cmd_line = "%s %s" % (program, " ".join(args))
 
         self.log.info("Starting %s" % self._cmd_line)
@@ -81,7 +87,6 @@ class ServerProcess(QtCore.QObject):
             self.process.kill()
         else:
             self.process.terminate()
-        self.process.waitForFinished(1000)
 
     def is_running(self):
         return self.process.state() == QtCore.QProcess.Running
@@ -90,13 +95,21 @@ class ServerProcess(QtCore.QObject):
         return self.process.exitCode()
 
     def get_exit_code_string(self):
-        return self.exit_codes.get(self.get_exit_code(), "exit_unknown_error")
+        return self.exit_codes.get(self.get_exit_code(), 127)
 
     def get_mrc_address_string(self):
         if self.mrc_serial_port is not None:
             return "%s@%d" % (self.mrc_serial_port, int(self.mrc_baud_rate))
         elif self.mrc_host is not None:
             return "%s:%d" % (self.mrc_host, int(self.mrc_port))
+
+    def get_verbosity(self):
+        return self._verbosity
+
+    def set_verbosity(self, verbosity):
+        self._verbosity = int(verbosity)
+
+    verbosity = pyqtProperty(int, get_verbosity, set_verbosity)
 
     def _slt_started(self):
         self.log.info("Started %s => pid = %s" % (self._cmd_line, self.process.pid()))
@@ -108,12 +121,9 @@ class ServerProcess(QtCore.QObject):
     def _slt_finished(self, exit_code, exit_status):
         self.log.info("%s finished. exit_code = %s, exit_status = %s"
                 % (self._cmd_line, exit_code, exit_status))
-        self.sig_finished.emit(exit_code, exit_status)
 
-    def _slt_stderr_ready(self):
-        data = str(self.process.readAllStandardError())
-        self.log.debug(data)
-        self.sig_stderr.emit(data)
+        self.sig_finished[int, QtCore.QProcess.ExitStatus].emit(exit_code, exit_status)
+        self.sig_finished[str].emit(self.get_exit_code_string())
 
     def _slt_stdout_ready(self):
         data = str(self.process.readAllStandardOutput())

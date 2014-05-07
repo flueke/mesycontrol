@@ -35,6 +35,7 @@ namespace message_type
     request_release_write_access = 22,
     request_in_silent_mode = 23,
     request_set_silent_mode = 24,
+    request_force_write_access = 25,
 
     /* mrc command responses */
     response_scanbus = 41,

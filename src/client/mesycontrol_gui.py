@@ -33,10 +33,10 @@ class MRCConnection(QtCore.QObject):
         self.server_process = None
         if mrc_serial_port is not None or mrc_host is not None:
             self.server_process                 = ServerProcess(self)
-            self.server_process.mrc_serial_port = str(mrc_serial_port)
-            self.server_process.mrc_baud_rate   = int(mrc_baud_rate)
-            self.server_process.mrc_host        = str(mrc_host)
-            self.server_process.mrc_port        = int(mrc_port)
+            self.server_process.mrc_serial_port = str(mrc_serial_port) if mrc_serial_port is not None else None
+            self.server_process.mrc_baud_rate   = int(mrc_baud_rate) if mrc_baud_rate is not None else None
+            self.server_process.mrc_host        = str(mrc_host) if mrc_host is not None else None
+            self.server_process.mrc_port        = int(mrc_port) if mrc_port is not None else None
             self.server_process.sig_started.connect(self._slt_server_process_started)
             self.server_process.sig_finished.connect(self._slt_server_process_finished)
 
@@ -175,8 +175,9 @@ class MainWindow(QtGui.QMainWindow):
         subwin.widget().show()
         self.mdiArea.setActiveSubWindow(subwin)
 
-
-def signal_handler(*args):
+def signal_handler(signum, frame):
+    logging.info("Received signal %s. Quitting...",
+            signal.signum_to_name.get(signum, "%d" % signum))
     QtGui.QApplication.quit()
 
 def find_data_dir():
@@ -193,6 +194,19 @@ def find_data_dir():
         return os.path.dirname(__file__)
 
 if __name__ == "__main__":
+    # Logging setup
+    logging.basicConfig(level=logging.DEBUG,
+            format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
+
+    logging.getLogger("TCPClient").setLevel(logging.INFO)
+    logging.getLogger("MRCModel").setLevel(logging.INFO)
+    logging.getLogger("PyQt4.uic").setLevel(logging.INFO)
+
+    # Signal handling
+    signal.signum_to_name = dict((getattr(signal, n), n)
+            for n in dir(signal) if n.startswith('SIG') and '_' not in n)
+    signal.signal(signal.SIGINT, signal_handler)
+
     # Binary directory needed to locate the server binary.
     application_model.instance.bin_dir = os.path.abspath(os.path.dirname(
         sys.executable if getattr(sys, 'frozen', False) else __file__))
@@ -200,10 +214,8 @@ if __name__ == "__main__":
     # Path to the directory where ui, xml and other datafiles are stored.
     application_model.instance.data_dir = find_data_dir()
 
-    logging.basicConfig(level=logging.DEBUG,
-            format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
-
-    signal.signal(signal.SIGINT, signal_handler)
+    # Load system device descriptions
+    application_model.instance.load_system_descriptions()
 
     app = QtGui.QApplication(sys.argv)
 

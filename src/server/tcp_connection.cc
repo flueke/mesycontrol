@@ -53,6 +53,8 @@ boost::asio::ip::tcp::socket &TCPConnection::socket()
 
 void TCPConnection::send_message(const MessagePtr &msg)
 {
+  BOOST_LOG_SEV(m_log, log::lvl::trace) << connection_string()
+    << ": adding message of type " << msg->get_info_string() << " to the outgoing queue";
   m_write_queue.push_back(msg);
   start_write_message();
 }
@@ -148,6 +150,8 @@ void TCPConnection::handle_write_message(const boost::system::error_code &ec, st
 {
   m_write_in_progress = false;
   if (!ec) {
+    BOOST_LOG_SEV(m_log, log::lvl::trace) << connection_string()
+      << ": sent message of type " << m_write_queue.front()->get_info_string();
     m_write_queue.pop_front();
     start_write_message();
   } else {

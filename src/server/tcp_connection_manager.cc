@@ -17,30 +17,34 @@ void TCPConnectionManager::start(TCPConnectionPtr c)
   c->start();
 
   if (m_connections.size() == 1) {
-    m_write_connection = c;
-    c->send_message(MessageFactory::make_write_access_notification(true));
+    // Automatically give write access to the first client
+    set_write_connection(c);
   } else {
+    // Notify the newly connected client that it does not have write access
     c->send_message(MessageFactory::make_write_access_notification(false));
+    // Also tell the client if it can acquire write access
+    c->send_message(MessageFactory::make_can_acquire_write_access_notification(!m_write_connection));
   }
 }
 
 void TCPConnectionManager::stop(TCPConnectionPtr c)
 {
+  if (m_write_connection == c) {
+    // The current writer disconnects
+    set_write_connection(TCPConnectionPtr());
+  }
+
   m_connections.erase(c);
   c->stop();
-
-  if (m_write_connection == c) {
-    m_write_connection.reset();
-    send_to_all(MessageFactory::make_can_acquire_write_access_notification(true));
-  }
 }
 
 void TCPConnectionManager::stop_all()
 {
+  BOOST_LOG_SEV(m_log, log::lvl::debug) << "Stopping all connections";
   std::for_each(m_connections.begin(), m_connections.end(),
       boost::bind(&TCPConnection::stop, _1));
   m_connections.clear();
-  m_write_connection.reset();
+  set_write_connection(TCPConnectionPtr());
 }
 
 void TCPConnectionManager::dispatch_request(const TCPConnectionPtr &connection, const MessagePtr &request)
@@ -62,20 +66,21 @@ void TCPConnectionManager::dispatch_request(const TCPConnectionPtr &connection, 
         break;
 
       case message_type::request_acquire_write_access:
-        response = MessageFactory::make_bool_response(!m_write_connection);
+      case message_type::request_force_write_access:
+        response = MessageFactory::make_bool_response(!m_write_connection
+            || request->type == message_type::request_force_write_access);
 
         if (response->bool_value) {
-          m_write_connection = connection;
-          send_to_all_except(m_write_connection, MessageFactory::make_can_acquire_write_access_notification(false));
+          set_write_connection(connection);
         }
+
         break;
 
       case message_type::request_release_write_access:
         response = MessageFactory::make_bool_response(m_write_connection == connection);
 
         if (response->bool_value) {
-          m_write_connection.reset();
-          send_to_all(MessageFactory::make_can_acquire_write_access_notification(true));
+          set_write_connection(TCPConnectionPtr());
         }
         break;
 
@@ -130,6 +135,39 @@ void TCPConnectionManager::handle_mrc1_response(const TCPConnectionPtr &connecti
           response->bus, response->dev, response->par, response->val,
           response->type == message_type::response_mirror_set));
   }
+}
+
+void TCPConnectionManager::set_write_connection(const TCPConnectionPtr &connection)
+{
+  if ((!m_write_connection && !connection)
+      || (m_write_connection == connection))
+    return;
+
+  const std::string old_writer_info(m_write_connection
+      ? m_write_connection->connection_string()
+      : std::string("<none>"));
+
+  const std::string new_writer_info(connection
+      ? connection->connection_string()
+      : std::string("<none>"));
+
+  if (m_write_connection) {
+    // notify the old writer that it lost write access
+    m_write_connection->send_message(MessageFactory::make_write_access_notification(false));
+  }
+
+  m_write_connection = connection;
+
+  if (m_write_connection) {
+    // notify the new writer that it gained write access
+    m_write_connection->send_message(MessageFactory::make_write_access_notification(true));
+  }
+
+  // tell everyone else if write access is available
+  send_to_all_except(m_write_connection,
+      MessageFactory::make_can_acquire_write_access_notification(!m_write_connection));
+
+  BOOST_LOG_SEV(m_log, log::lvl::info) << "Write access changed from " << old_writer_info << " to " << new_writer_info;
 }
 
 } // namespace mesycontrol

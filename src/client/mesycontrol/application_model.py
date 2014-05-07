@@ -28,6 +28,24 @@ class ApplicationModel(QtCore.QObject):
             conn.stop()
             del conn
 
+    def load_system_descriptions(self):
+        import importlib
+        for mod_name in ('device_description_mhv4', 'device_description_mhv4_800v', 'device_description_mscf16'):
+            mod = importlib.import_module('mesycontrol.' + mod_name)
+            self.device_descriptions.add(mod.get_device_description())
+
+    def get_device_description_by_idc(self, idc):
+        try:
+            return filter(lambda d: d.idc == idc, self.device_descriptions)[0]
+        except IndexError:
+            return None
+
+    def get_device_description_by_name(self, name):
+        try:
+            return filter(lambda d: d.name == name, self.device_descriptions)[0]
+        except IndexError:
+            return None
+
 instance = ApplicationModel()
 
 class MRCModel(QtCore.QObject):
@@ -58,7 +76,7 @@ class MRCModel(QtCore.QObject):
         self.log = logging.getLogger("MRCModel")
 
     def get_mrc_address_string(self):
-        return self.connection.get_mrc_address_string()
+        return self.connection().get_mrc_address_string()
 
     def scanbus(self, bus):
       self.client().queue_request(Message('request_scanbus', bus=bus))
@@ -103,6 +121,8 @@ class MRCModel(QtCore.QObject):
         self.sig_disconnected.emit()
 
     def _slt_message_received(self, msg):
+        self.log.debug("Received message=%s", msg)
+
         if msg.get_type_name() == 'response_scanbus':
             # TODO: handle changes to the scanbus data:
             # device added/removed, address conflict appeared/disappeared, device idc changed
@@ -128,10 +148,10 @@ class MRCModel(QtCore.QObject):
 
         elif msg.get_type_name() == 'response_read':
             self.sig_parameterRead.emit(msg.bus, msg.dev, msg.par, msg.val)
-        elif msg.get_type_name() == 'response_set':
+        elif msg.get_type_name() in ('response_set', 'notify_set'):
             self.sig_parameterSet.emit(msg.bus, msg.dev, msg.par, msg.val)
         else:
-            print "Unhandled message type:", msg.get_type_name()
+            self.log.warning("Unhandled message %s", msg)
 
     def _slt_client_queue_empty(self):
         if len(self.poll_set) == 0:
@@ -224,7 +244,7 @@ class DeviceViewModel(QtCore.QObject):
     def __init__(self, device_model, device_description, device_config=None, parent=None):
         super(DeviceViewModel, self).__init__(parent)
 
-        self.device_model       = device_model
+        self._device_model      = weakref.ref(device_model)
         self.device_description = device_description
         self.device_config      = device_config
 
@@ -233,16 +253,13 @@ class DeviceViewModel(QtCore.QObject):
         device_model.sig_rcSet.connect(self.sig_rcSet)
 
     def readParameter(self, name_or_address, reread = False):
-        self.device_model().readParameter(self._name2address(name_or_address), reread)
+        self.device_model.readParameter(self._name2address(name_or_address), reread)
 
     def setParameter(self, name_or_address, value):
-        self.device_model().setParameter(self._name2address(name_or_address), value)
+        self.device_model.setParameter(self._name2address(name_or_address), value)
 
     def setRc(self, on_off):
-        self.device_model().setRc(on_off)
-
-    def setDeviceModel(self, model):
-        self._device_model = weakref.ref(model)
+        self.device_model.setRc(on_off)
 
     def getDeviceModel(self):
         return self._device_model()
@@ -280,7 +297,7 @@ class DeviceViewModel(QtCore.QObject):
         if param_desc is not None and param_desc.name is not None:
            self.sig_parameterSet[str, int].emit(param_desc.name, value)
 
-    device_model       = pyqtProperty(object, getDeviceModel, setDeviceModel)
+    device_model       = pyqtProperty(object, getDeviceModel)
     device_description = pyqtProperty(object, getDeviceDescription, setDeviceDescription)
     device_config      = pyqtProperty(object, getDeviceConfig, setDeviceConfig)
 

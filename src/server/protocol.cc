@@ -18,8 +18,8 @@ struct MessageInfo
     , type_string(type_str)
   {}
 
-  size_t size;
-  const char *type_string;
+  size_t size;              // the message payload size in bytes
+  const char *type_string;  // message type as a string
 };
 
 typedef std::map<message_type::MessageType, MessageInfo> MessageInfoMap;
@@ -38,10 +38,11 @@ const MessageInfoMap &get_message_info_map()
     (message_type::request_mirror_set,              MessageInfo(5, "request_mirror_set"))   // bus dev par val
 
     (message_type::request_has_write_access,        MessageInfo(0, "request_has_write_access"))
-    (message_type::request_acquire_write_access,    MessageInfo(0, "request_acquire_write_access"))
+    (message_type::request_acquire_write_access,    MessageInfo(1, "request_acquire_write_access")) // bool
     (message_type::request_release_write_access,    MessageInfo(0, "request_release_write_access"))
     (message_type::request_in_silent_mode,          MessageInfo(0, "request_in_silent_mode"))
     (message_type::request_set_silent_mode,         MessageInfo(1, "request_set_silent_mode")) // bool
+    (message_type::request_force_write_access,      MessageInfo(0, "request_force_write_access"))
 
     (message_type::response_scanbus,                MessageInfo(33, "response_scanbus"))     // bus (idc,bool){16}
     (message_type::response_read,                   MessageInfo( 5, "response_read"))        // bus dev par val
@@ -236,6 +237,7 @@ std::vector<unsigned char> Message::serialize() const
     case message_type::request_acquire_write_access:
     case message_type::request_release_write_access:
     case message_type::request_in_silent_mode :
+    case message_type::request_force_write_access:
       break;
 
     case message_type::request_set_silent_mode:
@@ -326,6 +328,7 @@ MessagePtr Message::deserialize(const std::vector<unsigned char> &data)
     case message_type::request_acquire_write_access:
     case message_type::request_has_write_access:
     case message_type::request_release_write_access:
+    case message_type::request_force_write_access:
       break;
   }
 

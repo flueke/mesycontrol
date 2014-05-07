@@ -6,6 +6,7 @@ from PyQt4 import QtCore
 from PyQt4 import QtGui
 from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import pyqtSlot
+from mesycontrol import application_model
 import logging
 import weakref
 
@@ -94,10 +95,19 @@ class MRCTreeView(QtGui.QWidget):
 
                 if device_model is not None:
                     dev_node.device_model = device_model
-                    dev_node.setText(1, str(device_model.idc))
+                    device_description = application_model.instance.get_device_description_by_idc(device_model.idc)
+                    if device_description is not None:
+                        dev_node.setText(1, "%s (%d)" % (device_description.name, device_model.idc))
+                    else:
+                        dev_node.setText(1, str(device_model.idc))
                     dev_node.setText(2, "on" if device_model.rc else "off")
                 elif mrc_model.bus_data[bus][dev][1] not in (0, 1):
-                    dev_node.setText(1, str(mrc_model.bus_data[bus][dev][0]))
+                    idc = mrc_model.bus_data[bus][dev][0]
+                    device_description = application_model.instance.get_device_description_by_idc(idc)
+                    if device_description is not None:
+                        dev_node.setText(1, "%s (%d)" % (device_description.name, idc))
+                    else:
+                        dev_node.setText(1, str(idc))
                     dev_node.setText(2, "Address conflict")
 
     def _slt_item_doubleclicked(self, item, column):

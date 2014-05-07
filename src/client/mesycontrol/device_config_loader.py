@@ -17,6 +17,7 @@ def verify_values(mrc_model, values):
             raise Exception("verification failed!")
 
 # TODO: suspend polling during config loading (preferably for the complete MRC)
+# TODO: detect and handle error messages from the server
 class ConfigLoader(QtCore.QObject):
     sig_complete = pyqtSignal(bool)
 

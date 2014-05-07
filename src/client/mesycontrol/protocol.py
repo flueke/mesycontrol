@@ -38,7 +38,7 @@ def str_error_response(msg):
 
 class MessageInfo:
   info_list = [
-      # requests
+      # Requests
       { 'code': 1,
         'name': 'request_scanbus',
         'format': 'B',
@@ -116,7 +116,13 @@ class MessageInfo:
         'format_args': ('bool_value')
         },
 
-      # responses
+      { 'code': 25,
+        'name': 'request_force_write_access',
+        'format': '',
+        'format_args': ()
+        },
+
+      # Responses
       { 'code': 41,
         'name': 'response_scanbus',
         'format': 'B32B',

@@ -1,26 +1,47 @@
+* general
+  - add unittests!
+  - Add a decent interface for verifying the result of a request. Right now
+    different parts of the application start to issue read and write requests
+    but never check the result.
+  - Commands: Add command lists including subcommands. A command may execute for a longer
+    time. During execution polling may be disabled temporarily. Behaviour on
+    error should be selectable: abort or continue. The user must be able to
+    query for requests that caused an error. Longer running commands should
+    report their progress. ConfigLoader and ConfigVerifier would then each
+    build a command list. A CommandRunner would be passed all commands to be
+    run and additional options (disable poll, error behaviour). The
+    CommandRunner then executes the command, notifying observers about progress
+    changes and errors.
+DONE - DeviceDescription: add a way to store parameters in the description but not in the config (e.g. MSCF-16 copy function)
+STARTED - DeviceDescription: add conversion to human readable units (<unit label="mA" factor="1000.0"
+DONE - DeviceDescription: add value range to parameters (min, max). Make sure input in SI units is rounded correctly
+  - DeviceDescription: add version detection (MSFC-16)
+  - DeviceDescription: add a flag to mark system descriptions
+  - DeviceDescription: add a way to copy a description
+  - DeviceConfig: add a way to store MRC connection info in the configuration
+  - DeviceConfigXML: use attributes instead of nested tags for simple stuff (makes the XML file shorter)
+  - DeviceConfigXML: add DTD (used for verification)
+  - Add virtual devices. Can be used to preview configs/widgets/etc. and for offline config creation
+  - How to handle the RC setting? For MHV4 enabling/disabling RC can be dangerous.
+  - Make most things work for mirror memory too.
+
 * server
-  - replace iostream logging with boost::log
+  - avoid sending messages through connections that are being stopped as it
+    causes useless error logs to appear
   - exception safety
-  - retry mrc init sequence a couple of times
   - timeouts
-  - rework request dispatcher as it doesn't know about which TCPConnection
-    queues a request
   - add max connections feature
-  - add master feature
-  - add notification messages (see protocol below)
 
 * protocol
-  - add master client feature so that only one client has write access
-  - add parameter_set, silent_mode_changed, master_changed, etc. notifications
-    (param set is important if using multiple gui clients. they should be
-    notified about changed params)
-  - add status request to get the status of the mrc connection (e.g. connected, reconnecting, ...)
+  - add status request to get the status of the mrc connection (e.g. connected, reconnecting, ...) (needed?)
+  - add rc_changed notification (bus, dev, rc_new)
 
 * gui client
   - XXX: fix the duplication of DeviceDescription in DeviceConfig and DeviceViewModel
   - disconnect support
   - present all mrcs and devices in some nice widget
   - allow bus rescans, reconnects, etc.
+  - handle bus rescan changes
   - open device window on click. by default uses a device specific widget if
     present, otherwise (and by user request) opens the device as a generic
     device
@@ -31,6 +52,8 @@
     description.
   - add connection ui
   - logging ui
+  - Display aliases everywhere. Allow the user to set aliases for connections
+    and devices and special parameters (e.g. channel alias for MHV-4)
 
 * cli client
   - commands and grammar
@@ -46,3 +69,4 @@
   - fix cxfreeze prefix issue on windows
   - add cpack installer generation
   - enumerate com ports
+  - fix slow performance on windows

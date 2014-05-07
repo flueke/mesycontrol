@@ -11,9 +11,9 @@ import Queue
 import struct
 
 class TCPClient(QtCore.QObject):
-  sig_connecting       = pyqtSignal('QString', int)
-  sig_connected        = pyqtSignal('QString', int)
-  sig_disconnected     = pyqtSignal('QString', int)
+  sig_connecting       = pyqtSignal(str, int)
+  sig_connected        = pyqtSignal(str, int)
+  sig_disconnected     = pyqtSignal(str, int)
   sig_socket_error     = pyqtSignal(int)
   sig_message_received = pyqtSignal(object)
   sig_queue_empty      = pyqtSignal()
@@ -91,6 +91,10 @@ class TCPClient(QtCore.QObject):
       self._request_in_progress = False
       self.log.debug("Received message %s", message)
       self.sig_message_received.emit(message)
+# FIXME: buggy reading/writing/response != notifcation crap. need to match requests to responses!
+# should record the current request, wait for a reply and clear the current
+# request once the reply was received
+      self._slt_socket_readyRead()
       if not self._request_queue.empty():
         self._start_write_message()
       else:

@@ -5,7 +5,7 @@ import sys
 # Dependencies are automatically detected, but it might need
 # fine tuning.
 buildOptions = dict(
-      packages = [],
+      packages = ['mesycontrol'],
       excludes = [],
       include_files = [(os.path.join('${CMAKE_CURRENT_SOURCE_DIR}', 'ui'), 'ui')],
       init_script = os.path.join('${CMAKE_CURRENT_SOURCE_DIR}', 'cxfreeze_ConsoleSetLibPath.py'),
