@@ -13,6 +13,8 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 add_subdirectory(src)
 add_subdirectory(doc)
 
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ DESTINATION share USE_SOURCE_PERMISSIONS)
+
 set(CPACK_GENERATOR "TBZ2")
 set(CPACK_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${CMAKE_SYSTEM}")
 include(CPack)

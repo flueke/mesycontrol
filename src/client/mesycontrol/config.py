@@ -6,6 +6,9 @@ from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtProperty
 from PyQt4.QtCore import pyqtSignal
 
+import application_model
+from device_description import DeviceDescription
+
 class Config(QtCore.QObject):
     def __init__(self, parent=None):
         super(Config, self).__init__(parent)
@@ -33,6 +36,9 @@ class MRCConnectionConfig(QtCore.QObject):
     def is_tcp_connection(self):
         return self.tcp_host is not None and self.tcp_port is not None
 
+    def is_local_connection(self):
+        return self.is_serial_connection() or self.is_tcp_connection()
+
     def is_connection_valid(self):
         """Returns true if a connection method has been set, false otherwise."""
         return (self.is_mesycontrol_connection()
@@ -54,7 +60,7 @@ class MRCConnectionConfig(QtCore.QObject):
 
     def reset(self):
         self._name = None
-        self.clear_connection()
+        self.reset_connection()
 
     def reset_connection(self):
         self._mesycontrol_host = None
@@ -117,6 +123,17 @@ class MRCConnectionConfig(QtCore.QObject):
 
     def get_tcp_port(self):
         return self._tcp_port
+
+    def get_server_options(self):
+        if self.is_serial_connection():
+            return {'mrc_serial_port': self.get_serial_device(),
+                    'mrc_baud_rate':   self.get_serial_baud_rate()}
+
+        elif self.is_tcp_connection():
+            return {'mrc_host': self.get_tcp_host(),
+                    'mrc_port': self.get_tcp_port()}
+
+        return None
 
     name                = pyqtProperty(str, get_name, set_name)
     mesycontrol_host    = pyqtProperty(str, get_mesycontrol_host, set_mesycontrol_host)
@@ -240,3 +257,24 @@ class ParameterConfig(QtCore.QObject):
     value   = pyqtProperty(int, get_value, set_value, notify=value_changed)
     #: Optional user defined alias for the parameter.
     alias   = pyqtProperty(str, get_alias, set_alias, notify=alias_changed)
+
+def make_device_config(device_model, device_description=None):
+    if device_description is None:
+        device_description = application_model.instance.get_device_description_by_idc(device_model.idc)
+
+    if device_description is None:
+        device_description = DeviceDescription.makeGenericDescription(device_model.idc)
+
+    device_config = DeviceConfig(device_model.idc)
+    device_config.bus_number     = device_model.bus
+    device_config.device_address = device_model.dev
+
+    param_filter = lambda pd: not pd.read_only and not pd.do_not_store
+
+    for param_description in filter(param_filter, device_description.parameters.values()):
+        address = param_description.address
+        value   = device_model.memory.get(address)
+        
+        device_config.add_parameter(ParameterConfig(address, value))
+
+    return device_config

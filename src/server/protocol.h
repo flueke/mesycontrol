@@ -9,10 +9,6 @@
 
 namespace mesycontrol
 {
-/* Notification support:
- * - Needed to propagate state changes to clients
- * - Types: Parameter set, (parameter read), status change (master, mrc_connection, poll lock)
- */
 
 namespace message_type
 {

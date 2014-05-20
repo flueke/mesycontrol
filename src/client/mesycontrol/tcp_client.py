@@ -2,121 +2,186 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from mesycontrol.protocol import Message
+from mesycontrol.protocol import Message, MessageError
 from PyQt4 import QtCore
 from PyQt4 import QtNetwork
-from PyQt4.QtCore import pyqtSignal
+from PyQt4.QtCore import pyqtSignal, pyqtProperty, pyqtSlot
 import logging
 import Queue
 import struct
 
 class TCPClient(QtCore.QObject):
-  sig_connecting       = pyqtSignal(str, int)
-  sig_connected        = pyqtSignal(str, int)
-  sig_disconnected     = pyqtSignal(str, int)
-  sig_socket_error     = pyqtSignal(int)
-  sig_message_received = pyqtSignal(object)
-  sig_queue_empty      = pyqtSignal()
+    class Stats:
+        def __init__(self):
+            self.write_queue_max_size = 0
+            self.messages_sent        = 0
+            self.messages_received    = 0
+            self.bytes_written        = 0
+            self.bytes_received       = 0
+            self.send_histo           = {}
+            self.receive_histo        = {}
 
-  def __init__(self, parent = None):
-    super(TCPClient, self).__init__(parent)
-    self.host = self.port = None
-    self._request_queue = Queue.Queue()
-    self._request_in_progress = False
-    self._response_size = None
-    self._max_queue_size = 0
+        def update_write_queue_size(self, sz):
+            self.write_queue_max_size = max(self.write_queue_max_size, sz)
 
-    self.socket = QtNetwork.QTcpSocket(self)
-    self.socket.connected.connect(self._slt_connected)
-    self.socket.disconnected.connect(self._slt_disconnected)
-    self.socket.error.connect(self._slt_socket_error)
-    self.socket.bytesWritten.connect(self._slt_socket_bytesWritten)
-    self.socket.readyRead.connect(self._slt_socket_readyRead)
+        def message_sent(self, msg, wire_size):
+            self.messages_sent += 1
+            self.bytes_written += wire_size
+            t = msg.get_type_name()
+            self.send_histo[t] = self.send_histo.get(t, 0) + 1
 
-    self.log = logging.getLogger("TCPClient")
+        def message_received(self, msg, wire_size):
+            self.messages_received += 1
+            self.bytes_received   += wire_size
+            t = msg.get_type_name()
+            self.receive_histo[t] = self.receive_histo.get(t, 0) + 1
 
-  def connect(self, host, port):
-    self.disconnect()
-    self.host = str(host)
-    self.port = int(port)
-    self.sig_connecting.emit(host, port)
-    self.log.info("Connecting to %s:%d", self.host, self.port)
-    self.socket.connectToHost(host, port)
+    sig_connecting            = pyqtSignal()
+    sig_connected             = pyqtSignal()
+    sig_disconnected          = pyqtSignal()
+    sig_socket_error          = pyqtSignal(int, str)
 
-  def disconnect(self):
-    if self.socket.state() != QtNetwork.QAbstractSocket.UnconnectedState:
-      self.socket.disconnectFromHost()
-      if self.socket.state() != QtNetwork.QAbstractSocket.UnconnectedState:
-        self.socket.waitForDisconnected()
+    sig_message_sent          = pyqtSignal(Message)          #: message
+    sig_message_received      = pyqtSignal(Message)          #: message
+    sig_response_received     = pyqtSignal(Message, Message) #: request, response
+    sig_send_queue_empty      = pyqtSignal()
 
-  def is_connected(self):
-    return self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState
+    def __init__(self, parent=None):
+        super(TCPClient, self).__init__(parent)
 
-  def queue_request(self, message):
-    self.log.debug("Queueing message %s", message)
-    was_empty = self._request_queue.empty()
-    self._request_queue.put(message)
-    self._max_queue_size = max(self._max_queue_size, self.get_request_queue_size())
-    if was_empty:
-      self._start_write_message()
+        self.log   = logging.getLogger("TCPClient")
+        self._host = None
+        self._port = None
+        self._write_queue = Queue.Queue()
+        self._reset_state()
 
-  def get_request_queue_size(self):
-    return self._request_queue.qsize()
+        self._socket = QtNetwork.QTcpSocket(self)
+        self._socket.connected.connect(self._slt_connected)
+        self._socket.disconnected.connect(self._slt_disconnected)
+        self._socket.error.connect(self._slt_socket_error)
+        self._socket.bytesWritten.connect(self._slt_socket_bytesWritten)
+        self._socket.readyRead.connect(self._slt_socket_readyRead)
 
-  def _start_write_message(self):
-    if self.is_connected() and not self._request_in_progress:
-      try:
-        message = self._request_queue.get(False)
-        self._request_in_progress = True
-        msg_data = message.serialize()
-        data = struct.pack('!H', len(msg_data)) + msg_data
-        self.log.debug("Writing message %s (size=%d)", message, len(data))
-        self.socket.write(data)
-      except Queue.Empty:
-        self.log.debug("Message queue is empty")
-        logging.debug("TCPClient: message queue is empty")
-        return
+    def _reset_state(self):
+        self._current_request = None
+        self._current_response_handler = None
+        self._current_write_data = None
+        self._read_size = 0
+        self._stats = TCPClient.Stats()
 
-  def _slt_socket_bytesWritten(self, n_bytes):
-      pass
+    def get_host(self): return self._host
+    def get_port(self): return self._port
+    def get_stats(self): return self._stats
 
-  def _slt_socket_readyRead(self):
-    if self._response_size is None and self.socket.bytesAvailable() >= 2:
-      self._response_size = struct.unpack('!H', self.socket.read(2))[0]
+    host  = pyqtProperty(str, get_host)
+    port  = pyqtProperty(int, get_port)
+    stats = pyqtProperty(object, get_stats)
 
-    if self._response_size is not None and self.socket.bytesAvailable() >= self._response_size:
-      response_data = self.socket.read(self._response_size)
-      message = Message.deserialize(response_data)
-      self._response_size = None
-      self._request_in_progress = False
-      self.log.debug("Received message %s", message)
-      self.sig_message_received.emit(message)
-# FIXME: buggy reading/writing/response != notifcation crap. need to match requests to responses!
-# should record the current request, wait for a reply and clear the current
-# request once the reply was received
-      self._slt_socket_readyRead()
-      if not self._request_queue.empty():
+    def connect(self, host, port):
+        self.disconnect()
+        self._reset_state()
+        self._host = str(host)
+        self._port = int(port)
+        self.sig_connecting.emit()
+        self.log.info("Connecting to %s:%d", self.host, self.port)
+        self._socket.connectToHost(self.host, self.port)
+
+    def disconnect(self):
+        if self._socket.state() != QtNetwork.QAbstractSocket.UnconnectedState:
+          self._socket.disconnectFromHost()
+          if self._socket.state() != QtNetwork.QAbstractSocket.UnconnectedState:
+            self._socket.waitForDisconnected()
+
+    def is_connected(self):
+        return self._socket.state() == QtNetwork.QAbstractSocket.ConnectedState
+
+    def request_in_progress(self):
+        return self._current_request is not None
+
+    def send_message(self, message, response_handler=None):
+        self.log.debug("Queueing message %s", message)
+        was_empty = self._write_queue.empty()
+        self._write_queue.put((message, response_handler))
+        self.log.debug("Write queue size = %d", self.get_write_queue_size())
+        self.stats.update_write_queue_size(self.get_write_queue_size())
+        if was_empty:
+            self._start_write_message()
+
+    def get_write_queue_size(self):
+        return self._write_queue.qsize()
+
+    def _start_write_message(self):
+        if not self.is_connected() or self.request_in_progress():
+            return
+
+        try:
+            self._current_request, self._current_response_handler = self._write_queue.get(False)
+            msg_data = self._current_request.serialize()
+            self._current_write_data = struct.pack('!H', len(msg_data)) + msg_data
+            self.log.debug("Writing message %s (size=%d)", self._current_request, len(self._current_write_data))
+            self._socket.write(self._current_write_data)
+        except Queue.Empty:
+            self.log.debug("Message queue is empty")
+            return
+
+    def _slt_socket_bytesWritten(self, n_bytes):
+        self.stats.message_sent(self._current_request, len(self._current_write_data))
+        self.sig_message_sent.emit(self._current_request)
+
+    def _slt_socket_readyRead(self):
+        if self._read_size <= 0 and self._socket.bytesAvailable() >= 2:
+            self._read_size = struct.unpack('!H', self._socket.read(2))[0]
+            self.log.debug("Incoming message size=%d", self._read_size)
+
+        if self._read_size > 0 and self._socket.bytesAvailable() >= self._read_size:
+            message_data = self._socket.read(self._read_size)
+            try:
+                message = Message.deserialize(message_data)
+            except MessageError as e:
+                self.log.error("Could not deserialize incoming message: %s", e)
+                self.disconnect()
+                return
+
+            self.log.debug("Received message %s", message)
+
+            self.stats.message_received(message, self._read_size + 2)
+            self.sig_message_received.emit(message)
+            self._read_size = 0
+
+            if message.is_response():
+                self.sig_response_received.emit(self._current_request, message)
+
+                if self._current_response_handler is not None:
+                    self._current_response_handler(self._current_request, message)
+
+                self._current_request = None
+                self._current_response_handler = None
+
+                # The response to the last message was received. Start sending
+                # the next message or signal that the queue is empty.
+                if not self._write_queue.empty():
+                    self._start_write_message()
+                else:
+                    self.sig_send_queue_empty.emit()
+
+            if self._socket.bytesAvailable() >= 2:
+                # Handle additional available data.
+                self._slt_socket_readyRead()
+
+    @pyqtSlot()
+    def _slt_connected(self):
+        self.log.info("Connected to %s:%d" % (self.host, self.port))
+        self.sig_connected.emit()
         self._start_write_message()
-      else:
-        self.sig_queue_empty.emit()
 
-  def _slt_connected(self):
-    self.log.info("TCPClient: connected to %s:%d" % (self.host, self.port))
-    self.sig_connected.emit(self.host, self.port)
-    self._start_write_message()
+    @pyqtSlot()
+    def _slt_disconnected(self):
+        self.log.info("Disconnected from %s:%d" % (self.host, self.port))
+        self.log.debug("Stats: %s", self.stats)
+        self.sig_disconnected.emit()
 
-  def _slt_disconnected(self):
-    self.log.info("TCPClient: disconnected from %s:%d" % (self.host, self.port))
-    logging.debug("TCPClient %s:%d: max request queue size was %d" %
-            (self.host, self.port, self._max_queue_size))
-    self.sig_disconnected.emit(self.host, self.port)
-    self.host = self.port = None
-    self._request_queue = Queue.Queue()
-    self._max_queue_size = 0
-    self._write_in_progress = False
-    self._response_size = None
-
-  def _slt_socket_error(self, socket_error):
-    logging.error("TCPClient %s:%d: %s" % (self.host, self.port, self.socket.errorString()))
-    self.sig_socket_error.emit(socket_error)
+    @pyqtSlot(int)
+    def _slt_socket_error(self, socket_error):
+        self.log.error("%s:%d: %s" % (self.host, self.port, self._socket.errorString()))
+        self.sig_socket_error.emit(socket_error, self._socket.errorString())
 

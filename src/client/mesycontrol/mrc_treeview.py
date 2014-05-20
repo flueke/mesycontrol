@@ -39,7 +39,7 @@ class MRCTreeView(QtGui.QWidget):
         mrc_model.sig_bus_data_complete.connect(self.bus_data_complete_mapper.map)
 
         mrc_item = QtGui.QTreeWidgetItem()
-        mrc_item.setText(0, connection.info_string())
+        mrc_item.setText(0, connection.get_info())
         mrc_item.mrc_model = weakref.ref(mrc_model)
         self.tree_widget.addTopLevelItem(mrc_item)
         for i in range(3):

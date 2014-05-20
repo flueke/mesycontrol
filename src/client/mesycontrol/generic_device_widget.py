@@ -5,15 +5,13 @@
 from PyQt4 import QtGui
 from PyQt4.Qt import Qt
 from PyQt4.QtCore import pyqtSlot
-from xml.dom import minidom
-from xml.etree import ElementTree
 
 from mesycontrol import application_model
 from mesycontrol.application_model import DeviceViewModel
 from mesycontrol.device_description import DeviceDescription, ParameterDescription
 from mesycontrol.config import Config, DeviceConfig, ParameterConfig
 from mesycontrol import config_xml
-from mesycontrol.device_config_loader import ConfigLoader, ConfigVerifier
+from mesycontrol.config_loader import ConfigLoader, ConfigVerifier
 
 class GenericDeviceWidget(QtGui.QWidget):
     def __init__(self, device_model, parent = None):
@@ -167,7 +165,7 @@ class GenericDeviceWidget(QtGui.QWidget):
             new_descr = filter(lambda d: d.idc == idc, config.device_descriptions)[0]
             print "Using first description for idc=", idc
         except IndexError:
-            print "No description loaded from config"
+            print "No matching description loaded from config"
             new_descr = None
 
         possible_configs = filter(lambda cfg: cfg.device_idc == idc, config.device_configs)
@@ -176,7 +174,7 @@ class GenericDeviceWidget(QtGui.QWidget):
             new_config = possible_configs[0]
             print "Using first config for idc=", idc
         except IndexError:
-            print "No device_config loaded from config file"
+            print "No matching device_config loaded from config file"
             new_config = None
 
         if new_descr is None and new_config is None:
@@ -200,7 +198,10 @@ class GenericDeviceWidget(QtGui.QWidget):
             self.set_device_config(new_config)
             print "New Device Configuration applied to GUI"
             self._config_loader = ConfigLoader(device_model, new_config, new_descr)
-            self._config_loader.sig_complete.connect(self._slt_config_loader_complete)
+            self._config_loader.stopped.connect(self._slt_config_loader_complete)
+            def print_progress(current, total):
+                print "Progress: %d/%d" % (current, total)
+            self._config_loader.progress_changed.connect(print_progress)
             self._config_loader.start()
         else:
             print "No configs to load"
@@ -237,13 +238,9 @@ class GenericDeviceWidget(QtGui.QWidget):
         if device_desc is not None:
             config.device_descriptions.append(device_desc)
 
-        xml_tree   = config_xml.to_etree(config)
-        xml_string = ElementTree.tostring(xml_tree.getroot())
-        xml_string = minidom.parseString(xml_string).toprettyxml(indent='  ')
-
         try:
             with open(filename, 'w') as f:
-                f.write(xml_string)
+                config_xml.write_file(config, f)
         except IOError as e:
             QtGui.QMessageBox.critical(self, "Error", "Writing to %s failed: %s" % (filename, e))
         else:
@@ -329,23 +326,28 @@ class GenericDeviceWidget(QtGui.QWidget):
             except ValueError:
                 item.setText("")
 
-    def _slt_config_loader_complete(self, result):
+    def _slt_config_loader_complete(self):
+        result = not self._config_loader.has_failed()
+
         if result:
             print "Config loaded successfully. Verifying"
             self._config_verifier = ConfigVerifier(
-                    self._config_loader.device_model,
-                    self._config_loader.device_config,
-                    self._config_loader.device_description)
-            self._config_verifier.sig_complete.connect(self._slt_config_verifier_complete)
+                    self._config_loader.device,
+                    self._config_loader.config)
+            self._config_verifier.stopped.connect(self._slt_config_verifier_complete)
+            def print_progress(current, total):
+                print "Progress: %d/%d" % (current, total)
+            self._config_verifier.progress_changed.connect(print_progress)
             self._config_verifier.start()
         else:
             print "Config loading failed"
         self._config_loader = None
 
-    def _slt_config_verifier_complete(self, result):
+    def _slt_config_verifier_complete(self):
+        result = self._config_verifier.get_result()
         if result:
             print "Config verified successfully!"
         else:
             print "Config verification failed!"
-            print "Failed param: %d=%d should be %d" % self._config_verifier.failed_param
+            #print "Failed param: %d=%d should be %d" % self._config_verifier.failed_param
         self._config_verifier = None

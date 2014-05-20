@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
+import logging
+import weakref
+
 from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import pyqtProperty
-from mesycontrol.protocol import Message
-import logging
-import weakref
+from protocol import Message
 
 class ApplicationModel(QtCore.QObject):
     sig_connection_added = pyqtSignal(object)
@@ -22,11 +23,16 @@ class ApplicationModel(QtCore.QObject):
         self.mrc_connections.append(conn)
         self.sig_connection_added.emit(conn)
 
+    def unregisterConnection(self, conn):
+        if conn in self.mrc_connections:
+            self.mrc_connections.remove(conn)
+            conn.disconnect()
+            conn.setParent(None) # Makes the underlying QObject collectable
+
     def shutdown(self):
-        while len(self.mrc_connections):
-            conn = self.mrc_connections.pop()
-            conn.stop()
-            del conn
+        for conn in list(self.mrc_connections):
+            self.unregisterConnection(conn)
+        assert len(self.mrc_connections) == 0
 
     def load_system_descriptions(self):
         import importlib
@@ -66,29 +72,52 @@ class MRCModel(QtCore.QObject):
         super(MRCModel, self).__init__(parent)
         self.bus_data = {}
         self.device_models = {}
-        self.connection = weakref.ref(connection)
-        self.client     = weakref.ref(connection.tcp_client)
-        self.client().sig_connected.connect(self._slt_client_connected)
-        self.client().sig_disconnected.connect(self._slt_client_disconnected)
-        self.client().sig_message_received.connect(self._slt_message_received)
-        self.client().sig_queue_empty.connect(self._slt_client_queue_empty)
+        self.connection = connection
         self.poll_set = set()
         self.log = logging.getLogger("MRCModel")
 
+
+    def get_connection(self):
+        return self._connection() if self._connection is not None else None
+
+    def set_connection(self, connection):
+        self._connection = weakref.ref(connection)
+        connection.sig_connected.connect(self._slt_connected)
+        connection.sig_disconnected.connect(self._slt_disconnected)
+        #connection.sig_connection_error      
+        #connection.sig_message_sent          
+        connection.sig_message_received.connect(self._slt_message_received)
+        #connection.sig_response_received     
+        #connection.sig_notification_received 
+        #connection.sig_error_received        
+        connection.sig_send_queue_empty.connect(self._slt_send_queue_empty)
+        #connection.sig_write_access_changed  
+        #connection.sig_silence_changed       
+
+    connection = pyqtProperty(object, get_connection, set_connection)
+
     def get_mrc_address_string(self):
-        return self.connection().get_mrc_address_string()
+        return self.connection.get_info()
 
-    def scanbus(self, bus):
-      self.client().queue_request(Message('request_scanbus', bus=bus))
+    def scanbus(self, bus, response_handler=None):
+        self.connection.send_message(
+                Message('request_scanbus', bus=bus),
+                response_handler)
 
-    def readParameter(self, bus, dev, par):
-      self.client().queue_request(Message('request_read', bus=bus, dev=dev, par=par))
+    def readParameter(self, bus, dev, par, response_handler=None):
+        self.connection.send_message(
+                Message('request_read', bus=bus, dev=dev, par=par),
+                response_handler)
 
-    def setParameter(self, bus, dev, par, value):
-      self.client().queue_request(Message('request_set', bus=bus, dev=dev, par=par, val=value))
+    def setParameter(self, bus, dev, par, value, response_handler=None):
+        self.connection.send_message(
+                Message('request_set', bus=bus, dev=dev, par=par, val=value),
+                response_handler)
 
-    def setRc(self, bus, dev, rc):
-      self.client().queue_request(Message('request_rc_on' if rc else 'request_rc_off', bus=bus, dev=dev))
+    def setRc(self, bus, dev, rc, response_handler=None):
+        self.connection.send_message(
+                Message('request_rc_on' if rc else 'request_rc_off', bus=bus, dev=dev),
+                response_handler)
 
     def addPollParameter(self, bus, dev, par):
         try:
@@ -97,8 +126,8 @@ class MRCModel(QtCore.QObject):
             par = par.address
 
         self.poll_set.add((bus, dev, par))
-        if self.client().get_request_queue_size() == 0:
-            self._slt_client_queue_empty() # Init polling
+        if self.connection.get_send_queue_size() == 0:
+            self._slt_send_queue_empty() # Init polling
 
     def addPollParameters(self, bus, dev, pars):
         for par in pars:
@@ -111,13 +140,12 @@ class MRCModel(QtCore.QObject):
         remove_set = set(filter(lambda t: bus == t[0] and dev == t[1], self.poll_set))
         self.poll_set.difference_update(remove_set)
 
-    def _slt_client_connected(self, host, port):
-        self.log.info("Connected to %s:%d", host, port)
+    def _slt_connected(self):
         self.scanbus(0)
         self.scanbus(1)
         self.sig_connected.emit()
 
-    def _slt_client_disconnected(self):
+    def _slt_disconnected(self):
         self.sig_disconnected.emit()
 
     def _slt_message_received(self, msg):
@@ -153,7 +181,7 @@ class MRCModel(QtCore.QObject):
         else:
             self.log.warning("Unhandled message %s", msg)
 
-    def _slt_client_queue_empty(self):
+    def _slt_send_queue_empty(self):
         if len(self.poll_set) == 0:
             return
         #self.log.debug("Polling %d parameters", len(self.poll_set))
@@ -184,14 +212,11 @@ class DeviceModel(QtCore.QObject):
         self.mrc_model.sig_parameterSet.connect(self._slt_parameterSet)
         self.mrc_model.sig_rcSet.connect(self._slt_rcSet)
 
-    def readParameter(self, address, reread = False):
-        if not reread and address in self.memory:
-            self.sig_parameterRead.emit(address, self.memory[address])
-        else:
-            self.mrc_model.readParameter(self.bus, self.dev, address)
+    def readParameter(self, address, response_handler=None):
+        self.mrc_model.readParameter(self.bus, self.dev, address, response_handler)
 
-    def setParameter(self, address, value):
-        self.mrc_model.setParameter(self.bus, self.dev, address, value)
+    def setParameter(self, address, value, response_handler=None):
+        self.mrc_model.setParameter(self.bus, self.dev, address, value, response_handler)
 
     def addPollParameter(self, address):
         self.mrc_model.addPollParameter(self.bus, self.dev, address)
@@ -205,9 +230,8 @@ class DeviceModel(QtCore.QObject):
     def clearPollParameters(self):
         self.mrc_model.removePollParameters(self.bus, self.dev)
 
-    def setRc(self, on_off):
-        if on_off != self.rc:
-            self.mrc_model.setRc(self.bus, self.dev, on_off)
+    def setRc(self, on_off, response_handler=None):
+        self.mrc_model.setRc(self.bus, self.dev, on_off, response_handler)
 
     def getMRCModel(self):
         return self._mrc_model() if self._mrc_model is not None else None
@@ -232,6 +256,9 @@ class DeviceModel(QtCore.QObject):
         if bus == self.bus and dev == self.dev:
             self.rc = on_off
             self.sig_rcSet.emit(on_off)
+
+    def __str__(self):
+        return "DeviceModel(idc=%d, rc=%d)" % (self.idc, self.rc)
 
     mrc_model = pyqtProperty(object, getMRCModel)
 

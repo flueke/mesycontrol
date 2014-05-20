@@ -13,87 +13,14 @@ from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import pyqtSlot
 from PyQt4.Qt import Qt
 import mesycontrol.util
-from mesycontrol.tcp_client import TCPClient
-from mesycontrol.server_process import ServerProcess
+from mesycontrol import config_xml
 from mesycontrol import application_model
+from mesycontrol import mrc_connection
 from mesycontrol.application_model import MRCModel
 from mesycontrol.mrc_treeview import MRCTreeView
 from mesycontrol.generic_device_widget import GenericDeviceWidget
 from mesycontrol.util import find_data_file
-
-class MRCConnection(QtCore.QObject):
-    def __init__(self,
-            mrc_serial_port=None, mrc_baud_rate=None,
-            mrc_host=None, mrc_port=None,
-            server_host=None, server_port=None,
-            parent=None):
-
-        super(MRCConnection, self).__init__(parent)
-
-        self.server_process = None
-        if mrc_serial_port is not None or mrc_host is not None:
-            self.server_process                 = ServerProcess(self)
-            self.server_process.mrc_serial_port = str(mrc_serial_port) if mrc_serial_port is not None else None
-            self.server_process.mrc_baud_rate   = int(mrc_baud_rate) if mrc_baud_rate is not None else None
-            self.server_process.mrc_host        = str(mrc_host) if mrc_host is not None else None
-            self.server_process.mrc_port        = int(mrc_port) if mrc_port is not None else None
-            self.server_process.sig_started.connect(self._slt_server_process_started)
-            self.server_process.sig_finished.connect(self._slt_server_process_finished)
-
-            self.server_start_timer = QtCore.QTimer(self)
-            self.server_start_timer.setSingleShot(True)
-            self.server_start_timer.setInterval(1000)
-            self.server_start_timer.timeout.connect(self._slt_server_start_timer_timeout)
-        elif server_host is not None:
-            self.server_host = str(server_host)
-            self.server_port = int(server_port)
-
-        self.tcp_client                     = TCPClient(self)
-        self.mrc_model                      = MRCModel(self, self)
-
-    def get_mrc_address_string(self):
-        if self.server_process is not None:
-            return self.server_process.get_mrc_address_string()
-        else:
-            return "%s:%d" % (self.server_host, self.server_port)
-
-    def start(self):
-        if self.server_process is not None and not self.server_process.is_running():
-            self.server_process.start()
-        elif self.server_process is None and self.tcp_client.host is None:
-            self.tcp_client.connect(self.server_host, self.server_port)
-
-    def stop(self):
-        self.tcp_client.disconnect()
-        if self.server_process is not None:
-            self.server_process.stop()
-
-    def info_string(self):
-        if self.server_process is not None:
-            if self.server_process.mrc_serial_port is not None:
-                return "%s@%d" % (self.server_process.mrc_serial_port, self.server_process.mrc_baud_rate)
-
-            if self.server_process.mrc_host is not None:
-                return "%s:%d" % (self.server_process.mrc_host, self.server_process.mrc_port)
-        elif self.server_host is not None:
-            return "server@%s:%d" % (self.server_host, self.server_port)
-
-        return "<unknown>"
-
-    def _slt_server_process_started(self):
-        if self.server_process.is_running():
-            self.server_start_timer.start()
-
-
-    def _slt_server_start_timer_timeout(self):
-        if self.server_process.is_running():
-            self.tcp_client.connect(self.server_process.listen_address, self.server_process.listen_port)
-
-    def _slt_server_process_finished(self, code, status):
-        if self.server_process.get_exit_code_string() == "exit_address_in_use":
-            self.server_process.listen_port += 1
-            self.stop()
-            self.start()
+from mesycontrol.setup import SetupBuilder, SetupLoader
 
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, parent = None):
@@ -108,7 +35,7 @@ class MainWindow(QtGui.QMainWindow):
         self._device_windows = {}
 
     def on_qapp_quit(self):
-        print "on_qapp_quit"
+        logging.info("Exiting...")
         self.app_model.shutdown()
 
     @pyqtSlot()
@@ -134,10 +61,16 @@ class MainWindow(QtGui.QMainWindow):
             mrc_host = parts[0]
             mrc_port = parts[1]
 
-        mrc_connection = MRCConnection(mrc_serial_port, mrc_baud_rate, mrc_host, mrc_port)
-        self.app_model.registerConnection(mrc_connection)
-        mrc_connection.start()
+        connection = mrc_connection.factory(
+                serial_device=mrc_serial_port,
+                serial_baud_rate=mrc_baud_rate,
+                tcp_host=mrc_host,
+                tcp_port=mrc_port)
 
+        self.app_model.registerConnection(connection)
+        connection.connect()
+
+    @pyqtSlot()
     def on_actionDisconnect_triggered(self):
         print "on_actionDisconnect_triggered"
 
@@ -152,9 +85,9 @@ class MainWindow(QtGui.QMainWindow):
         parts = text.split(':')
         host  = parts[0]
         port  = int(parts[1])
-        mrc_connection = MRCConnection(server_host=host, server_port=port)
-        self.app_model.registerConnection(mrc_connection)
-        mrc_connection.start()
+        connection = mrc_connection.factory(mesycontrol_host=host, mesycontrol_port=port)
+        self.app_model.registerConnection(connection)
+        connection.connect()
 
     def _add_subwindow(self, widget, title):
         subwin = self.mdiArea.addSubWindow(widget)
@@ -167,13 +100,87 @@ class MainWindow(QtGui.QMainWindow):
         key = (device_model.mrc_model, device_model.bus, device_model.dev)
         if not self._device_windows.has_key(key):
             widget = GenericDeviceWidget(device_model, self)
-            title  = "%s %d.%d" % (device_model.mrc_model.connection().info_string(), device_model.bus, device_model.dev)
+            title  = "%s %d.%d" % (device_model.mrc_model.connection.get_info(),
+                    device_model.bus, device_model.dev)
             self._device_windows[key] = self._add_subwindow(widget, title)
 
         subwin = self._device_windows[key]
         subwin.show()
         subwin.widget().show()
         self.mdiArea.setActiveSubWindow(subwin)
+
+    @pyqtSlot()
+    def on_actionLoad_Setup_triggered(self):
+        filename = QtGui.QFileDialog.getOpenFileName(self, "Open setup file",
+                filter="XML files (*.xml);; *")
+
+        if not len(filename):
+            return
+
+        try:
+            config = config_xml.parse_file(filename)
+        except IOError as e:
+            QtGui.QMessageBox.critical(self, "Error", "Reading from %s failed: %s" % (filename, e))
+            return
+
+        try:
+            setup_loader = SetupLoader(config)
+
+            pd = QtGui.QProgressDialog(self)
+            pd.setMaximum(len(setup_loader))
+            pd.setValue(0)
+
+            def update_progress(current, total):
+                pd.setMaximum(total)
+                pd.setValue(current)
+
+            setup_loader.progress_changed.connect(update_progress)
+            setup_loader.stopped.connect(pd.close)
+            setup_loader.start()
+            pd.exec_()
+        except Exception as e:
+            QtGui.QMessageBox.critical(self, "Error", "Setup loading failed: %s" % e)
+        else:
+            if setup_loader.has_failed():
+                QtGui.QMessageBox.critical(self, "Error", "Setup loading failed" % e)
+            else:
+                QtGui.QMessageBox.information(self, "Info", "Setup loaded from %s" % filename)
+
+    @pyqtSlot()
+    def on_actionSave_Setup_triggered(self):
+        filename = QtGui.QFileDialog.getSaveFileName(self, "Save setup as",
+                filter="XML files (*.xml);; *")
+
+        if not len(filename):
+            return
+
+        setup_builder = SetupBuilder()
+        for conn in self.app_model.mrc_connections:
+            setup_builder.add_mrc(conn.mrc_model)
+
+        pd = QtGui.QProgressDialog(self)
+        pd.setMaximum(len(setup_builder))
+        pd.setValue(0)
+
+        def update_progress(current, total):
+            pd.setValue(current)
+
+        setup_builder.progress_changed.connect(update_progress)
+        setup_builder.stopped.connect(pd.close)
+        setup_builder.start()
+        pd.exec_()
+
+        if setup_builder.has_failed():
+            QtGui.QMessageBox.critical(self, "Error", "Setup building failed")
+        else:
+            try:
+                config = setup_builder.get_result()
+                with open(filename, 'w') as f:
+                    config_xml.write_file(config, f)
+            except IOError as e:
+                QtGui.QMessageBox.critical(self, "Error", "Writing to %s failed: %s" % (filename, e))
+            else:
+                QtGui.QMessageBox.information(self, "Info", "Configuration written to %s" % filename)
 
 def signal_handler(signum, frame):
     logging.info("Received signal %s. Quitting...",
@@ -198,8 +205,8 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,
             format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
-    logging.getLogger("TCPClient").setLevel(logging.INFO)
-    logging.getLogger("MRCModel").setLevel(logging.INFO)
+    #logging.getLogger("TCPClient").setLevel(logging.INFO)
+    #logging.getLogger("MRCModel").setLevel(logging.INFO)
     logging.getLogger("PyQt4.uic").setLevel(logging.INFO)
 
     # Signal handling

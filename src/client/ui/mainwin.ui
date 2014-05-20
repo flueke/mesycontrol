@@ -40,6 +40,8 @@
     <property name="title">
      <string>&amp;File</string>
     </property>
+    <addaction name="actionLoad_Setup"/>
+    <addaction name="actionSave_Setup"/>
     <addaction name="actionConnect"/>
     <addaction name="actionConnectToServer"/>
     <addaction name="actionDisconnect"/>
@@ -98,6 +100,16 @@
   <action name="actionConnectToServer">
    <property name="text">
     <string>Connect to Server</string>
+   </property>
+  </action>
+  <action name="actionLoad_Setup">
+   <property name="text">
+    <string>Load Setup</string>
+   </property>
+  </action>
+  <action name="actionSave_Setup">
+   <property name="text">
+    <string>Save Setup</string>
    </property>
   </action>
  </widget>

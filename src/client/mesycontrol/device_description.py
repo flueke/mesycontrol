@@ -73,6 +73,9 @@ class DeviceDescription(object):
         self.parameters = {}        #: Maps ParameterDescription.address to ParameterDescription
 
     def __eq__(self, o):
+        if o is None:
+            return False
+
         if self.idc != o.idc or self.name != o.name:
             return False
 

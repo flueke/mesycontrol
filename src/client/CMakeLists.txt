@@ -8,18 +8,24 @@ set(PYTHON_SOURCES
    "${SETUP_PY_IN}"
    "${CMAKE_CURRENT_SOURCE_DIR}/cxfreeze_ConsoleSetLibPath.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol_gui.py"
+   "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol_script_runner.py"
+
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/application_model.py"
+   "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/command.py"
+   "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/config_loader.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/config.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/config_xml.py"
-   "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_config_loader.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_description_mhv4_800v.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_description_mhv4.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_description_mscf16.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_description.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/generic_device_widget.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/__init__.py"
+   "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/mrc_command.py"
+   "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/mrc_connection.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/mrc_treeview.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/protocol.py"
+   "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/script.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/server_process.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/tcp_client.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/util.py"
@@ -44,6 +50,10 @@ install(DIRECTORY ${CMAKE_BINARY_DIR}/python/lib/ DESTINATION lib USE_SOURCE_PER
 	#            GROUP_EXECUTE GROUP_READ
 	#	    WORLD_EXECUTE WORLD_READ
 	PATTERN "*mesycontrol_gui"
+       	PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
+	            GROUP_EXECUTE GROUP_READ
+		    WORLD_EXECUTE WORLD_READ
+	PATTERN "*mesycontrol_script_runner"
        	PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
 	            GROUP_EXECUTE GROUP_READ
 		    WORLD_EXECUTE WORLD_READ)

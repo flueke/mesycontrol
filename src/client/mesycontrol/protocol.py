@@ -36,6 +36,17 @@ def str_scanbus_response(msg):
 def str_error_response(msg):
   return "%s(%s)" % (msg.get_type_name(), ErrorInfo.by_code[msg.error_code]['name'])
 
+class MessageError(Exception):
+  pass
+
+class InvalidMessageType(MessageError):
+  def __init__(self, type_code):
+    super(InvalidMessageType, self).__init__()
+    self.type_code = type_code
+
+  def __str__(self):
+    return "No such message type '%s'" % str(self.type_code)
+
 class MessageInfo:
   info_list = [
       # Requests
@@ -200,6 +211,16 @@ class MessageInfo:
   def get_type_names():
     return MessageInfo.by_name.keys()
 
+  @staticmethod
+  def get_message_info(type_code_or_name):
+    try:
+      try:
+        return MessageInfo.by_code[int(type_code_or_name)]
+      except ValueError:
+        return MessageInfo.by_name[str(type_code_or_name)]
+    except (KeyError, ValueError):
+      raise InvalidMessageType(type_code_or_name)
+
 class ErrorInfo:
   info_list = [
       { 'code': 0,
@@ -254,35 +275,65 @@ class ErrorInfo:
   def get_error_names():
     return ErrorInfo.by_name.keys()
 
-class MessageError(Exception):
-  pass
-
-# TODO: override setters for bus, dev, par, value to make sure the given values
-# are valid.
-class Message:
+class Message(object):
   def __init__(self, type_code, **kwargs):
-    try:
-      type_code = int(type_code)
-    except ValueError:
-      # Assume a type name was given and convert it to a type code
-      try:
-        type_code = MessageInfo.by_name[type_code]['code']
-      except KeyError:
-        raise MessageError("No such message type: %s" % type_code)
-
-    if not type_code in MessageInfo.by_code:
-      raise MessageError("No such message type: %d" % type_code)
-
-    self.type_code = type_code
+    self._type_code = MessageInfo.get_message_info(type_code)['code']
 
     for k,v in kwargs.iteritems():
       setattr(self, k, v)
 
   def get_type_info(self):
-    return MessageInfo.by_code[self.type_code]
+    return MessageInfo.get_message_info(self.type_code)
 
   def get_type_name(self):
     return self.get_type_info()['name']
+
+  def is_request(self):
+    return self.get_type_name().startswith('request_')
+
+  def is_response(self):
+    return self.get_type_name().startswith('response_')
+
+  def is_notification(self):
+    return self.get_type_name().startswith('notify_')
+
+  def is_error(self):
+    return self.get_type_name() == 'response_error'
+
+  def get_type_code(self): return self._type_code
+  def get_bus(self): return self._bus
+  def set_bus(self, bus):
+    if 0 <= int(bus) < 2:
+      self._bus = int(bus)
+    else:
+      raise MessageError("bus out of range", int(bus))
+
+  def get_dev(self): return self._dev
+  def set_dev(self, dev):
+    if 0 <= int(dev) < 16:
+      self._dev = int(dev)
+    else:
+      raise MessageError("dev out of range", int(dev))
+
+  def get_par(self): return self._par
+  def set_par(self, par):
+    if 0 <= int(par) < 256:
+      self._par = int(par)
+    else:
+      raise MessageError("par out of range", int(par))
+
+  def get_value(self): return self._value
+  def set_value(self, value):
+    if 0 <= int(value) < 65536:
+      self._value = int(value)
+    else:
+      raise MessageError("value out of range", int(value))
+
+  type_code = property(get_type_code)
+  bus       = property(get_bus, set_bus)
+  dev       = property(get_dev, set_dev)
+  par       = property(get_par, set_par)
+  val       = property(get_value, set_value)
 
   def serialize(self):
     type_info = self.get_type_info()
@@ -299,8 +350,11 @@ class Message:
 
   @staticmethod
   def deserialize(data):
+    if len(data) < 1:
+      raise MessageError("deserialize(): empty data given")
+
     type_code = struct.unpack('!B', data[0])[0]
-    type_info = MessageInfo.by_code[type_code]
+    type_info = MessageInfo.get_message_info(type_code)
 
     # Call the custom deserializer if specified
     if type_info.has_key('deserializer'):
@@ -339,7 +393,34 @@ if __name__ == "__main__":
   assert msg.bus == msg_deserialized.bus
   assert msg.dev == msg_deserialized.dev
   assert msg.par == msg_deserialized.par
-
   print msg_deserialized
+
+  try:
+    msg = Message('request_read', bus=3, dev=2, par=3)
+  except MessageError:
+    pass
+  else:
+    assert False
+
+  try:
+    msg = Message('request_read', bus=1, dev=16, par=3)
+  except MessageError:
+    pass
+  else:
+    assert False
+
+  try:
+    msg = Message('request_read', bus=1, dev=2, par=256)
+  except MessageError:
+    pass
+  else:
+    assert False
+
+  try:
+    msg = Message('request_set', bus=1, dev=2, par=3, val=65536)
+  except MessageError, e:
+    pass
+  else:
+    assert False
 
 # vim:sw=2:sts=2

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
+from xml.dom import minidom
 from xml.etree import ElementTree
 from xml.etree.ElementTree import TreeBuilder
 from config import Config, MRCConnectionConfig, DeviceConfig, ParameterConfig
@@ -155,8 +156,13 @@ def to_etree(config):
 
     return ElementTree.ElementTree(tb.close())
 
+def write_file(cfg, f):
+    xml = ElementTree.tostring(to_etree(cfg).getroot())
+    xml = minidom.parseString(xml).toprettyxml(indent='  ')
+    f.write(xml)
+
 def _mrc_connection_config_to_etree(cfg, tb):
-    tb.start('mrc_connection')
+    tb.start('mrc_connection', {})
     _add_tag(tb, 'name', cfg.name)
 
     if cfg.is_mesycontrol_connection():

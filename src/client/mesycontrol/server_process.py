@@ -6,7 +6,8 @@ from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtSignal, pyqtProperty
 import logging
 import os
-from mesycontrol import application_model
+import weakref
+import application_model
 
 class InvalidArgument(Exception):
     pass
@@ -57,12 +58,16 @@ class ServerProcess(QtCore.QObject):
         self.log = logging.getLogger("ServerProcess")
 
     def start(self):
-        verb_flag = 'v' if self.verbosity > 0 else 'q'
-        verb_args = '-' + verb_flag * abs(self.verbosity)
+        if self.process.state() != QtCore.QProcess.NotRunning:
+            return
 
         args = list()
+
         if self.verbosity != 0:
+            verb_flag = 'v' if self.verbosity > 0 else 'q'
+            verb_args = '-' + verb_flag * abs(self.verbosity)
             args.append(verb_args)
+
         args.extend(['--listen-address', self.listen_address])
         args.extend(['--listen-port', str(self.listen_port)])
 
@@ -87,6 +92,7 @@ class ServerProcess(QtCore.QObject):
             self.process.kill()
         else:
             self.process.terminate()
+        self.process.waitForFinished(1000) # XXX: blocking
 
     def is_running(self):
         return self.process.state() == QtCore.QProcess.Running
@@ -116,7 +122,9 @@ class ServerProcess(QtCore.QObject):
         self.sig_started.emit()
 
     def _slt_error(self, process_error):
-        self.log.error("Failed starting %s => error = %s" % (self._cmd_line, process_error))
+        self.log.error("Failed starting %s => error = %s: %s: %s"
+                % (self._cmd_line, process_error, self.process.errorString(),
+                    self.get_exit_code_string()))
 
     def _slt_finished(self, exit_code, exit_status):
         self.log.info("%s finished. exit_code = %s, exit_status = %s"
@@ -129,3 +137,67 @@ class ServerProcess(QtCore.QObject):
         data = str(self.process.readAllStandardOutput())
         self.log.debug(data)
         self.sig_stdout.emit(data)
+
+class ProcessPool(QtCore.QObject):
+    default_base_port = 23000
+
+    def __init__(self, parent=None):
+        super(ProcessPool, self).__init__(parent)
+        self.base_port      = ProcessPool.default_base_port
+        self._procs_by_port = weakref.WeakValueDictionary()
+
+    def create_process(self, options={}, parent=None):
+        proc = ServerProcess(parent)
+        proc.listen_port = self._get_free_port()
+
+        for attr, value in options.iteritems():
+            setattr(proc, attr, value)
+
+        self._procs_by_port[proc.listen_port] = proc
+
+        return proc
+
+    def _get_free_port(self):
+        in_use = self._procs_by_port.keys()
+        for p in xrange(self.base_port, 65535):
+            if p not in in_use:
+                return p
+
+pool = ProcessPool()
+
+if __name__ == "__main__":
+    import sys
+
+    logging.basicConfig(level=logging.DEBUG,
+            format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
+
+    app = QtCore.QCoreApplication(sys.argv)
+    application_model.instance.bin_dir = os.path.abspath(os.path.dirname(
+        sys.executable if getattr(sys, 'frozen', False) else __file__))
+
+    procs = []
+    for i in range(10):
+        print "Starting processes"
+        proc = pool.create_process(
+                options={'mrc_serial_port': '/dev/ttyUSB0', 'mrc_baud_rate': 115200})
+        proc.start()
+        procs.append(proc)
+
+    def stop_all():
+        print "Stopping processes"
+        for proc in procs:
+            proc.stop()
+
+    def stop_all_and_quit():
+        stop_all()
+        QtCore.QTimer.singleShot(5000, app.quit)
+
+    QtCore.QTimer.singleShot(5000, stop_all_and_quit)
+
+    ret = app.exec_()
+
+    for proc in procs:
+        if proc.is_running():
+            print "Process still running!"
+
+    sys.exit(ret)
