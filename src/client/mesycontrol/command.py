@@ -6,8 +6,9 @@ from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtSignal
 from functools import partial
 
-def CommandException(Exception): pass
-def CommandStateException(CommandException): pass
+class CommandException(Exception): pass
+class CommandStateException(CommandException): pass
+class CommandInterrupted(CommandException): pass
 
 class Command(QtCore.QObject):
     started  = pyqtSignal()
@@ -46,7 +47,8 @@ class Command(QtCore.QObject):
         loop = QtCore.QEventLoop()
         self.stopped.connect(loop.quit)
         QtCore.QTimer.singleShot(0, self.start)
-        loop.exec_()
+        if loop.exec_() < 0:
+            raise CommandInterrupted()
         return self
 
     def _stopped(self):
