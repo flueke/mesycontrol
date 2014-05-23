@@ -1,19 +1,40 @@
-* general
-WIP  - add unittests!
-PARTLY DONE  - Add a decent interface for verifying the result of a request. Right now
-    different parts of the application start to issue read and write requests
-    but never check the result.
-DONE  - Commands: Add command lists including subcommands. A command may execute for a longer
-    time. During execution polling may be disabled temporarily. Behaviour on
-    error should be selectable: abort or continue. The user must be able to
-    query for requests that caused an error. Longer running commands should
-    report their progress. ConfigLoader and ConfigVerifier would then each
-    build a command list. A CommandRunner would be passed all commands to be
-    run and additional options (disable poll, error behaviour). The
-    CommandRunner then executes the command, notifying observers about progress
-    changes and errors.
-DONE - DeviceDescription: add a way to store parameters in the description but not in the config (e.g. MSCF-16 copy function)
-STARTED - DeviceDescription: add conversion to human readable units (<unit label="mA" factor="1000.0"
+* Source layout, package building, installation need improvement
+* application_model initialization
+* Sort out and document DeviceModel, DeviceViewModel, DeviceDescription.
+* Handle changes to scanbus data. Needs to be observable.
+* Track config sources. Ask about unsaved changes.
+* Improve Command:
+  - get first/all failed subcommand(s) from CommandGroups
+  - add __str__ to Commands
+
+* Logging: use instance specific loggers for some classes or find another way
+  to track logs from individual instances
+
+* Virtual connections:
+  - load setup to virtual connections
+  - create new virtual, add/remove devices from virtual
+
+* How to handle the RC setting? For MHV4 enabling/disabling RC can be dangerous.
+
+* Server:
+  - avoid sending messages through connections that are being stopped as it
+    causes useless error logs to appear
+  - exception safety
+  - timeouts
+  - add max connections feature
+  - add rc_changed notification (bus, dev, rc_new)
+
+* Scripting:
+  - Standalone vs. running inside the GUI
+  - Wrapper documentation
+
+* build system
+  - fix cxfreeze prefix issue on windows
+  - add cpack installer generation
+  - enumerate com ports
+  - fix slow performance on windows
+
+STARTED - DeviceDescription: add conversion to human readable units (<unit label="mA" factor="1000.0")
 DONE - DeviceDescription: add value range to parameters (min, max). Make sure input in SI units is rounded correctly
   - DeviceDescription: add version detection (MSFC-16)
   - DeviceDescription: add a flag to mark system descriptions
@@ -21,52 +42,4 @@ DONE - DeviceDescription: add value range to parameters (min, max). Make sure in
   - DeviceConfig: add a way to store MRC connection info in the configuration
   - DeviceConfigXML: use attributes instead of nested tags for simple stuff (makes the XML file shorter)
   - DeviceConfigXML: add DTD (used for verification)
-  - Add virtual devices. Can be used to preview configs/widgets/etc. and for offline config creation
-  - How to handle the RC setting? For MHV4 enabling/disabling RC can be dangerous.
-  - Make most things work for mirror memory too.
 
-* server
-  - avoid sending messages through connections that are being stopped as it
-    causes useless error logs to appear
-  - exception safety
-  - timeouts
-  - add max connections feature
-
-* protocol
-  - add status request to get the status of the mrc connection (e.g. connected, reconnecting, ...) (needed?)
-  - add rc_changed notification (bus, dev, rc_new)
-
-* gui client
-  - XXX: fix the duplication of DeviceDescription in DeviceConfig and DeviceViewModel
-  - disconnect support
-  - present all mrcs and devices in some nice widget
-  - allow bus rescans, reconnects, etc.
-  - handle bus rescan changes
-  - open device window on click. by default uses a device specific widget if
-    present, otherwise (and by user request) opens the device as a generic
-    device
-  - load and save device description files
-  - load and save device config files, optionally including the description
-    (needed for generic devices _if_ saved with named parameters) as otherwise
-    the config can't be loaded. Alternative: prompt for a generic device
-    description.
-  - add connection ui
-  - logging ui
-  - Display aliases everywhere. Allow the user to set aliases for connections
-    and devices and special parameters (e.g. channel alias for MHV-4)
-
-* cli client
-  - commands and grammar
-  - non blocking, timeout aware client (could probably re-use the gui TCPClient)
-  - multi connection support. Needs a way to specify which mrc to address with commands
-  - commands: connect, connections list, disconnect, set, read, scanbus, load
-    device config, read device config (could be added just like a mrc
-    connection), verify device state == expected device config state
-  - expressions:
-    * compare param value to a given value / another param (eq, gt, lt, le, ...)
-
-* build system
-  - fix cxfreeze prefix issue on windows
-  - add cpack installer generation
-  - enumerate com ports
-  - fix slow performance on windows

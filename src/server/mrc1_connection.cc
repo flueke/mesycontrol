@@ -347,6 +347,12 @@ void MRC1SerialConnection::start_impl(ErrorCodeCallback completion_handler)
   try {
     BOOST_LOG_SEV(m_log, log::lvl::info) << "Opening " << m_serial_device;
     m_port.open(m_serial_device);
+#ifndef BOOST_WINDOWS
+    if (ioctl(m_port.native_handle(), TIOCEXCL) < 0) {
+      BOOST_THROW_EXCEPTION(boost::system::system_error(
+            errno, boost::system::system_category(), "ioctl"));
+    }
+#endif
     m_port.set_option(asio::serial_port::baud_rate(m_baud_rate));
     m_port.set_option(asio::serial_port::character_size(8));
     m_port.set_option(asio::serial_port::parity(asio::serial_port::parity::none));
