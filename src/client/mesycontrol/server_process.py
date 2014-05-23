@@ -12,6 +12,18 @@ import application_model
 class InvalidArgument(Exception):
     pass
 
+class QProcessWrapper(QtCore.QProcess):
+    def __init__(self, parent=None):
+        super(QProcessWrapper, self).__init__(parent)
+
+    def setupChildProcess(self):
+        """Called by Qt in the childs context just before the program is
+        executed.
+        Moves the child in its own process group to avoid receiving signals
+        from the parent process.
+        """
+        os.setpgrp()
+
 class ServerProcess(QtCore.QObject):
     exit_codes = {
             0:   "exit_success",
@@ -48,7 +60,7 @@ class ServerProcess(QtCore.QObject):
         self.mrc_port        = ServerProcess.default_mrc_port
         self.verbosity       = ServerProcess.default_verbosity
 
-        self.process = QtCore.QProcess(self)
+        self.process = QProcessWrapper(self)
         self.process.setProcessChannelMode(QtCore.QProcess.MergedChannels)
         self.process.started.connect(self._slt_started)
         self.process.error.connect(self._slt_error)
@@ -127,8 +139,9 @@ class ServerProcess(QtCore.QObject):
                     self.get_exit_code_string()))
 
     def _slt_finished(self, exit_code, exit_status):
-        self.log.info("%s finished. exit_code = %s, exit_status = %s"
-                % (self._cmd_line, exit_code, exit_status))
+        self.log.info("%s finished. exit_code = %s, exit_status = %s => %s"
+                % (self._cmd_line, exit_code, exit_status,
+                    self.get_exit_code_string()))
 
         self.sig_finished[int, QtCore.QProcess.ExitStatus].emit(exit_code, exit_status)
         self.sig_finished[str].emit(self.get_exit_code_string())
