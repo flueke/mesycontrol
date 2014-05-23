@@ -24,7 +24,7 @@ class TCPConnection
     ~TCPConnection();
 
     void start();
-    void stop();
+    void stop(bool graceful=true);
 
     boost::asio::ip::tcp::socket &socket();
     void send_message(const MessagePtr &msg);
@@ -53,8 +53,8 @@ class TCPConnection
     bool m_write_in_progress;
 
     std::string m_connection_string;
-
     log::Logger m_log;
+    bool m_stopping;
 };
 
 typedef boost::shared_ptr<TCPConnection> TCPConnectionPtr;

@@ -17,12 +17,13 @@ TCPConnection::TCPConnection(boost::asio::io_service &io_service, TCPConnectionM
   , m_connection_manager(manager)
   , m_write_in_progress(false)
   , m_log(log::keywords::channel="TCPConnection")
+  , m_stopping(false)
 {
 }
 
 TCPConnection::~TCPConnection()
 {
-  stop();
+  stop(false);
 }
 
 void TCPConnection::start()
@@ -38,9 +39,11 @@ void TCPConnection::start()
   start_read_message_size();
 }
 
-void TCPConnection::stop()
+void TCPConnection::stop(bool graceful)
 {
-  if (m_socket.is_open()) {
+  if (graceful && (!m_write_queue.empty() || m_write_in_progress)) {
+    m_stopping = true;
+  } else if (m_socket.is_open()) {
     BOOST_LOG_SEV(m_log, log::lvl::info) << "Closing connection from " << connection_string();
     m_socket.close();
   }
@@ -53,6 +56,12 @@ boost::asio::ip::tcp::socket &TCPConnection::socket()
 
 void TCPConnection::send_message(const MessagePtr &msg)
 {
+  if (m_stopping) {
+    BOOST_LOG_SEV(m_log, log::lvl::error) << connection_string()
+      << ": connection is stopping, discarding outgoing message!";
+    return;
+  }
+
   BOOST_LOG_SEV(m_log, log::lvl::trace) << connection_string()
     << ": adding message of type " << msg->get_info_string() << " to the outgoing queue";
   m_write_queue.push_back(msg);
@@ -61,6 +70,9 @@ void TCPConnection::send_message(const MessagePtr &msg)
 
 void TCPConnection::start_read_message_size()
 {
+  if (m_stopping)
+    return;
+
   BOOST_LOG_SEV(m_log, log::lvl::trace) << connection_string() << ": reading message size";
 
   asio::async_read(m_socket, asio::buffer(&m_read_size, 2),
@@ -78,6 +90,7 @@ void TCPConnection::handle_read_message_size(const boost::system::error_code &ec
     if (m_read_size == 0) {
       BOOST_LOG_SEV(m_log, log::lvl::error) << connection_string()
         << ": zero request_size received";
+      send_message(MessageFactory::make_error_response(error_type::invalid_message_size));
       m_connection_manager.stop(shared_from_this());
       return;
     }
@@ -86,8 +99,10 @@ void TCPConnection::handle_read_message_size(const boost::system::error_code &ec
     m_read_buf.resize(m_read_size);
     start_read_message();
   } else {
-    BOOST_LOG_SEV(m_log, log::lvl::error) << connection_string()
-      << ": error reading message size: " << ec.message();
+    if (!m_stopping) {
+      BOOST_LOG_SEV(m_log, log::lvl::error) << connection_string()
+        << ": error reading message size: " << ec.message();
+    }
 
     m_connection_manager.stop(shared_from_this());
   }
@@ -107,8 +122,10 @@ void TCPConnection::handle_read_message(const boost::system::error_code &ec, std
   if (!ec) {
     try {
       MessagePtr msg(Message::deserialize(m_read_buf));
+
       BOOST_LOG_SEV(m_log, log::lvl::debug) << connection_string()
         << ": received message = " << msg->get_info_string();
+
       m_connection_manager.dispatch_request(shared_from_this(), msg);
       start_read_message_size();
     } catch (const std::runtime_error &e) {
@@ -116,17 +133,27 @@ void TCPConnection::handle_read_message(const boost::system::error_code &ec, std
         << ": error deserializing message: " << e.what();
 
       send_message(MessageFactory::make_error_response(error_type::invalid_message_type));
+      m_connection_manager.stop(shared_from_this());
     }
   } else {
-    BOOST_LOG_SEV(m_log, log::lvl::error) << connection_string()
-      << ": error reading message: " << ec.message();
+    if (m_socket.is_open() && !m_stopping) {
+      BOOST_LOG_SEV(m_log, log::lvl::error) << connection_string()
+        << ": error reading message: " << ec.message();
+    }
     m_connection_manager.stop(shared_from_this());
   }
 }
 
 void TCPConnection::start_write_message()
 {
-  if (m_write_queue.empty() || m_write_in_progress)
+  if (m_write_queue.empty()) {
+    if (m_stopping) {
+      stop(false);
+    }
+    return;
+  }
+
+  if (m_write_in_progress)
     return;
 
   m_write_in_progress = true;
@@ -155,8 +182,10 @@ void TCPConnection::handle_write_message(const boost::system::error_code &ec, st
     m_write_queue.pop_front();
     start_write_message();
   } else {
-    BOOST_LOG_SEV(m_log, log::lvl::error) << connection_string()
-      << ": error writing message: " << ec.message();
+    if (m_socket.is_open()) {
+      BOOST_LOG_SEV(m_log, log::lvl::error) << connection_string()
+        << ": error writing message: " << ec.message();
+    }
     m_connection_manager.stop(shared_from_this());
   }
 }

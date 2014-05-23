@@ -22,10 +22,10 @@ class TCPConnectionManager: private boost::noncopyable
     void start(TCPConnectionPtr c);
 
     /// Stop the specified connection.
-    void stop(TCPConnectionPtr c);
+    void stop(TCPConnectionPtr c, bool graceful=true);
 
     /// Stop all connections.
-    void stop_all();
+    void stop_all(bool graceful=true);
 
     /// Incoming request dispatcher
     void dispatch_request(const TCPConnectionPtr &connection, const MessagePtr &request);

@@ -27,7 +27,7 @@ void TCPConnectionManager::start(TCPConnectionPtr c)
   }
 }
 
-void TCPConnectionManager::stop(TCPConnectionPtr c)
+void TCPConnectionManager::stop(TCPConnectionPtr c, bool graceful)
 {
   if (m_write_connection == c) {
     // The current writer disconnects
@@ -35,14 +35,14 @@ void TCPConnectionManager::stop(TCPConnectionPtr c)
   }
 
   m_connections.erase(c);
-  c->stop();
+  c->stop(graceful);
 }
 
-void TCPConnectionManager::stop_all()
+void TCPConnectionManager::stop_all(bool graceful)
 {
   BOOST_LOG_SEV(m_log, log::lvl::debug) << "Stopping all connections";
   std::for_each(m_connections.begin(), m_connections.end(),
-      boost::bind(&TCPConnection::stop, _1));
+      boost::bind(&TCPConnection::stop, _1, graceful));
   m_connections.clear();
   set_write_connection(TCPConnectionPtr());
 }
@@ -59,6 +59,7 @@ void TCPConnectionManager::dispatch_request(const TCPConnectionPtr &connection, 
     }
   } else {
     MessagePtr response;
+    bool stop_connection = false;
 
     switch (request->type) {
       case message_type::request_has_write_access:
@@ -100,10 +101,14 @@ void TCPConnectionManager::dispatch_request(const TCPConnectionPtr &connection, 
       default:
         /* Error: a response_* or notify_* message was received. */
         response = MessageFactory::make_error_response(error_type::invalid_message_type);
+        stop_connection = true;
     }
 
-    if (response)
+    if (response) {
       connection->send_message(response);
+      if (stop_connection)
+        stop(connection);
+    }
   }
 }
 
@@ -167,7 +172,8 @@ void TCPConnectionManager::set_write_connection(const TCPConnectionPtr &connecti
   send_to_all_except(m_write_connection,
       MessageFactory::make_can_acquire_write_access_notification(!m_write_connection));
 
-  BOOST_LOG_SEV(m_log, log::lvl::info) << "Write access changed from " << old_writer_info << " to " << new_writer_info;
+  BOOST_LOG_SEV(m_log, log::lvl::info) << "Write access changed from "
+    << old_writer_info << " to " << new_writer_info;
 }
 
 } // namespace mesycontrol
