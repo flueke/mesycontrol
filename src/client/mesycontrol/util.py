@@ -53,3 +53,65 @@ class GarbageCollector(QObject):
 # TODO: move this to ApplicationModel
 def find_data_file(filename):
     return os.path.join(application_model.instance.data_dir, filename)
+
+class URLParseError(Exception): pass
+
+def parse_connection_url(url):
+    """Parses the given connection url.
+    Returns a dictionary ready to be passed to factory() to create a connection
+    instance.
+    """
+    proto, proto_sep, contents = url.partition('://')
+
+    if len(proto_sep) == 0:
+        # No protocol separator in url
+        contents = url
+        proto    = ""
+
+    proto = proto.lower()
+
+    serial_port, serial_sep, baud = contents.partition('@')
+    host, host_sep, port          = contents.partition(':')
+
+    if len(serial_sep) > 0 and len(baud) == 0:
+        raise URLParseError("Missing baud rate after '@'")
+
+    if len(host_sep) > 0 and len(port) == 0:
+        raise URLParseError("Missing port after ':'")
+
+    if proto == 'serial' or len(serial_sep) > 0:
+        if len(serial_port) == 0:
+            raise URLParseError("Empty serial port name")
+
+        if len(baud) > 0:
+            if not baud.isdigit():
+                raise URLParseError("Non-numeric baud rate '%s'" % baud)
+            baud = int(baud)
+        else:
+            baud = 9600
+        return dict(serial_port=serial_port, baud_rate=baud)
+
+    if len(proto) == 0 and len(port) == 0:
+        raise URLParseError("Missing protocol or port")
+
+    if len(proto) == 0:
+        proto = 'tcp'
+
+    if proto in ('tcp', 'mesycontrol'):
+        if len(host) == 0:
+            raise URLParseError("Empty host")
+
+        if len(port) > 0:
+            if not port.isdigit():
+                raise URLParseError("Non-numeric port '%s'" % port)
+            port = int(port)
+        else:
+            port = 4001 if proto == 'tcp' else 23000
+
+        if proto == 'tcp':
+            return dict(host=host, port=port)
+        else:
+            return dict(mesycontrol_host=host, mesycontrol_port=port)
+
+    raise URLParseError("Invalid protocol '%s'" % proto)
+

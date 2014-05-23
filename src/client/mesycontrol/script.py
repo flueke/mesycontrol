@@ -8,6 +8,7 @@ from PyQt4.QtCore import pyqtProperty
 from . import util
 from . import application_model
 from . import mrc_connection
+from .command import CommandInterrupted
 from .mrc_command import Connect, ReadParameter, SetParameter, SetRc, Scanbus
 
 class DeviceWrapper(QtCore.QObject):
@@ -81,15 +82,6 @@ class ConnectionWrapper(QtCore.QObject):
 
     mrc = pyqtProperty(object, get_mrc)
 
-    # Context Manager support (with statement)
-    def __enter__(self):
-        return self
-
-    # Context Manager support (with statement)
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.disconnect()
-
-
 class Context(object):
     def __init__(self):
         self.app_model = application_model.instance
@@ -99,7 +91,6 @@ class Context(object):
         application_model.instance.registerConnection(conn)
         return ConnectionWrapper(conn)
 
-# FIXME: Keyboard interrupt handling not working
 @contextlib.contextmanager
 def get_script_context():
     try:
@@ -123,10 +114,10 @@ def get_script_context():
             sys.executable if getattr(sys, 'frozen', False) else __file__))
 
         yield Context()
-    except KeyboardInterrupt:
-        print "Keyboard Interrupt"
+    except CommandInterrupted:
+        pass
     finally:
+        print "Shutdown begin"
         application_model.instance.shutdown()
+        print "Shutdown end"
         del gc
-        qapp.quit()
-

@@ -17,7 +17,8 @@ def print_voltages(mhv, iterations, delay_ms):
 # Toggles MHV4 channels and prints voltages repeatedly
 if __name__ == "__main__":
     with get_script_context() as ctx:
-        conn = ctx.make_connection(serial_device='/dev/ttyUSB0', serial_baud_rate=115200)
+        conn = ctx.make_connection(mesycontrol_host='localhost', mesycontrol_port='23000')
+        conn = ctx.make_connection(host='localhost', port='4001')
         assert conn.connect(), "Connection failed"
 
         mrc = conn.mrc

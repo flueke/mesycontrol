@@ -11,7 +11,7 @@ import server_process
 import config
 
 class AbstractConnection(QtCore.QObject):
-    """Abstract MRC connection representation
+    """Abstract MRC connection representation.
     Supports the following operations:
     * connect/disconnect
     * send messages
@@ -35,8 +35,8 @@ class AbstractConnection(QtCore.QObject):
     def __init__(self, parent=None):
         super(AbstractConnection, self).__init__(parent)
         self._write_access = False
-        self._silenced = False
-        self.mrc_model = MRCModel(self, self)
+        self._silenced     = False
+        self.mrc_model     = MRCModel(self, self)
 
     def connect(self):
         raise NotImplemented()
@@ -113,8 +113,8 @@ class MesycontrolConnection(AbstractConnection):
 
         self.host    = str(host) if host is not None else None
         self.port    = int(port) if port is not None else None
-        self._client = tcp_client.TCPClient(self)
 
+        self._client = tcp_client.TCPClient(self)
         self._client.sig_connecting.connect(self.sig_connecting)
         self._client.sig_connected.connect(self.sig_connected)
         self._client.sig_disconnected.connect(self.sig_disconnected)
@@ -214,10 +214,16 @@ def factory(**kwargs):
     Supported keyword arguments in order of priority:
         - config: MRCConnectionConfig instance
         - mesycontrol_host, mesycontrol_port: creates a MesycontrolConnection
-        - serial_device, serial_baud_rate: creates a LocalMesycontrolConnection
+        - serial_port, baud_rate: creates a LocalMesycontrolConnection
           using the given serial port and baud rate
-        - tcp_host, tcp_port: creates a LocalMesycontrolConnection connecting to
+        - host, port: creates a LocalMesycontrolConnection connecting to
           the MRC on the given host and port
+        - url: accepts the following connection string forms:
+          * <serial_device>@<baud_rate>
+          * serial://<device>[@<baud=9600>]
+          * <host>:<port>
+          * tcp://<host>[:<port=4001>]
+          * mesycontrol://<host>[:<port=23000>]
 
     Additionally 'parent' may specify a parent QObject for the resulting
     connection.
@@ -237,10 +243,10 @@ def factory(**kwargs):
     else:
         mesycontrol_host = kwargs.get('mesycontrol_host', None)
         mesycontrol_port = kwargs.get('mesycontrol_port', None)
-        serial_device    = kwargs.get('serial_device', None)
-        serial_baud_rate = kwargs.get('serial_baud_rate', None)
-        tcp_host         = kwargs.get('tcp_host', None)
-        tcp_port         = kwargs.get('tcp_port', None)
+        serial_device    = kwargs.get('serial_port', None)
+        serial_baud_rate = kwargs.get('baud_rate', None)
+        tcp_host         = kwargs.get('host', None)
+        tcp_port         = kwargs.get('port', None)
 
         if None not in (mesycontrol_host, mesycontrol_port):
             return MesycontrolConnection(host=mesycontrol_host,

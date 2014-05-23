@@ -1,9 +1,9 @@
 * general
-  - add unittests!
-  - Add a decent interface for verifying the result of a request. Right now
+WIP  - add unittests!
+PARTLY DONE  - Add a decent interface for verifying the result of a request. Right now
     different parts of the application start to issue read and write requests
     but never check the result.
-  - Commands: Add command lists including subcommands. A command may execute for a longer
+DONE  - Commands: Add command lists including subcommands. A command may execute for a longer
     time. During execution polling may be disabled temporarily. Behaviour on
     error should be selectable: abort or continue. The user must be able to
     query for requests that caused an error. Longer running commands should

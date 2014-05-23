@@ -23,7 +23,7 @@ class MRCConnectionConfig(QtCore.QObject):
     """MRC connection configuration. Possible connection types are serial, tcp
     and mesycontrol_server."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, **kwargs):
         super(MRCConnectionConfig, self).__init__(parent)
         self.reset()
 

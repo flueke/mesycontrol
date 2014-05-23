@@ -99,7 +99,7 @@ class TCPClient(QtCore.QObject):
         return self._current_request is not None
 
     def send_message(self, message, response_handler=None):
-        self.log.debug("Queueing message %s", message)
+        self.log.debug("Queueing message %s, response_handler=%s", message, response_handler)
         was_empty = self._write_queue.empty()
         self._write_queue.put((message, response_handler))
         self.log.debug("Write queue size = %d", self.get_write_queue_size())
@@ -177,6 +177,7 @@ class TCPClient(QtCore.QObject):
     @pyqtSlot()
     def _slt_disconnected(self):
         self.log.info("Disconnected from %s:%d" % (self.host, self.port))
+        self.log.info("socket.errorString()=%s" % self._socket.errorString())
         self.log.debug("Stats: %s", self.stats)
         self.sig_disconnected.emit()
 
