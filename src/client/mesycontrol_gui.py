@@ -62,10 +62,8 @@ class MainWindow(QtGui.QMainWindow):
             mrc_port = parts[1]
 
         connection = mrc_connection.factory(
-                serial_device=mrc_serial_port,
-                serial_baud_rate=mrc_baud_rate,
-                tcp_host=mrc_host,
-                tcp_port=mrc_port)
+                serial_port=mrc_serial_port, baud_rate=mrc_baud_rate,
+                host=mrc_host, port=mrc_port)
 
         self.app_model.registerConnection(connection)
         connection.connect()
@@ -142,7 +140,7 @@ class MainWindow(QtGui.QMainWindow):
             QtGui.QMessageBox.critical(self, "Error", "Setup loading failed: %s" % e)
         else:
             if setup_loader.has_failed():
-                QtGui.QMessageBox.critical(self, "Error", "Setup loading failed" % e)
+                QtGui.QMessageBox.critical(self, "Error", "Setup loading failed")
             else:
                 QtGui.QMessageBox.information(self, "Info", "Setup loaded from %s" % filename)
 

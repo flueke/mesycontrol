@@ -17,8 +17,6 @@
 * How to handle the RC setting? For MHV4 enabling/disabling RC can be dangerous.
 
 * Server:
-  - avoid sending messages through connections that are being stopped as it
-    causes useless error logs to appear
   - exception safety
   - timeouts
   - add max connections feature

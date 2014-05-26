@@ -191,8 +191,8 @@ class LocalMesycontrolConnection(MesycontrolConnection):
             ret.serial_device    = self._server.mrc_serial_port
             ret.serial_baud_rate = self._server.mrc_baud_rate
         elif self._server.mrc_host is not None:
-            ret.tcp_host = self._server.tcp_host
-            ret.tcp_port = self._server.tcp_port
+            ret.tcp_host = self._server.mrc_host
+            ret.tcp_port = self._server.mrc_port
         return ret
 
     def _slt_server_started(self):

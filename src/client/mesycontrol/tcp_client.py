@@ -16,7 +16,7 @@ class TCPClient(QtCore.QObject):
             self.write_queue_max_size = 0
             self.messages_sent        = 0
             self.messages_received    = 0
-            self.bytes_written        = 0
+            self.bytes_sent           = 0
             self.bytes_received       = 0
             self.send_histo           = {}
             self.receive_histo        = {}
@@ -26,7 +26,7 @@ class TCPClient(QtCore.QObject):
 
         def message_sent(self, msg, wire_size):
             self.messages_sent += 1
-            self.bytes_written += wire_size
+            self.bytes_sent += wire_size
             t = msg.get_type_name()
             self.send_histo[t] = self.send_histo.get(t, 0) + 1
 
@@ -178,7 +178,17 @@ class TCPClient(QtCore.QObject):
     def _slt_disconnected(self):
         self.log.info("Disconnected from %s:%d" % (self.host, self.port))
         self.log.info("socket.errorString()=%s" % self._socket.errorString())
-        self.log.debug("Stats: %s", self.stats)
+
+        stats = self.stats
+        self.log.debug("%d messages sent (%d bytes)" %
+                (stats.messages_sent, stats.bytes_sent))
+
+        self.log.debug("%d messages received (%d bytes)" %
+                (stats.messages_received, stats.bytes_received))
+
+        self.log.debug("Send histo: %s" % stats.send_histo)
+        self.log.debug("Recv histo: %s" % stats.receive_histo)
+
         self.sig_disconnected.emit()
 
     @pyqtSlot(int)
