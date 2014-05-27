@@ -117,7 +117,5 @@ def get_script_context():
     except CommandInterrupted:
         pass
     finally:
-        print "Shutdown begin"
         application_model.instance.shutdown()
-        print "Shutdown end"
         del gc
