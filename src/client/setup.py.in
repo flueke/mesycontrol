@@ -17,7 +17,6 @@ base_gui = 'Win32GUI' if sys.platform=='win32' else None
 
 executables = [
     Executable(os.path.join('${CMAKE_CURRENT_SOURCE_DIR}', 'mesycontrol_gui.py'), base=base_gui),
-    #Executable(os.path.join('${CMAKE_CURRENT_SOURCE_DIR}', 'mesycontrol_cli.py'), base=None)
     Executable(os.path.join('${CMAKE_CURRENT_SOURCE_DIR}', 'mesycontrol_script_runner.py'), base=None)
 ]
 
