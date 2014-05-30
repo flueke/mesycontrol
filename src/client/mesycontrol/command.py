@@ -5,6 +5,7 @@
 from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtSignal
 from functools import partial
+import sys
 
 class CommandException(Exception): pass
 class CommandStateException(CommandException): pass
@@ -32,6 +33,8 @@ class Command(QtCore.QObject):
             self.started.emit()
         except Exception as e:
             self._exception = e
+            # Keep the current traceback around to reraise it in get_result().
+            self._exception_tb = sys.exc_info()[2]
             self._stopped()
 
     def stop(self):
@@ -61,7 +64,9 @@ class Command(QtCore.QObject):
 
     def get_result(self):
         if self._exception is not None:
-            raise self._exception
+            # Re-raise an exception caught in start() using the original
+            # traceback.
+            raise self._exception, None, self._exception_tb
         return self._get_result()
 
     def has_failed(self): return self._exception is not None
