@@ -16,9 +16,15 @@ def print_voltages(mhv, iterations, delay_ms):
 
 # Toggles MHV4 channels and prints voltages repeatedly
 if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print "Usage: %s <connection-url>" % sys.argv[0]
+        print "Example: %s /dev/ttyUSB@115200" % sys.argv[0]
+        sys.exit(1)
+
+    url = sys.argv[1]
+
     with get_script_context() as ctx:
-        conn = ctx.make_connection(mesycontrol_host='localhost', mesycontrol_port='23000')
-        conn = ctx.make_connection(host='localhost', port='4001')
+        conn = ctx.make_connection(url=url)
         assert conn.connect(), "Connection failed"
 
         mrc = conn.mrc
