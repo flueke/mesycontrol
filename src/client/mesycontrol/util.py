@@ -57,9 +57,18 @@ def find_data_file(filename):
 class URLParseError(Exception): pass
 
 def parse_connection_url(url):
-    """Parses the given connection url.
-    Returns a dictionary ready to be passed to factory() to create a connection
-    instance.
+    """Parses the given connection URL.
+    Returns a dictionary ready to be passed to mrc_connection.factory() to
+    create a connection instance.
+    Supported URL formats:
+    - For serial connections:
+        <serial_port>@<baud>
+        serial://<serial_port>[@<baud=9600>]
+    - For TCP connections (serial server connected to an MRC1):
+        <host>:<port>
+        tcp://<host>[:<port=4001>]
+    - For connections to a mesycontrol server:
+        mesycontrol://<host>[:<port=23000>]
     """
     proto, proto_sep, contents = url.partition('://')
 

@@ -94,7 +94,7 @@ class Context(object):
 @contextlib.contextmanager
 def get_script_context():
     try:
-        logging.basicConfig(level=logging.DEBUG,
+        logging.basicConfig(level=logging.INFO,
                 format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
         qapp = QtCore.QCoreApplication(sys.argv)

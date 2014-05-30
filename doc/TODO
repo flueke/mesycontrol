@@ -9,18 +9,23 @@
 
 * Logging: use instance specific loggers for some classes or find another way
   to track logs from individual instances
+  -> LoggerAdapter seems to be the solution
 
 * Virtual connections:
   - load setup to virtual connections
   - create new virtual, add/remove devices from virtual
 
 * How to handle the RC setting? For MHV4 enabling/disabling RC can be dangerous.
+  -> User can easily change it
 
 * Server:
   - exception safety
   - timeouts
   - add max connections feature
   - add rc_changed notification (bus, dev, rc_new)
+  - scanbus(3) shuts down the mrc connection cause of a timeout. fix this!
+    the command 'sc 3' results in only one line of output: 'ERROR!' no other
+    output is generated.
 
 * Scripting:
   - Standalone vs. running inside the GUI

@@ -19,7 +19,7 @@ class QProcessWrapper(QtCore.QProcess):
     def setupChildProcess(self):
         """Called by Qt in the childs context just before the program is
         executed.
-        Moves the child in its own process group to avoid receiving signals
+        Moves the child into its own process group to avoid receiving signals
         from the parent process.
         """
         os.setpgrp()

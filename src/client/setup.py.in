@@ -12,7 +12,6 @@ buildOptions = dict(
       path = sys.path + ['${CMAKE_CURRENT_SOURCE_DIR}']
       )
 
-import sys
 base_gui = 'Win32GUI' if sys.platform=='win32' else None
 
 executables = [
