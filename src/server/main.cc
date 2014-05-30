@@ -18,19 +18,6 @@
 #include "git_sha1.h"
 #include "logging.h"
 
-/* TODO
- * - scanbus 3 shuts down the mrc connection cause of a timeout. fix this!
- *   the command 'sc 3' results in only one line of output: 'ERROR!' no other
- *   output is generated.
- * - tcp connection timeouts
- * - request dispatch: queue requests, check mrc1 status, send commands to mrc1, call response handler
- *   The dispatcher knows the MRC1Connection instance and acts as a
- *   response_handler and registers itself with the tcp server instance as the
- *   request_handler
- * - logging
- * - exception safety
- */
-
 namespace po = boost::program_options;
 using namespace mesycontrol;
 
