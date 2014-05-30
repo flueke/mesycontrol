@@ -6,6 +6,7 @@ from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtSignal, pyqtProperty
 from protocol import Message
 from application_model import MRCModel
+from util import parse_connection_url
 import tcp_client
 import server_process
 import config
@@ -212,23 +213,26 @@ class LocalMesycontrolConnection(MesycontrolConnection):
 def factory(**kwargs):
     """Connection factory.
     Supported keyword arguments in order of priority:
-        - config: MRCConnectionConfig instance
-        - mesycontrol_host, mesycontrol_port: creates a MesycontrolConnection
-        - serial_port, baud_rate: creates a LocalMesycontrolConnection
-          using the given serial port and baud rate
-        - host, port: creates a LocalMesycontrolConnection connecting to
-          the MRC on the given host and port
-        - url: accepts the following connection string forms:
-          * <serial_device>@<baud_rate>
-          * serial://<device>[@<baud=9600>]
-          * <host>:<port>
-          * tcp://<host>[:<port=4001>]
-          * mesycontrol://<host>[:<port=23000>]
+        - config:
+          MRCConnectionConfig instance specifying the details of the
+          connection.
+        - url:
+          A string that is passed to util.parse_connection_url(). The resulting
+          dictionary will then be used to create the connection.
+        - mesycontrol_host, mesycontrol_port:
+          Creates a MesycontrolConnection to the given host and port.
+        - serial_port, baud_rate:
+          Creates a LocalMesycontrolConnection using the given serial port and
+          baud rate.
+        - host, port:
+          Creates a LocalMesycontrolConnection connecting to the MRC on the
+          given host and port.
 
     Additionally 'parent' may specify a parent QObject for the resulting
     connection.
     """
     config = kwargs.get('config', None)
+    url    = kwargs.get('url', None)
     parent = kwargs.get('parent', None)
 
     if config is not None:
@@ -240,6 +244,8 @@ def factory(**kwargs):
                     parent=parent)
         else:
             raise RuntimeError("Could not create connection from %s" % str(config))
+    elif url is not None:
+        return factory(**parse_connection_url(url))
     else:
         mesycontrol_host = kwargs.get('mesycontrol_host', None)
         mesycontrol_port = kwargs.get('mesycontrol_port', None)
