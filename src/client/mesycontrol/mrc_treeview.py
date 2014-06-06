@@ -28,15 +28,16 @@ class MRCTreeView(QtGui.QWidget):
         layout.addWidget(self.tree_widget)
         self.setLayout(layout)
 
-        self.bus_data_complete_mapper = QtCore.QSignalMapper(self)
-        self.bus_data_complete_mapper.mapped[QtCore.QObject].connect(self._slt_bus_data_complete)
+        self.mrc_ready_mapper = QtCore.QSignalMapper(self)
+        self.mrc_ready_mapper.mapped[QtCore.QObject].connect(self._slt_mrc_ready)
 
     @pyqtSlot(object)
     def slt_connection_added(self, connection):
         mrc_model = connection.mrc_model
         self.log.debug("Connection added. MRCModel=%s", str(mrc_model))
-        self.bus_data_complete_mapper.setMapping(mrc_model, mrc_model)
-        mrc_model.sig_bus_data_complete.connect(self.bus_data_complete_mapper.map)
+
+        self.mrc_ready_mapper.setMapping(mrc_model, mrc_model)
+        mrc_model.sig_ready.connect(self.mrc_ready_mapper.map)
 
         mrc_item = QtGui.QTreeWidgetItem()
         mrc_item.setText(0, connection.get_info())
@@ -54,7 +55,7 @@ class MRCTreeView(QtGui.QWidget):
 
 
 
-    def _slt_bus_data_complete(self, mrc_model):
+    def _slt_mrc_ready(self, mrc_model):
         f = lambda node: hasattr(node, 'mrc_model') and node.mrc_model() == mrc_model
         mrc_node = filter(f, [self.tree_widget.topLevelItem(i) for i in range(self.tree_widget.topLevelItemCount())])[0]
 
@@ -65,8 +66,9 @@ class MRCTreeView(QtGui.QWidget):
             bus_children = [bus_node.child(i) for i in range(bus_node.childCount())]
 
             for dev in range(16):
-                # Skip over disconnected bus addresses (idc=0)
-                if mrc_model.bus_data[bus][dev][0] == 0:
+                device_model = mrc_model.device_models[bus].get(dev, None)
+
+                if device_model is None:
                     continue
 
                 f = lambda node: (hasattr(node, 'device_model')
@@ -89,7 +91,6 @@ class MRCTreeView(QtGui.QWidget):
                     dev_node.bus = bus
                     dev_node.dev = dev
 
-                device_model = mrc_model.device_models[bus].get(dev, None)
 
                 dev_node.setText(0, "dev " + str(dev))
 
@@ -101,14 +102,6 @@ class MRCTreeView(QtGui.QWidget):
                     else:
                         dev_node.setText(1, str(device_model.idc))
                     dev_node.setText(2, "on" if device_model.rc else "off")
-                elif mrc_model.bus_data[bus][dev][1] not in (0, 1):
-                    idc = mrc_model.bus_data[bus][dev][0]
-                    device_description = application_model.instance.get_device_description_by_idc(idc)
-                    if device_description is not None:
-                        dev_node.setText(1, "%s (%d)" % (device_description.name, idc))
-                    else:
-                        dev_node.setText(1, str(idc))
-                    dev_node.setText(2, "Address conflict")
 
     def _slt_item_doubleclicked(self, item, column):
         if not hasattr(item, 'device_model'):

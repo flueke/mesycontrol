@@ -10,41 +10,41 @@ import logging
 import Queue
 import struct
 
+class Stats:
+    def __init__(self):
+        self.tx_queue_max_size = 0
+        self.messages_sent        = 0
+        self.messages_received    = 0
+        self.bytes_sent           = 0
+        self.bytes_received       = 0
+        self.send_histo           = {}
+        self.receive_histo        = {}
+
+    def update_write_queue_size(self, sz):
+        self.tx_queue_max_size = max(self.tx_queue_max_size, sz)
+
+    def message_sent(self, msg, wire_size):
+        self.messages_sent += 1
+        self.bytes_sent += wire_size
+        t = msg.get_type_name()
+        self.send_histo[t] = self.send_histo.get(t, 0) + 1
+
+    def message_received(self, msg, wire_size):
+        self.messages_received += 1
+        self.bytes_received   += wire_size
+        t = msg.get_type_name()
+        self.receive_histo[t] = self.receive_histo.get(t, 0) + 1
+
 class TCPClient(QtCore.QObject):
-    class Stats:
-        def __init__(self):
-            self.write_queue_max_size = 0
-            self.messages_sent        = 0
-            self.messages_received    = 0
-            self.bytes_sent           = 0
-            self.bytes_received       = 0
-            self.send_histo           = {}
-            self.receive_histo        = {}
+    sig_connecting        = pyqtSignal()
+    sig_connected         = pyqtSignal()
+    sig_disconnected      = pyqtSignal()
+    sig_socket_error      = pyqtSignal(int, str)
 
-        def update_write_queue_size(self, sz):
-            self.write_queue_max_size = max(self.write_queue_max_size, sz)
-
-        def message_sent(self, msg, wire_size):
-            self.messages_sent += 1
-            self.bytes_sent += wire_size
-            t = msg.get_type_name()
-            self.send_histo[t] = self.send_histo.get(t, 0) + 1
-
-        def message_received(self, msg, wire_size):
-            self.messages_received += 1
-            self.bytes_received   += wire_size
-            t = msg.get_type_name()
-            self.receive_histo[t] = self.receive_histo.get(t, 0) + 1
-
-    sig_connecting            = pyqtSignal()
-    sig_connected             = pyqtSignal()
-    sig_disconnected          = pyqtSignal()
-    sig_socket_error          = pyqtSignal(int, str)
-
-    sig_message_sent          = pyqtSignal(Message)          #: message
-    sig_message_received      = pyqtSignal(Message)          #: message
-    sig_response_received     = pyqtSignal(Message, Message) #: request, response
-    sig_send_queue_empty      = pyqtSignal()
+    sig_message_sent      = pyqtSignal(Message)          #: message
+    sig_message_received  = pyqtSignal(Message)          #: message
+    sig_response_received = pyqtSignal(Message, Message) #: request, response
+    sig_tx_queue_empty    = pyqtSignal()
 
     def __init__(self, parent=None):
         super(TCPClient, self).__init__(parent)
@@ -67,7 +67,7 @@ class TCPClient(QtCore.QObject):
         self._current_response_handler = None
         self._current_write_data = None
         self._read_size = 0
-        self._stats = TCPClient.Stats()
+        self._stats = Stats()
 
     def get_host(self): return self._host
     def get_port(self): return self._port
@@ -162,7 +162,7 @@ class TCPClient(QtCore.QObject):
                 if not self._write_queue.empty():
                     self._start_write_message()
                 else:
-                    self.sig_send_queue_empty.emit()
+                    self.sig_tx_queue_empty.emit()
 
             if self._socket.bytesAvailable() >= 2:
                 # Handle additional available data.

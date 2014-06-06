@@ -7,7 +7,7 @@ from PyQt4.Qt import Qt
 from PyQt4.QtCore import pyqtSlot
 
 from mesycontrol import application_model
-from mesycontrol.application_model import DeviceViewModel
+from mesycontrol.device_view_model import DeviceViewModel
 from mesycontrol.device_description import DeviceDescription, ParameterDescription
 from mesycontrol.config import Config, DeviceConfig, ParameterConfig
 from mesycontrol import config_xml
@@ -24,8 +24,8 @@ class GenericDeviceWidget(QtGui.QWidget):
     
         self.device_view_model = DeviceViewModel(device_model, device_description, parent=self)
     
-        self.device_view_model.sig_parameterRead[int, int].connect(self._slt_parameterUpdated)
-        self.device_view_model.sig_parameterSet[int, int].connect(self._slt_parameterUpdated)
+        self.device_view_model.sig_parameter_read[int, int].connect(self._slt_parameterUpdated)
+        self.device_view_model.sig_parameter_set[int, int].connect(self._slt_parameterUpdated)
     
         button_layout = QtGui.QHBoxLayout()
         button_layout.addWidget(QtGui.QPushButton("Load", clicked=self._slt_load_button_clicked))
@@ -54,13 +54,8 @@ class GenericDeviceWidget(QtGui.QWidget):
         self.device_view_model.device_description = description
         self._populate_tablewidget()
     
-    def set_device_config(self, config):
-        self.device_view_model.device_config = config
-        self._populate_tablewidget()
-    
     def _populate_tablewidget(self):
         device_memory = self.device_view_model.device_model.memory
-        device_config = self.device_view_model.device_config
         device_desc   = self.device_view_model.device_description
     
         try:
@@ -70,7 +65,7 @@ class GenericDeviceWidget(QtGui.QWidget):
     
         for addr in range(256):
             param_desc   = device_desc.get_parameter_by_address(addr)
-            param_config = None if device_config is None else device_config.get_parameter(addr)
+            param_config = None # XXX
     
             # In Config
             w = self.table_widget.item(addr, 0)
@@ -137,7 +132,7 @@ class GenericDeviceWidget(QtGui.QWidget):
                w.setText("")
     
             if param_desc is not None and addr not in device_memory:
-               self.device_view_model.device_model.readParameter(addr)
+               self.device_view_model.device_model.read_parameter(addr)
     
         self.table_widget.resizeColumnsToContents()
         self.table_widget.resizeRowsToContents()
@@ -195,8 +190,7 @@ class GenericDeviceWidget(QtGui.QWidget):
         print "New Device Description loaded"
 
         if new_config is not None:
-            self.set_device_config(new_config)
-            print "New Device Configuration applied to GUI"
+            #self.set_device_config(new_config)
             self._config_loader = ConfigLoader(device_model, new_config, new_descr)
             self._config_loader.stopped.connect(self._slt_config_loader_complete)
             def print_progress(current, total):
@@ -295,7 +289,7 @@ class GenericDeviceWidget(QtGui.QWidget):
             try:
                 int_val = int(str(item.text()).strip())
                 if 0 <= int_val and int_val <= 65535:
-                    self.device_view_model.setParameter(addr, int_val)
+                    self.device_view_model.set_parameter(addr, int_val)
             except ValueError:
                 item.setText("")
         # Poll
@@ -341,6 +335,7 @@ class GenericDeviceWidget(QtGui.QWidget):
             self._config_verifier.start()
         else:
             print "Config loading failed"
+            print self._config_loader.get_result()
         self._config_loader = None
 
     def _slt_config_verifier_complete(self):

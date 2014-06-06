@@ -8,6 +8,7 @@ from PyQt4.QtCore import pyqtSignal
 
 import application_model
 from device_description import DeviceDescription
+from mrc_connection import MesycontrolConnection, LocalMesycontrolConnection
 
 class Config(QtCore.QObject):
     def __init__(self, parent=None):
@@ -278,3 +279,20 @@ def make_device_config(device_model, device_description=None):
         device_config.add_parameter(ParameterConfig(address, value))
 
     return device_config
+
+def make_connection_config(connection):
+    ret = MRCConnectionConfig()
+
+    if type(connection) is LocalMesycontrolConnection:
+        server = connection.server
+        if server.mrc_serial_port is not None:
+            ret.serial_device    = server.mrc_serial_port
+            ret.serial_baud_rate = server.mrc_baud_rate
+        elif server.mrc_host is not None:
+            ret.tcp_host = server.mrc_host
+            ret.tcp_port = server.mrc_port
+    elif type(connection) is MesycontrolConnection:
+        ret.mesycontrol_host = connection.host
+        ret.mesycontrol_port = connection.port
+
+    return ret

@@ -300,6 +300,12 @@ class Message(object):
   def is_error(self):
     return self.get_type_name() == 'response_error'
 
+  def get_error_code(self):
+    return self.error_code
+
+  def get_error_string(self):
+    return ErrorInfo.by_code[self.get_error_code()]['name']
+
   def get_type_code(self): return self._type_code
   def get_bus(self): return self._bus
   def set_bus(self, bus):

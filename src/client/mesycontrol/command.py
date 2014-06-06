@@ -12,55 +12,87 @@ class CommandStateException(CommandException): pass
 class CommandInterrupted(CommandException): pass
 
 class Command(QtCore.QObject):
-    started  = pyqtSignal()
-    stopped  = pyqtSignal()
+    """Abstract base for runnable (and potentially asynchronous) commands."""
+
+    #: Signals that the command was started.
+    started          = pyqtSignal()
+
+    #: Signals that the command has stopped either because it ran to completion
+    #: or was manually stopped via a call to stop().
+    stopped          = pyqtSignal()
+
+    #: Used to signal that this commands progress has changed. Values are:
+    #: (current, total). This is completely optional and has to be emitted by
+    #: subclasses.
     progress_changed = pyqtSignal(int, int)
+
+    def _reset_state(self):
+        self._is_running   = False
+        self._is_stopping  = False
+        self._is_complete  = False
+        self._exception    = None
+        self._exception_tb = None
 
     def __init__(self, parent=None):
         super(Command, self).__init__(parent)
-        self._is_running  = False
-        self._is_stopping = False
-        self._exception = None
+        self._reset_state()
 
     def start(self):
         if self.is_running():
             raise CommandStateException("Command already started")
 
         try:
+            self._reset_state()
             self._start()
-            self._is_running  = True
-            self._is_stopping = False
+            self._is_running = True
             self.started.emit()
         except Exception as e:
-            self._exception = e
-            # Keep the current traceback around to reraise it in get_result().
+            # Keep the current exception and traceback around to reraise them
+            # in get_result().
+            self._exception    = e
             self._exception_tb = sys.exc_info()[2]
-            self._stopped()
+            self._stopped(False)
 
     def stop(self):
-        if not self.is_running():
-            raise CommandStateException("Command not running")
-
-        if self.is_stopping(): return
-
-        self._is_stopping = True
-        self._stop()
+        if self.is_running() and not self.is_stopping():
+            self._is_stopping = True
+            self._stop()
 
     def exec_(self):
+        """Blocking execution of the command.
+        Uses a local Qt eventloop to wait until the command stops. If the
+        eventloops exec_() method returns an error CommandInterrupted will be
+        raised (e.g. if QApplication.quit() is called from somewhere else).
+        Returns a reference to self to allow chaining:
+        my_result = MyCommand().exec_().get_result()
+        """
         loop = QtCore.QEventLoop()
         self.stopped.connect(loop.quit)
         QtCore.QTimer.singleShot(0, self.start)
         if loop.exec_() < 0:
+            # FIXME: do I need to call self.stop() here?
             raise CommandInterrupted()
         return self
 
-    def _stopped(self):
+    def __call__(self):
+        """Shortcut for Command.exec_().get_result()"""
+        return self.exec_().get_result()
+
+    def _stopped(self, complete):
+        """Must be called by subclasses to signal that they have stopped.
+        The parameter 'complete' should be set to True if the command ran to
+        completion, False otherwise.
+        """
         self._is_running  = False
         self._is_stopping = False
+        self._is_complete = complete
         self.stopped.emit()
 
-    def is_running(self): return self._is_running
+    def is_running(self):  return self._is_running
     def is_stopping(self): return self._is_stopping
+    def is_complete(self): return self._is_complete
+    def is_ok(self):       return self.is_complete() and not self.has_failed()
+    def has_failed(self):  return self._exception is not None or self._has_failed()
 
     def get_result(self):
         if self._exception is not None:
@@ -69,13 +101,14 @@ class Command(QtCore.QObject):
             raise self._exception, None, self._exception_tb
         return self._get_result()
 
-    def has_failed(self): return self._exception is not None
     def __len__(self): return 1
     def _start(self): raise NotImplemented()
     def _stop(self): raise NotImplemented()
+    def _has_failed(self): raise NotImplemented()
     def _get_result(self): raise NotImplemented()
 
 class CommandGroup(Command):
+    """Abstract base for a group of commands."""
     def __init__(self, parent=None):
         super(CommandGroup, self).__init__(parent)
         self._commands = list()
@@ -96,36 +129,33 @@ class CommandGroup(Command):
         self._commands = list()
 
     def get_children(self):
-        """Returns a copy of this commands child list"""
+        """Returns a copy of this commands list of children"""
         return list(self._commands)
 
     def _get_result(self):
         """Returns a list of child command results."""
         return [cmd.get_result() for cmd in self._commands]
 
-    def has_failed(self):
-        return (super(CommandGroup, self).has_failed() or
-                any(cmd.has_failed() for cmd in self._commands))
+    def _has_failed(self):
+        return any(cmd.has_failed() for cmd in self._commands)
 
     def __len__(self):
         return len(self._commands)
 
 class SequentialCommandGroup(CommandGroup):
+    """Command group running its children in sequence."""
+
     def __init__(self, continue_on_error=False, parent=None):
+        """If 'continue_on_error' is True all child commands will be run regardless of
+        their results. Otherwise execution will stop after the first child command
+        produced an error.
+        """
         super(SequentialCommandGroup, self).__init__(parent)
         self.continue_on_error = continue_on_error
         self._current = None
 
     def _start(self):
-        cmd_iter = enumerate(self._commands)
-        self._start_next(cmd_iter)
-
-    def _stop(self):
-        if self._current is not None and self._current.is_running():
-            self._current.stop()
-        else:
-            # Immediately signal stopping completed to the parent
-            self._stopped()
+        self._start_next(enumerate(self._commands))
 
     def _start_next(self, cmd_iter):
         try:
@@ -135,13 +165,22 @@ class SequentialCommandGroup(CommandGroup):
             cmd.start()
         except StopIteration:
             self._current = None
-            self._stopped()
+            self._stopped(True)
+
+    def _stop(self):
+        if self._current is not None:
+            # Stop the child. Execution will continue in _child_stopped() once
+            # the child actually has stopped.
+            self._current.stop()
+        else:
+            # Immediately signal stopping completed to the parent
+            self._stopped(all(cmd.is_complete() for cmd in self._commands))
 
     def _child_stopped(self, cmd, idx, cmd_iter):
         self._current = None
 
         if self.is_stopping() or (cmd.has_failed() and not self.continue_on_error):
-            self._stopped()
+            self._stopped(all(cmd.is_complete() for cmd in self._commands))
         else:
             self.progress_changed.emit(idx+1, len(self))
             self._start_next(cmd_iter)
@@ -152,11 +191,13 @@ class SequentialCommandGroup(CommandGroup):
         return None
 
 class ParallelCommandGroup(CommandGroup):
+    """Command group running all its children in parallel."""
+
     def __init__(self, parent=None):
         super(ParallelCommandGroup, self).__init__(parent)
 
     def _start(self):
-        self._num_completed = 0
+        self._num_stopped = 0
         for cmd in self._commands:
             cmd.stopped.connect(partial(self._child_stopped, cmd=cmd))
             cmd.start()
@@ -166,17 +207,17 @@ class ParallelCommandGroup(CommandGroup):
             cmd.stop()
 
     def _child_stopped(self, cmd):
-        self._num_completed += 1
-        self.progress_changed.emit(self._num_completed, len(self))
+        self._num_stopped += 1
+        self.progress_changed.emit(self._num_stopped, len(self))
 
-        if self._num_completed == len(self):
-            self._stopped()
+        if self._num_stopped == len(self):
+            self._stopped(all(cmd.is_complete() for cmd in self._commands))
 
 class Sleep(Command):
     def __init__(self, duration_ms, parent=None):
         super(Sleep, self).__init__(parent)
         self._duration_ms = duration_ms
-        self._timer = QtCore.QTimer(self, timeout=self._stopped)
+        self._timer = QtCore.QTimer(self, timeout=partial(self._stopped, True))
         self._timer.setSingleShot(True)
 
     def _start(self):
@@ -184,5 +225,6 @@ class Sleep(Command):
 
     def _stop(self):
         self._timer.stop()
+        self._stopped(True)
 
     def _get_result(self): return True

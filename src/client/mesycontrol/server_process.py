@@ -3,6 +3,7 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 from PyQt4 import QtCore
+from PyQt4.QtCore import QProcess
 from PyQt4.QtCore import pyqtSignal, pyqtProperty
 import logging
 import os
@@ -12,7 +13,7 @@ import application_model
 class InvalidArgument(Exception):
     pass
 
-class QProcessWrapper(QtCore.QProcess):
+class QProcessWrapper(QProcess):
     def __init__(self, parent=None):
         super(QProcessWrapper, self).__init__(parent)
 
@@ -43,8 +44,14 @@ class ServerProcess(QtCore.QObject):
     default_verbosity      = 0
 
     sig_started  = pyqtSignal()
-    sig_error    = pyqtSignal(QtCore.QProcess.ProcessError)
-    sig_finished = pyqtSignal([int, QtCore.QProcess.ExitStatus], [str])
+
+    #: qt process error code, error string, system exit code, exit code string
+    sig_error    = pyqtSignal(QProcess.ProcessError, str, int, str)
+
+    #: qt exit status, system exit code, exit code string
+    sig_finished = pyqtSignal(QProcess.ExitStatus, int, str)
+
+    #: stdout and stderr of the child process
     sig_stdout   = pyqtSignal(str)
 
     def __init__(self, parent = None):
@@ -96,15 +103,16 @@ class ServerProcess(QtCore.QObject):
 
         self._cmd_line = "%s %s" % (program, " ".join(args))
 
-        self.log.info("Starting %s" % self._cmd_line)
+        self.log.info("Starting %s", self._cmd_line)
         self.process.start(program, args, QtCore.QIODevice.ReadOnly)
 
     def stop(self, kill=False):
-        if kill:
-            self.process.kill()
-        else:
-            self.process.terminate()
-        self.process.waitForFinished(1000) # XXX: blocking
+        if self.is_running():
+            if kill:
+                self.process.kill()
+            else:
+                self.process.terminate()
+            self.process.waitForFinished(1000)
 
     def is_running(self):
         return self.process.state() == QtCore.QProcess.Running
@@ -113,7 +121,7 @@ class ServerProcess(QtCore.QObject):
         return self.process.exitCode()
 
     def get_exit_code_string(self):
-        return self.exit_codes.get(self.get_exit_code(), 127)
+        return self.exit_codes.get(self.get_exit_code(), "exit_unknown_error")
 
     def get_mrc_address_string(self):
         if self.mrc_serial_port is not None:
@@ -127,24 +135,28 @@ class ServerProcess(QtCore.QObject):
     def set_verbosity(self, verbosity):
         self._verbosity = int(verbosity)
 
+    #: Set the server processes verbosity. Only affects newly started server
+    #: processes.
     verbosity = pyqtProperty(int, get_verbosity, set_verbosity)
 
     def _slt_started(self):
-        self.log.info("Started %s => pid = %s" % (self._cmd_line, self.process.pid()))
+        self.log.info("Started %s => pid = %s", self._cmd_line, self.process.pid())
         self.sig_started.emit()
 
     def _slt_error(self, process_error):
-        self.log.error("Failed starting %s => error = %s: %s: %s"
-                % (self._cmd_line, process_error, self.process.errorString(),
-                    self.get_exit_code_string()))
+        self.log.error("Failed starting %s => error = %s: %s: %s",
+                self._cmd_line, process_error, self.process.errorString(),
+                    self.get_exit_code_string())
+
+        self.sig_error.emit(process_error, self.process.errorString(),
+                self.get_exit_code(), self.get_exit_code_string())
 
     def _slt_finished(self, exit_code, exit_status):
-        self.log.info("%s finished. exit_code = %s, exit_status = %s => %s"
-                % (self._cmd_line, exit_code, exit_status,
-                    self.get_exit_code_string()))
+        self.log.info("%s finished. exit_code = %s, exit_status = %s => %s",
+                self._cmd_line, exit_code, exit_status,
+                    self.get_exit_code_string())
 
-        self.sig_finished[int, QtCore.QProcess.ExitStatus].emit(exit_code, exit_status)
-        self.sig_finished[str].emit(self.get_exit_code_string())
+        self.sig_finished.emit(exit_status, exit_code, self.get_exit_code_string())
 
     def _slt_stdout_ready(self):
         data = str(self.process.readAllStandardOutput())

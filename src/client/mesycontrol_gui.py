@@ -16,11 +16,14 @@ import mesycontrol.util
 from mesycontrol import config_xml
 from mesycontrol import application_model
 from mesycontrol import mrc_connection
-from mesycontrol.application_model import MRCModel
 from mesycontrol.mrc_treeview import MRCTreeView
 from mesycontrol.generic_device_widget import GenericDeviceWidget
 from mesycontrol.util import find_data_file
 from mesycontrol.setup import SetupBuilder, SetupLoader
+
+#import projex
+#projex.requires('projexui')
+#from projexui.widgets.xconsoleedit import XConsoleEdit
 
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, parent = None):
@@ -33,6 +36,10 @@ class MainWindow(QtGui.QMainWindow):
         self._add_subwindow(self.mrc_tree, "Device Tree")
         self.app_model.sig_connection_added.connect(self.mrc_tree.slt_connection_added)
         self._device_windows = {}
+        #self.python_console = XConsoleEdit(self)
+        #self.python_console.setShowDetails(False)
+        #self.python_console.setLineWrapMode(XConsoleEdit.WidgetWidth)
+        #self._add_subwindow(self.python_console, "Python Console")
 
     def on_qapp_quit(self):
         logging.info("Exiting...")
@@ -135,14 +142,13 @@ class MainWindow(QtGui.QMainWindow):
             setup_loader.progress_changed.connect(update_progress)
             setup_loader.stopped.connect(pd.close)
             setup_loader.start()
-            pd.exec_()
+            pd_result = pd.exec_()
+            if pd_result == 0:
+                setup_loader.stop()
+            setup_loader.get_result()
+            QtGui.QMessageBox.information(self, "Info", "Setup loaded from %s" % filename)
         except Exception as e:
             QtGui.QMessageBox.critical(self, "Error", "Setup loading failed: %s" % e)
-        else:
-            if setup_loader.has_failed():
-                QtGui.QMessageBox.critical(self, "Error", "Setup loading failed")
-            else:
-                QtGui.QMessageBox.information(self, "Info", "Setup loaded from %s" % filename)
 
     @pyqtSlot()
     def on_actionSave_Setup_triggered(self):

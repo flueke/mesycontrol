@@ -4,6 +4,7 @@
 
 import application_model
 import config
+from config import make_connection_config
 import mrc_connection
 from config_loader import ConfigLoader, ConfigVerifier
 from command import ParallelCommandGroup, SequentialCommandGroup
@@ -25,7 +26,7 @@ class SetupBuilder(SequentialCommandGroup):
 
         self._devices.add(device)
         # FIXME: Groups and names connection configs by info string for now
-        connection_config = device.mrc_model.connection.to_config()
+        connection_config = make_connection_config(device.mrc_model.connection)
         connection_config.name = connection_config.get_connection_info()
         self._connection_configs[connection_config.name] = connection_config
 
@@ -59,7 +60,8 @@ class SetupBuilder(SequentialCommandGroup):
         for device in self._devices:
             device_config = config.make_device_config(device)
             # FIXME: name as above
-            device_config.connection_name = device.mrc_model.connection.to_config().get_connection_info()
+            connection_config = make_connection_config(device.mrc_model.connection)
+            device_config.connection_name = connection_config.get_connection_info()
             ret.device_configs.append(device_config)
 
         return ret
@@ -85,7 +87,8 @@ class DelayedConfigLoader(SequentialCommandGroup):
                     (bus, dev, device.idc, self.config.device_idc))
 
         self.add(ConfigLoader(device, self.config, self.description))
-        self.add(ConfigVerifier(device, self.config))
+        if self._verify:
+            self.add(ConfigVerifier(device, self.config))
 
         super(DelayedConfigLoader, self)._start()
 
@@ -99,8 +102,8 @@ class SetupLoader(SequentialCommandGroup):
             connection_name = device_config.connection_name
             try:
                 # Try to find an existing connection
-                connection = filter(lambda c: c.to_config().get_connection_info() == connection_name,
-                        app_model.mrc_connections)[0]
+                f = lambda conn: make_connection_config(conn).get_connection_info() == connection_name
+                connection = filter(f, app_model.mrc_connections)[0]
             except IndexError:
                 try:
                     # Find the connection config referenced by the device

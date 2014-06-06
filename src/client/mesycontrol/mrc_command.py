@@ -3,6 +3,14 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 from command import Command
+from functools import partial
+
+class ErrorResponse(Exception):
+    def __init__(self, response):
+        self.response = response
+
+    def __str__(self):
+        return "ErrorResponse(%s)" % self.response.get_error_string()
 
 class MRCCommand(Command):
     def __init__(self, parent=None):
@@ -11,7 +19,7 @@ class MRCCommand(Command):
 
     def _handle_response(self, request, response):
         self._response = response
-        self._stopped()
+        self._stopped(True)
 
     def _stop(self):
         pass
@@ -20,9 +28,11 @@ class MRCCommand(Command):
         return self._response
 
     def _get_result(self):
+        if self.has_failed():
+            raise ErrorResponse(self.get_response())
         return self.get_response()
 
-    def has_failed(self):
+    def _has_failed(self):
         return self._response is not None and self._response.is_error()
 
 class SetParameter(MRCCommand):
@@ -33,12 +43,11 @@ class SetParameter(MRCCommand):
         self.value   = value
 
     def _start(self):
-        self.device.setParameter(self.address, self.value, self._handle_response)
+        self.device.set_parameter(self.address, self.value, self._handle_response)
 
     def _get_result(self):
-        if self.has_failed() or self.get_response() is None:
-            return self.get_response()
-        return self.get_response().val
+        res = super(SetParameter, self)._get_result()
+        return res.val if res is not None else None
 
 class ReadParameter(MRCCommand):
     def __init__(self, device, address, parent=None):
@@ -47,12 +56,11 @@ class ReadParameter(MRCCommand):
         self.address = address
 
     def _start(self):
-        self.device.readParameter(self.address, self._handle_response)
+        self.device.read_parameter(self.address, self._handle_response)
 
     def _get_result(self):
-        if self.has_failed() or self.get_response() is None:
-            return self.get_response()
-        return self.get_response().val
+        res = super(ReadParameter, self)._get_result()
+        return res.val if res is not None else None
 
 class Scanbus(MRCCommand):
     def __init__(self, mrc, bus, parent=None):
@@ -70,15 +78,15 @@ class SetRc(MRCCommand):
         self.rc = rc
 
     def _start(self):
-        self.device.setRc(self.rc, self._handle_response)
+        self.device.set_rc(self.rc, self._handle_response)
 
 class Connect(Command):
     def __init__(self, connection, parent=None):
         super(Connect, self).__init__(parent)
         self.connection = connection
-        self.connection.sig_connected.connect(self._stopped)
-        self.connection.sig_disconnected.connect(self._stopped)
-        self.connection.sig_connection_error.connect(self._stopped)
+        self.connection.sig_connected.connect(partial(self._stopped, True))
+        self.connection.sig_disconnected.connect(partial(self._stopped, True))
+        self.connection.sig_connection_error.connect(partial(self._stopped, True))
 
     def _start(self):
         self.connection.connect()
@@ -86,5 +94,22 @@ class Connect(Command):
     def _stop(self):
         pass
 
-    def get_result(self):
+    def _get_result(self):
         return self.connection.is_connected()
+
+class AcquireWriteAccess(MRCCommand):
+    def __init__(self, mrc, force=False, parent=None):
+        super(AcquireWriteAccess, self).__init__(parent)
+        self.mrc   = mrc
+        self.force = force
+
+    def _start(self):
+        self.mrc.connection.set_write_access(True, self.force, self._handle_response)
+
+class ReleaseWriteAccess(MRCCommand):
+    def __init__(self, mrc, parent=None):
+        super(ReleaseWriteAccess, self).__init__(parent)
+        self.mrc   = mrc
+
+    def _start(self):
+        self.mrc.connection.set_write_access(False, response_handler=self._handle_response)

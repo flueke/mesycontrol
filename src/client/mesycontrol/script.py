@@ -8,8 +8,10 @@ from PyQt4.QtCore import pyqtProperty
 from . import util
 from . import application_model
 from . import mrc_connection
-from .command import CommandInterrupted
-from .mrc_command import Connect, ReadParameter, SetParameter, SetRc, Scanbus
+from command import *
+from mrc_command import *
+from config_xml import parse_file as parse_config_file
+from config_xml import write_file as write_config_file
 
 class DeviceWrapper(QtCore.QObject):
     def __init__(self, device_model, parent=None):
@@ -94,7 +96,7 @@ class Context(object):
 @contextlib.contextmanager
 def get_script_context():
     try:
-        logging.basicConfig(level=logging.INFO,
+        logging.basicConfig(level=logging.WARNING,
                 format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
         qapp = QtCore.QCoreApplication(sys.argv)
