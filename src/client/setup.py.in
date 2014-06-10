@@ -1,27 +1,29 @@
 from cx_Freeze import setup, Executable
-import os
+from os.path import join as pjoin
 import sys
+
+CSD = '${CMAKE_CURRENT_SOURCE_DIR}'
 
 # Dependencies are automatically detected, but it might need
 # fine tuning.
-buildOptions = dict(
+build_options = dict(
       packages = ['mesycontrol'],
       excludes = [],
-      include_files = [(os.path.join('${CMAKE_CURRENT_SOURCE_DIR}', 'ui'), 'ui')],
-      init_script = os.path.join('${CMAKE_CURRENT_SOURCE_DIR}', 'cxfreeze_ConsoleSetLibPath.py'),
-      path = sys.path + ['${CMAKE_CURRENT_SOURCE_DIR}']
+      include_files = [(pjoin(CSD, 'ui'), 'ui')],
+      init_script = pjoin(CSD, 'cxfreeze_init.py'),
+      path = sys.path + [CSD]
       )
 
 base_gui = 'Win32GUI' if sys.platform=='win32' else None
 
 executables = [
-    Executable(os.path.join('${CMAKE_CURRENT_SOURCE_DIR}', 'mesycontrol_gui.py'), base=base_gui),
-    Executable(os.path.join('${CMAKE_CURRENT_SOURCE_DIR}', 'mesycontrol_script_runner.py'), base=None)
+    Executable(pjoin(CSD, 'mesycontrol_gui.py'), base=base_gui),
+    Executable(pjoin(CSD, 'mesycontrol_script_runner.py'), base=None)
 ]
 
-setup(name='mesycontrol',
-      version = '0.1', # TODO: use CMAKE variables here
+setup(name='@CMAKE_PROJECT_NAME@',
+      version = '@GIT_VERSION@',
       description = 'mesycontrol',
-      options = dict(build_exe = buildOptions),
+      options = dict(build_exe = build_options),
       executables = executables,
       )

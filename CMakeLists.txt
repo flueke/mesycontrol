@@ -7,6 +7,13 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 # Add the local cmake directory to the module path
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
+# GIT_SHA1 contains the complete git hash
+# GIT_VERSION contains the latest git tag and the start of the git hash if
+# there have been changes since the tag has been created
+include(GetGitRevisionDescription)
+get_git_head_revision(GIT_REFSPEC GIT_SHA1)
+git_describe(GIT_VERSION)
+
 # Add the root build directory to the compiler search path.
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
@@ -23,6 +30,7 @@ if (WIN32)
 	set(CPACK_PACKAGE_EXECUTABLES "mesycontrol_gui;mesycontrol GUI")
 endif(WIN32)
 set(CPACK_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${CMAKE_SYSTEM}")
+set(CPACK_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${GIT_VERSION}")
 include(CPack)
 
 # vim:tw=0

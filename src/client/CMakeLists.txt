@@ -6,7 +6,7 @@ set(STAMP       "${CMAKE_CURRENT_BINARY_DIR}/build/timestamp")
 
 set(PYTHON_SOURCES
    "${SETUP_PY_IN}"
-   "${CMAKE_CURRENT_SOURCE_DIR}/cxfreeze_ConsoleSetLibPath.py"
+   "${CMAKE_CURRENT_SOURCE_DIR}/cxfreeze_init.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol_gui.py"
    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol_script_runner.py"
 

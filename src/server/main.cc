@@ -94,12 +94,13 @@ int main(int argc, char *argv[])
   }
 
   if (option_map.count("help")) {
+    std::cout << "mesycontrol_server version " << g_GIT_VERSION << std::endl;
     std::cout << options << std::endl;
     return exit_success;
   }
 
   if (option_map.count("version")) {
-    std::cout << "mesycontrol_server - git revision " << g_GIT_SHA1 << std::endl;
+    std::cout << "mesycontrol_server version " << g_GIT_VERSION << std::endl;
     return exit_success;
   }
 
