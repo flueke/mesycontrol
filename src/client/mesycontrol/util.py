@@ -1,5 +1,7 @@
 from PyQt4.QtCore import QObject, QTimer
 import gc
+import logging
+import weakref
 
 class GarbageCollector(QObject):
     '''
@@ -115,3 +117,40 @@ def parse_connection_url(url):
 
     raise URLParseError("Invalid protocol '%s'" % proto)
 
+
+class SourceFilter(object):
+    """Logging filter using the log records 'source' attribute and a set of
+    allowed sources to make the filtering decision.
+
+    To make use of this filter create a LoggerAdapter with the 'source' keyword set:
+    self.log = logging.LoggerAdapter(logging.getLogger(__name__), dict(source=weakref.ref(self)))
+
+    Then add the objects you're interested in to the filter using add_source().
+    make_source_adapter() provides a shortcut for creating the LoggerAdapter.
+
+    """
+    def __init__(self):
+        self.accepted_sources = weakref.WeakSet()
+
+    def add_source(self, source):
+        self.accepted_sources.add(source)
+
+    def remove_source(self, source):
+        self.accepted_sources.remove(source)
+
+    def add_qobject_tree(self, root_obj):
+        self.add_source(root_obj)
+        for c in root_obj.children():
+            self.add_qobject_tree(c)
+
+    def filter(self, record):
+        ret = (hasattr(record, 'source')
+                and record.source is not None
+                and record.source() is not None
+                and record.source() in self.accepted_sources)
+        return ret
+
+def make_logging_source_adapter(logger_name, object_instance):
+    return logging.LoggerAdapter(
+            logging.getLogger(logger_name),
+            dict(source=weakref.ref(object_instance)))

@@ -7,7 +7,7 @@ from PyQt4 import QtGui
 from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import pyqtSlot
 from mesycontrol import application_model
-import logging
+import util
 import weakref
 
 class MRCTreeView(QtGui.QWidget):
@@ -15,7 +15,7 @@ class MRCTreeView(QtGui.QWidget):
 
     def __init__(self, parent=None):
         super(MRCTreeView, self).__init__(parent)
-        self.log = logging.getLogger("MRCTreeView")
+        self.log = util.make_logging_source_adapter(__name__, self)
         self.tree_widget = QtGui.QTreeWidget(self)
         self.tree_widget.setHeaderLabels(['MRC/Bus/Dev', 'IDC', 'RC'])
         self.tree_widget.itemDoubleClicked.connect(self._slt_item_doubleclicked)

@@ -9,6 +9,7 @@ import logging
 import os
 import weakref
 import application_model
+import util
 
 class InvalidArgument(Exception):
     pass
@@ -74,7 +75,7 @@ class ServerProcess(QtCore.QObject):
         self.process.finished.connect(self._slt_finished)
         self.process.readyReadStandardOutput.connect(self._slt_stdout_ready)
 
-        self.log = logging.getLogger("ServerProcess")
+        self.log = util.make_logging_source_adapter(__name__, self)
 
     def start(self):
         if self.process.state() != QtCore.QProcess.NotRunning:

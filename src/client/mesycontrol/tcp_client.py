@@ -6,9 +6,9 @@ from mesycontrol.protocol import Message, MessageError
 from PyQt4 import QtCore
 from PyQt4 import QtNetwork
 from PyQt4.QtCore import pyqtSignal, pyqtProperty, pyqtSlot
-import logging
 import Queue
 import struct
+import util
 
 class Stats:
     def __init__(self):
@@ -49,7 +49,7 @@ class TCPClient(QtCore.QObject):
     def __init__(self, parent=None):
         super(TCPClient, self).__init__(parent)
 
-        self.log   = logging.getLogger("TCPClient")
+        self.log   = util.make_logging_source_adapter(__name__, self)
         self._host = None
         self._port = None
         self._write_queue = Queue.Queue()

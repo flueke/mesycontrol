@@ -100,8 +100,10 @@ class Context(object):
 def get_script_context():
     try:
         # Setup logging. Has no effect if logging has already been setup
-        logging.basicConfig(level=logging.WARNING,
+        logging.basicConfig(level=logging.NOTSET,
                 format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
+        if logging.getLogger().level == logging.NOTSET:
+            logging.getLogger().handlers[0].setLevel(logging.WARNING)
 
         # If a QCoreApplication or QApplication instance exists assume
         # everything is setup and ready. Otherwise install the custom garbage

@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-import logging
 import weakref
 from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import pyqtProperty
 from protocol import Message
 from device_model import DeviceModel
+import util
 
 class MRCModel(QtCore.QObject):
     sig_connecting            = pyqtSignal()
@@ -39,7 +39,7 @@ class MRCModel(QtCore.QObject):
         super(MRCModel, self).__init__(parent)
         self.device_models = {0:{}, 1:{}}
         self._ready = False
-        self.log = logging.getLogger("MRCModel")
+        self.log = util.make_logging_source_adapter(__name__, self)
 
         self._connection = weakref.ref(connection)
         connection.sig_connecting.connect(self.sig_connecting)

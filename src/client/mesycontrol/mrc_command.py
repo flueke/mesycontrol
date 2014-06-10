@@ -49,18 +49,26 @@ class SetParameter(MRCCommand):
         res = super(SetParameter, self)._get_result()
         return res.val if res is not None else None
 
+import util
+
 class ReadParameter(MRCCommand):
     def __init__(self, device, address, parent=None):
         super(ReadParameter, self).__init__(parent)
         self.device  = device
         self.address = address
+        self.log = util.make_logging_source_adapter(__name__, self)
 
     def _start(self):
         self.device.read_parameter(self.address, self._handle_response)
+        self.log.debug("Reading %s", self.address)
 
     def _get_result(self):
+        self.log.warning("_get_result")
         res = super(ReadParameter, self)._get_result()
         return res.val if res is not None else None
+
+    def __str__(self):
+        return "ReadParameter(addr=%d)" % (self.address)
 
 class Scanbus(MRCCommand):
     def __init__(self, mrc, bus, parent=None):

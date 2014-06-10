@@ -47,7 +47,7 @@ class SetupBuilder(SequentialCommandGroup):
 
     def get_result(self):
         if self.has_failed():
-            return None
+            return super(SetupBuilder, self).get_result()
 
         # All child commands completed without error. This means the device
         # models memory has been read and it's thus ok to call

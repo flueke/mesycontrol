@@ -6,6 +6,7 @@ from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtSignal
 from functools import partial
 import sys
+import util
 
 class CommandException(Exception): pass
 class CommandStateException(CommandException): pass
@@ -116,6 +117,7 @@ class CommandGroup(Command):
     def add(self, cmd):
         if self.is_running():
             raise CommandStateException("Command group is running")
+        cmd.setParent(self)
         self._commands.append(cmd)
 
     def remove(self, cmd):
@@ -153,6 +155,7 @@ class SequentialCommandGroup(CommandGroup):
         super(SequentialCommandGroup, self).__init__(parent)
         self.continue_on_error = continue_on_error
         self._current = None
+        self.log = util.make_logging_source_adapter(__name__, self)
 
     def _start(self):
         self._start_next(enumerate(self._commands))
@@ -162,6 +165,7 @@ class SequentialCommandGroup(CommandGroup):
             idx, cmd = cmd_iter.next()
             self._current = cmd
             cmd.stopped.connect(partial(self._child_stopped, cmd=cmd, idx=idx, cmd_iter=cmd_iter))
+            self.log.info("Starting subcommand %d/%d: %s", idx, len(self), cmd)
             cmd.start()
         except StopIteration:
             self._current = None
@@ -228,3 +232,6 @@ class Sleep(Command):
         self._stopped(True)
 
     def _get_result(self): return True
+
+    def __str__(self):
+        return "Sleep(%dms)" % self._duration_ms

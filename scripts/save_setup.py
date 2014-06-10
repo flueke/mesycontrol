@@ -16,6 +16,13 @@ outfile_name    = sys.argv[1]
 connection_urls = sys.argv[2:]
 
 with get_script_context() as ctx:
+    source_filter = util.SourceFilter()
+    log_handler   = logging.StreamHandler(sys.stderr)
+    log_handler.setLevel(logging.WARNING)
+    log_handler.addFilter(source_filter)
+    log_handler.setFormatter(logging.Formatter(fmt='[%(name)s.%(levelname)s] %(message)s'))
+    logging.getLogger().addHandler(log_handler)
+
     setup_builder = setup.SetupBuilder()
     setup_builder.progress_changed.connect(print_progress)
 
@@ -25,10 +32,14 @@ with get_script_context() as ctx:
         conn.connect()
         setup_builder.add_mrc(conn.mrc)
 
+        source_filter.add_qobject_tree(conn.mrc._wrapped)
+
+    source_filter.add_qobject_tree(setup_builder)
+
     # Run the builder and get the resulting Config object
-    setup = setup_builder()
+    setup_config = setup_builder()
 
     print "\nWriting setup to %s" % outfile_name
 
     with open(outfile_name, 'w') as outfile:
-        config_xml.write_file(setup, outfile)
+        config_xml.write_file(setup_config, outfile)
