@@ -96,6 +96,7 @@ bool MRC1ReplyParser::parse_read_or_set(const std::string &reply_line)
   }
 
   if (!regex_match(reply_line, matches, re_read_or_set)) {
+    BOOST_LOG_SEV(m_log, log::lvl::error) << "error parsing " << reply_line;
     m_response = MessageFactory::make_error_response(error_type::mrc_parse_error);
     return true;
   }
@@ -107,7 +108,10 @@ bool MRC1ReplyParser::parse_read_or_set(const std::string &reply_line)
    * So far I've only seen negative values when reading the MHV4 channel
    * voltage value while negative polarity is active. */
   if (matches[4] == "-") {
-    value = (1<<15) - value;
+    boost::uint16_t adjusted_value = (1<<15) - value;
+    BOOST_LOG_SEV(m_log, log::lvl::warning)
+      << "negative value " << value << " adjusted to " << adjusted_value;
+    value = adjusted_value;
   }
 
   m_response = MessageFactory::make_read_or_set_response(

@@ -10,6 +10,9 @@ def print_voltages(mhv):
     voltages = [mhv[j+32] for j in range(4)]
     print row_fmt.format(str(datetime.datetime.now()), *voltages)
 
+def print_server_output(output):
+    print "server: ", output
+
 # Disables all channels and waits for ramp down to complete, then sets all MHV4
 # channels to the given voltage and waits for the ramp up to reach the target
 # voltage.
@@ -26,6 +29,11 @@ if __name__ == "__main__":
 
     with get_script_context() as ctx:
         conn = ctx.make_connection(url=url)
+
+        if hasattr(conn, 'server'):
+            server_process = conn.server
+            server_process.sig_stdout.connect(print_server_output)
+
         assert conn.connect(), "Connection failed"
 
         mrc = conn.mrc

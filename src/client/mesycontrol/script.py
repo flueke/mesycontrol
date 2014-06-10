@@ -82,6 +82,9 @@ class ConnectionWrapper(QtCore.QObject):
     def get_mrc(self):
         return MRCWrapper(self._wrapped.mrc_model)
 
+    def __getattr__(self, attr):
+        return getattr(self._wrapped, attr)
+
     mrc = pyqtProperty(object, get_mrc)
 
 class Context(object):
