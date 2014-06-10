@@ -110,7 +110,7 @@ bool MRC1ReplyParser::parse_read_or_set(const std::string &reply_line)
   if (matches[4] == "-") {
     boost::uint16_t adjusted_value = (1<<15) - value;
     BOOST_LOG_SEV(m_log, log::lvl::warning)
-      << "negative value " << value << " adjusted to " << adjusted_value;
+      << "negative value -" << value << " adjusted to " << adjusted_value;
     value = adjusted_value;
   }
 

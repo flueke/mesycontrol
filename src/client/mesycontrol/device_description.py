@@ -61,7 +61,8 @@ class ParameterDescription(object):
         log = logging.getLogger("ParameterDescription")
         for k, v in d.iteritems():
             if not hasattr(ret, k):
-                log.warning("Invalid attribute '%s'" % k)
+                #log.warning("Invalid attribute '%s'" % k)
+                pass
             else:
                 setattr(ret, k, v)
         return ret;

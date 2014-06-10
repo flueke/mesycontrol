@@ -32,8 +32,8 @@ def parse_etree_element(element):
     for config_node in element.iter('device_config'):
         config.device_configs.append(parse_device_config(config_node))
 
-    for connection_node in element.iter('mrc_connection'):
-        config.mrc_connections.append(parse_mrc_connection_config(connection_node))
+    for connection_node in element.iter('connection_config'):
+        config.mrc_connections.append(parse_connection_config(connection_node))
 
     return config
 
@@ -89,21 +89,12 @@ def parse_device_config(config_node):
         device_config.device_address = n.text
 
     for param_node in config_node.iter('parameter_config'):
-        param_config = ParameterConfig(param_node.find('address').text)
-
-        n = param_node.find('value')
-        if n is not None:
-            param_config.value = n.text
-
-        n = param_node.find('alias')
-        if n is not None:
-            param_config.alias = n.text
-
+        param_config = ParameterConfig(**param_node.attrib)
         device_config.add_parameter(param_config)
 
     return device_config
 
-def parse_mrc_connection_config(connection_node):
+def parse_connection_config(connection_node):
     connection_config = MRCConnectionConfig()
 
     n = connection_node.find('name')
@@ -144,7 +135,7 @@ def to_etree(config):
     tb.start("mesycontrol", {})
 
     for obj in config.mrc_connections:
-        _mrc_connection_config_to_etree(obj, tb)
+        _connection_config_to_etree(obj, tb)
 
     for obj in config.device_configs:
         _device_config_to_etree(obj, tb)
@@ -161,8 +152,8 @@ def write_file(cfg, f):
     xml = minidom.parseString(xml).toprettyxml(indent='  ')
     f.write(xml)
 
-def _mrc_connection_config_to_etree(cfg, tb):
-    tb.start('mrc_connection', {})
+def _connection_config_to_etree(cfg, tb):
+    tb.start('connection_config', {})
     _add_tag(tb, 'name', cfg.name)
 
     if cfg.is_mesycontrol_connection():
@@ -177,7 +168,7 @@ def _mrc_connection_config_to_etree(cfg, tb):
         _add_tag(tb, 'serial_device', cfg.serial_device)
         _add_tag(tb, 'serial_baud_rate', cfg.serial_baud_rate)
 
-    tb.end('mrc_connection')
+    tb.end('connection_config')
 
 def _device_description_to_etree(desc, tb):
     tb.start("device_description", {})
@@ -231,17 +222,16 @@ def _device_config_to_etree(cfg, tb):
         _add_tag(tb, 'device_address', cfg.device_address)
 
     for p in cfg.get_parameters():
-        if p.value is not None or p.alias:
-            tb.start("parameter_config", {})
-
-            _add_tag(tb, "address", str(p.address))
+        if p.value is not None or p.alias is not None:
+            attrs = dict(address=str(p.address))
 
             if p.value is not None:
-                _add_tag(tb, "value", str(p.value))
+                attrs['value'] = str(p.value)
 
-            if p.alias:
-                _add_tag(tb, "alias", str(p.alias))
+            if p.alias is not None:
+                attrs['alias'] = str(p.alias)
 
+            tb.start("parameter_config", attrs)
             tb.end("parameter_config")
 
     tb.end("device_config")

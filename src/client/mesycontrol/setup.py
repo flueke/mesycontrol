@@ -11,13 +11,12 @@ from command import ParallelCommandGroup, SequentialCommandGroup
 from mrc_command import ReadParameter, Scanbus
 from device_description import DeviceDescription
 
-app_model = application_model.instance
-
 class SetupBuilder(SequentialCommandGroup):
     def __init__(self, parent=None):
         super(SetupBuilder, self).__init__(parent)
         self._devices = set()
         self._connection_configs = dict()
+        self.app_model = application_model.instance
 
     def add_device(self, device):
         """Add a single device to the setup"""
@@ -30,7 +29,7 @@ class SetupBuilder(SequentialCommandGroup):
         connection_config.name = connection_config.get_connection_info()
         self._connection_configs[connection_config.name] = connection_config
 
-        device_descr = app_model.get_device_description_by_idc(device.idc)
+        device_descr = self.app_model.get_device_description_by_idc(device.idc)
 
         if device_descr is None:
             device_descr = DeviceDescription.makeGenericDescription(device.idc)
@@ -97,20 +96,21 @@ class SetupLoader(SequentialCommandGroup):
         super(SetupLoader, self).__init__(parent)
         self._config = config
         self._mrc_to_device_configs = dict()
+        self.app_model = application_model.instance
 
         for device_config in config.device_configs:
             connection_name = device_config.connection_name
             try:
                 # Try to find an existing connection
                 f = lambda conn: make_connection_config(conn).get_connection_info() == connection_name
-                connection = filter(f, app_model.mrc_connections)[0]
+                connection = filter(f, self.app_model.mrc_connections)[0]
             except IndexError:
                 try:
                     # Find the connection config referenced by the device
                     # config and use it to create a new connection.
                     connection_config = filter(lambda cfg: cfg.name == connection_name, config.mrc_connections)[0]
                     connection = mrc_connection.factory(config=connection_config)
-                    app_model.registerConnection(connection)
+                    self.app_model.registerConnection(connection)
                 except IndexError:
                     raise RuntimeError("Connection not found: %s" % connection_name)
 
@@ -140,7 +140,7 @@ class SetupLoader(SequentialCommandGroup):
         #    # One sequential command per mrc loading the device configs
         #    load_configs_sequential = SequentialCommandGroup()
         #    for cfg in cfgs:
-        #        descr = app_model.get_device_description_by_idc(cfg.device_idc)
+        #        descr = self.app_model.get_device_description_by_idc(cfg.device_idc)
         #        if descr is None:
         #            descr = DeviceDescription.makeGenericDescription(cfg.device_idc)
         #        load_configs_sequential.add(DelayedConfigLoader(mrc, cfg, descr))
@@ -155,7 +155,7 @@ class SetupLoader(SequentialCommandGroup):
 
         for mrc, cfgs in self._mrc_to_device_configs.iteritems():
             for cfg in cfgs:
-                descr = app_model.get_device_description_by_idc(cfg.device_idc)
+                descr = self.app_model.get_device_description_by_idc(cfg.device_idc)
                 if descr is None:
                     descr = DeviceDescription.makeGenericDescription(cfg.device_idc)
                 self.add(DelayedConfigLoader(mrc, cfg, descr))

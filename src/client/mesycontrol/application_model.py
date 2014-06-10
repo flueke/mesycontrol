@@ -4,14 +4,45 @@
 
 from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtSignal
+import logging
+import os
+
+def find_data_dir(main_file):
+    """Locates the directory used for data files.
+    Recursively follows symlinks until the location of main_file is known.
+    Returns the name of the directory of the location of the main file.
+    """
+    while os.path.islink(main_file):
+        lnk = os.readlink(main_file)
+        if os.path.isabs(lnk):
+            main_file = lnk
+        else:
+            main_file = os.path.abspath(os.path.join(os.path.dirname(main_file), lnk))
+    return os.path.dirname(os.path.abspath(main_file))
 
 class ApplicationModel(QtCore.QObject):
+    """Central application information and object registry.
+    Create it like this:
+    application_model.instance = application_model.ApplicationModel(
+            sys.executable if getattr(sys, 'frozen', False) else __file__)
+    """
+
     sig_connection_added = pyqtSignal(object)
 
-    def __init__(self, parent = None):
+    def __init__(self, main_file, parent = None):
         super(ApplicationModel, self).__init__(parent)
+
+        self.main_file = main_file
+        self.bin_dir   = os.path.abspath(os.path.dirname(main_file))
+        self.data_dir  = find_data_dir(main_file)
+
+        logging.getLogger(__name__).info("bin_dir =%s", self.bin_dir)
+        logging.getLogger(__name__).info("data_dir=%s", self.data_dir)
+
         self.device_descriptions = set()
         self.mrc_connections = list()
+
+        self.load_system_descriptions()
 
     def registerConnection(self, conn):
         conn.setParent(self)
@@ -47,4 +78,7 @@ class ApplicationModel(QtCore.QObject):
         except IndexError:
             return None
 
-instance = ApplicationModel()
+    def find_data_file(self, filename):
+        return os.path.join(self.data_dir, filename)
+
+instance = None

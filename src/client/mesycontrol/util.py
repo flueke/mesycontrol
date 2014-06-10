@@ -1,8 +1,5 @@
 from PyQt4.QtCore import QObject, QTimer
 import gc
-import os
-import sys
-from mesycontrol import application_model
 
 class GarbageCollector(QObject):
     '''
@@ -26,33 +23,27 @@ class GarbageCollector(QObject):
         gc.disable()
         self.timer.start(self.INTERVAL)
 
+
     def check(self):
-        #return self.debug_cycles() # uncomment to just debug cycles
-        l0, l1, l2 = gc.get_count()
+        counts     = gc.get_count()
+        thresholds = gc.get_threshold()
+
         if self.debug:
-            print ('gc_check called:', l0, l1, l2)
-        if l0 > self.threshold[0]:
-            num = gc.collect(0)
-            if self.debug:
-                print ('collecting gen 0, found:', num, 'unreachable')
-            if l1 > self.threshold[1]:
-                num = gc.collect(1)
+            print ('gc_check called:', counts)
+
+        for i in range(len(counts)):
+            if counts[i] > thresholds[i]:
+                num = gc.collect(i)
                 if self.debug:
-                    print ('collecting gen 1, found:', num, 'unreachable')
-                if l2 > self.threshold[2]:
-                    num = gc.collect(2)
-                    if self.debug:
-                        print ('collecting gen 2, found:', num, 'unreachable')
+                    print ('collecting gen %d, found: %d unreachable' % (i, num))
+            else:
+                break
 
     def debug_cycles(self):
         gc.set_debug(gc.DEBUG_SAVEALL)
         gc.collect()
         for obj in gc.garbage:
             print (obj, repr(obj), type(obj))
-
-# TODO: move this to ApplicationModel
-def find_data_file(filename):
-    return os.path.join(application_model.instance.data_dir, filename)
 
 class URLParseError(Exception): pass
 

@@ -197,8 +197,8 @@ if __name__ == "__main__":
             format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
     app = QtCore.QCoreApplication(sys.argv)
-    application_model.instance.bin_dir = os.path.abspath(os.path.dirname(
-        sys.executable if getattr(sys, 'frozen', False) else __file__))
+    application_model.instance = application_model.ApplicationModel(
+            sys.executable if getattr(sys, 'frozen', False) else __file__)
 
     procs = []
     for i in range(10):

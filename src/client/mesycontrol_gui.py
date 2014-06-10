@@ -18,7 +18,6 @@ from mesycontrol import application_model
 from mesycontrol import mrc_connection
 from mesycontrol.mrc_treeview import MRCTreeView
 from mesycontrol.generic_device_widget import GenericDeviceWidget
-from mesycontrol.util import find_data_file
 from mesycontrol.setup import SetupBuilder, SetupLoader
 
 #import projex
@@ -29,8 +28,8 @@ class MainWindow(QtGui.QMainWindow):
     def __init__(self, parent = None):
         super(MainWindow, self).__init__(parent)
         QtCore.QCoreApplication.instance().aboutToQuit.connect(self.on_qapp_quit)
-        uic.loadUi(find_data_file('ui/mainwin.ui'), self)
         self.app_model = application_model.instance
+        uic.loadUi(self.app_model.find_data_file('ui/mainwin.ui'), self)
         self.mrc_tree  = MRCTreeView(self)
         self.mrc_tree.sig_open_device_window.connect(self._slt_open_device_window)
         self._add_subwindow(self.mrc_tree, "Device Tree")
@@ -191,19 +190,6 @@ def signal_handler(signum, frame):
             signal.signum_to_name.get(signum, "%d" % signum))
     QtGui.QApplication.quit()
 
-def find_data_dir():
-    if getattr(sys, 'frozen', False):
-        exe = sys.executable
-        while os.path.islink(exe):
-            lnk = os.readlink(exe)
-            if os.path.isabs(lnk):
-                exe = lnk
-            else:
-                exe = os.path.abspath(os.path.join(os.path.dirname(exe), lnk))
-        return os.path.dirname(exe)
-    else:
-        return os.path.dirname(__file__)
-
 if __name__ == "__main__":
     # Logging setup
     logging.basicConfig(level=logging.DEBUG,
@@ -218,15 +204,8 @@ if __name__ == "__main__":
             for n in dir(signal) if n.startswith('SIG') and '_' not in n)
     signal.signal(signal.SIGINT, signal_handler)
 
-    # Binary directory needed to locate the server binary.
-    application_model.instance.bin_dir = os.path.abspath(os.path.dirname(
-        sys.executable if getattr(sys, 'frozen', False) else __file__))
-
-    # Path to the directory where ui, xml and other datafiles are stored.
-    application_model.instance.data_dir = find_data_dir()
-
-    # Load system device descriptions
-    application_model.instance.load_system_descriptions()
+    application_model.instance = application_model.ApplicationModel(
+            sys.executable if getattr(sys, 'frozen', False) else __file__)
 
     app = QtGui.QApplication(sys.argv)
 
@@ -237,7 +216,7 @@ if __name__ == "__main__":
     timer.start(500)
 
     # Confine garbage collection to the main thread to avoid crashes.
-    garbage_collector = mesycontrol.util.GarbageCollector(debug=False)
+    garbage_collector = mesycontrol.util.GarbageCollector()
 
     mainwin = MainWindow()
     mainwin.show()

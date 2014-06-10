@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-import contextlib, logging, os, signal, sys
+import contextlib, logging, signal, sys
 from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtProperty
 from . import util
@@ -19,10 +19,10 @@ class DeviceWrapper(QtCore.QObject):
         self._wrapped = device_model
 
     def __getitem__(self, key):
-        return ReadParameter(self._wrapped, key).exec_().get_result()
+        return ReadParameter(self._wrapped, key)()
 
     def __setitem__(self, key, value):
-        return SetParameter(self._wrapped, key, value).exec_().get_result()
+        return SetParameter(self._wrapped, key, value)()
 
     def __getattr__(self, attr):
         return getattr(self._wrapped, attr)
@@ -31,7 +31,7 @@ class DeviceWrapper(QtCore.QObject):
         return self._wrapped.rc
 
     def set_rc(self, rc):
-        SetRc(self._wrapped, rc).exec_().get_result()
+        SetRc(self._wrapped, rc)()
 
     rc = pyqtProperty(bool, get_rc, set_rc)
 
@@ -68,11 +68,11 @@ class ConnectionWrapper(QtCore.QObject):
         self._wrapped = connection
 
     def connect(self):
-        if not Connect(self._wrapped).exec_().get_result():
+        if not Connect(self._wrapped)():
             return False
 
         for i in range(2):
-            Scanbus(self._wrapped.mrc_model, i).exec_().get_result()
+            Scanbus(self._wrapped.mrc_model, i)()
 
         return True
 
@@ -99,28 +99,38 @@ class Context(object):
 @contextlib.contextmanager
 def get_script_context():
     try:
+        # Setup logging. Has no effect if logging has already been setup
         logging.basicConfig(level=logging.WARNING,
                 format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
-        qapp = QtCore.QCoreApplication(sys.argv)
-        gc   = util.GarbageCollector(debug=False)
+        # If a QCoreApplication or QApplication instance exists assume
+        # everything is setup and ready. Otherwise install the custom garbage
+        # collector and setup signal handling.
+        qapp = QtCore.QCoreApplication.instance()
 
-        # Signal handling
-        def signal_handler(signum, frame):
-            logging.info("Received signal %s. Quitting...",
-                    signal.signum_to_name.get(signum, "%d" % signum))
-            qapp.quit()
+        if qapp is None:
+            qapp = QtCore.QCoreApplication(sys.argv)
+            gc   = util.GarbageCollector()
 
-        signal.signum_to_name = dict((getattr(signal, n), n)
-                for n in dir(signal) if n.startswith('SIG') and '_' not in n)
-        signal.signal(signal.SIGINT, signal_handler)
+            # Signal handling
+            def signal_handler(signum, frame):
+                logging.info("Received signal %s. Quitting...",
+                        signal.signum_to_name.get(signum, "%d" % signum))
+                qapp.quit()
 
-        application_model.instance.bin_dir = os.path.abspath(os.path.dirname(
-            sys.executable if getattr(sys, 'frozen', False) else __file__))
+            signal.signum_to_name = dict((getattr(signal, n), n)
+                    for n in dir(signal) if n.startswith('SIG') and '_' not in n)
+            signal.signal(signal.SIGINT, signal_handler)
+
+            application_model.instance = application_model.ApplicationModel(
+                    sys.executable if getattr(sys, 'frozen', False) else __file__)
 
         yield Context()
     except CommandInterrupted:
         pass
     finally:
         application_model.instance.shutdown()
-        del gc
+        try:
+            del gc
+        except NameError:
+            pass

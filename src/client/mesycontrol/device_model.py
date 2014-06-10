@@ -21,11 +21,11 @@ class DeviceModel(QtCore.QObject):
     def __init__(self, bus, dev, idc, rc, mrc_model, parent=None):
         super(DeviceModel, self).__init__(parent)
         self._mrc_model = weakref.ref(mrc_model)
-        self.bus       = bus
-        self.dev       = dev
-        self.idc       = idc
-        self.rc        = rc
-        self.memory   = {}
+        self.bus        = bus
+        self.dev        = dev
+        self.idc        = idc
+        self.rc         = rc
+        self.memory     = {}
         
         self.mrc_model.sig_parameter_read.connect(self._slt_parameterRead)
         self.mrc_model.sig_parameter_set.connect(self._slt_parameterSet)
@@ -40,7 +40,7 @@ class DeviceModel(QtCore.QObject):
     def set_rc(self, on_off, response_handler=None):
         self.mrc_model.set_rc(self.bus, self.dev, on_off, response_handler)
 
-    def getMRCModel(self):
+    def get_mrc_model(self):
         return self._mrc_model() if self._mrc_model is not None else None
 
     def _slt_parameterRead(self, bus, dev, address, value):
@@ -67,6 +67,6 @@ class DeviceModel(QtCore.QObject):
     def __str__(self):
         return "DeviceModel(idc=%d, rc=%d)" % (self.idc, self.rc)
 
-    mrc_model = pyqtProperty(object, getMRCModel)
+    mrc_model = pyqtProperty(object, get_mrc_model)
 
 

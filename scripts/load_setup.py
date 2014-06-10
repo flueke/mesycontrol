@@ -19,6 +19,8 @@ with get_script_context() as ctx:
 
     print ("Setup contents: %d connections, %d device configs, %d device descriptions" %
             (len(cfg.mrc_connections), len(cfg.device_configs), len(cfg.device_descriptions)))
+    for dev_cfg in cfg.device_configs:
+        print "Device Config: idc=%d, len(params)=%d" % (dev_cfg.device_idc, len(dev_cfg.get_parameters()))
 
     setup_loader = setup.SetupLoader(cfg)
     setup_loader.progress_changed.connect(print_progress)
