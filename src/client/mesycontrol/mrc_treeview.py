@@ -116,7 +116,7 @@ class MRCTreeView(QtGui.QWidget):
         if column == 0 or column == 1:
             self.sig_open_device_window.emit(device_model)
         elif column == 2:
-            mrc_model.setRc(bus, dev, not rc)
+            mrc_model.set_rc(bus, dev, not rc)
             mrc_model.scanbus(bus)
 
     def _slt_scanbus_button_clicked(self):

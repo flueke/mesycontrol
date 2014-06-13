@@ -138,7 +138,7 @@ class TCPClient(QtCore.QObject):
             try:
                 message = Message.deserialize(message_data)
             except MessageError as e:
-                self.log.error("Could not deserialize incoming message: %s", e)
+                self.log.error("Could not deserialize incoming message: %s. Disconnecting...", e)
                 self.disconnect()
                 return
 

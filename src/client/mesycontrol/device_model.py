@@ -68,5 +68,4 @@ class DeviceModel(QtCore.QObject):
         return "DeviceModel(idc=%d, rc=%d)" % (self.idc, self.rc)
 
     mrc_model = pyqtProperty(object, get_mrc_model)
-
-
+    mrc       = pyqtProperty(object, get_mrc_model)

@@ -2,6 +2,9 @@
 #include <boost/format.hpp>
 #include <boost/make_shared.hpp>
 #include <map>
+#ifndef __MINGW32__
+#include <arpa/inet.h>
+#endif
 #include <stdexcept>
 #include "protocol.h"
 
@@ -34,8 +37,8 @@ const MessageInfoMap &get_message_info_map()
     (message_type::request_copy,                    MessageInfo(2, "request_copy"))         // bus dev
     (message_type::request_read,                    MessageInfo(3, "request_read"))         // bus dev par
     (message_type::request_mirror_read,             MessageInfo(3, "request_mirror_read"))  // bus dev par
-    (message_type::request_set,                     MessageInfo(5, "request_set"))          // bus dev par val
-    (message_type::request_mirror_set,              MessageInfo(5, "request_mirror_set"))   // bus dev par val
+    (message_type::request_set,                     MessageInfo(7, "request_set"))          // bus dev par val
+    (message_type::request_mirror_set,              MessageInfo(7, "request_mirror_set"))   // bus dev par val
 
     (message_type::request_has_write_access,        MessageInfo(0, "request_has_write_access"))
     (message_type::request_acquire_write_access,    MessageInfo(1, "request_acquire_write_access")) // bool
@@ -45,18 +48,18 @@ const MessageInfoMap &get_message_info_map()
     (message_type::request_force_write_access,      MessageInfo(0, "request_force_write_access"))
 
     (message_type::response_scanbus,                MessageInfo(33, "response_scanbus"))     // bus (idc,bool){16}
-    (message_type::response_read,                   MessageInfo( 5, "response_read"))        // bus dev par val
-    (message_type::response_set,                    MessageInfo( 5, "response_set"))         // bus dev par val
-    (message_type::response_mirror_read,            MessageInfo( 5, "response_mirror_read")) // bus dev par val
-    (message_type::response_mirror_set,             MessageInfo( 5, "response_mirror_set"))  // bus dev par val
+    (message_type::response_read,                   MessageInfo( 7, "response_read"))        // bus dev par val
+    (message_type::response_set,                    MessageInfo( 7, "response_set"))         // bus dev par val
+    (message_type::response_mirror_read,            MessageInfo( 7, "response_mirror_read")) // bus dev par val
+    (message_type::response_mirror_set,             MessageInfo( 7, "response_mirror_set"))  // bus dev par val
 
     (message_type::response_bool,                   MessageInfo(1, "response_bool"))        // bool value
     (message_type::response_error,                  MessageInfo(1, "response_error"))       // error value
 
     (message_type::notify_write_access,             MessageInfo(1, "notify_write_access"))              // bool
     (message_type::notify_silent_mode,              MessageInfo(1, "notify_silent_mode"))               // bool
-    (message_type::notify_set,                      MessageInfo(5, "notify_set"))                       // bus dev par val
-    (message_type::notify_mirror_set,               MessageInfo(5, "notify_mirror_set"))                // bus dev par val
+    (message_type::notify_set,                      MessageInfo(7, "notify_set"))                       // bus dev par val
+    (message_type::notify_mirror_set,               MessageInfo(7, "notify_mirror_set"))                // bus dev par val
     (message_type::notify_can_acquire_write_access, MessageInfo(1, "notify_can_acquire_write_access"))  // bool
     ;
   return data;
@@ -164,7 +167,6 @@ std::string Message::get_mrc1_command_string() const
   unsigned int ibus = static_cast<unsigned int>(bus);
   unsigned int idev = static_cast<unsigned int>(dev);
   unsigned int ipar = static_cast<unsigned int>(par);
-  unsigned int ival = static_cast<unsigned int>(val);
 
   switch (type) {
     case message_type::request_scanbus:
@@ -182,9 +184,9 @@ std::string Message::get_mrc1_command_string() const
     case message_type::request_mirror_read:
       return boost::str(boost::format("RM %1% %2% %3%") % ibus % idev % ipar);
     case message_type::request_set:
-      return boost::str(boost::format("SE %1% %2% %3% %4%") % ibus % idev % ipar % ival);
+      return boost::str(boost::format("SE %1% %2% %3% %4%") % ibus % idev % ipar % val);
     case message_type::request_mirror_set:
-      return boost::str(boost::format("SM %1% %2% %3% %4%") % ibus % idev % ipar % ival);
+      return boost::str(boost::format("SM %1% %2% %3% %4%") % ibus % idev % ipar % val);
 
     default:
       BOOST_THROW_EXCEPTION(std::runtime_error("not a mrc command request"));
@@ -194,6 +196,7 @@ std::string Message::get_mrc1_command_string() const
 std::vector<unsigned char> Message::serialize() const
 {
   std::vector<unsigned char> ret;
+  boost::uint32_t net_value;
 
   ret.push_back(type);
 
@@ -221,8 +224,12 @@ std::vector<unsigned char> Message::serialize() const
       ret.push_back(bus);
       ret.push_back(dev);
       ret.push_back(par);
-      ret.push_back((val >> 8) & 0xFF);
-      ret.push_back(val);
+
+      net_value = htonl(*reinterpret_cast<const boost::uint32_t *>(&val));
+
+      for (size_t i=0; i<sizeof(net_value); ++i)
+        ret.push_back(reinterpret_cast<unsigned char *>(&net_value)[i]);
+
       break;
 
     case message_type::request_rc_on:
@@ -301,7 +308,12 @@ MessagePtr Message::deserialize(const std::vector<unsigned char> &data)
       ret->bus = data[1];
       ret->dev = data[2];
       ret->par = data[3];
-      ret->val = (data[4] << 8 | data[5]);
+
+      for (size_t i=0; i<sizeof(ret->val); ++i)
+        reinterpret_cast<unsigned char *>(&ret->val)[i] = data[i+4];
+
+      ret->val = ntohl(*reinterpret_cast<const boost::uint32_t *>(&ret->val));
+
       break;
 
     case message_type::request_rc_on:
@@ -371,7 +383,7 @@ MessagePtr MessageFactory::make_scanbus_response(boost::uint8_t bus, const Messa
 }
 
 MessagePtr MessageFactory::make_read_response(boost::uint8_t bus, boost::uint8_t dev,
-    boost::uint8_t par, boost::uint16_t val, bool mirror)
+    boost::uint8_t par, boost::int32_t val, bool mirror)
 {
   return make_read_or_set_response(
       mirror ? message_type::request_mirror_read : message_type::request_read,
@@ -379,7 +391,7 @@ MessagePtr MessageFactory::make_read_response(boost::uint8_t bus, boost::uint8_t
 }
 
 MessagePtr MessageFactory::make_set_response(boost::uint8_t bus, boost::uint8_t dev,
-    boost::uint8_t par, boost::uint16_t val, bool mirror)
+    boost::uint8_t par, boost::int32_t val, bool mirror)
 {
   return make_read_or_set_response(
       mirror ? message_type::request_mirror_set : message_type::request_mirror_read,
@@ -387,7 +399,7 @@ MessagePtr MessageFactory::make_set_response(boost::uint8_t bus, boost::uint8_t 
 }
 
 MessagePtr MessageFactory::make_read_or_set_response(message_type::MessageType request_type,
-    boost::uint8_t bus, boost::uint8_t dev, boost::uint8_t par, boost::uint16_t val)
+    boost::uint8_t bus, boost::uint8_t dev, boost::uint8_t par, boost::int32_t val)
 {
   MessagePtr ret(boost::make_shared<Message>());
   switch (request_type) {
@@ -447,7 +459,7 @@ MessagePtr MessageFactory::make_silent_mode_notification(bool silence_active)
 }
 
 MessagePtr MessageFactory::make_parameter_set_notification(boost::uint8_t bus, boost::uint8_t dev,
-    boost::uint8_t par, boost::uint16_t value, bool mirror)
+    boost::uint8_t par, boost::int32_t value, bool mirror)
 {
   MessagePtr ret(boost::make_shared<Message>());
   ret->type        = mirror ? message_type::notify_mirror_set : message_type::notify_set;

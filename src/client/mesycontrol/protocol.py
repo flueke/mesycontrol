@@ -62,7 +62,7 @@ class MessageInfo:
         },
       { 'code': 3,
         'name': 'request_set',
-        'format': 'BBBH',
+        'format': 'BBBi',
         'format_args': ('bus', 'dev', 'par', 'val')
         },
       { 'code': 4,
@@ -72,7 +72,7 @@ class MessageInfo:
         },
       { 'code': 5,
         'name': 'request_mirror_set',
-        'format': 'BBBH',
+        'format': 'BBBi',
         'format_args': ('bus', 'dev', 'par', 'val')
         },
       { 'code': 6,
@@ -142,22 +142,22 @@ class MessageInfo:
         },
       { 'code': 42,
         'name': 'response_read',
-        'format': 'BBBH',
+        'format': 'BBBi',
         'format_args': ('bus', 'dev', 'par', 'val')
         },
       { 'code': 43,
         'name': 'response_set',
-        'format': 'BBBH',
+        'format': 'BBBi',
         'format_args': ('bus', 'dev', 'par', 'val')
         },
       { 'code': 44,
         'name': 'response_mirror_read',
-        'format': 'BBBH',
+        'format': 'BBBi',
         'format_args': ('bus', 'dev', 'par', 'val')
         },
       { 'code': 45,
         'name': 'response_mirror_set',
-        'format': 'BBBH',
+        'format': 'BBBi',
         'format_args': ('bus', 'dev', 'par', 'val')
         },
       { 'code': 50,
@@ -185,12 +185,12 @@ class MessageInfo:
         },
       { 'code': 62,
         'name': 'notify_set',
-        'format': 'BBBH',
+        'format': 'BBBi',
         'format_args': ('bus', 'dev', 'par', 'val')
         },
       { 'code': 63,
         'name': 'notify_mirror_set',
-        'format': 'BBBH',
+        'format': 'BBBi',
         'format_args': ('bus', 'dev', 'par', 'val')
         },
       { 'code': 64,
@@ -330,10 +330,7 @@ class Message(object):
 
   def get_value(self): return self._value
   def set_value(self, value):
-    if 0 <= int(value) < 65536:
-      self._value = int(value)
-    else:
-      raise MessageError("value out of range", int(value))
+    self._value = int(value)
 
   type_code = property(get_type_code)
   bus       = property(get_bus, set_bus)

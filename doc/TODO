@@ -8,10 +8,6 @@
   - get first/all failed subcommand(s) from CommandGroups
   - add __str__ to Commands
 
-* Logging: use instance specific loggers for some classes or find another way
-  to track logs from individual instances
-  -> LoggerAdapter seems to be the solution
-
 * Virtual connections:
   - load setup to virtual connections
   - create new virtual, add/remove devices from virtual

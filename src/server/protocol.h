@@ -95,7 +95,8 @@ struct Message
   boost::uint8_t            bus;          // bus number [0..1]
   boost::uint8_t            dev;          // device number [0..15]
   boost::uint8_t            par;          // parameter address [0..255]
-  boost::uint16_t           val;          // value [0..65535]
+  boost::int32_t            val;          // value usually in the range [0..65535]
+                                          // can be negative (mhv4)
   error_type::ErrorType     error_value;  // error messages only
   bool                      bool_value;   // bool messages only
   // Scanbus response - 16 pairs of (device id code, rc status).
@@ -130,11 +131,11 @@ class MessageFactory
     static MessagePtr make_scanbus_response(boost::uint8_t bus, const Message::ScanbusData &bus_data);
 
     static MessagePtr make_read_response(boost::uint8_t bus, boost::uint8_t dev,
-        boost::uint8_t par, boost::uint16_t val, bool mirror = false);
+        boost::uint8_t par, boost::int32_t val, bool mirror = false);
     static MessagePtr make_set_response(boost::uint8_t bus, boost::uint8_t dev,
-        boost::uint8_t par, boost::uint16_t val, bool mirror = false);
+        boost::uint8_t par, boost::int32_t val, bool mirror = false);
     static MessagePtr make_read_or_set_response(message_type::MessageType request_type,
-        boost::uint8_t bus, boost::uint8_t dev, boost::uint8_t par, boost::uint16_t val);
+        boost::uint8_t bus, boost::uint8_t dev, boost::uint8_t par, boost::int32_t val);
 
     static MessagePtr make_bool_response(bool bool_value);
     static MessagePtr make_error_response(error_type::ErrorType error);
@@ -142,7 +143,7 @@ class MessageFactory
     static MessagePtr make_write_access_notification(bool has_write_access);
     static MessagePtr make_silent_mode_notification(bool silence_active);
     static MessagePtr make_parameter_set_notification(boost::uint8_t bus, boost::uint8_t dev,
-        boost::uint8_t par, boost::uint16_t value, bool mirror = false);
+        boost::uint8_t par, boost::int32_t value, bool mirror = false);
     static MessagePtr make_can_acquire_write_access_notification(bool can_acquire);
 };
 

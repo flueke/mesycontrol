@@ -27,16 +27,17 @@ class Command(QtCore.QObject):
     #: subclasses.
     progress_changed = pyqtSignal(int, int)
 
+    def __init__(self, parent=None):
+        super(Command, self).__init__(parent)
+        self.log = util.make_logging_source_adapter(__name__, self)
+        self._reset_state()
+
     def _reset_state(self):
         self._is_running   = False
         self._is_stopping  = False
         self._is_complete  = False
         self._exception    = None
         self._exception_tb = None
-
-    def __init__(self, parent=None):
-        super(Command, self).__init__(parent)
-        self._reset_state()
 
     def start(self):
         if self.is_running():
@@ -70,9 +71,11 @@ class Command(QtCore.QObject):
         loop = QtCore.QEventLoop()
         self.stopped.connect(loop.quit)
         QtCore.QTimer.singleShot(0, self.start)
+        self.log.debug("%s: Entering local event loop", self)
         if loop.exec_() < 0:
             # FIXME: do I need to call self.stop() here?
             raise CommandInterrupted()
+        self.log.debug("%s: Local event loop returned", self)
         return self
 
     def __call__(self):
@@ -155,7 +158,6 @@ class SequentialCommandGroup(CommandGroup):
         super(SequentialCommandGroup, self).__init__(parent)
         self.continue_on_error = continue_on_error
         self._current = None
-        self.log = util.make_logging_source_adapter(__name__, self)
 
     def _start(self):
         self._start_next(enumerate(self._commands))

@@ -13,9 +13,14 @@ class ErrorResponse(Exception):
         return "ErrorResponse(%s)" % self.response.get_error_string()
 
 class MRCCommand(Command):
-    def __init__(self, parent=None):
+    def __init__(self, mrc, parent=None):
         super(MRCCommand, self).__init__(parent)
         self._response = None
+        mrc.sig_disconnected.connect(self._handle_disconnected)
+
+    def _handle_disconnected(self):
+        self._exception = RuntimeError("Disconnected from server")
+        self._stopped(False)
 
     def _handle_response(self, request, response):
         self._response = response
@@ -37,7 +42,7 @@ class MRCCommand(Command):
 
 class SetParameter(MRCCommand):
     def __init__(self, device, address, value, parent=None):
-        super(SetParameter, self).__init__(parent)
+        super(SetParameter, self).__init__(device.mrc, parent)
         self.device  = device
         self.address = address
         self.value   = value
@@ -53,7 +58,7 @@ import util
 
 class ReadParameter(MRCCommand):
     def __init__(self, device, address, parent=None):
-        super(ReadParameter, self).__init__(parent)
+        super(ReadParameter, self).__init__(device.mrc, parent)
         self.device  = device
         self.address = address
         self.log = util.make_logging_source_adapter(__name__, self)
@@ -63,7 +68,6 @@ class ReadParameter(MRCCommand):
         self.log.debug("Reading %s", self.address)
 
     def _get_result(self):
-        self.log.warning("_get_result")
         res = super(ReadParameter, self)._get_result()
         return res.val if res is not None else None
 
@@ -72,7 +76,7 @@ class ReadParameter(MRCCommand):
 
 class Scanbus(MRCCommand):
     def __init__(self, mrc, bus, parent=None):
-        super(Scanbus, self).__init__(parent)
+        super(Scanbus, self).__init__(mrc, parent)
         self.mrc = mrc
         self.bus = bus
 
@@ -81,7 +85,7 @@ class Scanbus(MRCCommand):
 
 class SetRc(MRCCommand):
     def __init__(self, device, rc, parent=None):
-        super(SetRc, self).__init__(parent)
+        super(SetRc, self).__init__(device.mrc, parent)
         self.device = device
         self.rc = rc
 
@@ -107,7 +111,7 @@ class Connect(Command):
 
 class AcquireWriteAccess(MRCCommand):
     def __init__(self, mrc, force=False, parent=None):
-        super(AcquireWriteAccess, self).__init__(parent)
+        super(AcquireWriteAccess, self).__init__(mrc, parent)
         self.mrc   = mrc
         self.force = force
 
@@ -116,7 +120,7 @@ class AcquireWriteAccess(MRCCommand):
 
 class ReleaseWriteAccess(MRCCommand):
     def __init__(self, mrc, parent=None):
-        super(ReleaseWriteAccess, self).__init__(parent)
+        super(ReleaseWriteAccess, mrc, self).__init__(parent)
         self.mrc   = mrc
 
     def _start(self):
