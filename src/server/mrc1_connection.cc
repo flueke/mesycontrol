@@ -1,3 +1,4 @@
+#include <boost/assign/list_of.hpp>
 #include <boost/bind.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/log/trivial.hpp>
@@ -99,7 +100,7 @@ const boost::posix_time::time_duration
 MRC1Connection::default_io_timeout(boost::posix_time::milliseconds(100));
 
 const boost::posix_time::time_duration
-MRC1Connection::default_reconnect_timeout(boost::posix_time::milliseconds(5000));
+MRC1Connection::default_reconnect_timeout(boost::posix_time::milliseconds(2500));
 
 const std::string MRC1Connection::response_line_terminator = "\n\r";
 const char MRC1Connection::command_terminator = '\r';
@@ -333,11 +334,15 @@ void MRC1Connection::handle_reconnect_timeout(const boost::system::error_code &e
   }
 }
 
+const std::vector<unsigned int> MRC1SerialConnection::default_baud_rates =
+  boost::assign::list_of(115200)(9600)(19200)(38400)(57600);
+
 MRC1SerialConnection::MRC1SerialConnection(boost::asio::io_service &io_service,
     const std::string &serial_device, unsigned int baud_rate):
   MRC1Connection(io_service),
   m_serial_device(serial_device),
-  m_baud_rate(baud_rate),
+  m_requested_baud_rate(baud_rate),
+  m_current_baud_rate_idx(0),
   m_port(io_service)
 {
 }
@@ -345,25 +350,30 @@ MRC1SerialConnection::MRC1SerialConnection(boost::asio::io_service &io_service,
 void MRC1SerialConnection::start_impl(ErrorCodeCallback completion_handler)
 {
   try {
-    BOOST_LOG_SEV(m_log, log::lvl::info) << "Opening " << m_serial_device;
+    unsigned int baud_rate = get_baud_rate();
+    BOOST_LOG_SEV(m_log, log::lvl::info) << "Opening " << m_serial_device << ", baud_rate=" << baud_rate;
     m_port.open(m_serial_device);
+
 #ifndef BOOST_WINDOWS
     if (ioctl(m_port.native_handle(), TIOCEXCL) < 0) {
       BOOST_THROW_EXCEPTION(boost::system::system_error(
             errno, boost::system::system_category(), "ioctl"));
     }
 #endif
-    m_port.set_option(asio::serial_port::baud_rate(m_baud_rate));
+
+    m_port.set_option(asio::serial_port::baud_rate(baud_rate));
     m_port.set_option(asio::serial_port::character_size(8));
     m_port.set_option(asio::serial_port::parity(asio::serial_port::parity::none));
     m_port.set_option(asio::serial_port::stop_bits(asio::serial_port::stop_bits::one));
     m_port.set_option(asio::serial_port::flow_control(asio::serial_port::flow_control::none));
+
 #ifndef BOOST_WINDOWS
     if (tcflush(m_port.native_handle(), TCIOFLUSH) < 0) {
         BOOST_THROW_EXCEPTION(boost::system::system_error(
                     errno, boost::system::system_category(), "tcflush"));
     }
 #endif
+
     completion_handler(boost::system::error_code());
   } catch (const boost::system::system_error &e) {
     BOOST_LOG_SEV(m_log, log::lvl::error) << "Failed opening " << m_serial_device
@@ -404,6 +414,28 @@ void MRC1SerialConnection::start_read_line_impl(
 {
   asio::async_read_until(m_port, read_buffer, response_line_terminator,
       completion_handler);
+}
+
+void MRC1SerialConnection::handle_init(
+    const boost::system::error_code &ec)
+{
+  if (ec) {
+    set_next_baud_rate();
+  }
+  MRC1Connection::handle_init(ec);
+}
+
+unsigned int MRC1SerialConnection::get_baud_rate()
+{
+  if (m_requested_baud_rate != 0)
+    return m_requested_baud_rate;
+  return default_baud_rates[m_current_baud_rate_idx];
+}
+
+void MRC1SerialConnection::set_next_baud_rate()
+{
+  m_current_baud_rate_idx += 1;
+  m_current_baud_rate_idx %= default_baud_rates.size();
 }
 
 MRC1TCPConnection::MRC1TCPConnection(boost::asio::io_service &io_service,

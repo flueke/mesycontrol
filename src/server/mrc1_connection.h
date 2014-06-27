@@ -119,6 +119,9 @@ class MRC1Connection:
         boost::asio::streambuf &read_buffer,
         ReadWriteCallback completion_handler) = 0;
 
+    virtual void handle_init(
+        const boost::system::error_code &ec);
+
     static const std::string response_line_terminator;
     static const char command_terminator;
 
@@ -126,7 +129,6 @@ class MRC1Connection:
     void handle_write_command(const boost::system::error_code &ec, std::size_t bytes);
     void handle_read_line(const boost::system::error_code &ec, std::size_t bytes);
     void handle_start(const boost::system::error_code &ec);
-    void handle_init(const boost::system::error_code &ec);
     void handle_io_timeout(const boost::system::error_code &ec);
     void handle_reconnect_timeout(const boost::system::error_code &ec);
     void stop(const boost::system::error_code &reason, Status new_status = stopped);
@@ -156,7 +158,9 @@ class MRC1SerialConnection: public MRC1Connection
 {
   public:
     MRC1SerialConnection(boost::asio::io_service &io_service,
-        const std::string &serial_device, unsigned int baud_rate = 9600);
+        const std::string &serial_device, unsigned int baud_rate = 0);
+
+    static const std::vector<unsigned int> default_baud_rates;
 
   protected:
     virtual void start_impl(ErrorCodeCallback completion_handler);
@@ -174,9 +178,16 @@ class MRC1SerialConnection: public MRC1Connection
         boost::asio::streambuf &read_buffer,
         ReadWriteCallback completion_handler);
 
+    virtual void handle_init(
+        const boost::system::error_code &ec);
+
   private:
+    unsigned int get_baud_rate();
+    void set_next_baud_rate();
+
     std::string m_serial_device;
-    unsigned int m_baud_rate;
+    unsigned int m_requested_baud_rate;
+    size_t m_current_baud_rate_idx;
     boost::asio::serial_port m_port;
 };
 

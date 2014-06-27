@@ -55,32 +55,32 @@ int main(int argc, char *argv[])
 {
   po::options_description options("Command line options");
   options.add_options()
-    ("version,V", "print version and exit")
-    ("help,h",    "print help message and exit")
-    
-    ("listen-address", po::value<std::string>()->default_value("::"),
-     "server listening address (IPv4 in dotted decimal form or IPv6 in hex notation)")
-
-    ("listen-port", po::value<unsigned short>()->default_value(23000),
-     "server listening port")
-
     ("mrc-serial-port", po::value<std::string>(),
-     "connect to MRC using the given serial port (conflicts with mrc-host)")
+     "Connect to MRC using the given serial port (conflicts with mrc-host).")
 
-    ("mrc-baud-rate", po::value<unsigned int>()->default_value(9600),
-     "baud rate to use for the serial port")
+    ("mrc-baud-rate", po::value<unsigned int>()->default_value(0),
+     "Baud rate to use for the serial port. 0 means auto-detect.")
 
     ("mrc-host", po::value<std::string>(),
-     "connect to MRC using a TCP connection to the given host (conflicts with mrc-serial-port)")
+     "Connect to MRC using a TCP connection to the given host (conflicts with mrc-serial-port).")
 
     ("mrc-port", po::value<unsigned short>()->default_value(4001),
-     "port number to connect to if using TCP")
+     "Port number to connect to if using TCP.")
+
+    ("listen-address", po::value<std::string>()->default_value("::"),
+     "Server listening address (IPv4 in dotted decimal form or IPv6 in hex notation).")
+
+    ("listen-port", po::value<unsigned short>()->default_value(23000),
+     "Server listening port.")
 
     ("verbose,v", accumulator<int>(),
-     "increase verbosity level (can be used multiple times)")
+     "Increase verbosity level (can be used multiple times).")
 
     ("quiet,q", accumulator<int>(),
-     "decrease verbosity level (can be used multiple times)")
+     "Decrease verbosity level (can be used multiple times).")
+
+    ("version,V", "Print version and exit.")
+    ("help,h",    "Print help message and exit.")
     ;
 
   po::variables_map option_map;
@@ -95,7 +95,18 @@ int main(int argc, char *argv[])
 
   if (option_map.count("help")) {
     std::cout << "mesycontrol_server version " << g_GIT_VERSION << std::endl;
-    std::cout << options << std::endl;
+    std::cout << std::endl << options << std::endl;
+    std::cout << "Examples:"
+      << std::endl << "$ mesycontrol_server --mrc-serial-port /dev/ttyUSB0"
+      << std::endl << "  -> Use the first USB serial port and auto-detect the baud rate."
+      << std::endl
+      << std::endl << "$ mesycontrol_server --mrc-host example.com --mrc-port 8192"
+      << std::endl << "  -> Connect to the serial server listening on example.com:8192."
+      << std::endl
+      << std::endl << "$ mesycontrol_server --mrc-serial-port /dev/ttyUSB0 --listen-address 127.0.0.1"
+      << std::endl << "  -> Serial connection but make the server listen only on the loopback device."
+      << std::endl;
+      ;
     return exit_success;
   }
 
