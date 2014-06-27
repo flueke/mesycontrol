@@ -4,6 +4,8 @@
 #include <map>
 #ifndef __MINGW32__
 #include <arpa/inet.h>
+#else
+#include <Winsock2.h>
 #endif
 #include <stdexcept>
 #include "protocol.h"
