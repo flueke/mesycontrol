@@ -33,7 +33,7 @@ def parse_etree_element(element):
         config.device_configs.append(parse_device_config(config_node))
 
     for connection_node in element.iter('connection_config'):
-        config.mrc_connections.append(parse_connection_config(connection_node))
+        config.connection_configs.append(parse_connection_config(connection_node))
 
     return config
 
@@ -134,7 +134,7 @@ def to_etree(config):
     tb = TreeBuilder()
     tb.start("mesycontrol", {})
 
-    for obj in config.mrc_connections:
+    for obj in config.connection_configs:
         _connection_config_to_etree(obj, tb)
 
     for obj in config.device_configs:

@@ -6,23 +6,72 @@
 # - Device descriptions used to read and write config files
 
 import logging
-import os
 import signal
 import sys
 from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import pyqtSlot
 from PyQt4.Qt import Qt
 import mesycontrol.util
+from mesycontrol import config
 from mesycontrol import config_xml
 from mesycontrol import application_model
 from mesycontrol import mrc_connection
-from mesycontrol.mrc_treeview import MRCTreeView
+from mesycontrol import util
+from mesycontrol.mrc_treeview import MRCTreeView, MRCTreeWidget
 from mesycontrol.generic_device_widget import GenericDeviceWidget
 from mesycontrol.setup import SetupBuilder, SetupLoader
 
-#import projex
-#projex.requires('projexui')
-#from projexui.widgets.xconsoleedit import XConsoleEdit
+class ConnectDialog(QtGui.QDialog):
+    def __init__(self, parent=None):
+        super(ConnectDialog, self).__init__(parent)
+
+        uic.loadUi(application_model.instance.find_data_file('ui/connect_dialog.ui'), self)
+        self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(False)
+        self.combo_serial_port.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+')))
+        self.le_tcp_host.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+')))
+        self.le_mesycontrol_host.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+')))
+        self.le_tcp_host.setText('localhost')
+        self.le_mesycontrol_host.setText('localhost')
+
+        for port in util.list_serial_ports():
+            self.combo_serial_port.addItem(port)
+
+        for le in self.findChildren(QtGui.QLineEdit):
+            le.textChanged.connect(self._validate_inputs)
+
+        for combo in self.findChildren(QtGui.QComboBox):
+            combo.currentIndexChanged.connect(self._validate_inputs)
+            combo.editTextChanged.connect(self._validate_inputs)
+
+        self.stacked_widget.currentChanged.connect(self._validate_inputs)
+        self._validate_inputs()
+
+    @pyqtSlot()
+    def _validate_inputs(self):
+        page_widget = self.stacked_widget.currentWidget()
+        is_ok       = True
+
+        for le in page_widget.findChildren(QtGui.QLineEdit):
+            is_ok = is_ok and le.hasAcceptableInput()
+
+        self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(is_ok)
+
+    @pyqtSlot()
+    def accept(self):
+        self.connection_config      = config.MRCConnectionConfig()
+
+        idx = self.stacked_widget.currentIndex()
+        if idx == 0:
+            self.connection_config.serial_device    = self.combo_serial_port.currentText()
+            self.connection_config.serial_baud_rate = self.combo_baud_rate.currentText()
+        elif idx == 1:
+            self.connection_config.tcp_host = self.le_tcp_host.text()
+            self.connection_config.tcp_port = self.spin_tcp_port.value()
+        elif idx == 2:
+            self.connection_config.mesycontrol_host = self.le_mesycontrol_host.text()
+            self.connection_config.mesycontrol_port = self.spin_mesycontrol_port.value()
+
+        super(ConnectDialog, self).accept()
 
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, parent = None):
@@ -30,15 +79,16 @@ class MainWindow(QtGui.QMainWindow):
         QtCore.QCoreApplication.instance().aboutToQuit.connect(self.on_qapp_quit)
         self.app_model = application_model.instance
         uic.loadUi(self.app_model.find_data_file('ui/mainwin.ui'), self)
-        self.mrc_tree  = MRCTreeView(self)
-        self.mrc_tree.sig_open_device_window.connect(self._slt_open_device_window)
-        self._add_subwindow(self.mrc_tree, "Device Tree")
-        self.app_model.sig_connection_added.connect(self.mrc_tree.slt_connection_added)
+
+        self.mrc_tree_widget = MRCTreeWidget(parent=self)
+        self.app_model.sig_mrc_added.connect(self.mrc_tree_widget.tree_view.model().add_mrc)
+        self._add_subwindow(self.mrc_tree_widget, "Device Tree")
+
+        #self.mrc_tree  = MRCTreeView(self)
+        #self.mrc_tree.sig_open_device_window.connect(self._slt_open_device_window)
+        #self._add_subwindow(self.mrc_tree, "Device Tree")
+        #self.app_model.sig_connection_added.connect(self.mrc_tree.slt_connection_added)
         self._device_windows = {}
-        #self.python_console = XConsoleEdit(self)
-        #self.python_console.setShowDetails(False)
-        #self.python_console.setLineWrapMode(XConsoleEdit.WidgetWidth)
-        #self._add_subwindow(self.python_console, "Python Console")
 
     def on_qapp_quit(self):
         logging.info("Exiting...")
@@ -46,50 +96,13 @@ class MainWindow(QtGui.QMainWindow):
 
     @pyqtSlot()
     def on_actionConnect_triggered(self):
-        text, ok = QtGui.QInputDialog.getText(self, "Connect to MRC", "device@baud or host:port",
-                text = "/dev/ttyUSB0@115200")
+        dialog = ConnectDialog(self)
+        result = dialog.exec_()
 
-        if not ok:
+        if result != QtGui.QDialog.Accepted:
             return
 
-        mrc_serial_port = mrc_baud_rate = None
-        mrc_host = mrc_port = None
-        text  = str(text)
-        parts = text.split('@')
-
-        if len(parts) == 2:
-            mrc_serial_port = parts[0]
-            mrc_baud_rate   = parts[1]
-
-        parts = text.split(':')
-
-        if len(parts) == 2:
-            mrc_host = parts[0]
-            mrc_port = parts[1]
-
-        connection = mrc_connection.factory(
-                serial_port=mrc_serial_port, baud_rate=mrc_baud_rate,
-                host=mrc_host, port=mrc_port)
-
-        self.app_model.registerConnection(connection)
-        connection.connect()
-
-    @pyqtSlot()
-    def on_actionDisconnect_triggered(self):
-        print "on_actionDisconnect_triggered"
-
-    @pyqtSlot()
-    def on_actionConnectToServer_triggered(self):
-        text, ok = QtGui.QInputDialog.getText(self, "Connect to mesycontrol server", "host:port",
-                text = "localhost:23000")
-
-        if not ok:
-            return
-
-        parts = text.split(':')
-        host  = parts[0]
-        port  = int(parts[1])
-        connection = mrc_connection.factory(mesycontrol_host=host, mesycontrol_port=port)
+        connection = mrc_connection.factory(config=dialog.connection_config)
         self.app_model.registerConnection(connection)
         connection.connect()
 

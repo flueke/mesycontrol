@@ -58,10 +58,8 @@ class ParameterDescription(object):
     @staticmethod
     def fromDict(d):
         ret = ParameterDescription(d['address'])
-        log = logging.getLogger("ParameterDescription")
         for k, v in d.iteritems():
             if not hasattr(ret, k):
-                #log.warning("Invalid attribute '%s'" % k)
                 pass
             else:
                 setattr(ret, k, v)
@@ -136,10 +134,11 @@ class DeviceDescription(object):
             raise MissingAttribute(e.message)
 
 
-    @staticmethod
-    def makeGenericDescription(device_idc):
-        ret = DeviceDescription(device_idc)
-        for i in range(256):
-            ret.add_parameter(ParameterDescription(i))
+def make_generic_description(device_idc):
+    ret = DeviceDescription(device_idc)
+    ret.name = "GenericDevice(idc=%d)" % device_idc
 
-        return ret
+    for i in range(256):
+        ret.add_parameter(ParameterDescription(i))
+
+    return ret

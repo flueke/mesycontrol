@@ -1,7 +1,79 @@
-from PyQt4.QtCore import QObject, QTimer
+from PyQt4.QtCore import QObject, QTimer, pyqtProperty, pyqtSignal
 import gc
 import logging
 import weakref
+
+class NamedObject(QObject):
+    sig_name_changed = pyqtSignal(str)
+
+    def __init__(self, name=None, parent=None):
+        super(NamedObject, self).__init__(parent)
+        self.name = name
+
+    def set_name(self, name):
+        changed = False
+
+        if name is None:
+            changed = self.name is not None
+            self.setObjectName("")
+        else:
+            changed = self.name != str(name)
+            self.setObjectName(str(name))
+
+        if changed:
+            self.sig_name_changed.emit(self.name)
+
+    def get_name(self):
+        if self.objectName() is not None:
+            return str(self.objectName())
+        return None
+
+    name = pyqtProperty(str, get_name, set_name, notify=sig_name_changed)
+        
+class TreeNode(QObject):
+    """Support class for implementing the nodes of a Qt tree model."""
+
+    def __init__(self, ref, parent):
+        super(TreeNode, self).__init__(parent)
+        self.ref        = ref
+        self.children   = []
+        self._checkable = False
+
+    def get_ref(self):
+        return self._ref() if self._ref is not None else None
+
+    def set_ref(self, ref):
+        self._ref = weakref.ref(ref) if ref is not None else None
+
+    def get_row(self):
+        if self.parent() is not None:
+            return self.parent().children.index(self)
+        return 0
+
+    def flags(self, column):
+        raise NotImplementedError()
+
+    def data(self, column, role):
+        raise NotImplementedError()
+
+    def set_data(self, column, value, role):
+        raise NotImplementedError()
+
+    def context_menu(self):
+        return None
+
+    def set_checkable(self, on_off, recurse=True):
+        self._checkable = on_off
+        if recurse:
+            for child in self.children:
+                child.set_checkable(on_off, True)
+
+    def is_checkable(self):
+        return self._checkable
+
+    ref       = pyqtProperty(object, get_ref, set_ref)
+    row       = pyqtProperty(int, get_row)
+    checkable = pyqtProperty(bool, is_checkable, set_checkable)
 
 class GarbageCollector(QObject):
     '''
@@ -154,3 +226,12 @@ def make_logging_source_adapter(logger_name, object_instance):
     return logging.LoggerAdapter(
             logging.getLogger(logger_name),
             dict(source=weakref.ref(object_instance)))
+
+def list_serial_ports():
+    import glob
+    ret = list()
+    ret.extend(glob.glob("/dev/ttyUSB?"))
+    ret.extend(glob.glob("/dev/ttyUSB??"))
+    ret.extend(glob.glob("/dev/ttyS?"))
+    ret.extend(glob.glob("/dev/ttyS??"))
+    return ret

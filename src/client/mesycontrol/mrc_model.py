@@ -3,14 +3,13 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 import weakref
-from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import pyqtProperty
 from protocol import Message
 from device_model import DeviceModel
 import util
 
-class MRCModel(QtCore.QObject):
+class MRCModel(util.NamedObject):
     sig_connecting            = pyqtSignal()
     sig_connected             = pyqtSignal()
     sig_disconnected          = pyqtSignal()
@@ -35,9 +34,12 @@ class MRCModel(QtCore.QObject):
     #: Args: bus, dev, rc_status
     sig_rc_set           = pyqtSignal(int, int, bool)
 
+    sig_device_added     = pyqtSignal(DeviceModel)
+
     def __init__(self, connection, parent=None):
-        super(MRCModel, self).__init__(parent)
-        self.device_models = {0:{}, 1:{}}
+        super(MRCModel, self).__init__(parent=parent)
+        self.device_models = {0:{}, 1:{}, 'lost':{}}
+        self._busses_scanned = set()
         self._ready = False
         self.log = util.make_logging_source_adapter(__name__, self)
 
@@ -48,8 +50,10 @@ class MRCModel(QtCore.QObject):
         connection.sig_connection_error.connect(self.sig_connection_error)
         connection.sig_idle.connect(self.sig_idle)
         connection.sig_message_sent.connect(self.sig_message_sent)
+        connection.sig_message_received.connect(self.sig_message_received)
         connection.sig_message_received.connect(self._slt_message_received)
         connection.sig_response_received.connect(self.sig_response_received)
+        connection.sig_response_received.connect(self._slt_response_received)
         connection.sig_notification_received.connect(self.sig_notification_received)
         connection.sig_error_received.connect(self.sig_error_received)
         connection.sig_write_access_changed.connect(self.sig_write_access_changed)
@@ -58,10 +62,8 @@ class MRCModel(QtCore.QObject):
     def get_connection(self):
         return self._connection() if self._connection is not None else None
 
-    connection = pyqtProperty(object, get_connection)
-
-    def get_mrc_address_string(self):
-        return self.connection.get_info()
+    def is_connected(self):
+        return self.connection.is_connected() if self.connection is not None else False
 
     def scanbus(self, bus, response_handler=None):
         self.connection.send_message(
@@ -90,42 +92,56 @@ class MRCModel(QtCore.QObject):
 
     def _slt_disconnected(self):
         self._ready = False
+        self._busses_scanned = set()
         self.sig_disconnected.emit()
 
     def _slt_message_received(self, msg):
         self.log.debug("Received message=%s", msg)
 
         if msg.get_type_name() == 'response_scanbus':
+            self._busses_scanned.add(msg.bus)
+
             for dev in range(16):
                 idc, rc = msg.bus_data[dev]
-
-                model = self.device_models[msg.bus].get(dev, None)
+                model   = self.device_models[msg.bus].get(dev, None)
 
                 if idc <= 0 and model is not None:
-                    # TODO: device disappeared
-                    pass
+                    self.log.debug("%s @ (%d,%d) disappeared", model, msg.bus, dev)
+                    model.set_disconnected_from_bus(True)
                 elif idc > 0:
                     # Device present
                     if rc in (0, 1):
                         # Device present and ok
                         if model is None:
+                            # New device
                             model = DeviceModel(msg.bus, dev, idc, rc, mrc_model=self, parent=self)
                             self.device_models[msg.bus][dev] = model
+                            self.sig_device_added.emit(model)
+                            self.log.debug("Added %s", model)
                         elif model.idc != idc:
-                            # TODO: handle device changed. Create a model for
-                            # the new device. Somehow tell the old device that
-                            # it's disconnected. Also signal that the device
-                            # was removed.
-                            pass
+                            # IDC changed
+                            self.log.warning("IDC changed on (%d,%d): %d -> %d (model=%s)",
+                                    msg.bus, dev, model.idc, idc, model)
+                            model.set_disconnected_from_bus(True)
+                            self.device_models['lost'][dev] = model
+                            model = DeviceModel(msg.bus, dev, idc, rc, mrc_model=self, parent=self)
+                            self.device_models[msg.bus][dev] = model
+                            self.sig_device_added.emit(model)
+                            self.log.debug("Added %s", model)
                         elif model.rc != rc:
                             # Device stayed the same but rc changed.
                             model.rc = rc
                             model.sig_rc_set.emit(rc)
                     else:
-                        # TODO: Address conflict
-                        pass
+                        # RC not in (0, 1) -> address conflict
+                        if model is None:
+                            model = DeviceModel(msg.bus, dev, idc, rc, mrc_model=self, parent=self)
+                            self.device_models[msg.bus][dev] = model
+                            self.sig_device_added.emit(model)
+                            self.log.debug("Added %s", model)
+                        model.set_address_conflict(True)
                         
-            if msg.bus == 1 and not self._ready:
+            if not self._ready and len(self._busses_scanned) >= 2:
                 self._ready = True
                 self.sig_ready.emit()
 
@@ -135,3 +151,12 @@ class MRCModel(QtCore.QObject):
             self.sig_parameter_set.emit(msg.bus, msg.dev, msg.par, msg.val)
         else:
             self.log.debug("Unhandled message %s", msg)
+
+    def _slt_response_received(self, request, response):
+        if (request.get_type_name() in ('request_rc_on', 'request_rc_off')
+                and not response.is_error() and response.bool_value):
+            self.sig_rc_set.emit(request.bus, request.dev,
+                    True if request.get_type_name() == 'request_rc_on' else False)
+
+    connection = pyqtProperty(object, get_connection)
+    connected  = pyqtProperty(bool, is_connected)

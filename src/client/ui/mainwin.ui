@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MesytecControl</string>
+   <string>mesycontrol</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_3">
@@ -43,8 +43,6 @@
     <addaction name="actionLoad_Setup"/>
     <addaction name="actionSave_Setup"/>
     <addaction name="actionConnect"/>
-    <addaction name="actionConnectToServer"/>
-    <addaction name="actionDisconnect"/>
     <addaction name="separator"/>
     <addaction name="action_Quit"/>
    </widget>
@@ -92,18 +90,11 @@
     <string>&amp;Connect...</string>
    </property>
   </action>
-  <action name="actionDisconnect">
-   <property name="text">
-    <string>&amp;Disconnect</string>
-   </property>
-  </action>
-  <action name="actionConnectToServer">
-   <property name="text">
-    <string>Connect to Server</string>
-   </property>
-  </action>
   <action name="actionLoad_Setup">
    <property name="text">
+    <string>Load Setup</string>
+   </property>
+   <property name="statusTip">
     <string>Load Setup</string>
    </property>
   </action>

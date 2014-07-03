@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
+from command import Callable
 from command import CommandException
 from command import SequentialCommandGroup
 from mrc_command import ReadParameter, SetParameter
@@ -38,6 +39,11 @@ class ConfigLoader(SequentialCommandGroup):
             param_descr = self.description.get_parameter_by_address(param_cfg.address)
             if param_descr is not None and param_descr.critical:
                 self.add(SetParameter(self.device, param_cfg.address, param_cfg.value))
+
+        def set_name():
+            self.device.name = self.config.name
+
+        self.add(Callable(set_name))
 
     def _start(self):
         if None in (self.device, self.config, self.description):

@@ -171,7 +171,7 @@ class SequentialCommandGroup(CommandGroup):
             cmd.start()
         except StopIteration:
             self._current = None
-            self._stopped(True)
+            self._stopped(all(cmd.is_complete() for cmd in self._commands))
 
     def _stop(self):
         if self._current is not None:
@@ -237,3 +237,22 @@ class Sleep(Command):
 
     def __str__(self):
         return "Sleep(%dms)" % self._duration_ms
+
+class Callable(Command):
+    def __init__(self, the_callable, parent=None):
+        super(Callable, self).__init__(parent)
+        self._callable = the_callable
+        self._result   = None
+
+    def _start(self):
+        self._result = self._callable()
+        self._stopped(True)
+
+    def _stop(self):
+        pass
+
+    def _get_result(self):
+        return self._result
+
+    def _has_failed(self):
+        return False

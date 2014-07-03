@@ -124,17 +124,17 @@ class ServerProcess(QtCore.QObject):
     def get_exit_code_string(self):
         return self.exit_codes.get(self.get_exit_code(), "exit_unknown_error")
 
-    def get_mrc_address_string(self):
-        if self.mrc_serial_port is not None:
-            return "%s@%d" % (self.mrc_serial_port, int(self.mrc_baud_rate))
-        elif self.mrc_host is not None:
-            return "%s:%d" % (self.mrc_host, int(self.mrc_port))
-
     def get_verbosity(self):
         return self._verbosity
 
     def set_verbosity(self, verbosity):
         self._verbosity = int(verbosity)
+
+    def get_info(self):
+        if self.mrc_serial_port is not None:
+            return "%s@%d" % (self.mrc_serial_port, self.mrc_baud_rate)
+        elif self.mrc_host is not None:
+            return "%s:%d" % (self.mrc_host, self.mrc_port)
 
     #: Set the server processes verbosity. Only affects newly started server
     #: processes.

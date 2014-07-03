@@ -6,16 +6,16 @@ from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtProperty
 from PyQt4.QtCore import pyqtSignal
 
-import application_model
-from device_description import DeviceDescription
+import util
 from mrc_connection import MesycontrolConnection, LocalMesycontrolConnection
 
-class Config(QtCore.QObject):
+class Config(util.NamedObject):
     def __init__(self, parent=None):
         super(Config, self).__init__(parent)
-        self.mrc_connections     = []
+        self.connection_configs  = []
         self.device_configs      = []
         self.device_descriptions = []
+        # More params here: name, description, date, source file?
 
 class MRCConnectionConfigError(Exception):
     pass
@@ -24,7 +24,7 @@ class MRCConnectionConfig(QtCore.QObject):
     """MRC connection configuration. Possible connection types are serial, tcp
     and mesycontrol_server."""
 
-    def __init__(self, parent=None, **kwargs):
+    def __init__(self, parent=None):
         super(MRCConnectionConfig, self).__init__(parent)
         self.reset()
 
@@ -151,6 +151,9 @@ class DeviceConfig(QtCore.QObject):
     """Mesytec device configuration containing ParameterConfig instances.
     Optionally an MRCConnectionConfig name, bus and device numbers may be
     specified."""
+
+    sig_name_changed = pyqtSignal(str)
+
     def __init__(self, device_idc, parent=None):
         super(DeviceConfig, self).__init__(parent)
         self.device_idc         = device_idc
@@ -165,6 +168,7 @@ class DeviceConfig(QtCore.QObject):
 
     def set_name(self, name):
         self._name = str(name)
+        self.sig_name_changed.emit(self.name)
 
     def get_connection_name(self):
         return self._connection_name
@@ -215,7 +219,7 @@ class DeviceConfig(QtCore.QObject):
         return list(self._parameters)
 
     device_idc          = pyqtProperty(int, get_device_idc, set_device_idc)
-    name                = pyqtProperty(str, get_name, set_name)
+    name                = pyqtProperty(str, get_name, set_name, notify=sig_name_changed)
     connection_name     = pyqtProperty(str, get_connection_name, set_connection_name)
     bus_number          = pyqtProperty(int, get_bus_number, set_bus_number)
     device_address      = pyqtProperty(int, get_device_address, set_device_address)
@@ -230,49 +234,40 @@ class ParameterConfig(QtCore.QObject):
     def get_address(self):
         return self._address
 
-    def set_address(self, address):
-        self._address = int(address)
-        self.address_changed.emit(self.address)
-
     def get_value(self):
         return self._value
 
     def set_value(self, value):
         self._value = int(value)
-        self.value_changed.emit(self.value)
+        self.sig_value_changed.emit(self.value)
 
     def get_alias(self):
         return self._alias
 
     def set_alias(self, alias):
         self._alias = str(alias)
-        self.alias_changed.emit(self.alias)
+        self.sig_alias_changed.emit(self.alias)
 
-    address_changed = pyqtSignal(int)
-    value_changed   = pyqtSignal(int)
-    alias_changed   = pyqtSignal(str)
+    sig_value_changed   = pyqtSignal(int)
+    sig_alias_changed   = pyqtSignal(str)
 
     #: Numeric parameter address.
-    address = pyqtProperty(int, get_address, set_address, notify=address_changed)
+    address = pyqtProperty(int, get_address)
     #: The parameters unsigned short value.
-    value   = pyqtProperty(int, get_value, set_value, notify=value_changed)
+    value   = pyqtProperty(int, get_value, set_value, notify=sig_value_changed)
     #: Optional user defined alias for the parameter.
-    alias   = pyqtProperty(str, get_alias, set_alias, notify=alias_changed)
+    alias   = pyqtProperty(str, get_alias, set_alias, notify=sig_alias_changed)
 
-def make_device_config(device_model, device_description=None):
-    if device_description is None:
-        device_description = application_model.instance.get_device_description_by_idc(device_model.idc)
-
-    if device_description is None:
-        device_description = DeviceDescription.makeGenericDescription(device_model.idc)
-
-    device_config = DeviceConfig(device_model.idc)
-    device_config.bus_number     = device_model.bus
-    device_config.device_address = device_model.dev
+def make_device_config(device_model):
+    device_config                 = DeviceConfig(device_model.idc)
+    device_config.name            = device_model.name
+    device_config.bus_number      = device_model.bus
+    device_config.device_address  = device_model.dev
+    device_config.connection_name = device_model.mrc.name
 
     param_filter = lambda pd: not pd.read_only and not pd.do_not_store
 
-    for param_description in filter(param_filter, device_description.parameters.values()):
+    for param_description in filter(param_filter, device_model.description.parameters.values()):
         address = param_description.address
         value   = device_model.memory.get(address)
         
@@ -281,7 +276,8 @@ def make_device_config(device_model, device_description=None):
     return device_config
 
 def make_connection_config(connection):
-    ret = MRCConnectionConfig()
+    ret      = MRCConnectionConfig()
+    ret.name = connection.mrc.name
 
     if type(connection) is LocalMesycontrolConnection:
         server = connection.server
@@ -294,5 +290,7 @@ def make_connection_config(connection):
     elif type(connection) is MesycontrolConnection:
         ret.mesycontrol_host = connection.host
         ret.mesycontrol_port = connection.port
+    else:
+        raise RuntimeError("Unhandled connection type %s" % type(connection).__name__)
 
     return ret

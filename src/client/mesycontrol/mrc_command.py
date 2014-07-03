@@ -17,9 +17,14 @@ class MRCCommand(Command):
         super(MRCCommand, self).__init__(parent)
         self._response = None
         mrc.sig_disconnected.connect(self._handle_disconnected)
+        mrc.sig_connection_error.connect(self._handle_connection_error)
 
     def _handle_disconnected(self):
         self._exception = RuntimeError("Disconnected from server")
+        self._stopped(False)
+
+    def _handle_connection_error(self, err_object):
+        self._exception = err_object
         self._stopped(False)
 
     def _handle_response(self, request, response):

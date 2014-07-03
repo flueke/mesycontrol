@@ -7,6 +7,8 @@ from PyQt4.QtCore import pyqtSignal
 import logging
 import os
 
+import device_description
+
 def find_data_dir(main_file):
     """Locates the directory used for data files.
     Recursively follows symlinks until the location of main_file is known.
@@ -28,6 +30,7 @@ class ApplicationModel(QtCore.QObject):
     """
 
     sig_connection_added = pyqtSignal(object)
+    sig_mrc_added        = pyqtSignal(object)
 
     def __init__(self, main_file, parent = None):
         super(ApplicationModel, self).__init__(parent)
@@ -36,8 +39,9 @@ class ApplicationModel(QtCore.QObject):
         self.bin_dir   = os.path.abspath(os.path.dirname(main_file))
         self.data_dir  = find_data_dir(main_file)
 
-        logging.getLogger(__name__).info("bin_dir =%s", self.bin_dir)
-        logging.getLogger(__name__).info("data_dir=%s", self.data_dir)
+        logging.getLogger(__name__).info("main_file=%s", self.main_file)
+        logging.getLogger(__name__).info("bin_dir  =%s", self.bin_dir)
+        logging.getLogger(__name__).info("data_dir =%s", self.data_dir)
 
         self.device_descriptions = set()
         self.mrc_connections = list()
@@ -48,6 +52,7 @@ class ApplicationModel(QtCore.QObject):
         conn.setParent(self)
         self.mrc_connections.append(conn)
         self.sig_connection_added.emit(conn)
+        self.sig_mrc_added.emit(conn.mrc)
 
     def unregisterConnection(self, conn):
         if conn in self.mrc_connections:
@@ -61,6 +66,8 @@ class ApplicationModel(QtCore.QObject):
         assert len(self.mrc_connections) == 0
 
     def load_system_descriptions(self):
+        # FIXME: use globbing to get the list of files to import (and make
+        # cxfreeze distutils install those files to a location outside the zip)
         import importlib
         for mod_name in ('device_description_mhv4', 'device_description_mhv4_800v', 'device_description_mscf16'):
             mod = importlib.import_module('mesycontrol.' + mod_name)
@@ -70,13 +77,16 @@ class ApplicationModel(QtCore.QObject):
         try:
             return filter(lambda d: d.idc == idc, self.device_descriptions)[0]
         except IndexError:
-            return None
+            return device_description.make_generic_description(idc)
 
     def get_device_description_by_name(self, name):
         try:
             return filter(lambda d: d.name == name, self.device_descriptions)[0]
         except IndexError:
-            return None
+            raise RuntimeError("No device description for name %s" % name)
+
+    def get_device_name_by_idc(self, idc):
+        return self.get_device_description_by_idc(idc).name
 
     def find_data_file(self, filename):
         return os.path.join(self.data_dir, filename)
