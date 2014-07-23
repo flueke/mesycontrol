@@ -178,7 +178,7 @@ class DeviceNode(TreeNode):
 class MRCTreeModel(QtCore.QAbstractItemModel):
     def __init__(self, parent=None):
         super(MRCTreeModel, self).__init__(parent)
-        self.root = TreeNode(None, None)
+        self.root = TreeNode(None)
         self.setup_edit_mode = False
 
     def set_setup_edit_mode(self, edit_mode_on_off):
@@ -272,23 +272,6 @@ class MRCTreeModel(QtCore.QAbstractItemModel):
             return ret
         return super(MRCTreeModel, self).setData(idx, value, role)
 
-class MRCTreeWidget(QtGui.QWidget):
-    def __init__(self, model=None, parent=None):
-        super(MRCTreeWidget, self).__init__(parent)
-        edit_mode_button = QtGui.QPushButton("Setup Edit Mode", toggled=self._slt_edit_mode_toggled)
-        edit_mode_button.setCheckable(True)
-        edit_mode_button.setChecked(False)
-
-        self.tree_view = MRCTreeView(model, self)
-
-        layout = QtGui.QVBoxLayout()
-        layout.addWidget(edit_mode_button)
-        layout.addWidget(self.tree_view)
-        self.setLayout(layout)
-
-    def _slt_edit_mode_toggled(self, on_off):
-        self.tree_view.model().set_setup_edit_mode(on_off)
-
 class MRCTreeView(QtGui.QTreeView):
     def __init__(self, model=None, parent=None):
         super(MRCTreeView, self).__init__(parent)
@@ -324,3 +307,21 @@ class MRCTreeView(QtGui.QTreeView):
             node = idx.internalPointer()
             if hasattr(node, 'double_clicked'):
                 node.double_clicked()
+
+class MRCTreeWidget(QtGui.QWidget):
+    def __init__(self, model=None, parent=None):
+        super(MRCTreeWidget, self).__init__(parent)
+        edit_mode_button = QtGui.QPushButton("Setup Edit Mode", toggled=self._slt_edit_mode_toggled)
+        edit_mode_button.setCheckable(True)
+        edit_mode_button.setChecked(False)
+
+        self.tree_view = MRCTreeView(model, self)
+
+        layout = QtGui.QVBoxLayout()
+        layout.addWidget(edit_mode_button)
+        layout.addWidget(self.tree_view)
+        self.setLayout(layout)
+
+    def _slt_edit_mode_toggled(self, on_off):
+        self.tree_view.model().set_setup_edit_mode(on_off)
+

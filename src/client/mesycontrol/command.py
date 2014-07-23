@@ -54,6 +54,8 @@ class Command(QtCore.QObject):
             self._exception    = e
             self._exception_tb = sys.exc_info()[2]
             self._stopped(False)
+        finally:
+            return self
 
     def stop(self):
         if self.is_running() and not self.is_stopping():

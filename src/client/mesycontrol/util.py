@@ -1,4 +1,5 @@
 from PyQt4.QtCore import QObject, QTimer, pyqtProperty, pyqtSignal
+from PyQt4.QtCore import Qt
 import gc
 import logging
 import weakref
@@ -33,11 +34,12 @@ class NamedObject(QObject):
 class TreeNode(QObject):
     """Support class for implementing the nodes of a Qt tree model."""
 
-    def __init__(self, ref, parent):
+    def __init__(self, ref, parent=None):
         super(TreeNode, self).__init__(parent)
-        self.ref        = ref
-        self.children   = []
-        self._checkable = False
+        self.ref         = ref
+        self.children    = list()
+        self._checkable  = False
+        self._checkstate = Qt.Unchecked
 
     def get_ref(self):
         return self._ref() if self._ref is not None else None
@@ -71,9 +73,16 @@ class TreeNode(QObject):
     def is_checkable(self):
         return self._checkable
 
-    ref       = pyqtProperty(object, get_ref, set_ref)
-    row       = pyqtProperty(int, get_row)
-    checkable = pyqtProperty(bool, is_checkable, set_checkable)
+    def set_checkstate(self, check_state):
+        self._checkstate = check_state
+
+    def get_checkstate(self):
+        return self._checkstate
+
+    ref         = pyqtProperty(object, get_ref, set_ref)
+    row         = pyqtProperty(int, get_row)
+    checkable   = pyqtProperty(bool, is_checkable, set_checkable)
+    check_state = pyqtProperty(int, get_checkstate, set_checkstate)
 
 class GarbageCollector(QObject):
     '''
@@ -229,9 +238,8 @@ def make_logging_source_adapter(logger_name, object_instance):
 
 def list_serial_ports():
     import glob
-    ret = list()
-    ret.extend(glob.glob("/dev/ttyUSB?"))
-    ret.extend(glob.glob("/dev/ttyUSB??"))
-    ret.extend(glob.glob("/dev/ttyS?"))
-    ret.extend(glob.glob("/dev/ttyS??"))
+    patterns = ("/dev/ttyUSB?", "/dev/ttyUSB??", "/dev/ttyS?", "/dev/ttyS??")
+    ret      = list()
+    for p in patterns:
+        ret.extend(sorted(glob.glob(p)))
     return ret

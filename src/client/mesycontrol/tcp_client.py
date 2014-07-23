@@ -95,6 +95,10 @@ class TCPClient(QtCore.QObject):
     def is_connected(self):
         return self._socket.state() == QtNetwork.QAbstractSocket.ConnectedState
 
+    def is_connecting(self):
+        return self._socket.state() in (QtNetwork.QAbstractSocket.ConnectingState,
+                QtNetwork.QAbstractSocket.HostLookupState)
+
     def request_in_progress(self):
         return self._current_request is not None
 

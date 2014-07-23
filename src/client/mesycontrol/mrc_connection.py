@@ -5,7 +5,6 @@
 from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtSignal, pyqtProperty
 from protocol import Message
-from mrc_model import MRCModel
 from util import parse_connection_url
 import tcp_client
 import server_process
@@ -39,26 +38,28 @@ class AbstractConnection(QtCore.QObject):
         super(AbstractConnection, self).__init__(parent)
         self._write_access = False
         self._silenced     = False
-        self._mrc_model    = MRCModel(self, self)
 
     def connect(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def disconnect(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def is_connected(self):
-        raise NotImplemented()
+        raise NotImplementedError()
+
+    def is_connecting(self):
+        raise NotImplementedError()
 
     def send_message(self, msg, response_handler=None):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def get_info(self):
         """Returns an info string for this connection."""
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def get_tx_queue_size(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def has_write_access(self):
         return self._write_access
@@ -78,11 +79,6 @@ class AbstractConnection(QtCore.QObject):
         self.send_message(Message('request_set_silent_mode', bool_value=silenced),
                 response_handler)
 
-    def get_mrc_model(self):
-        return self._mrc_model
-
-    mrc          = pyqtProperty(object, get_mrc_model)
-    mrc_model    = pyqtProperty(object, get_mrc_model)
     write_access = pyqtProperty(bool, has_write_access, set_write_access,
             notify=sig_write_access_changed)
 
@@ -140,6 +136,9 @@ class MesycontrolConnection(AbstractConnection):
 
     def is_connected(self):
         return self._client.is_connected()
+
+    def is_connecting(self):
+        return self._client.is_connecting()
 
     def send_message(self, msg, response_handler=None):
         self._client.send_message(msg, response_handler)
@@ -214,8 +213,6 @@ class LocalMesycontrolConnection(MesycontrolConnection):
         self.sig_connection_error.emit(ConnectionError(
             exit_code_string, exit_code, error_string, process_error))
 
-# TODO: add VirtualConnection
-
 def factory(**kwargs):
     """Connection factory.
     Supported keyword arguments in order of priority:
@@ -252,7 +249,6 @@ def factory(**kwargs):
         else:
             raise RuntimeError("Could not create connection from %s" % str(config))
 
-        ret.mrc.name = config.name
         return ret
 
     elif url is not None:

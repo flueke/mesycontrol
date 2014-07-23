@@ -154,3 +154,305 @@ def on_edit_finished(self, txt):
 => MRCConfig observes MRCConnection and MRCModel
 => DeviceConfig observes DeviceModel (bleh, DeviceModel does not have aliases for parameters)
 => DeviceModel needs access to ParameterConfig (alias, value)
+
+==================================================
+class ScanbusResult(object):
+    def __init__(self, bus):
+        self.bus  = bus
+        self.data = [(0, 0) for i in range(16)]
+
+    def has_device(self, address):
+        return self.data[address][0] > 0
+
+    def has_address_conflict(self, address):
+        return self.data[address][1] not in (0, 1)
+
+def test_idc_change():
+    scanbus_result = ScanbusResult(bus=0)
+    scanbus_result.data[0] = (17, 1)
+
+    mrc = MRCModel()
+    mrc.set_scanbus_result(scanbus_result)
+
+* Application Model
+setup1
+    mrc1
+        mrcconfig1          # What's in here? Connection config and name?
+        mrcmodel1
+        dev1
+            devmodel1
+            devconfig1
+            devdescr1
+
+        dev2
+            devconfig2
+            devdescr2
+
+    mrc2
+        dev1
+        dev2
+
+setup2
+    mrc1
+        mrcconfig1_2        # Conflicts with mrcconfig1. Update: The connection information is the same
+                            # as it's the same MRC. Name and description might differ though.
+        mrcmodel1
+        dev1_2
+            devmodel1
+            devconfig1_2    # conflicts with devconfig1
+            devdescr1_2     # conflicts with devdescr1
+
+        dev3
+            devconfig3
+            devdescr3
+
+
+* HW Model
+mrcmodel1
+    devmodel1
+
+* HW/SW Connection
+mrcbackend1
+    mrcconnection1
+    mrcmodel1
+    mrccontroller1
+
+mrcconnection1  -> mrcmodel1        <- view, controller
+               <-  mrccontroller1   <- controller
+
+* Setup Model
+setup1
+    mrcconfig1
+        devconfig1
+    devdescr1
+
+=== Application Model ===
+== Hardware Model ==
+MRCModel
+    DeviceModel
+
+Read access for the application, write access for a controller to propagate
+hardware changes into the application.
+
+== Setup Model ==
+Setup
+    MRCConfig
+        DeviceConfig
+            [DeviceDescription]
+
+== Application view on the models ==
+Setup
+    MRC
+        MRCModel
+        MRCController
+        MRCConfig
+        Device
+            DeviceModel
+            DeviceConfig
+            DeviceDescription
+            DeviceController(?)
+
+MRC combines the "passive" model, the controller and a config.
+Device combines controller, config and devicemodel. Both config and device may
+be empty (no config for a device or no device for a config).
+DeviceDescription is usually a system description but can be set from the setup
+or by the user.
+
+== Process ==
+* On manual connect:
+    Create MRCConnection
+    Create MRCModel
+    Create MRCController
+    connect connection, controller and model
+
+    
+== MRCController and DeviceController 
+Starts and keeps track of async operations.
+
+controller.read_parameter(bus=0, dev=1, address=32, started=self._read_started, stopped=self._read_stopped)
+
+-> Controller creates a read_parameter message and asks the connection to send
+it. At a later point the connection calls back on the controller with the
+result. The controller then modifies the DeviceModel if needed -> GUI gets
+updated.
+The controller should know about outstanding commands and should keep track of
+failed commands.
+On error a flag on the DeviceModel could be set.
+The user should be able to specify a callback to be called on request completion.
+
+Higher level:
+Device has DeviceModel and DeviceConfig. User issues a "load config" action via context menu.
+-> Multiple parameters have to be loaded.
+-> Progress should be reported
+-> Command class needed!
+
+controller.load_config(bus=0, dev=1, config=self.config,
+    started=self._load_started, stopped=self._load_stopped, progress_changed=self._load_progress_changed)
+
+xxx: From an application view loading a config needs more action that just
+applying the config values to the device: Device.config needs to be updated.
+The new config might have a different Setup root than the old config. -> Node
+needs to move in a tree view.
+
+dev1.config is config1 from setup1
+action: load config2 from setup2 into dev1
+-> set dev1.config to config2
+-> config2 has a different root than config1 (new: setup2, old: setup1)
+-> config loader to actually apply the values
+-> UI needs move the node representing dev1.
+
+
+* scanbus result handling
+  if device_model.idc != result.idc:
+      device_model.idc = result.idc # device_model emits idc_changed
+      device reacts on device_model.idc_changed and triggers a refresh (asks
+      the controller to refresh the device memory).
+      Other parts of the GUI have to react aswell: an open widget for the old
+      idc should display an error as it is not intended for the new idc.
+      
+
+== object ownership ==
+* SetupModel is a root
+  SetupModel owns child configs
+
+* MRCModel owns child DeviceModels (and creates them on scanbus_result)
+
+* Setup
+  owns MRC instances
+
+* MRC
+    owns MRCModel
+    owns MRCController
+    ref on MRCConfig
+  
+* Device
+    ref on DeviceModel (it's owned by the parent MRCModel)
+    ref on DeviceConfig (it's owned by the the containing setup) XXX: what if there's no setup?
+
+=== Ablauf scanbus ===
+- gui scanbus click handler:
+  node.ref.scanbus(1)
+  node.ref.scanbus(2)
+
+- MRC.scanbus(self, bus):
+  self.controller.scanbus(bus)
+
+- MesycontrolMRCController.scanbus(self, bus):
+  self.connection.send_message(Message('request_scanbus', bus=bus),
+    self._handle_response)
+
+- MesycontrolMRCController.handle_response(self, request, response):
+  if response.is_scanbus_response():
+      self.mrc_model.set_scanbus_data(response.bus, response.data)
+
+- MRCModel.set_scanbus_result(self, bus, data):
+  # Bus logic here. In this example a new device is added.
+  _add_device() -> device_added.emit()
+
+- MRC receives device_added from MRCModel
+  in the handler:
+  device_controller = DeviceController(self.mrc_controller, device_model)
+  device_config     = self.mrc_config.get_device_config(
+        device_model.bus, device_model.address)
+  device_description = self.mrc_config.get_device_description(device_model.bus,
+        device_model.address, device_model.idc)
+  device = Device(device_model, device_config, device_description, device_controller)
+  self.devices.add_device(device)
+*** Ende Ablauf scanbus ***
+
+=== Ablauf manual connect ===
+- gui -> MRCConfig mrc_config
+  if has_connection(mrc_config):
+      display_error_message("Connection exists")
+      
+  mrc_controller = factory(mrc_config)
+  mrc_model      = MRCModel()
+  mrc_controller.set_model(mrc_model)
+  mrc            = MRC(mrc_model, mrc_controller, mrc_config)
+  mrc.connect()
+
+-> MRC.connect(self):
+   return self.controller.connect()
+
+
+===== Tue Jul 22 12:49:40 CEST 2014 =====
+* Commands:
+  - Connect, Disconnect (MRC)
+  - WaitForReady (mrc and device versions)
+  - Refresh (mrc (scanbus) and device (all params) versions)
+  - ReadParameter, SetParameter, ReadMirror, SetMirror, Copy, SetRC, Reset
+  - LoadSetup, LoadConfig, SaveSetup, SaveConfig
+
+* Structure
+  - Hardware Model:
+    MRCModel with DeviceModel children. Read-only view of the hardware.
+    MRCModel has a controller which handles requests and their replies. One
+    controller per MRCModel.
+  - Controller:
+    Gateway between MRCConnection and MRCModel.
+    Keeps a queue of pending requests. Receives replies and updates the model accordingly.
+    The interface is callback based: read_parameter(bus, dev, par, response_handler).
+    The response_handler is invoked once the response has been received and the
+    model has been updated. It is passed a Response object.
+    Response objects comply to an interface: is_error_response(), get_result()
+    A controller needs to be implemented for different connection types. E.g. MesycontrolController, VirtualController, ...
+    MesycontrolController just invokes MRCConnection.send_message() with the
+    appropriate Message and passing itself as the callback. Once the response
+    is received the model is updated and the original response handler is
+    invoked.
+    The controller also has to deal with notifications and connection state changes and update the model accordingly.
+
+  - Commands:
+    Implemented in terms of the controller interface only. E.g.:
+    class ReadParameter(Command):
+        def start():
+            self.mrc.controller.read_parameter(self.bus, self.dev, self.addr, self._handle_response)
+        def _handle_response(self, response):
+            self.response = response
+        def get_result(self):
+            if self.response.is_error_response():
+                raise ErrorResponse(self.response)
+            return response.get_result()
+
+    class Refresh(SequentialCommandGroup):
+        def __init__(self, device):
+            self.device = device
+            for i in range(256):
+                self.add(ReadParameter(self.device, i))
+
+        def start(self):
+            super(Refresh, self).start() # Runs each of the subcommands
+
+    class Connect(Command):
+       def __init__(self, mrc):
+          self.mrc = mrc
+
+       def start():
+          if not self.mrc.controller.is_connected():
+              self.mrc.controller.state_changed.connect(self._controller_state_changed)
+              # More state change listening here...
+              self.mrc.controller.connect() # Calls self.connection.connect()
+           else:
+               self.finished(True) # success! :)
+
+            
+
+
+  - Problems:
+    How to cancel commands once they've been started?
+        From the controllers perspective: on_disconnect():
+            for (request_message, response_handler) in self.queue:
+                response_handler(ErrorResponse("disconnected"))
+            self.queue.clear()
+
+        From the command perspective:
+            If not yet started and cancel() is called: Mark the command as finished and canceled -> that's all.
+            If it has been started: controller.cancel(something that identifies this request)
+            Solution: the controllers methods must return a handle that identifies
+            a particular request. This allows canceling of request and thus
+            canceling of commands.
+
+    Who starts commands? -> The client that created the command. Queues can
+    easily be implemented. Those queues can also take commands that are not MRC
+    or Device related. Global command registry is needed for very high level
+    commands like LoadSetup and SaveSetup.
