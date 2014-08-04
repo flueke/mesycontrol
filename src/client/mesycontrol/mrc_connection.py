@@ -89,8 +89,6 @@ class AbstractConnection(QtCore.QObject):
         """Default receive handler to be called by subclasses.
         Emits sig_notification_received, sig_error_received, etc. depending on
         the message conents.
-        Note: request/response matching is not handled by this method.
-        Subclasses have to implement it themselves.
         """
         if msg.is_notification():
             self.sig_notification_received.emit(msg)
@@ -140,8 +138,8 @@ class MesycontrolConnection(AbstractConnection):
     def is_connecting(self):
         return self._client.is_connecting()
 
-    def send_message(self, msg, response_handler=None):
-        self._client.send_message(msg, response_handler)
+    def queue_request(self, msg, response_handler=None):
+        return self._client.queue_request(msg, response_handler)
 
     def get_info(self):
         return "mesycontrol://%s:%d" % (self.host, self.port)
@@ -153,7 +151,7 @@ class MesycontrolConnection(AbstractConnection):
         self.sig_connection_error.emit(ConnectionError(errstr, errc))
 
 class LocalMesycontrolConnection(MesycontrolConnection):
-    """Starts and uses a local mesycontrol server process."""
+    """Starts and connects to a local mesycontrol server process."""
 
     #: Delay between server startup and tcp client connection attempt
     connect_delay_ms = 1000

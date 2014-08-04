@@ -33,20 +33,22 @@ from util import TreeNode
 # SetupNode
 #  - Setup
 # MRCNode
-#  - MRCModel
-#  - MRCConfig
+#  - MRC
 # DeviceNode
 #  - DeviceModel
-#  - DeviceConfig
 # Additionally:
 # BusNode
-#  - MRCModel
+#  - MRC
 #  - bus
+
+class SetupNode(TreeNode):
+    def __init__(self, setup, parent):
+        super(SetupNode, self).__init__(setup, parent)
 
 class MRCNode(TreeNode):
     def __init__(self, mrc, parent):
         super(MRCNode, self).__init__(mrc, parent)
-        self.children = [BusNode(mrc, bus, self) for bus in range(2)] # XXX: 'lost' bus will not show up
+        self.children = [BusNode(mrc, bus, self) for bus in range(2)]
 
     def flags(self, column):
         if column == 0:
@@ -59,26 +61,28 @@ class MRCNode(TreeNode):
     def data(self, column, role):
         if column == 0:
             if role in (Qt.DisplayRole, Qt.StatusTipRole, Qt.ToolTipRole):
-                if len(self.ref.name):
-                    return '%s (%s)' % (self.ref.name, self.ref.connection.get_info())
-                return 'MRC-1 at %s' % (self.ref.connection.get_info())
-            elif role == Qt.EditRole:
-                return self.ref.name
-            elif role == Qt.DecorationRole:
-                return QtGui.QColor(Qt.green)
-            elif role == Qt.BackgroundRole:
-                return QtGui.QBrush(Qt.red)
-            elif role == Qt.CheckStateRole and self.checkable:
-                return Qt.Checked
+                return str(self.ref)
+                #if len(self.ref.name):
+                #    return '%s (%s)' % (self.ref.name, self.ref.connection.get_info())
+                #return 'MRC-1 at %s' % (self.ref.connection.get_info())
+            #elif role == Qt.EditRole:
+            #    return self.ref.name
+            #elif role == Qt.DecorationRole:
+            #    return QtGui.QColor(Qt.green)
+            #elif role == Qt.BackgroundRole:
+            #    return QtGui.QBrush(Qt.red)
+            #elif role == Qt.CheckStateRole and self.checkable:
+            #    return Qt.Checked
+        return None
 
     def set_data(self, column, value, role):
-        if column == 0:
-            if role == Qt.EditRole:
-                self.ref.name = value.toString()
-                return True
-            elif role == Qt.CheckStateRole:
-                print "check0ring!"
-                return True
+        #if column == 0:
+        #    if role == Qt.EditRole:
+        #        self.ref.name = value.toString()
+        #        return True
+        #    elif role == Qt.CheckStateRole:
+        #        print "check0ring!"
+        #        return True
         return False
 
     def context_menu(self):
@@ -92,7 +96,7 @@ class MRCNode(TreeNode):
 
     def _slt_scanbus(self):
         for i in range(2):
-            self.ref.scanbus(i)
+            self.ref.model.controller.scanbus(i)
 
     def _slt_connect(self):
         self.ref.connection.connect()
@@ -104,9 +108,14 @@ class BusNode(TreeNode):
     def __init__(self, mrc, bus, parent):
         super(BusNode, self).__init__(mrc, parent)
         self.bus = bus
+        self.log = util.make_logging_source_adapter(__name__, self)
 
-        for dev in mrc.device_models[bus].iterkeys():
-            device = mrc.device_models[bus][dev]
+        devices = filter(lambda d: d.model.bus == bus, mrc.get_devices())
+
+        self.log.debug("BusNode(mrc=%s, bus=%d): %d devices present",
+                self.ref, self.bus, len(devices))
+
+        for device in devices:
             self.children.append(DeviceNode(device, self))
 
     def data(self, column, role):
@@ -123,11 +132,13 @@ class BusNode(TreeNode):
         return ret
 
     def _slt_scanbus(self):
-        self.ref.scanbus(self.bus)
+        self.ref.model.controller.scanbus(self.bus)
 
 class DeviceNode(TreeNode):
     def __init__(self, device, parent):
         super(DeviceNode, self).__init__(device, parent)
+        self.log = util.make_logging_source_adapter(__name__, self)
+        self.log.debug("DeviceNode(id=%d, device=%s, parent=%s)", id(self), self.ref, parent)
 
     def flags(self, column):
         if column in (0,):
@@ -141,27 +152,28 @@ class DeviceNode(TreeNode):
         device = self.ref
         if column == 0:
             if role in (Qt.DisplayRole, Qt.StatusTipRole, Qt.ToolTipRole):
-                name = '<unnamed>' if device.name is None else device.name
-                if not len(name):
-                    name = '<unnamed>'
-                return '%2d %s (%s, IDC=%d)' % (
-                        device.dev, name, device.description.name, device.idc)
-            elif role == Qt.EditRole:
-                return device.name
-            elif role == Qt.CheckStateRole and self.checkable:
-                return Qt.PartiallyChecked
+                return str(device)
+                #name = '<unnamed>' if device.name is None else device.name
+                #if not len(name):
+                #    name = '<unnamed>'
+                #return '%2d %s (%s, IDC=%d)' % (
+                #        device.dev, name, device.description.name, device.idc)
+            #elif role == Qt.EditRole:
+            #    return device.name
+            #elif role == Qt.CheckStateRole and self.checkable:
+            #    return Qt.PartiallyChecked
         elif column == 1:
             if role in (Qt.DisplayRole,):
-                return "on" if device.rc else "off"
+                return "on" if device.model.rc else "off"
             elif role in (Qt.StatusTipRole, Qt.ToolTipRole):
                 return "RC Status (double click to toggle)"
         return None
 
     def set_data(self, column, value, role):
-        if role == Qt.EditRole:
-            if column == 0:
-                self.ref.name = value.toString()
-                return True
+        #if role == Qt.EditRole:
+        #    if column == 0:
+        #        self.ref.name = value.toString()
+        #        return True
         return False
 
     def context_menu(self):
@@ -170,40 +182,30 @@ class DeviceNode(TreeNode):
         return ret
 
     def _slt_toggle_rc(self):
-        self.ref.set_rc(not self.ref.rc)
+        self.ref.model.controller.set_rc(not self.ref.model.rc)
 
     def double_clicked(self):
         self._slt_toggle_rc()
 
-class MRCTreeModel(QtCore.QAbstractItemModel):
+class SetupTreeModel(QtCore.QAbstractItemModel):
     def __init__(self, parent=None):
-        super(MRCTreeModel, self).__init__(parent)
+        super(SetupTreeModel, self).__init__(parent)
         self.root = TreeNode(None)
-        self.setup_edit_mode = False
-
-    def set_setup_edit_mode(self, edit_mode_on_off):
-        changed = self.setup_edit_mode != edit_mode_on_off
-        if changed:
-            for node in self.root.children:
-                node.checkable = edit_mode_on_off
-            self.setup_edit_mode = edit_mode_on_off
-            self.dataChanged.emit(QModelIndex(), QModelIndex())
-
 
     def add_mrc(self, mrc):
         mrc_node = MRCNode(mrc, self.root)
-        mrc.sig_device_added.connect(partial(self._slt_device_added, mrc_node=mrc_node))
+        mrc.device_added.connect(partial(self._on_device_added, mrc_node=mrc_node))
 
         self.beginInsertRows(QModelIndex(), len(self.root.children), len(self.root.children))
         self.root.children.append(mrc_node)
         self.endInsertRows()
 
-    def _slt_device_added(self, device, mrc_node):
-        bus_node = filter(lambda n: n.bus == device.bus, mrc_node.children)[0]
+    def _on_device_added(self, device, mrc_node):
+        bus_node = filter(lambda n: n.bus == device.model.bus, mrc_node.children)[0]
         bus_idx  = self.index(bus_node.row, 0, self.index(mrc_node.row, 0, QModelIndex()))
 
         device_node = DeviceNode(device, bus_node)
-        device.sig_rc_changed.connect(partial(self._slt_device_rc_changed, device_node=device_node))
+        device.model.rc_changed.connect(partial(self._slt_device_rc_changed, device_node=device_node))
 
         self.beginInsertRows(bus_idx, len(bus_node.children), len(bus_node.children))
         bus_node.children.append(device_node)
@@ -251,7 +253,7 @@ class MRCTreeModel(QtCore.QAbstractItemModel):
                 ret = idx.internalPointer().flags(idx.column())
             except NotImplementedError:
                 pass
-        return ret if ret is not None else super(MRCTreeModel, self).flags(idx)
+        return ret if ret is not None else super(SetupTreeModel, self).flags(idx)
 
     def data(self, idx, role=Qt.DisplayRole):
         if not idx.isValid():
@@ -270,13 +272,13 @@ class MRCTreeModel(QtCore.QAbstractItemModel):
                     self.index(idx.row(), 0, idx.parent()),
                     self.index(idx.row(), self.columnCount(idx.parent()), idx.parent()))
             return ret
-        return super(MRCTreeModel, self).setData(idx, value, role)
+        return super(SetupTreeModel, self).setData(idx, value, role)
 
-class MRCTreeView(QtGui.QTreeView):
+class SetupTreeView(QtGui.QTreeView):
     def __init__(self, model=None, parent=None):
-        super(MRCTreeView, self).__init__(parent)
+        super(SetupTreeView, self).__init__(parent)
         if model is None:
-            model = MRCTreeModel(self)
+            model = SetupTreeModel(self)
         self.setModel(model)
         model.rowsInserted.connect(self._slt_rows_inserted)
 
@@ -308,20 +310,11 @@ class MRCTreeView(QtGui.QTreeView):
             if hasattr(node, 'double_clicked'):
                 node.double_clicked()
 
-class MRCTreeWidget(QtGui.QWidget):
+class SetupTreeWidget(QtGui.QWidget):
     def __init__(self, model=None, parent=None):
-        super(MRCTreeWidget, self).__init__(parent)
-        edit_mode_button = QtGui.QPushButton("Setup Edit Mode", toggled=self._slt_edit_mode_toggled)
-        edit_mode_button.setCheckable(True)
-        edit_mode_button.setChecked(False)
-
-        self.tree_view = MRCTreeView(model, self)
+        super(SetupTreeWidget, self).__init__(parent)
+        self.setup_tree_view = SetupTreeView(model, self)
 
         layout = QtGui.QVBoxLayout()
-        layout.addWidget(edit_mode_button)
         layout.addWidget(self.tree_view)
         self.setLayout(layout)
-
-    def _slt_edit_mode_toggled(self, on_off):
-        self.tree_view.model().set_setup_edit_mode(on_off)
-

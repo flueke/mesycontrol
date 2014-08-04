@@ -14,18 +14,22 @@ from PyQt4.Qt import Qt
 import mesycontrol.util
 from mesycontrol import config
 from mesycontrol import config_xml
-from mesycontrol import application_model
+from mesycontrol import application_registry
 from mesycontrol import mrc_connection
 from mesycontrol import util
-from mesycontrol.mrc_treeview import MRCTreeView, MRCTreeWidget
-from mesycontrol.generic_device_widget import GenericDeviceWidget
+from mesycontrol import setup_treeview
+from mesycontrol import app_model
+from mesycontrol import hw_model
+from mesycontrol import mrc_controller
+#from mesycontrol.mrc_treeview import MRCTreeView, MRCTreeWidget
+#from mesycontrol.generic_device_widget import GenericDeviceWidget
 from mesycontrol.setup import SetupBuilder, SetupLoader
 
 class ConnectDialog(QtGui.QDialog):
     def __init__(self, parent=None):
         super(ConnectDialog, self).__init__(parent)
 
-        uic.loadUi(application_model.instance.find_data_file('ui/connect_dialog.ui'), self)
+        uic.loadUi(application_registry.instance.find_data_file('ui/connect_dialog.ui'), self)
         self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(False)
         self.combo_serial_port.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+')))
         self.le_tcp_host.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+')))
@@ -77,22 +81,17 @@ class MainWindow(QtGui.QMainWindow):
     def __init__(self, parent = None):
         super(MainWindow, self).__init__(parent)
         QtCore.QCoreApplication.instance().aboutToQuit.connect(self.on_qapp_quit)
-        self.app_model = application_model.instance
-        uic.loadUi(self.app_model.find_data_file('ui/mainwin.ui'), self)
+        uic.loadUi(application_registry.instance.find_data_file('ui/mainwin.ui'), self)
 
-        self.mrc_tree_widget = MRCTreeWidget(parent=self)
-        self.app_model.sig_mrc_added.connect(self.mrc_tree_widget.tree_view.model().add_mrc)
-        self._add_subwindow(self.mrc_tree_widget, "Device Tree")
-
-        #self.mrc_tree  = MRCTreeView(self)
-        #self.mrc_tree.sig_open_device_window.connect(self._slt_open_device_window)
-        #self._add_subwindow(self.mrc_tree, "Device Tree")
-        #self.app_model.sig_connection_added.connect(self.mrc_tree.slt_connection_added)
         self._device_windows = {}
+
+        self.setup_tree_view = setup_treeview.SetupTreeView(parent=self)
+        application_registry.instance.mrc_added.connect(self.setup_tree_view.model().add_mrc)
+        self._add_subwindow(self.setup_tree_view, "Devices")
 
     def on_qapp_quit(self):
         logging.info("Exiting...")
-        self.app_model.shutdown()
+        application_registry.instance.shutdown()
 
     @pyqtSlot()
     def on_actionConnect_triggered(self):
@@ -102,8 +101,14 @@ class MainWindow(QtGui.QMainWindow):
         if result != QtGui.QDialog.Accepted:
             return
 
-        connection = mrc_connection.factory(config=dialog.connection_config)
-        self.app_model.registerConnection(connection)
+        connection       = mrc_connection.factory(config=dialog.connection_config)
+        model            = hw_model.MRCModel()
+        # FIXME: depends on the connection type! factory for this!
+        model.controller = mrc_controller.MesycontrolMRCController(connection, model)
+        application_registry.instance.register_mrc_model(model)
+
+        mrc = app_model.MRC(mrc_model=model)
+        application_registry.instance.register_mrc(mrc)
         connection.connect()
 
     def _add_subwindow(self, widget, title):
@@ -113,18 +118,18 @@ class MainWindow(QtGui.QMainWindow):
         subwin.show()
         return subwin
 
-    def _slt_open_device_window(self, device_model):
-        key = (device_model.mrc_model, device_model.bus, device_model.dev)
-        if not self._device_windows.has_key(key):
-            widget = GenericDeviceWidget(device_model, self)
-            title  = "%s %d.%d" % (device_model.mrc_model.connection.get_info(),
-                    device_model.bus, device_model.dev)
-            self._device_windows[key] = self._add_subwindow(widget, title)
+    #def _slt_open_device_window(self, device_model):
+    #    key = (device_model.mrc_model, device_model.bus, device_model.dev)
+    #    if not self._device_windows.has_key(key):
+    #        widget = GenericDeviceWidget(device_model, self)
+    #        title  = "%s %d.%d" % (device_model.mrc_model.connection.get_info(),
+    #                device_model.bus, device_model.dev)
+    #        self._device_windows[key] = self._add_subwindow(widget, title)
 
-        subwin = self._device_windows[key]
-        subwin.show()
-        subwin.widget().show()
-        self.mdiArea.setActiveSubWindow(subwin)
+    #    subwin = self._device_windows[key]
+    #    subwin.show()
+    #    subwin.widget().show()
+    #    self.mdiArea.setActiveSubWindow(subwin)
 
     @pyqtSlot()
     def on_actionLoad_Setup_triggered(self):
@@ -208,7 +213,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,
             format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
-    #logging.getLogger("TCPClient").setLevel(logging.INFO)
+    logging.getLogger("mesycontrol.tcp_client").setLevel(logging.INFO)
     #logging.getLogger("MRCModel").setLevel(logging.INFO)
     logging.getLogger("PyQt4.uic").setLevel(logging.INFO)
 
@@ -217,7 +222,7 @@ if __name__ == "__main__":
             for n in dir(signal) if n.startswith('SIG') and '_' not in n)
     signal.signal(signal.SIGINT, signal_handler)
 
-    application_model.instance = application_model.ApplicationModel(
+    application_registry.instance = application_registry.ApplicationRegistry(
             sys.executable if getattr(sys, 'frozen', False) else __file__)
 
     app = QtGui.QApplication(sys.argv)

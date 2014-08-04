@@ -6,7 +6,6 @@ from mesycontrol.protocol import Message, MessageError
 from PyQt4 import QtCore
 from PyQt4 import QtNetwork
 from PyQt4.QtCore import pyqtSignal, pyqtProperty, pyqtSlot
-import Queue
 import struct
 import util
 
@@ -52,7 +51,7 @@ class TCPClient(QtCore.QObject):
         self.log   = util.make_logging_source_adapter(__name__, self)
         self._host = None
         self._port = None
-        self._write_queue = Queue.Queue()
+        self._write_queue = list()
         self._reset_state()
 
         self._socket = QtNetwork.QTcpSocket(self)
@@ -102,29 +101,46 @@ class TCPClient(QtCore.QObject):
     def request_in_progress(self):
         return self._current_request is not None
 
-    def send_message(self, message, response_handler=None):
-        self.log.debug("Queueing message %s, response_handler=%s", message, response_handler)
-        was_empty = self._write_queue.empty()
-        self._write_queue.put((message, response_handler))
+    def queue_request(self, request, response_handler=None):
+        """Adds the given request to the outgoing queue. Once the request has
+        been sent and a response is received the given response handler will be
+        invoked.
+        Returns a unique identifier that can be used to remove the request from
+        the queue using cancel_request().
+        """
+        was_empty = len(self._write_queue) == 0
+        tup = (request, response_handler)
+        self.log.debug("Queueing request %s, response_handler=%s, id=%d", request, response_handler, id(tup))
+        self._write_queue.append(tup)
         self.log.debug("Write queue size = %d", self.get_write_queue_size())
         self.stats.update_write_queue_size(self.get_write_queue_size())
         if was_empty:
             self._start_write_message()
+        return id(tup)
+
+    def cancel_request(self, request_id):
+        try:
+            tup = filter(lambda t: id(t) == request_id, self._write_queue)[0]
+            self.log.debug("Canceling request %s, response_handler=%s, id=%d", tup[0], tup[1], id(tup))
+            self._write_queue.remove(tup)
+            return True
+        except IndexError:
+            return False
 
     def get_write_queue_size(self):
-        return self._write_queue.qsize()
+        return len(self._write_queue)
 
     def _start_write_message(self):
         if not self.is_connected() or self.request_in_progress():
             return
 
         try:
-            self._current_request, self._current_response_handler = self._write_queue.get(False)
+            self._current_request, self._current_response_handler = self._write_queue.pop(0)
             msg_data = self._current_request.serialize()
             self._current_write_data = struct.pack('!H', len(msg_data)) + msg_data
             self.log.debug("Writing message %s (size=%d)", self._current_request, len(self._current_write_data))
             self._socket.write(self._current_write_data)
-        except Queue.Empty:
+        except IndexError:
             self.log.debug("Message queue is empty")
             return
 
@@ -163,7 +179,7 @@ class TCPClient(QtCore.QObject):
 
                 # The response to the last message was received. Start sending
                 # the next message or signal that the queue is empty.
-                if not self._write_queue.empty():
+                if len(self._write_queue) > 0:
                     self._start_write_message()
                 else:
                     self.sig_tx_queue_empty.emit()

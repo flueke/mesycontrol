@@ -7,6 +7,8 @@ from PyQt4.QtCore import pyqtProperty
 from PyQt4.QtCore import pyqtSignal
 import weakref
 
+import util
+
 class MRCModel(QtCore.QObject):
     #: State enum. 'Ready' state is entered once both busses have been scanned.
     Disconnected, Connecting, Connected, Ready = states = set(range(4))
@@ -25,6 +27,7 @@ class MRCModel(QtCore.QObject):
 
     def __init__(self, parent=None):
         super(MRCModel, self).__init__(parent)
+        self.log             = util.make_logging_source_adapter(__name__, self)
         self._controller     = None
         self._devices        = list()
         self._busses_scanned = set()
@@ -41,17 +44,33 @@ class MRCModel(QtCore.QObject):
                 self._remove_device(device)
             elif idc > 0:
                 if device is None:
-                    device = DeviceModel(bus, addr, idc, rc if rc in (0, 1) else False, mrc=self)
-                    device.controller = self.controller.make_device_controller(device)
+                    device_controller = self.controller.make_device_controller() if self.controller is not None else None
+                    device = DeviceModel(bus, addr, idc, rc if rc in (0, 1) else False, controller=device_controller, mrc=self)
                     self.add_device(device)
                 device.idc = idc
                 device.set_address_conflict(rc not in (0, 1))
+                device.set_rc(bool(rc) if rc in (0, 1) else False)
 
         self._busses_scanned.add(bus)
         self.bus_scanned.emit(bus, data)
 
         if self.state == MRCModel.Connected and len(self._busses_scanned) >= 2:
             self.state = MRCModel.Ready
+
+    def set_parameter(self, bus, dev, par, val):
+        self.get_device(bus, dev).set_parameter(par, val)
+
+    def set_mirror_parameter(self, bus, dev, par, val):
+        self.get_device(bus, dev).set_mirror_parameter(par, val)
+
+    def set_rc(self, bus, dev, on_off):
+        self.get_device(bus, dev).set_rc(on_off)
+
+    def reset_mem(self, bus, dev):
+        self.get_device(bus, dev).reset_mem()
+
+    def reset_mirror(self, bus, dev):
+        self.get_device(bus, dev).reset_mirror()
 
     def has_device(self, bus, address):
         return self.get_device(bus, address) is not None
@@ -71,7 +90,6 @@ class MRCModel(QtCore.QObject):
         if self.has_device(device.bus, device.address):
             raise RuntimeError("Device exists (bus=%d, address=%d)" %
                     (device.bus, device.address))
-        device.setParent(self)
         self._devices.append(device)
         self.device_added.emit(device)
 
@@ -143,20 +161,33 @@ class DeviceModel(QtCore.QObject):
     address_conflict_changed = pyqtSignal(bool)
 
     #: parameter_changed(address, old_value, new_value)
-    parameter_changed = pyqtSignal(int, int, int)
+    parameter_changed        = pyqtSignal(int, int, int)
 
-    def __init__(self, bus, address, idc, rc, mrc=None, parent=None):
+    #: mirror_parameter_changed(address, old_value, new_value)
+    mirror_parameter_changed = pyqtSignal(int, int, int)
+
+    memory_reset = pyqtSignal()
+    mirror_reset = pyqtSignal()
+
+    def __init__(self, bus, address, idc, rc, controller=None, mrc=None, parent=None):
         super(DeviceModel, self).__init__(parent)
+        self.log         = util.make_logging_source_adapter(__name__, self)
+
+        self.log.debug("DeviceModel: bus=%d, address=%d, idc=%d, rc=%d, controller=%s, mrc=%s",
+                bus, address, idc, rc, controller, mrc)
+
         self._controller = None
+        self._mrc        = None
         self._state      = DeviceModel.Disconnected
         self._state_info = None
         self._bus        = bus
         self._address    = address
         self._idc        = idc
         self._rc         = rc
-        self._memory     = dict()
-        self._mirror     = dict()
+        self.reset_mem()
+        self.reset_mirror()
         self.mrc         = mrc
+        self.controller  = controller
 
     def set_mrc(self, mrc):
         if self.mrc is not None:
@@ -167,11 +198,8 @@ class DeviceModel(QtCore.QObject):
         self._mrc  = weakref.ref(mrc) if mrc is not None else None
 
         if self.mrc is not None:
-            self.mrc.state_changed.connect(self._mrc_state_changed)
-            if self.mrc.is_connected():
-                self.state = DeviceModel.Connected
-            else:
-                self.state = DeviceModel.Disconnected
+            self.mrc.state_changed.connect(self._on_mrc_state_changed)
+            self._on_mrc_state_changed(MRCModel.Disconnected, mrc.state, mrc.state_info)
 
     def get_mrc(self):
         return self._mrc() if self._mrc is not None else None
@@ -191,11 +219,14 @@ class DeviceModel(QtCore.QObject):
         self._state      = new_state
         self._state_info = new_info
 
+        self.log.debug("DeviceModel.set_state: old_state=%d, new_state=%d, new_info=%s",
+                old_state, new_state, new_info)
+
         if self.state == DeviceModel.Disconnected or (
                 old_state == DeviceModel.AddressConflict and
                 new_state != DeviceModel.AddressConflict):
-            self._memory = dict()
-            self._mirror = dict()
+            self.reset_mem()
+            self.reset_mirror()
 
         if old_state != new_state or old_info != new_info:
             self.state_changed.emit(old_state, new_state, new_info)
@@ -205,6 +236,8 @@ class DeviceModel(QtCore.QObject):
             self.state = DeviceModel.AddressConflict
         elif self.mrc is not None and self.mrc.is_connected():
             self.state = DeviceModel.Connected
+        else:
+            self.state = DeviceModel.Disconnected
 
     def has_address_conflict(self):
         return self.state == DeviceModel.AddressConflict
@@ -232,9 +265,36 @@ class DeviceModel(QtCore.QObject):
         if self.state == DeviceModel.Connected and len(self._memory) >= 256:
             self.state = DeviceModel.Ready
 
-    def _mrc_state_changed(self, old_state, new_state, info=None):
+    def has_mirror_parameter(self, address):
+        return address in self._mirror
+
+    def get_mirror_parameter(self, address):
+        return self._mirror[address]
+
+    def set_mirror_parameter(self, address, value):
+        old_value = self.get_mirror_parameter(address) if self.has_mirror_parameter(address) else None
+        self._mirror[address] = value
+
+        if old_value != value:
+            self.mirror_parameter_changed.emit(address, old_value, value)
+
+    def reset_mem(self):
+        self._memory = dict()
+        self.memory_reset.emit()
+
+    def reset_mirror(self):
+        self._mirror = dict()
+        self.mirror_reset.emit()
+
+    def _on_mrc_state_changed(self, old_state, new_state, info=None):
+        self.log.debug("mrc_model state changed: mrc_model=%s, device_controller=%s", self.mrc, self.controller)
+        self.log.debug("mrc_model state changed: old=%d, new=%d, info=%s", old_state, new_state, str(info))
         if new_state == MRCModel.Disconnected:
             self.set_state(DeviceModel.Disconnected, info)
+        elif new_state == MRCModel.Connecting:
+            self.set_state(DeviceModel.Connecting, info)
+        elif new_state == MRCModel.Connected:
+            self.set_state(DeviceModel.Connected, info)
 
     def get_bus(self):
         return self._bus
@@ -286,3 +346,4 @@ class DeviceModel(QtCore.QObject):
     memory       = pyqtProperty(dict,   get_memory)
     mirror       = pyqtProperty(dict,   get_mirror)
     controller   = pyqtProperty(object, get_controller, set_controller)
+    mrc          = pyqtProperty(object, get_mrc, set_mrc)

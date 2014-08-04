@@ -8,7 +8,7 @@ from PyQt4.QtCore import pyqtSignal, pyqtProperty
 import logging
 import os
 import weakref
-import application_model
+import application_registry
 import util
 
 class InvalidArgument(Exception):
@@ -58,7 +58,7 @@ class ServerProcess(QtCore.QObject):
     def __init__(self, parent = None):
         super(ServerProcess, self).__init__(parent)
 
-        self.binary_path     = application_model.instance.bin_dir
+        self.binary_path     = application_registry.instance.bin_dir
         self.binary_name     = ServerProcess.default_binary_name
         self.listen_address  = ServerProcess.default_listen_address
         self.listen_port     = ServerProcess.default_listen_port
@@ -198,7 +198,7 @@ if __name__ == "__main__":
             format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
     app = QtCore.QCoreApplication(sys.argv)
-    application_model.instance = application_model.ApplicationModel(
+    application_registry.instance = application_registry.ApplicationRegistry(
             sys.executable if getattr(sys, 'frozen', False) else __file__)
 
     procs = []

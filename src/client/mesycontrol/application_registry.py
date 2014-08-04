@@ -4,10 +4,20 @@
 
 from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtSignal
-import logging
 import os
 
+from hw_model import MRCModel
+from app_model import MRC
 import device_description
+
+instance = None
+
+def init(main_file):
+    global instance
+    if instance is not None:
+        raise RuntimeError("ApplicationRegistry already initialized")
+    instance = ApplicationRegistry(main_file)
+    return instance
 
 def find_data_dir(main_file):
     """Locates the directory used for data files.
@@ -22,55 +32,36 @@ def find_data_dir(main_file):
             main_file = os.path.abspath(os.path.join(os.path.dirname(main_file), lnk))
     return os.path.dirname(os.path.abspath(main_file))
 
-class ApplicationModel(QtCore.QObject):
-    """Central application information and object registry.
-    Create it like this:
-    application_model.instance = application_model.ApplicationModel(
-            sys.executable if getattr(sys, 'frozen', False) else __file__)
-    """
+class ApplicationRegistry(QtCore.QObject):
+    mrc_model_added   = pyqtSignal(MRCModel)
+    mrc_model_removed = pyqtSignal(MRCModel)
 
-    sig_connection_added = pyqtSignal(object)
-    sig_mrc_added        = pyqtSignal(object)
+    mrc_added         = pyqtSignal(MRC)
+    mrc_removed       = pyqtSignal(MRC)
 
-    def __init__(self, main_file, parent = None):
-        super(ApplicationModel, self).__init__(parent)
-
-        self.main_file = main_file
-        self.bin_dir   = os.path.abspath(os.path.dirname(main_file))
-        self.data_dir  = find_data_dir(main_file)
-
-        logging.getLogger(__name__).info("main_file=%s", self.main_file)
-        logging.getLogger(__name__).info("bin_dir  =%s", self.bin_dir)
-        logging.getLogger(__name__).info("data_dir =%s", self.data_dir)
-
+    def __init__(self, main_file, parent=None):
+        super(ApplicationRegistry, self).__init__(parent)
+        self.main_file  = main_file
+        self.bin_dir    = os.path.abspath(os.path.dirname(main_file))
+        self.data_dir   = find_data_dir(main_file)
+        self.mrc_models = list()
+        self.mrcs       = list()
         self.device_descriptions = set()
-        self.mrc_connections = list()
 
         self.load_system_descriptions()
 
-    def registerConnection(self, conn):
-        conn.setParent(self)
-        self.mrc_connections.append(conn)
-        self.sig_connection_added.emit(conn)
-        self.sig_mrc_added.emit(conn.mrc)
-
-    def unregisterConnection(self, conn):
-        if conn in self.mrc_connections:
-            self.mrc_connections.remove(conn)
-            conn.disconnect()
-            conn.setParent(None) # Makes the underlying QObject collectable
-
     def shutdown(self):
-        for conn in list(self.mrc_connections):
-            self.unregisterConnection(conn)
-        assert len(self.mrc_connections) == 0
+        for mrc_model in self.mrc_models:
+            mrc_model.controller.disconnect()
+            self.unregister_mrc_model(mrc_model)
 
     def load_system_descriptions(self):
         # FIXME: use globbing to get the list of files to import (and make
         # cxfreeze distutils install those files to a location outside the zip)
         import importlib
         for mod_name in ('device_description_mhv4', 'device_description_mhv4_800v', 'device_description_mscf16'):
-            mod = importlib.import_module('mesycontrol.' + mod_name)
+            #mod = importlib.import_module(mod_name)
+            mod = importlib.import_module("mesycontrol." + mod_name)
             self.device_descriptions.add(mod.get_device_description())
 
     def get_device_description_by_idc(self, idc):
@@ -91,4 +82,24 @@ class ApplicationModel(QtCore.QObject):
     def find_data_file(self, filename):
         return os.path.join(self.data_dir, filename)
 
-instance = None
+    def register_mrc_model(self, mrc_model):
+        mrc_model.setParent(self)
+        self.mrc_models.append(mrc_model)
+        self.mrc_model_added.emit(mrc_model)
+
+    def unregister_mrc_model(self, mrc_model):
+        if mrc_model in self.mrc_models:
+            self.mrc_models.remove(mrc_model)
+            mrc_model.setParent(None)
+            self.mrc_model_removed.emit(mrc_model)
+
+    def register_mrc(self, mrc):
+        mrc.setParent(self)
+        self.mrcs.append(mrc)
+        self.mrc_added.emit(mrc)
+
+    def unregister_mrc(self, mrc):
+        if mrc in self.mrcs:
+            self.mrcs.remove(mrc)
+            mrc.setParent(None)
+            self.mrc_removed.emit(mrc)

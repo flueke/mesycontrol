@@ -35,8 +35,9 @@ DONE - DeviceDescription: add value range to parameters (min, max). Make sure in
   - DeviceDescription: add version detection (MSFC-16)
   - DeviceDescription: add a flag to mark system descriptions
   - DeviceDescription: add a way to copy a description
+  - DeviceDescription: refactor to DeviceProfile or something like that to avoid confusion with the textual description that's in the DeviceConfig
   - DeviceConfig: add a way to store MRC connection info in the configuration
-  - DeviceConfigXML: use attributes instead of nested tags for simple stuff (makes the XML file shorter)
+DONE  - DeviceConfigXML: use attributes instead of nested tags for simple stuff (makes the XML file shorter)
   - DeviceConfigXML: add DTD (used for verification)
 
 
@@ -406,7 +407,7 @@ action: load config2 from setup2 into dev1
     Implemented in terms of the controller interface only. E.g.:
     class ReadParameter(Command):
         def start():
-            self.mrc.controller.read_parameter(self.bus, self.dev, self.addr, self._handle_response)
+            self._cmd_id = self.mrc.controller.read_parameter(self.bus, self.dev, self.addr, self._handle_response)
         def _handle_response(self, response):
             self.response = response
         def get_result(self):
@@ -439,7 +440,7 @@ action: load config2 from setup2 into dev1
 
 
   - Problems:
-    How to cancel commands once they've been started?
+    * How to cancel commands once they've been started?
         From the controllers perspective: on_disconnect():
             for (request_message, response_handler) in self.queue:
                 response_handler(ErrorResponse("disconnected"))
@@ -452,7 +453,22 @@ action: load config2 from setup2 into dev1
             a particular request. This allows canceling of request and thus
             canceling of commands.
 
-    Who starts commands? -> The client that created the command. Queues can
-    easily be implemented. Those queues can also take commands that are not MRC
-    or Device related. Global command registry is needed for very high level
-    commands like LoadSetup and SaveSetup.
+    * Who starts commands?
+    -> The client that created the command. Queues can easily be implemented.
+    Those queues can also take commands that are not MRC or Device related.
+    Global command registry is needed for very high level commands like
+    LoadSetup and SaveSetup.
+
+
+==== Steps to take when a new connection should be made ====
+* HW Model
+    - create connection using the factory
+    - create MRCModel
+    - create MRCController using connection and model
+    - register MRCModel
+    - connect
+
+* App Model
+  Who creates the MRC object?
+    - create MRC using MRCModel (no Config)
+    - register MRC

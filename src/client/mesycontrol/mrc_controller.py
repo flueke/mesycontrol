@@ -4,7 +4,7 @@
 
 from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtProperty
-import Queue
+from PyQt4.QtCore import pyqtSignal
 import weakref
 
 from hw_model import MRCModel
@@ -12,6 +12,8 @@ from hw_model import DeviceModel
 from protocol import Message
 
 class AbstractMRCController(QtCore.QObject):
+    idle = pyqtSignal()
+
     def __init__(self, mrc_model, parent=None):
         super(AbstractMRCController, self).__init__(parent)
         self._model = None
@@ -70,33 +72,31 @@ class AbstractMRCController(QtCore.QObject):
         raise NotImplementedError()
 
     # status, history, errors
-    def has_pending_requests(self):
-        raise NotImplementedError()
-
-    def make_device_controller(self, device):
-        return DeviceController(self, device)
+    def make_device_controller(self, device=None):
+        return DeviceController(mrc_controller=self, device_model=device)
 
 class MesycontrolMRCController(AbstractMRCController):
+    write_access_changed = pyqtSignal(bool)
+    silenced_changed     = pyqtSignal(bool)
+
     def __init__(self, mrc_connection, mrc_model, parent=None):
-        super(MesycontrolMRCController, self).__init__(mrc_model, parent)
         self.connection = mrc_connection
+        super(MesycontrolMRCController, self).__init__(mrc_model, parent)
         self.connection.sig_connecting.connect(self._on_connecting)
         self.connection.sig_connected.connect(self._on_connected)
         self.connection.sig_disconnected.connect(self._on_disconnected)
         self.connection.sig_connection_error.connect(self._on_connection_error)
-        self.connection.sig_idle.connect(self._try_send_next_request)
+        self.connection.sig_idle.connect(self.idle)
         self.connection.sig_message_received.connect(self._on_message_received)
-
-        self._queue           = Queue.Queue()
-        self._current_request = None
-        self._write_access    = False
-        self._silenced        = False
+        self.connection.sig_response_received.connect(self._on_response_received)
+        self.connection.sig_write_access_changed.connect(self.write_access_changed)
+        self.connection.sig_silence_changed.connect(self.silenced_changed)
 
     def get_model(self):
         return self._model() if self._model is not None else None
 
     def set_model(self, mrc_model):
-        super(MesycontrolMRCController, self).set_model(mrc_model)
+        self._model = weakref.ref(mrc_model) if mrc_model is not None else None
 
         if self.connection.is_connected():
             self.model.state = MRCModel.Connected
@@ -107,7 +107,7 @@ class MesycontrolMRCController(AbstractMRCController):
 
     model = pyqtProperty(MRCModel, get_model, set_model)
 
-    # connection commands
+    # connection related methods
     def connect(self):
         self.connection.connect()
 
@@ -130,14 +130,14 @@ class MesycontrolMRCController(AbstractMRCController):
         return self._queue_request(m, response_handler)
 
     def has_write_access(self):
-        return self._write_access
+        return self.connection.has_write_access()
 
     def set_silenced(self, on_off, response_handler=None):
         m = Message('request_set_silent_mode', bool_value=on_off)
         return self._queue_request(m, response_handler)
 
     def is_silenced(self):
-        return self._silenced
+        return self.connection.is_silenced()
 
     # MRC-1 commands
     def scanbus(self, bus, response_handler=None):
@@ -162,7 +162,15 @@ class MesycontrolMRCController(AbstractMRCController):
         return self._queue_request(m, response_handler)
 
     def set_parameter(self, bus, device, address, value, response_handler=None):
-        m = Message('request_read', bus=bus, dev=device, par=address, val=value)
+        m = Message('request_set', bus=bus, dev=device, par=address, val=value)
+        return self._queue_request(m, response_handler)
+
+    def read_mirror_parameter(self, bus, device, address, response_handler=None):
+        m = Message('request_mirror_read', bus=bus, dev=device, par=address)
+        return self._queue_request(m, response_handler)
+
+    def set_mirror_parameter(self, bus, device, address, value, response_handler=None):
+        m = Message('request_mirror_set', bus=bus, dev=device, par=address, val=value)
         return self._queue_request(m, response_handler)
 
     def _on_connecting(self):
@@ -179,27 +187,40 @@ class MesycontrolMRCController(AbstractMRCController):
     def _on_connection_error(self, error_info):
         self.model.set_state(MRCModel.Disconnected, error_info)
 
-    def _on_message_received(self, request, response):
-        pass
+    def _on_message_received(self, msg):
+        mt = msg.get_type_name()
+
+        if mt in ('response_scanbus', 'notify_scanbus'):
+            self.model.set_scanbus_data(msg.bus, msg.bus_data)
+        elif mt in ('response_read', 'notify_read', 'response_set', 'notify_set'):
+            self.model.set_parameter(msg.bus, msg.dev, msg.par, msg.val)
+        elif mt in ('response_mirror_read', 'notify_mirror_read', 'response_mirror_set', 'notify_mirror_set'):
+            self.model.set_mirror_parameter(msg.bus, msg.dev, msg.par, msg.val)
+
+    def _on_response_received(self, request, response):
+        req_t = request.get_type_name()
+
+        if response.get_type_name() == 'response_bool' and response.bool_value:
+            if req_t in ('request_rc_on', 'request_rc_off'):
+                self.model.set_rc(request.bus, request.dev, req_t == 'request_rc_on')
+            elif req_t in ('request_reset', 'request_copy'):
+                self.model.reset_mem(request.bus, request.dev)
+                self.model.reset_mirror(request.bus, request.dev)
 
     def _queue_request(self, message, response_handler):
-        t = (message, response_handler)
-        self._queue.put(t)
-        self._try_send_next_request()
-        return t
-
-    def _try_send_next_request(self):
-        try:
-            msg, response_handler = self._queue.get(False)
-            self.connection.send_message(msg, response_handler)
-        except Queue.Empty:
-            pass
+        return self.connection.queue_request(message, response_handler)
 
 class DeviceController(QtCore.QObject):
-    def __init__(self, mrc_controller, device_model, parent=None):
+    def __init__(self, mrc_controller=None, device_model=None, parent=None):
         super(DeviceController, self).__init__(parent)
         self._mrc_controller = weakref.ref(mrc_controller) if mrc_controller is not None else None
         self._model          = weakref.ref(device_model) if device_model is not None else None
+
+    def get_model(self):
+        return self._model() if self._model is not None else None
+
+    def set_model(self, model):
+        self._model = weakref.ref(model) if model is not None else None
 
     def set_rc(self, on_off, response_handler=None):
         return self.mrc_controller.set_rc(self.model.bus, self.model.address, on_off)
@@ -216,14 +237,18 @@ class DeviceController(QtCore.QObject):
     def set_parameter(self, address, value, response_handler=None):
         return self.mrc_controller.set_parameter(self.model.bus, self.model.address, address, value)
 
+    def read_mirror_parameter(self, address, response_handler=None):
+        return self.mrc_controller.read_mirror_parameter(self.model.bus, self.model.address, address)
+
+    def set_mirror_parameter(self, address, value, response_handler=None):
+        return self.mrc_controller.set_mirror_parameter(self.model.bus, self.model.address, address, value)
+
+    def refresh_mem(self):
+        for i in range(256):
+            self.read_parameter(i)
+
     def get_mrc_controller(self, response_handler=None):
         return self._mrc_controller() if self._mrc_controller is not None else None
-
-    def get_model(self, response_handler=None):
-        return self._model() if self._model is not None else None
-
-    def set_model(self, model, response_handler=None):
-        self._model = weakref.ref(model) if model is not None else None
 
     mrc_controller = pyqtProperty(AbstractMRCController, get_mrc_controller)
     model          = pyqtProperty(DeviceModel, get_model)

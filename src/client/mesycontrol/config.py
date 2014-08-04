@@ -7,15 +7,45 @@ from PyQt4.QtCore import pyqtProperty
 from PyQt4.QtCore import pyqtSignal
 
 import util
+import device_description
 from mrc_connection import MesycontrolConnection, LocalMesycontrolConnection
 
-class Config(util.NamedObject):
+#def observe_property_change(prop_name):
+#    def the_decorator(method):
+#        def inner(self, *args, **kwargs):
+#            old_prop_value = getattr(self, prop_name)
+#            method(self, *args, **kwargs)
+#            new_prop_value = getattr(self, prop_name)
+#            if old_prop_value != new_prop_value:
+#                print "emitting!"
+#                self.changed.emit()
+#        return inner
+#    return the_decorator
+#
+#    @observe_property_change('name')
+#    def set_name(self, name):
+#        self._name = name
+
+class Config(QtCore.QObject):
+    changed = pyqtSignal()
+
     def __init__(self, parent=None):
         super(Config, self).__init__(parent)
-        self.connection_configs  = []
-        self.device_configs      = []
-        self.device_descriptions = []
-        # More params here: name, description, date, source file?
+        self._name           = None
+        self._description    = None
+        self._mrc_configs    = list()
+        self._device_configs = list()
+
+    def get_name(self):
+        return self._name if self._name is not None else str()
+
+    def set_name(self, name):
+        old_value = self.name
+        self._name = str(name) if name is not None else None
+        if self.name != old_value:
+            self.changed.emit()
+
+    name = pyqtProperty(str, get_name, set_name)
 
 class MRCConnectionConfigError(Exception):
     pass
@@ -152,62 +182,80 @@ class DeviceConfig(QtCore.QObject):
     Optionally an MRCConnectionConfig name, bus and device numbers may be
     specified."""
 
-    sig_name_changed = pyqtSignal(str)
+    changed = pyqtSignal()
 
     def __init__(self, device_idc, parent=None):
         super(DeviceConfig, self).__init__(parent)
-        self.device_idc         = device_idc
-        self._name              = None
-        self._connection_name   = None
-        self._bus_number        = None
-        self._dev_address       = None
-        self._parameters        = []
+        self._idc        = None
+        self._bus        = None
+        self._address    = None
+        self._rc         = None
+        self._name       = None
+        self._parameters = list()
+
+        self.idc = device_idc
 
     def get_name(self):
         return self._name
 
     def set_name(self, name):
+        changed = self.name != str(name)
         self._name = str(name)
-        self.sig_name_changed.emit(self.name)
+        if changed:
+            self.changed.emit()
 
-    def get_connection_name(self):
-        return self._connection_name
-
-    def set_connection_name(self, connection_name):
-        self._connection_name = str(connection_name)
-
-    def get_device_idc(self):
+    def get_idc(self):
         return self._idc
 
-    def set_device_idc(self, idc):
+    def set_idc(self, idc):
+        changed = self.idc != int(idc)
         self._idc = int(idc)
+        if changed:
+            self.changed.emit()
 
-    def get_bus_number(self):
-        return self._bus_number
+    def get_bus(self):
+        return self._bus
 
-    def set_bus_number(self, bus_number):
-        self._bus_number = int(bus_number)
+    def set_bus(self, bus):
+        changed = self.bus != int(bus)
+        self._bus = int(bus)
+        if changed:
+            self.changed.emit()
 
-    def get_device_address(self):
-        return self._dev_address
+    def get_address(self):
+        return self._address
 
-    def set_device_address(self, device_address):
-        self._dev_address = int(device_address)
+    def set_address(self, address):
+        changed = self.address != int(address)
+        self._address = int(address)
+        if changed:
+            self.changed.emit()
 
-    def contains_address(self, address):
+    def get_rc(self):
+        return self._rc
+
+    def set_rc(self, rc):
+        changed = self.rc != bool(rc)
+        self._rc = bool(rc)
+        if changed:
+            self.changed.emit()
+
+    def contains_parameter(self, address):
         return any(address == p.address for p in self._parameters)
 
     def add_parameter(self, parameter):
-        if self.contains_address(parameter.address):
+        if self.contains_parameter(parameter.address):
             raise DeviceConfigError("Duplicate parameter address %d" % parameter.address)
 
         parameter.setParent(self)
         self._parameters.append(parameter)
+        self.changed.emit()
 
     def del_parameter(self, parameter):
         if parameter in self._parameters:
             self._parameters.remove(parameter)
             parameter.setParent(None)
+            self.changed.emit()
 
     def get_parameter(self, address):
         try:
@@ -218,13 +266,15 @@ class DeviceConfig(QtCore.QObject):
     def get_parameters(self):
         return list(self._parameters)
 
-    device_idc          = pyqtProperty(int, get_device_idc, set_device_idc)
-    name                = pyqtProperty(str, get_name, set_name, notify=sig_name_changed)
-    connection_name     = pyqtProperty(str, get_connection_name, set_connection_name)
-    bus_number          = pyqtProperty(int, get_bus_number, set_bus_number)
-    device_address      = pyqtProperty(int, get_device_address, set_device_address)
+    idc     = pyqtProperty(int,  get_idc, set_idc)
+    bus     = pyqtProperty(int,  get_bus, set_bus)
+    address = pyqtProperty(int,  get_address, set_address)
+    rc      = pyqtProperty(bool, get_rc, set_rc)
+    name    = pyqtProperty(str,  get_name, set_name)
 
 class ParameterConfig(QtCore.QObject):
+    changed = pyqtSignal()
+
     def __init__(self, address, value=None, alias=None, parent=None):
         super(ParameterConfig, self).__init__(parent)
         self._address = int(address)
@@ -238,46 +288,51 @@ class ParameterConfig(QtCore.QObject):
         return self._value
 
     def set_value(self, value):
+        changed = self.value != int(value)
         self._value = int(value)
-        self.sig_value_changed.emit(self.value)
+        if changed:
+            self.changed.emit()
 
     def get_alias(self):
         return self._alias
 
     def set_alias(self, alias):
+        changed = self._alias != str(alias)
         self._alias = str(alias)
-        self.sig_alias_changed.emit(self.alias)
-
-    sig_value_changed   = pyqtSignal(int)
-    sig_alias_changed   = pyqtSignal(str)
+        if changed:
+            self.changed.emit()
 
     #: Numeric parameter address.
     address = pyqtProperty(int, get_address)
     #: The parameters unsigned short value.
-    value   = pyqtProperty(int, get_value, set_value, notify=sig_value_changed)
+    value   = pyqtProperty(int, get_value, set_value)
     #: Optional user defined alias for the parameter.
-    alias   = pyqtProperty(str, get_alias, set_alias, notify=sig_alias_changed)
+    alias   = pyqtProperty(str, get_alias, set_alias)
 
-def make_device_config(device_model):
-    device_config                 = DeviceConfig(device_model.idc)
-    device_config.name            = device_model.name
-    device_config.bus_number      = device_model.bus
-    device_config.device_address  = device_model.dev
-    device_config.connection_name = device_model.mrc.name
+def make_device_config(device_model, device_descr=None):
+    device_config         = DeviceConfig(device_model.idc)
+    device_config.bus     = device_model.bus
+    device_config.address = device_model.address
+    device_config.rc      = device_model.rc
 
     param_filter = lambda pd: not pd.read_only and not pd.do_not_store
 
-    for param_description in filter(param_filter, device_model.description.parameters.values()):
+    if device_descr is None:
+        device_descr = device_description.make_generic_description()
+
+    for param_description in filter(param_filter, device_descr.parameters.values()):
         address = param_description.address
-        value   = device_model.memory.get(address)
-        
+
+        if not device_model.has_parameter(address):
+            raise DeviceConfigError("Required memory value not present", address=address)
+
+        value = device_model.get_parameter(address)
         device_config.add_parameter(ParameterConfig(address, value))
 
     return device_config
 
 def make_connection_config(connection):
-    ret      = MRCConnectionConfig()
-    ret.name = connection.mrc.name
+    ret = MRCConnectionConfig()
 
     if type(connection) is LocalMesycontrolConnection:
         server = connection.server
