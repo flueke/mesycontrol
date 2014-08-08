@@ -9,6 +9,7 @@ import os
 from hw_model import MRCModel
 from app_model import MRC
 import device_description
+import util
 
 instance = None
 
@@ -41,6 +42,7 @@ class ApplicationRegistry(QtCore.QObject):
 
     def __init__(self, main_file, parent=None):
         super(ApplicationRegistry, self).__init__(parent)
+        self.log        = util.make_logging_source_adapter(__name__, self)
         self.main_file  = main_file
         self.bin_dir    = os.path.abspath(os.path.dirname(main_file))
         self.data_dir   = find_data_dir(main_file)
@@ -51,6 +53,9 @@ class ApplicationRegistry(QtCore.QObject):
         self.load_system_descriptions()
 
     def shutdown(self):
+        for mrc in self.mrcs:
+            self.unregister_mrc(mrc)
+
         for mrc_model in self.mrc_models:
             mrc_model.controller.disconnect()
             self.unregister_mrc_model(mrc_model)
@@ -60,9 +65,15 @@ class ApplicationRegistry(QtCore.QObject):
         # cxfreeze distutils install those files to a location outside the zip)
         import importlib
         for mod_name in ('device_description_mhv4', 'device_description_mhv4_800v', 'device_description_mscf16'):
-            #mod = importlib.import_module(mod_name)
-            mod = importlib.import_module("mesycontrol." + mod_name)
-            self.device_descriptions.add(mod.get_device_description())
+            try:
+                #mod = importlib.import_module(mod_name, 'mesycontrol')
+                mod = importlib.import_module("mesycontrol." + mod_name)
+                device_description = mod.get_device_description()
+                self.log.debug("Loaded device description %s", device_description)
+                self.device_descriptions.add(device_description)
+            except ImportError as e:
+                self.log.error("Error loading device description from %s: %s", mod_name, str(e))
+
 
     def get_device_description_by_idc(self, idc):
         try:
@@ -83,6 +94,8 @@ class ApplicationRegistry(QtCore.QObject):
         return os.path.join(self.data_dir, filename)
 
     def register_mrc_model(self, mrc_model):
+        if mrc_model in self.mrc_models:
+            return
         mrc_model.setParent(self)
         self.mrc_models.append(mrc_model)
         self.mrc_model_added.emit(mrc_model)
@@ -91,10 +104,14 @@ class ApplicationRegistry(QtCore.QObject):
         if mrc_model in self.mrc_models:
             self.mrc_models.remove(mrc_model)
             mrc_model.setParent(None)
+            mrc_model.controller.disconnect()
             self.mrc_model_removed.emit(mrc_model)
 
     def register_mrc(self, mrc):
+        if mrc in self.mrcs:
+            return
         mrc.setParent(self)
+        self.register_mrc_model(mrc.model)
         self.mrcs.append(mrc)
         self.mrc_added.emit(mrc)
 
@@ -102,4 +119,14 @@ class ApplicationRegistry(QtCore.QObject):
         if mrc in self.mrcs:
             self.mrcs.remove(mrc)
             mrc.setParent(None)
+            self.unregister_mrc_model(mrc.model)
             self.mrc_removed.emit(mrc)
+
+    def find_connection_by_config(self, connection_config):
+        for mrc_model in self.mrc_models:
+            controller = mrc_model.controller
+            if hasattr(controller, 'connection'):
+                connection = controller.connection
+                if connection.matches_config(connection_config):
+                    return connection
+        return None

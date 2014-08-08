@@ -71,6 +71,9 @@ class DeviceDescription(object):
         self.name = None            #: Device name (e.g. MHV4). Should be unique.
         self.parameters = {}        #: Maps ParameterDescription.address to ParameterDescription
 
+    def __str__(self):
+        return "DeviceDescription(name=%s, idc=%d)" % (self.name, self.idc)
+
     def __eq__(self, o):
         if o is None:
             return False

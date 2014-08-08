@@ -138,6 +138,11 @@ class MRCModel(QtCore.QObject):
         if self.controller is not None:
             self.controller.set_model(self)
 
+    def get_connection_info(self):
+        if self.controller is not None:
+            return self.controller.get_connection_info()
+        return None
+
     state      = pyqtProperty(int,    get_state, set_state, notify=state_changed)
     state_info = pyqtProperty(object, get_state_info)
     connected  = pyqtProperty(bool,   is_connected)

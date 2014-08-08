@@ -5,7 +5,7 @@
 from device_description import DeviceDescription
 
 description_dict = {
-        'name': 'MHV-4 (800V)',
+        'name': 'MHV-4-800V',
         'idc': 27,
         'parameters': [
             # Voltage

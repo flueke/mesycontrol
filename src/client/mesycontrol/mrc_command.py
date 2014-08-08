@@ -15,17 +15,22 @@ class ErrorResponse(Exception):
 class MRCCommand(Command):
     def __init__(self, mrc, parent=None):
         super(MRCCommand, self).__init__(parent)
+        self.mrc       = mrc
         self._response = None
-        mrc.sig_disconnected.connect(self._handle_disconnected)
-        mrc.sig_connection_error.connect(self._handle_connection_error)
+        mrc.state_changed.connect(self._on_mrc_state_changed)
+
+    def _on_mrc_state_changed(self, old_state, new_state, info):
+        if not self.mrc.is_connected():
+            self._exception = info if info is not None else RuntimeError("Disconnected from server")
+            self._stopped(False)
 
     def _handle_disconnected(self):
         self._exception = RuntimeError("Disconnected from server")
         self._stopped(False)
 
-    def _handle_connection_error(self, err_object):
-        self._exception = err_object
-        self._stopped(False)
+    #def _handle_connection_error(self, err_object):
+    #    self._exception = err_object
+    #    self._stopped(False)
 
     def _handle_response(self, request, response):
         self._response = response
@@ -47,30 +52,35 @@ class MRCCommand(Command):
 
 class SetParameter(MRCCommand):
     def __init__(self, device, address, value, parent=None):
-        super(SetParameter, self).__init__(device.mrc, parent)
+        super(SetParameter, self).__init__(device, parent)
         self.device  = device
         self.address = address
         self.value   = value
+        self.log = util.make_logging_source_adapter(__name__, self)
 
     def _start(self):
+        self.log.debug("%s started", str(self))
         self.device.set_parameter(self.address, self.value, self._handle_response)
 
     def _get_result(self):
         res = super(SetParameter, self)._get_result()
         return res.val if res is not None else None
 
+    def __str__(self):
+        return "SetParameter(device=%s, addr=%d,val=%d)" % (self.device, self.address, self.value)
+
 import util
 
 class ReadParameter(MRCCommand):
     def __init__(self, device, address, parent=None):
-        super(ReadParameter, self).__init__(device.mrc, parent)
+        super(ReadParameter, self).__init__(device, parent)
         self.device  = device
         self.address = address
         self.log = util.make_logging_source_adapter(__name__, self)
 
     def _start(self):
+        self.log.debug("Reading %d", self.address)
         self.device.read_parameter(self.address, self._handle_response)
-        self.log.debug("Reading %s", self.address)
 
     def _get_result(self):
         res = super(ReadParameter, self)._get_result()
@@ -90,7 +100,7 @@ class Scanbus(MRCCommand):
 
 class SetRc(MRCCommand):
     def __init__(self, device, rc, parent=None):
-        super(SetRc, self).__init__(device.mrc, parent)
+        super(SetRc, self).__init__(device, parent)
         self.device = device
         self.rc = rc
 
@@ -98,21 +108,33 @@ class SetRc(MRCCommand):
         self.device.set_rc(self.rc, self._handle_response)
 
 class Connect(Command):
-    def __init__(self, connection, parent=None):
+    def __init__(self, mrc, parent=None):
         super(Connect, self).__init__(parent)
-        self.connection = connection
-        self.connection.sig_connected.connect(partial(self._stopped, True))
-        self.connection.sig_disconnected.connect(partial(self._stopped, True))
-        self.connection.sig_connection_error.connect(partial(self._stopped, True))
+        self.mrc = mrc
+        self._connection_error = None
+        connection = self.mrc.model.controller.connection # FIXME: encapsulate this: MRC needs those signals
+        connection.connected.connect(partial(self._stopped, True))
+        connection.disconnected.connect(partial(self._stopped, True))
+        connection.connection_error.connect(self._on_connection_error)
+        connection.connection_error.connect(partial(self._stopped, True))
 
     def _start(self):
-        self.connection.connect()
+        self.mrc.connect()
 
     def _stop(self):
         pass
 
+    def _on_connection_error(self, error):
+        self._connection_error = error
+        self._stopped(True)
+
     def _get_result(self):
-        return self.connection.is_connected()
+        if self.mrc.is_connected():
+            return True
+        elif self._connection_error is not None:
+            raise self._connection_error
+        else:
+            return False
 
 class AcquireWriteAccess(MRCCommand):
     def __init__(self, mrc, force=False, parent=None):
@@ -121,7 +143,7 @@ class AcquireWriteAccess(MRCCommand):
         self.force = force
 
     def _start(self):
-        self.mrc.connection.set_write_access(True, self.force, self._handle_response)
+        self.mrc.acquire_write_access(self.force, self._handle_response)
 
 class ReleaseWriteAccess(MRCCommand):
     def __init__(self, mrc, parent=None):
@@ -129,4 +151,19 @@ class ReleaseWriteAccess(MRCCommand):
         self.mrc   = mrc
 
     def _start(self):
-        self.mrc.connection.set_write_access(False, response_handler=self._handle_response)
+        self.mrc.release_write_access(self._handle_response)
+
+class RefreshMemory(Command):
+    def __init__(self, device, parent=None):
+        super(RefreshMemory, self).__init__(parent)
+        self.device = device
+
+    def _start(self):
+        for i in range(256):
+            self.device.read_parameter(i, self._handle_response)
+
+    def _handle_response(self, request, response):
+        if response.is_error():
+            self._stopped(False)
+        elif response.par == 255:
+            self._stopped(True)

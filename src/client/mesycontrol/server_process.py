@@ -10,6 +10,7 @@ import os
 import weakref
 import application_registry
 import util
+from functools import partial
 
 class InvalidArgument(Exception):
     pass
@@ -113,7 +114,7 @@ class ServerProcess(QtCore.QObject):
                 self.process.kill()
             else:
                 self.process.terminate()
-            self.process.waitForFinished(1000)
+            self.process.waitForFinished(3000)
 
     def is_running(self):
         return self.process.state() == QtCore.QProcess.Running
@@ -132,7 +133,7 @@ class ServerProcess(QtCore.QObject):
 
     def get_info(self):
         if self.mrc_serial_port is not None:
-            return "%s@%d" % (self.mrc_serial_port, self.mrc_baud_rate)
+            return "%s" % (self.mrc_serial_port, )
         elif self.mrc_host is not None:
             return "%s:%d" % (self.mrc_host, self.mrc_port)
 
@@ -169,25 +170,39 @@ class ProcessPool(QtCore.QObject):
 
     def __init__(self, parent=None):
         super(ProcessPool, self).__init__(parent)
-        self.base_port      = ProcessPool.default_base_port
-        self._procs_by_port = weakref.WeakValueDictionary()
+        self.log                = util.make_logging_source_adapter(__name__, self)
+        self.base_port          = ProcessPool.default_base_port
+        self._procs_by_port     = weakref.WeakValueDictionary()
+        self._unavailable_ports = set()
 
     def create_process(self, options={}, parent=None):
         proc = ServerProcess(parent)
-        proc.listen_port = self._get_free_port()
 
         for attr, value in options.iteritems():
             setattr(proc, attr, value)
 
+        proc.listen_port = self._get_free_port()
         self._procs_by_port[proc.listen_port] = proc
+        proc.sig_finished.connect(partial(self._slt_process_finished, process=proc))
 
         return proc
 
     def _get_free_port(self):
-        in_use = self._procs_by_port.keys()
+        in_use = set(self._procs_by_port.keys())
+        in_use = in_use.union(self._unavailable_ports)
+
         for p in xrange(self.base_port, 65535):
             if p not in in_use:
                 return p
+
+        raise RuntimeError("No listen ports available")
+
+    def _slt_process_finished(self, qt_exit_status, exit_code, exit_code_string, process):
+        if exit_code_string == 'exit_address_in_use':
+            self.log.warning('listen_port %d in use by an external process', process.listen_port)
+            self._unavailable_ports.add(process.listen_port)
+            process.listen_port = self._get_free_port()
+            process.start()
 
 pool = ProcessPool()
 

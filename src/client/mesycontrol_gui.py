@@ -11,25 +11,25 @@ import sys
 from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import pyqtSlot
 from PyQt4.Qt import Qt
-import mesycontrol.util
+from mesycontrol import application_registry
+from mesycontrol import app_model
+from mesycontrol import device_widget
 from mesycontrol import config
 from mesycontrol import config_xml
-from mesycontrol import application_registry
-from mesycontrol import mrc_connection
-from mesycontrol import util
-from mesycontrol import setup_treeview
-from mesycontrol import app_model
 from mesycontrol import hw_model
+from mesycontrol import mrc_connection
 from mesycontrol import mrc_controller
-#from mesycontrol.mrc_treeview import MRCTreeView, MRCTreeWidget
-#from mesycontrol.generic_device_widget import GenericDeviceWidget
-from mesycontrol.setup import SetupBuilder, SetupLoader
+from mesycontrol import mrc_command
+from mesycontrol import setup_treeview
+from mesycontrol import util
+from mesycontrol.config import SetupBuilder, SetupLoader
 
 class ConnectDialog(QtGui.QDialog):
     def __init__(self, parent=None):
         super(ConnectDialog, self).__init__(parent)
 
-        uic.loadUi(application_registry.instance.find_data_file('ui/connect_dialog.ui'), self)
+        #uic.loadUi(resource_stream('mesycontrol.ui', 'connect_dialog.ui'), self)
+        uic.loadUi(application_registry.instance.find_data_file('mesycontrol/ui/connect_dialog.ui'), self)
         self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(False)
         self.combo_serial_port.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+')))
         self.le_tcp_host.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+')))
@@ -67,7 +67,9 @@ class ConnectDialog(QtGui.QDialog):
         idx = self.stacked_widget.currentIndex()
         if idx == 0:
             self.connection_config.serial_device    = self.combo_serial_port.currentText()
-            self.connection_config.serial_baud_rate = self.combo_baud_rate.currentText()
+            baud_text = self.combo_baud_rate.currentText()
+            baud_rate = int(baud_text) if baud_text != 'auto' else 0
+            self.connection_config.serial_baud_rate = baud_rate
         elif idx == 1:
             self.connection_config.tcp_host = self.le_tcp_host.text()
             self.connection_config.tcp_port = self.spin_tcp_port.value()
@@ -81,13 +83,15 @@ class MainWindow(QtGui.QMainWindow):
     def __init__(self, parent = None):
         super(MainWindow, self).__init__(parent)
         QtCore.QCoreApplication.instance().aboutToQuit.connect(self.on_qapp_quit)
-        uic.loadUi(application_registry.instance.find_data_file('ui/mainwin.ui'), self)
+        uic.loadUi(application_registry.instance.find_data_file('mesycontrol/ui/mainwin.ui'), self)
 
         self._device_windows = {}
 
         self.setup_tree_view = setup_treeview.SetupTreeView(parent=self)
+        self.setup_tree_view.sig_open_device.connect(self._slt_open_device_window)
+        self.setup_tree_view.sig_close_mrc.connect(self._slt_close_mrc)
         application_registry.instance.mrc_added.connect(self.setup_tree_view.model().add_mrc)
-        self._add_subwindow(self.setup_tree_view, "Devices")
+        self._add_subwindow(self.setup_tree_view, "Device Tree")
 
     def on_qapp_quit(self):
         logging.info("Exiting...")
@@ -99,6 +103,13 @@ class MainWindow(QtGui.QMainWindow):
         result = dialog.exec_()
 
         if result != QtGui.QDialog.Accepted:
+            return
+
+        connection_config = dialog.connection_config
+        connection        = application_registry.instance.find_connection_by_config(connection_config)
+
+        if connection is not None:
+            QtGui.QMessageBox.critical(self, "Connection error", "Connection exists")
             return
 
         connection       = mrc_connection.factory(config=dialog.connection_config)
@@ -118,18 +129,27 @@ class MainWindow(QtGui.QMainWindow):
         subwin.show()
         return subwin
 
-    #def _slt_open_device_window(self, device_model):
-    #    key = (device_model.mrc_model, device_model.bus, device_model.dev)
-    #    if not self._device_windows.has_key(key):
-    #        widget = GenericDeviceWidget(device_model, self)
-    #        title  = "%s %d.%d" % (device_model.mrc_model.connection.get_info(),
-    #                device_model.bus, device_model.dev)
-    #        self._device_windows[key] = self._add_subwindow(widget, title)
+    def _slt_open_device_window(self, device):
+        if not self._device_windows.has_key(device):
+            widget = device_widget.factory(device)
+            widget.setParent(self)
+            self._device_windows[device] = self._add_subwindow(widget, str(device))
+            if not device.has_all_parameters():
+                mrc_command.RefreshMemory(device).start()
 
-    #    subwin = self._device_windows[key]
-    #    subwin.show()
-    #    subwin.widget().show()
-    #    self.mdiArea.setActiveSubWindow(subwin)
+        subwin = self._device_windows[device]
+        subwin.show()
+        subwin.widget().show()
+        self.mdiArea.setActiveSubWindow(subwin)
+
+    def _slt_close_mrc(self, mrc):
+        mrc.disconnect()
+        self.setup_tree_view.model().remove_mrc(mrc)
+        for device in mrc.get_devices():
+            if device in self._device_windows:
+                self.mdiArea.removeSubWindow(self._device_windows[device])
+                del self._device_windows[device]
+        application_registry.instance.unregister_mrc(mrc)
 
     @pyqtSlot()
     def on_actionLoad_Setup_triggered(self):
@@ -213,8 +233,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,
             format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
-    logging.getLogger("mesycontrol.tcp_client").setLevel(logging.INFO)
-    #logging.getLogger("MRCModel").setLevel(logging.INFO)
+    logging.getLogger("mesycontrol.tcp_client").setLevel(logging.DEBUG)
     logging.getLogger("PyQt4.uic").setLevel(logging.INFO)
 
     # Signal handling
@@ -234,7 +253,7 @@ if __name__ == "__main__":
     timer.start(500)
 
     # Confine garbage collection to the main thread to avoid crashes.
-    garbage_collector = mesycontrol.util.GarbageCollector()
+    garbage_collector = util.GarbageCollector()
 
     mainwin = MainWindow()
     mainwin.show()

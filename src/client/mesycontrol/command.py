@@ -45,16 +45,20 @@ class Command(QtCore.QObject):
 
         try:
             self._reset_state()
+            self.log.debug("%s: invoking start implementation", self)
             self._start()
+            self.log.debug("%s: start implementation returned", self)
             self._is_running = True
             self.started.emit()
         except Exception as e:
             # Keep the current exception and traceback around to reraise them
             # in get_result().
+            self.log.error("%s: start implementation raised %s (%s)", self, e, type(e))
             self._exception    = e
             self._exception_tb = sys.exc_info()[2]
             self._stopped(False)
-        finally:
+            raise
+        else:
             return self
 
     def stop(self):
@@ -106,6 +110,9 @@ class Command(QtCore.QObject):
             # traceback.
             raise self._exception, None, self._exception_tb
         return self._get_result()
+
+    def get_exception(self):
+        return self._exception
 
     def __len__(self): return 1
     def _start(self): raise NotImplemented()
@@ -160,20 +167,29 @@ class SequentialCommandGroup(CommandGroup):
         super(SequentialCommandGroup, self).__init__(parent)
         self.continue_on_error = continue_on_error
         self._current = None
+        self.log = util.make_logging_source_adapter(__name__, self)
 
     def _start(self):
+        self.log.debug("%s starting", self)
         self._start_next(enumerate(self._commands))
 
     def _start_next(self, cmd_iter):
         try:
             idx, cmd = cmd_iter.next()
-            self._current = cmd
-            cmd.stopped.connect(partial(self._child_stopped, cmd=cmd, idx=idx, cmd_iter=cmd_iter))
-            self.log.info("Starting subcommand %d/%d: %s", idx, len(self), cmd)
-            cmd.start()
         except StopIteration:
             self._current = None
             self._stopped(all(cmd.is_complete() for cmd in self._commands))
+        else:
+            self._current = cmd
+            cmd.stopped.connect(partial(self._child_stopped, cmd=cmd, idx=idx, cmd_iter=cmd_iter))
+            self.log.debug("Starting subcommand %d/%d: %s", idx, len(self), cmd)
+            try:
+                cmd.start()
+            except Exception as e:
+                self._exception    = e
+                self._exception_tb = sys.exc_info()[2]
+                self._stopped(False)
+                raise
 
     def _stop(self):
         if self._current is not None:

@@ -8,25 +8,24 @@ from command import SequentialCommandGroup
 from mrc_command import ReadParameter, SetParameter
 
 class ConfigLoader(SequentialCommandGroup):
-    def __init__(self, device_model, device_config, device_description, parent=None):
+    def __init__(self, device, device_config, parent=None):
         super(ConfigLoader, self).__init__(parent)
-        self.device      = device_model
+        self.device      = device
         self.config      = device_config
-        self.description = device_description
-
-        if None not in (self.device, self.config, self.description):
-            self._prepare()
+        self._prepare()
 
     def _prepare(self):
         self.clear()
 
+        dev_descr = self.device.description
+
         # Set critical params to safe values first
-        for param_descr in self.description.get_critical_parameters():
+        for param_descr in dev_descr.get_critical_parameters():
             self.add(SetParameter(self.device, param_descr.address, param_descr.safe_value))
 
         # Set values from config
         for param_cfg in self.config.get_parameters():
-            param_descr = self.description.get_parameter_by_address(param_cfg.address)
+            param_descr = dev_descr.get_parameter_by_address(param_cfg.address)
 
             if (param_descr is None
                     or (not param_descr.critical
@@ -36,21 +35,14 @@ class ConfigLoader(SequentialCommandGroup):
 
         # Set critical param config values
         for param_cfg in self.config.get_parameters():
-            param_descr = self.description.get_parameter_by_address(param_cfg.address)
+            param_descr = dev_descr.get_parameter_by_address(param_cfg.address)
             if param_descr is not None and param_descr.critical:
                 self.add(SetParameter(self.device, param_cfg.address, param_cfg.value))
 
-        def set_name():
-            self.device.name = self.config.name
+        def set_config():
+            self.device.config = self.config
 
-        self.add(Callable(set_name))
-
-    def _start(self):
-        if None in (self.device, self.config, self.description):
-            raise CommandException("device, config and description needed")
-
-        self._prepare()
-        super(ConfigLoader, self)._start()
+        self.add(Callable(set_config))
 
 class ConfigVerifier(SequentialCommandGroup):
     def __init__(self, device_model, device_config, parent=None):

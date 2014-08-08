@@ -33,7 +33,6 @@ class NamedObject(QObject):
         
 class TreeNode(QObject):
     """Support class for implementing the nodes of a Qt tree model."""
-
     def __init__(self, ref, parent=None):
         super(TreeNode, self).__init__(parent)
         self.ref         = ref
@@ -79,10 +78,21 @@ class TreeNode(QObject):
     def get_checkstate(self):
         return self._checkstate
 
+    def find_node_by_ref(self, ref):
+        if self.ref is ref:
+            return self
+
+        for c in self.children:
+            ret = c.find_node_by_ref(ref)
+            if ret is not None:
+                return ret
+
+        return None
+
     ref         = pyqtProperty(object, get_ref, set_ref)
     row         = pyqtProperty(int, get_row)
     checkable   = pyqtProperty(bool, is_checkable, set_checkable)
-    check_state = pyqtProperty(int, get_checkstate, set_checkstate)
+    check_state = pyqtProperty(Qt.CheckState, get_checkstate, set_checkstate)
 
 class GarbageCollector(QObject):
     '''
@@ -131,6 +141,8 @@ class GarbageCollector(QObject):
 class URLParseError(Exception): pass
 
 def parse_connection_url(url):
+    # TODO: add support for baud rate auto detection. make e.g. '/dev/ttyUSB0'
+    # pass and use auto baud rate. => assume a serial port if nothing else matches
     """Parses the given connection URL.
     Returns a dictionary ready to be passed to mrc_connection.factory() to
     create a connection instance.

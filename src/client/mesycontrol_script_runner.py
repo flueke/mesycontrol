@@ -5,8 +5,6 @@
 from mesycontrol.command import *
 from mesycontrol.mrc_command import *
 from mesycontrol.script import *
-from mesycontrol import config_xml
-from mesycontrol import setup
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

@@ -9,9 +9,10 @@ import weakref
 
 from app_model import Device
 from util import TreeNode
+import mrc_command
 
-column_names     = ('address', 'value', 'name', 'alias', 'config_value', 'set_value', 'config_set')
-column_titles    = ('Address', 'Value', 'Name', 'Alias', 'Config Value', 'Set Value', 'Config & Set')
+column_names  = ('address', 'name', 'value', 'set_value')
+column_titles = ('Address', 'Name', 'Value', 'Set Value') 
 
 class ParameterNode(TreeNode):
     data_changed = pyqtSignal()
@@ -20,6 +21,7 @@ class ParameterNode(TreeNode):
         super(ParameterNode, self).__init__(device, parent)
         self.address = address
         device.parameter_changed.connect(self._on_parameter_changed)
+        device.config_parameter_changed.connect(self._on_parameter_changed)
 
     def _on_parameter_changed(self, address, old, new):
         if self.address == address:
@@ -28,7 +30,7 @@ class ParameterNode(TreeNode):
     def flags(self, column):
         ret = (Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 
-        if column_names[column] in ('name', 'alias', 'config_value', 'set_value', 'config_set'):
+        if column_names[column] in ('set_value',):
             ret |= Qt.ItemIsEditable
 
         return ret
@@ -65,21 +67,44 @@ class ParameterNode(TreeNode):
                 if role == Qt.DisplayRole:
                     return param_config.alias if param_config is not None else None
                 return param_config.alias if param_config is not None else str()
-            elif column_name == 'config_value':
-                if role == Qt.DisplayRole:
-                    return param_config.value if param_config is not None else None
-                return param_config.value if param_config is not None else int()
+            elif column_name == 'set_value':
+                if param_config is not None:
+                    return param_config.value
+                elif mem_value is not None:
+                    return mem_value
+                elif role == Qt.EditRole:
+                    return int()
         return None
             
 
     def set_data(self, column, value, role):
-        print "set_data", column, value, role
-        if role == Qt.EditRole:
+        if role != Qt.EditRole:
+            return False
+
+        column_name  = column_names[column]
+
+        if column_name == 'set_value':
+            int_value, ok = value.toInt()
+            if not ok:
+                return False
+            self.ref.set_parameter(self.address, int_value)
+            param_config = self.get_config()
+            if param_config is not None:
+                param_config.value = int_value
             return True
         return False
 
-    def context_menu(self):
-        return None
+    def context_menu(self, column):
+        ret = QtGui.QMenu()
+        ret.addAction("Refresh").triggered.connect(self._slt_refresh)
+        ret.addAction("Refresh All").triggered.connect(self._slt_refresh_all)
+        return ret
+
+    def _slt_refresh(self):
+        self.ref.read_parameter(self.address)
+
+    def _slt_refresh_all(self):
+        mrc_command.RefreshMemory(self.ref).start()
 
 # table model
 class DeviceTableModel(QtCore.QAbstractTableModel):
@@ -107,6 +132,9 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
 
     def get_device(self):
         return self._device()
+
+    def get_node(self, row):
+        return self.root.children[row]
 
     device = pyqtProperty(Device, get_device, set_device)
 
@@ -183,9 +211,23 @@ class DeviceTableView(QtGui.QTableView):
         self.resizeColumnsToContents()
         self.resizeRowsToContents()
         self.doubleClicked.connect(self._on_item_doubleclicked)
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._slt_context_menu_requested)
+        self.setMouseTracking(True) # FIXME: why?
 
     def _on_item_doubleclicked(self, idx):
         idx = self.sort_model.mapToSource(idx)
         print "click on", idx.row(), idx.column(), idx.internalPointer()
         if self.model().flags(idx) & Qt.ItemIsEditable:
             print 'editable'
+
+    def _slt_context_menu_requested(self, pos):
+        idx = self.sort_model.mapToSource(self.indexAt(pos))
+
+        if idx.isValid():
+            node = self.table_model.get_node(idx.row())
+            print node
+            menu = node.context_menu(idx.column())
+            print menu
+            if menu is not None:
+                menu.exec_(self.mapToGlobal(pos))

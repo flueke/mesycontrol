@@ -21,18 +21,27 @@ class AbstractConnection(QtCore.QObject):
     * enable/disable silence
     """
 
-    sig_connecting              = pyqtSignal()
-    sig_connected               = pyqtSignal()
-    sig_disconnected            = pyqtSignal()
-    sig_connection_error        = pyqtSignal(ConnectionError)
-    sig_idle                    = pyqtSignal()
-    sig_message_sent            = pyqtSignal(Message)
-    sig_message_received        = pyqtSignal(Message)
-    sig_response_received       = pyqtSignal(Message, Message)
-    sig_notification_received   = pyqtSignal(Message)
-    sig_error_received          = pyqtSignal(Message)
-    sig_write_access_changed    = pyqtSignal(bool)
-    sig_silence_changed         = pyqtSignal(bool)
+    connecting               = pyqtSignal()
+    connected                = pyqtSignal()
+    disconnected             = pyqtSignal()
+    connection_error         = pyqtSignal(ConnectionError)
+
+    message_sent             = pyqtSignal(Message)               #: message
+    message_received         = pyqtSignal(Message)               #: message
+    response_received        = pyqtSignal(Message, Message)      #: request, response
+
+    request_sent             = pyqtSignal(object, Message)          #: request_id, request
+    request_canceled         = pyqtSignal(object, Message)          #: request_id, request
+    request_completed        = pyqtSignal(object, Message, Message) #: request_id, request, response
+
+    notification_received    = pyqtSignal(Message)
+    error_received           = pyqtSignal(Message)
+
+    idle                     = pyqtSignal()
+    write_queue_size_changed = pyqtSignal(int)                   #: new size
+
+    write_access_changed     = pyqtSignal(bool)
+    silence_changed          = pyqtSignal(bool)
 
     def __init__(self, parent=None):
         super(AbstractConnection, self).__init__(parent)
@@ -58,7 +67,13 @@ class AbstractConnection(QtCore.QObject):
         """Returns an info string for this connection."""
         raise NotImplementedError()
 
-    def get_tx_queue_size(self):
+    def get_write_queue_size(self):
+        raise NotImplementedError()
+
+    def cancel_request(self, request_id):
+        raise NotImplementedError()
+
+    def cancel_all_requests(self):
         raise NotImplementedError()
 
     def has_write_access(self):
@@ -79,30 +94,34 @@ class AbstractConnection(QtCore.QObject):
         self.send_message(Message('request_set_silent_mode', bool_value=silenced),
                 response_handler)
 
+    def matches_config(self, connection_config):
+        """Returns true if this connection and the given connection_config are
+        specifying the same hardware."""
+        raise NotImplementedError()
+
     write_access = pyqtProperty(bool, has_write_access, set_write_access,
-            notify=sig_write_access_changed)
+            notify=write_access_changed)
 
     silenced     = pyqtProperty(bool, is_silenced, set_silenced,
-            notify=sig_silence_changed)
+            notify=silence_changed)
 
     def _message_received_handler(self, msg):
         """Default receive handler to be called by subclasses.
-        Emits sig_notification_received, sig_error_received, etc. depending on
+        Emits notification_received, error_received, etc. depending on
         the message conents.
         """
         if msg.is_notification():
-            self.sig_notification_received.emit(msg)
+            self.notification_received.emit(msg)
             t = msg.get_type_name()
 
             if t == 'notify_silent_mode' and self.silenced != msg.bool_value:
                 self._silenced = msg.bool_value
-                self.sig_silence_changed.emit(self._silenced)
+                self.silence_changed.emit(self._silenced)
             elif t == 'notify_write_access' and self.write_access != msg.bool_value:
                 self._write_access = msg.bool_value
-                self.sig_write_access_changed.emit(self._write_access)
-
+                self.write_access_changed.emit(self._write_access)
         elif msg.is_error():
-            self.sig_error_received.emit(msg)
+            self.error_received.emit(msg)
 
 class MesycontrolConnection(AbstractConnection):
     """TCP connection to a mesycontrol server."""
@@ -114,15 +133,22 @@ class MesycontrolConnection(AbstractConnection):
         self.port    = int(port) if port is not None else None
 
         self._client = tcp_client.TCPClient(self)
-        self._client.sig_connecting.connect(self.sig_connecting)
-        self._client.sig_connected.connect(self.sig_connected)
-        self._client.sig_disconnected.connect(self.sig_disconnected)
-        self._client.sig_socket_error.connect(self._slt_socket_error)
-        self._client.sig_message_sent.connect(self.sig_message_sent)
-        self._client.sig_message_received.connect(self.sig_message_received)
-        self._client.sig_message_received.connect(self._message_received_handler)
-        self._client.sig_response_received.connect(self.sig_response_received)
-        self._client.sig_tx_queue_empty.connect(self.sig_idle)
+        self._client.connecting.connect(self.connecting)
+        self._client.connected.connect(self.connected)
+        self._client.disconnected.connect(self.disconnected)
+        self._client.socket_error.connect(self._slt_socket_error)
+
+        self._client.message_sent.connect(self.message_sent)
+        self._client.message_received.connect(self.message_received)
+        self._client.message_received.connect(self._message_received_handler)
+        self._client.response_received.connect(self.response_received)
+
+        self._client.request_sent.connect(self.request_sent)
+        self._client.request_canceled.connect(self.request_canceled)
+        self._client.request_completed.connect(self.request_completed)
+
+        self._client.write_queue_empty.connect(self.idle)
+        self._client.write_queue_size_changed.connect(self.write_queue_size_changed)
 
     def connect(self):
         if None in (self.host, self.port):
@@ -144,11 +170,22 @@ class MesycontrolConnection(AbstractConnection):
     def get_info(self):
         return "mesycontrol://%s:%d" % (self.host, self.port)
 
-    def get_tx_queue_size(self):
+    def get_write_queue_size(self):
         return self._client.get_write_queue_size()
 
     def _slt_socket_error(self, errc, errstr):
-        self.sig_connection_error.emit(ConnectionError(errstr, errc))
+        self.connection_error.emit(ConnectionError(errstr, errc))
+
+    def matches_config(self, connection_config):
+        return (connection_config.is_mesycontrol_connection()
+                and connection_config.mesycontrol_host == self.host
+                and connection_config.mesycontrol_port == self.port)
+
+    def cancel_request(self, request_id):
+        return self._client.cancel_request(request_id)
+
+    def cancel_all_requests(self):
+        self._client.cancel_all_requests()
 
 class LocalMesycontrolConnection(MesycontrolConnection):
     """Starts and connects to a local mesycontrol server process."""
@@ -204,12 +241,20 @@ class LocalMesycontrolConnection(MesycontrolConnection):
 
     def _slt_server_finished(self, exit_status, exit_code, exit_code_string):
         if exit_code != 0:
-            self.sig_connection_error.emit(ConnectionError(
+            self.connection_error.emit(ConnectionError(
                 exit_code_string, exit_code, exit_status))
 
     def _slt_server_error(self, process_error, error_string, exit_code, exit_code_string):
-        self.sig_connection_error.emit(ConnectionError(
+        self.connection_error.emit(ConnectionError(
             exit_code_string, exit_code, error_string, process_error))
+
+    def matches_config(self, connection_config):
+        if connection_config.is_serial_connection():
+            return self.server.mrc_serial_port == connection_config.serial_device
+        elif connection_config.is_tcp_connection():
+            return (self.server.mrc_host == connection_config.tcp_host
+                    and self.server.mrc_port == connection_config.tcp_port)
+        return False
 
 def factory(**kwargs):
     """Connection factory.

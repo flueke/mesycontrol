@@ -7,9 +7,10 @@ CSD = '${CMAKE_CURRENT_SOURCE_DIR}'
 # Dependencies are automatically detected, but it might need
 # fine tuning.
 build_options = dict(
-      packages = ['mesycontrol'],
+      packages = ['mesycontrol', 'mesycontrol.ui'],
       excludes = [],
-      include_files = [(pjoin(CSD, 'ui'), 'ui')],
+      include_files = [(pjoin(CSD, 'mesycontrol/ui'), 'mesycontrol/ui')],
+      zip_includes  = [(pjoin(CSD, 'mesycontrol/ui/mainwin.ui'), 'mesycontrol/ui')],
       init_script = pjoin(CSD, 'cxfreeze_init.py'),
       path = sys.path + [CSD]
       )

@@ -12,7 +12,7 @@ def print_voltages(mhv):
 
 if __name__ == "__main__":
     if len(sys.argv) < 4:
-        print "Print MHV4 voltages."
+        print "Repeatedly print MHV4 voltages."
         print "Usage: %s <connection-url> <bus> <dev>" % sys.argv[0]
         print "Example: %s /dev/ttyUSB0@115200 0 1" % sys.argv[0]
         sys.exit(1)
@@ -22,10 +22,10 @@ if __name__ == "__main__":
     dev = int(sys.argv[3])
 
     with get_script_context() as ctx:
-        conn = ctx.make_connection(url=url)
-        assert conn.connect()
-        mhv  = conn.mrc[bus][dev]
-        assert mhv.idc == 17
+        mrc = ctx.make_connection(url=url)
+        assert mrc.connect()
+        mhv  = mrc[bus][dev]
+        assert mhv.idc in (17, 27)
 
         print_voltage_header()
         i = 0

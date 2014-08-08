@@ -15,7 +15,8 @@ class MHV4(QtCore.QObject):
 class ChannelWidget(QtGui.QWidget):
     def __init__(self, mhv4, channel, parent=None):
         super(ChannelWidget, self).__init__(parent)
-        uic.loadUi(application_registry.instance.find_data_file('ui/mhv4_channel.ui'), self)
+        #uic.loadUi(resource_stream('ui', 'mhv4_channel.ui'), self)
+        uic.loadUi(application_registry.instance.find_data_file('mesycontrol/ui/mhv4_channel.ui'), self)
         self.mhv4    = weakref.ref(mhv4)
         self.channel = channel
 
@@ -47,8 +48,7 @@ if __name__ == "__main__":
 
     qapp = QtGui.QApplication(sys.argv)
 
-    application_registry.instance = application_registry.ApplicationRegistry(
-            sys.executable if getattr(sys, 'frozen', False) else __file__)
+    application_registry.instance = application_registry.ApplicationRegistry(__file__)
 
     mhv4_model  = hw_model.DeviceModel(bus=0, address=0, idc=17, rc=True)
     mhv4        = app_model.Device(device_model=mhv4_model)

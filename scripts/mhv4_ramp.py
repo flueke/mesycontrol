@@ -19,7 +19,7 @@ def print_server_output(output):
 if __name__ == "__main__":
     if len(sys.argv) < 4:
         print "Usage: %s <connection-url> <bus> <dev> <target_voltage_v>" % sys.argv[0]
-        print "Example: %s /dev/ttyUSB0@115200 0 1 350" % sys.argv[0]
+        print "Example: %s /dev/ttyUSB0@0 0 1 350" % sys.argv[0]
         sys.exit(1)
 
     url = sys.argv[1]
@@ -28,19 +28,13 @@ if __name__ == "__main__":
     target_voltage = int(sys.argv[4])
 
     with get_script_context() as ctx:
-        conn = ctx.make_connection(url=url)
+        mrc = ctx.make_connection(url=url)
 
-        if hasattr(conn, 'server'):
-            server_process = conn.server
-            server_process.sig_stdout.connect(print_server_output)
-
-        assert conn.connect(), "Connection failed"
-
-        mrc = conn.mrc
+        assert mrc.connect(), "Connection failed"
 
         AcquireWriteAccess(mrc, force=True)()
 
-        assert mrc.connection.has_write_access(), "Could not acquire mrc write access"
+        assert mrc.has_write_access(), "Could not acquire mrc write access"
 
         print "Bus configuration:"
         for i in range(2):
@@ -48,11 +42,17 @@ if __name__ == "__main__":
 
         mhv = mrc[bus][dev]
         
-        assert mhv.idc == 17 # MHV4
+        assert mhv.idc in (17,27) # MHV4
+
+        is_800v_variant = mhv.idc == 27
         
         print "Disabling channels"
         for i in range(4):
             mhv[i+4] = 0 # disable channels
+            if is_800v_variant:
+                mhv[i+8]  = 20000 # current limit = 20 uA
+                mhv[i+14] = 1     # positive polarity
+                mhv[i+18] = 8000  # voltage limit = 800V
         
         print "Enabling RC"
         mhv.rc = True

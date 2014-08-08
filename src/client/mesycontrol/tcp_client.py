@@ -35,15 +35,24 @@ class Stats:
         self.receive_histo[t] = self.receive_histo.get(t, 0) + 1
 
 class TCPClient(QtCore.QObject):
-    sig_connecting        = pyqtSignal()
-    sig_connected         = pyqtSignal()
-    sig_disconnected      = pyqtSignal()
-    sig_socket_error      = pyqtSignal(int, str)
+    """Mesycontrol TCP client.
+    Writes outgoing requests and handles receiving of responses and notifications.
+    """
+    connecting               = pyqtSignal()
+    connected                = pyqtSignal()
+    disconnected             = pyqtSignal()
+    socket_error             = pyqtSignal(int, str)
 
-    sig_message_sent      = pyqtSignal(Message)          #: message
-    sig_message_received  = pyqtSignal(Message)          #: message
-    sig_response_received = pyqtSignal(Message, Message) #: request, response
-    sig_tx_queue_empty    = pyqtSignal()
+    message_sent             = pyqtSignal(Message)               #: message
+    message_received         = pyqtSignal(Message)               #: message
+    response_received        = pyqtSignal(Message, Message)      #: request, response
+
+    request_sent             = pyqtSignal(object, Message)          #: request_id, request
+    request_canceled         = pyqtSignal(object, Message)          #: request_id, request
+    request_completed        = pyqtSignal(object, Message, Message) #: request_id, request, response
+
+    write_queue_empty        = pyqtSignal()
+    write_queue_size_changed = pyqtSignal(int)                   #: new size
 
     def __init__(self, parent=None):
         super(TCPClient, self).__init__(parent)
@@ -62,8 +71,7 @@ class TCPClient(QtCore.QObject):
         self._socket.readyRead.connect(self._slt_socket_readyRead)
 
     def _reset_state(self):
-        self._current_request = None
-        self._current_response_handler = None
+        self._current_request_tuple = None
         self._current_write_data = None
         self._read_size = 0
         self._stats = Stats()
@@ -81,7 +89,7 @@ class TCPClient(QtCore.QObject):
         self._reset_state()
         self._host = str(host)
         self._port = int(port)
-        self.sig_connecting.emit()
+        self.connecting.emit()
         self.log.info("Connecting to %s:%d", self.host, self.port)
         self._socket.connectToHost(self.host, self.port)
 
@@ -99,7 +107,7 @@ class TCPClient(QtCore.QObject):
                 QtNetwork.QAbstractSocket.HostLookupState)
 
     def request_in_progress(self):
-        return self._current_request is not None
+        return self._current_request_tuple is not None
 
     def queue_request(self, request, response_handler=None):
         """Adds the given request to the outgoing queue. Once the request has
@@ -108,12 +116,13 @@ class TCPClient(QtCore.QObject):
         Returns a unique identifier that can be used to remove the request from
         the queue using cancel_request().
         """
-        was_empty = len(self._write_queue) == 0
+        was_empty = self.get_write_queue_size() == 0
         tup = (request, response_handler)
         self.log.debug("Queueing request %s, response_handler=%s, id=%d", request, response_handler, id(tup))
         self._write_queue.append(tup)
         self.log.debug("Write queue size = %d", self.get_write_queue_size())
         self.stats.update_write_queue_size(self.get_write_queue_size())
+        self.write_queue_size_changed.emit(self.get_write_queue_size())
         if was_empty:
             self._start_write_message()
         return id(tup)
@@ -123,6 +132,10 @@ class TCPClient(QtCore.QObject):
             tup = filter(lambda t: id(t) == request_id, self._write_queue)[0]
             self.log.debug("Canceling request %s, response_handler=%s, id=%d", tup[0], tup[1], id(tup))
             self._write_queue.remove(tup)
+            self.request_canceled.emit(id(tup), tup[0])
+            self.write_queue_size_changed.emit(self.get_write_queue_size())
+            if self.get_write_queue_size() == 0:
+                self.write_queue_empty.emit()
             return True
         except IndexError:
             return False
@@ -130,23 +143,44 @@ class TCPClient(QtCore.QObject):
     def get_write_queue_size(self):
         return len(self._write_queue)
 
+    def cancel_all_requests(self):
+        request_ids = [id(t) for t in self._write_queue]
+        for request_id in request_ids:
+            self.cancel_request(request_id)
+
+    def get_request_tuple(self, request_id):
+        """Returns the request tuple for the given request_id.
+        The returned tuple has the form (request_message, response_handler).
+        """
+        try:
+            return filter(lambda t: id(t) == request_id, self._write_queue)[0]
+        except IndexError:
+            raise RuntimeError("No such request_id")
+
+    def get_request_message(self, request_id):
+        return self.get_request_tuple(request_id)[0]
+
     def _start_write_message(self):
         if not self.is_connected() or self.request_in_progress():
             return
 
         try:
-            self._current_request, self._current_response_handler = self._write_queue.pop(0)
-            msg_data = self._current_request.serialize()
+            self._current_request_tuple = self._write_queue.pop(0)
+            msg_data = self._current_request_tuple[0].serialize()
             self._current_write_data = struct.pack('!H', len(msg_data)) + msg_data
-            self.log.debug("Writing message %s (size=%d)", self._current_request, len(self._current_write_data))
+            self.log.debug("Writing message %s (size=%d)", self._current_request_tuple[0], len(self._current_write_data))
             self._socket.write(self._current_write_data)
+            self.write_queue_size_changed.emit(self.get_write_queue_size())
+            if self.get_write_queue_size() == 0:
+                self.write_queue_empty.emit()
         except IndexError:
             self.log.debug("Message queue is empty")
             return
 
     def _slt_socket_bytesWritten(self, n_bytes):
-        self.stats.message_sent(self._current_request, len(self._current_write_data))
-        self.sig_message_sent.emit(self._current_request)
+        self.stats.message_sent(self._current_request_tuple[0], len(self._current_write_data))
+        self.message_sent.emit(self._current_request_tuple[0])
+        self.request_sent.emit(id(self._current_request_tuple), self._current_request_tuple[0])
 
     def _slt_socket_readyRead(self):
         if self._read_size <= 0 and self._socket.bytesAvailable() >= 2:
@@ -158,31 +192,35 @@ class TCPClient(QtCore.QObject):
             try:
                 message = Message.deserialize(message_data)
             except MessageError as e:
-                self.log.error("Could not deserialize incoming message: %s. Disconnecting...", e)
-                self.disconnect()
+                self.log.error("Could not deserialize incoming message: %s.", e)
                 return
 
             self.log.debug("Received message %s", message)
 
             self.stats.message_received(message, self._read_size + 2)
-            self.sig_message_received.emit(message)
+            self.message_received.emit(message)
             self._read_size = 0
 
             if message.is_response():
-                self.sig_response_received.emit(self._current_request, message)
+                self.response_received.emit(self._current_request_tuple[0], message)
 
-                if self._current_response_handler is not None:
-                    self._current_response_handler(self._current_request, message)
+                response_handler = self._current_request_tuple[1]
 
-                self._current_request = None
-                self._current_response_handler = None
+                if response_handler is not None:
+                    response_handler(self._current_request_tuple[0], message)
+
+                self.log.debug("request %d completed", id(self._current_request_tuple))
+                self.request_completed.emit(id(self._current_request_tuple),
+                        self._current_request_tuple[0], message)
+
+                self._current_request_tuple = None
 
                 # The response to the last message was received. Start sending
                 # the next message or signal that the queue is empty.
                 if len(self._write_queue) > 0:
                     self._start_write_message()
                 else:
-                    self.sig_tx_queue_empty.emit()
+                    self.write_queue_empty.emit()
 
             if self._socket.bytesAvailable() >= 2:
                 # Handle additional available data.
@@ -191,7 +229,7 @@ class TCPClient(QtCore.QObject):
     @pyqtSlot()
     def _slt_connected(self):
         self.log.info("Connected to %s:%d" % (self.host, self.port))
-        self.sig_connected.emit()
+        self.connected.emit()
         self._start_write_message()
 
     @pyqtSlot()
@@ -209,10 +247,10 @@ class TCPClient(QtCore.QObject):
         self.log.debug("Send histo: %s" % stats.send_histo)
         self.log.debug("Recv histo: %s" % stats.receive_histo)
 
-        self.sig_disconnected.emit()
+        self.disconnected.emit()
 
     @pyqtSlot(int)
     def _slt_socket_error(self, socket_error):
         self.log.error("%s:%d: %s" % (self.host, self.port, self._socket.errorString()))
-        self.sig_socket_error.emit(socket_error, self._socket.errorString())
-
+        self.socket_error.emit(socket_error, self._socket.errorString())
+        self.disconnected.emit()

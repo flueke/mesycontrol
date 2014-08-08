@@ -35,8 +35,8 @@ DONE - DeviceDescription: add value range to parameters (min, max). Make sure in
   - DeviceDescription: add version detection (MSFC-16)
   - DeviceDescription: add a flag to mark system descriptions
   - DeviceDescription: add a way to copy a description
-  - DeviceDescription: refactor to DeviceProfile or something like that to avoid confusion with the textual description that's in the DeviceConfig
-  - DeviceConfig: add a way to store MRC connection info in the configuration
+  - DeviceDescription: refactor to DeviceProfile or something like that to
+    avoid confusion with the textual description that's in the DeviceConfig
 DONE  - DeviceConfigXML: use attributes instead of nested tags for simple stuff (makes the XML file shorter)
   - DeviceConfigXML: add DTD (used for verification)
 
@@ -472,3 +472,44 @@ action: load config2 from setup2 into dev1
   Who creates the MRC object?
     - create MRC using MRCModel (no Config)
     - register MRC
+
+
+===== Plan Tue Aug  5 10:11:10 CEST 2014 =====
+- HW vs. Config:
+
+
+Use cases:
+- Connect to an MRC
+  * Creates a new connection using the supplied information (serial device, baud rate, ...)
+  * connect
+  * scan both busses
+  -> user gets a tree with connected devices as leaves
+
+- List and edit device parameters
+  * Table view of the device parameters
+  * refresh memory / mirror memory / single parameter
+  * set param to value
+
+- Save device config to file
+  * Dump device memory to file
+  * No connection information stored in the file
+- Load device config from file
+- Save setup to file
+- Load setup from file
+
+#def observe_property_change(prop_name):
+#    def the_decorator(method):
+#        def inner(self, *args, **kwargs):
+#            old_prop_value = getattr(self, prop_name)
+#            method(self, *args, **kwargs)
+#            new_prop_value = getattr(self, prop_name)
+#            if old_prop_value != new_prop_value:
+#                print "emitting!"
+#                self.changed.emit()
+#        return inner
+#    return the_decorator
+#
+#    @observe_property_change('name')
+#    def set_name(self, name):
+#        self._name = name
+

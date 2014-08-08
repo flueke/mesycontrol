@@ -24,18 +24,18 @@ def parse_etree(et):
     return parse_etree_element(root)
 
 def parse_etree_element(element):
-    config = Config()
+    cfg = Config()
 
     for desc_node in element.iter('device_description'):
-        config.device_descriptions.append(parse_device_description(desc_node))
+        cfg.device_descriptions.append(parse_device_description(desc_node))
 
     for config_node in element.iter('device_config'):
-        config.device_configs.append(parse_device_config(config_node))
+        cfg.add_device_config(parse_device_config(config_node))
 
     for connection_node in element.iter('connection_config'):
-        config.connection_configs.append(parse_connection_config(connection_node))
+        cfg.add_connection_config(parse_connection_config(connection_node))
 
-    return config
+    return cfg
 
 def parse_device_description(desc_node):
     device_desc = DeviceDescription(desc_node.find('idc').text)
@@ -130,18 +130,18 @@ def parse_connection_config(connection_node):
 
     return connection_config
 
-def to_etree(config):
+def to_etree(cfg):
     tb = TreeBuilder()
     tb.start("mesycontrol", {})
 
-    for obj in config.connection_configs:
+    for obj in cfg.get_connection_configs():
         _connection_config_to_etree(obj, tb)
 
-    for obj in config.device_configs:
+    for obj in cfg.get_device_configs():
         _device_config_to_etree(obj, tb)
 
-    for obj in config.device_descriptions:
-        _device_description_to_etree(obj, tb)
+    #for obj in cfg.device_descriptions:
+    #    _device_description_to_etree(obj, tb)
 
     tb.end("mesycontrol")
 
@@ -207,19 +207,19 @@ def _device_description_to_etree(desc, tb):
 def _device_config_to_etree(cfg, tb):
     tb.start('device_config', {})
 
-    _add_tag(tb, 'device_idc', cfg.device_idc)
+    _add_tag(tb, 'device_idc', cfg.idc)
 
     if cfg.name is not None:
         _add_tag(tb, 'name', cfg.name)
 
-    if cfg.connection_name is not None:
-        _add_tag(tb, 'connection_name', cfg.connection_name)
+    #if cfg.connection_name is not None:
+    #    _add_tag(tb, 'connection_name', cfg.connection_name)
 
-    if cfg.bus_number is not None:
-        _add_tag(tb, 'bus_number', cfg.bus_number)
+    if cfg.bus is not None:
+        _add_tag(tb, 'bus_number', cfg.bus)
 
-    if cfg.device_address is not None:
-        _add_tag(tb, 'device_address', cfg.device_address)
+    if cfg.address is not None:
+        _add_tag(tb, 'device_address', cfg.address)
 
     for p in cfg.get_parameters():
         if p.value is not None or p.alias is not None:

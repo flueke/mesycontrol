@@ -86,6 +86,11 @@
            <widget class="QComboBox" name="combo_baud_rate">
             <item>
              <property name="text">
+              <string>auto</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
               <string>115200</string>
              </property>
             </item>
