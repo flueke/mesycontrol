@@ -39,6 +39,9 @@ class Config(QtCore.QObject):
     def get_device_configs(self):
         return list(self._device_configs)
 
+    def get_device_configs_by_idc(self, idc):
+        return filter(lambda cfg: cfg.idc == idc, self._device_configs)
+
     def add_connection_config(self, mrc_config):
         self._mrc_configs.append(mrc_config)
 

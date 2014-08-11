@@ -219,7 +219,7 @@ class SourceFilter(object):
     self.log = logging.LoggerAdapter(logging.getLogger(__name__), dict(source=weakref.ref(self)))
 
     Then add the objects you're interested in to the filter using add_source().
-    make_source_adapter() provides a shortcut for creating the LoggerAdapter.
+    make_logging_source_adapter() provides a shortcut for creating the LoggerAdapter.
 
     """
     def __init__(self):

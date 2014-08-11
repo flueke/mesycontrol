@@ -43,7 +43,7 @@ class ServerProcess(QtCore.QObject):
     default_listen_port    = 23000
     default_baud_rate      = 9600
     default_mrc_port       = 4001
-    default_verbosity      = 0
+    default_verbosity      = 10
 
     sig_started  = pyqtSignal()
 
@@ -69,7 +69,7 @@ class ServerProcess(QtCore.QObject):
         self.mrc_port        = ServerProcess.default_mrc_port
         self.verbosity       = ServerProcess.default_verbosity
 
-        self.process = QProcessWrapper(self)
+        self.process = QProcess(self)
         self.process.setProcessChannelMode(QtCore.QProcess.MergedChannels)
         self.process.started.connect(self._slt_started)
         self.process.error.connect(self._slt_error)
@@ -85,6 +85,7 @@ class ServerProcess(QtCore.QObject):
         args = list()
 
         if self.verbosity != 0:
+            # verbose/quiet flags (-vvv / -qqq)
             verb_flag = 'v' if self.verbosity > 0 else 'q'
             verb_args = '-' + verb_flag * abs(self.verbosity)
             args.append(verb_args)
@@ -162,7 +163,7 @@ class ServerProcess(QtCore.QObject):
 
     def _slt_stdout_ready(self):
         data = str(self.process.readAllStandardOutput())
-        self.log.debug(data)
+        self.log.info(data)
         self.sig_stdout.emit(data)
 
 class ProcessPool(QtCore.QObject):

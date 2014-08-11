@@ -70,6 +70,8 @@ class MRCWrapper(QtCore.QObject):
         if not Connect(self._wrapped)():
             return False
 
+        # FIXME: Wait for the model to scan both busses (which it does once
+        # it's connected)
         for i in range(2):
             Scanbus(self._wrapped, i)()
 
