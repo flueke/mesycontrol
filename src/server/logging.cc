@@ -14,7 +14,8 @@ namespace mesycontrol
 namespace log
 {
 
-namespace expr = boost::log::expressions;
+namespace expr  = boost::log::expressions;
+namespace sinks = boost::log::sinks;
 
 void init_logging()
 {
@@ -23,12 +24,16 @@ void init_logging()
 
   boost::log::add_common_attributes();
 
-  boost::log::add_console_log(
-      std::cout,
-      keywords::format = expr::stream
-        << "[" << expr::format_date_time< boost::posix_time::ptime >("TimeStamp", "%y/%m/%d %H:%M:%S.%f")
-        << "] [" << std::setw(7) << boost::log::trivial::severity << "] "
-        << expr::attr<std::string>("Channel") << ": " << expr::smessage);
+  boost::shared_ptr<
+    sinks::synchronous_sink<sinks::text_ostream_backend>
+    > sink = boost::log::add_console_log(
+        std::cout,
+        keywords::format = expr::stream
+          << "[" << expr::format_date_time< boost::posix_time::ptime >("TimeStamp", "%y/%m/%d %H:%M:%S.%f")
+          << "] [" << std::setw(7) << boost::log::trivial::severity << "] "
+          << expr::attr<std::string>("Channel") << ": " << expr::smessage);
+
+  sink->locked_backend()->auto_flush(true);
 
   boost::log::core::get()->set_filter(
       boost::log::trivial::severity >= boost::log::trivial::info);

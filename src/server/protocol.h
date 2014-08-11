@@ -96,7 +96,7 @@ struct Message
   boost::uint8_t            dev;          // device number [0..15]
   boost::uint8_t            par;          // parameter address [0..255]
   boost::int32_t            val;          // value usually in the range [0..65535]
-                                          // can be negative (mhv4)
+                                          // values returned by the mrc can be negative (mhv4)
   error_type::ErrorType     error_value;  // error messages only
   bool                      bool_value;   // bool messages only
   // Scanbus response - 16 pairs of (device id code, rc status).

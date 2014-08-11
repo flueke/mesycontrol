@@ -201,10 +201,11 @@ bool MRC1Connection::write_command(const MessagePtr &command,
 
   m_current_response_handler = response_handler;
   m_current_command          = command;
-  m_write_buffer             = command->get_mrc1_command_string() + command_terminator;
+  std::string command_string = command->get_mrc1_command_string();
+  m_write_buffer             = command_string + command_terminator;
   m_reply_parser.set_current_request(command);
 
-  BOOST_LOG_SEV(m_log, log::lvl::trace) << "writing '" << command->get_mrc1_command_string() << "'";
+  BOOST_LOG_SEV(m_log, log::lvl::debug) << "writing '" << command->get_mrc1_command_string() << "'";
 
   start_write(m_write_buffer,
       boost::bind(&MRC1Connection::handle_write_command, shared_from_this(), _1, _2));
@@ -247,7 +248,7 @@ void MRC1Connection::handle_read_line(const boost::system::error_code &ec, std::
     std::getline(is, reply_line);
     is.ignore(1); // consume the trailing \r
 
-    BOOST_LOG_SEV(m_log, log::lvl::trace) << "received line '" << reply_line << "'";
+    BOOST_LOG_SEV(m_log, log::lvl::debug) << "received line '" << reply_line << "'";
 
     if (!m_reply_parser.parse_line(reply_line)) {
       BOOST_LOG_SEV(m_log, log::lvl::trace) << "Reply parser needs more input";
