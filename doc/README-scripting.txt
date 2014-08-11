@@ -6,9 +6,7 @@
 
     with get_script_context() as ctx:
         # do stuff here...
-        connection = ctx.make_connection(url='/dev/ttyUSB0@115200')
-        connection.connect()
-        mrc = connection.mrc
+        mrc = ctx.make_connection(url='/dev/ttyUSB0@115200')
         device = mrc[0][1] # Get device on bus 0 with address 1
         value = device[32] # Read address 32
         print "Value is %d" % value
@@ -37,9 +35,8 @@
       'mesycontrol_host' and 'mesycontrol_port': creates a direct connection
       to a mesycontrol_server listening on the given host and port.
 
-      The return value of make_connection() is a ConnectionWrapper instance.
-      Use ConnectionWrapper.connect() to establish the connection and
-      ConnectionWrapper.mrc to get access to the MRC.
+      The return value of make_connection() is a MRCWrapper instance.
+      Use MRCWrapper.connect() to establish the connection.
 
       See mrc_connection.factory() for more details about the keyword
       arguments supported by make_connection().
