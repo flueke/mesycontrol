@@ -31,9 +31,9 @@ class ConnectDialog(QtGui.QDialog):
         #uic.loadUi(resource_stream('mesycontrol.ui', 'connect_dialog.ui'), self)
         uic.loadUi(application_registry.instance.find_data_file('mesycontrol/ui/connect_dialog.ui'), self)
         self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(False)
-        self.combo_serial_port.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+')))
-        self.le_tcp_host.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+')))
-        self.le_mesycontrol_host.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+')))
+        self.combo_serial_port.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+'), None))
+        self.le_tcp_host.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+'), None))
+        self.le_mesycontrol_host.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+'), None))
         self.le_tcp_host.setText('localhost')
         self.le_mesycontrol_host.setText('localhost')
 
