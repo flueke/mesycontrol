@@ -1,6 +1,6 @@
-#from nose.tools import assert_raises, assert_dict_equal
-#from ..device_tableview import *
-#from ..hw_model import *
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# Author: Florian Lüke <florianlueke@gmx.net>
 from mesycontrol.device_tableview import *
 from mesycontrol.hw_model import *
 
@@ -35,6 +35,8 @@ def test_simple():
     w.show()
 
     return app.exec_()
+
+test_simple.__test__ = False # Make nose ignore this function
 
 if __name__ == "__main__":
     test_simple()
