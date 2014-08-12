@@ -17,6 +17,7 @@ from mesycontrol import device_widget
 from mesycontrol import config
 from mesycontrol import config_xml
 from mesycontrol import hw_model
+from mesycontrol import log_view
 from mesycontrol import mrc_connection
 from mesycontrol import mrc_controller
 from mesycontrol import mrc_command
@@ -92,6 +93,13 @@ class MainWindow(QtGui.QMainWindow):
         self.setup_tree_view.sig_close_mrc.connect(self._slt_close_mrc)
         application_registry.instance.mrc_added.connect(self.setup_tree_view.model().add_mrc)
         self._add_subwindow(self.setup_tree_view, "Device Tree")
+
+        log_emitter = util.QtLogEmitter(parent=self)
+        logging.getLogger().addHandler(log_emitter.get_handler())
+
+        self.log_view = log_view.LogView(parent=self)
+        log_emitter.log_record.connect(self.log_view.handle_log_record)
+        self._add_subwindow(self.log_view, "Log View")
 
     def on_qapp_quit(self):
         logging.info("Exiting...")
@@ -233,7 +241,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,
             format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
-    logging.getLogger("mesycontrol.tcp_client").setLevel(logging.DEBUG)
+    #logging.getLogger("mesycontrol.tcp_client").setLevel(logging.DEBUG)
     logging.getLogger("PyQt4.uic").setLevel(logging.INFO)
 
     # Signal handling

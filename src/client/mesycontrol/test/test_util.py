@@ -1,6 +1,7 @@
 from nose.tools import assert_raises, assert_dict_equal
-from ..util import parse_connection_url
-from ..util import URLParseError
+from mesycontrol.util import parse_connection_url
+from mesycontrol.util import URLParseError
+from mesycontrol import util
 
 def test_parse_connection_url():
     d = parse_connection_url('serial:///dev/ttyUSB0@115200')
@@ -42,3 +43,24 @@ def test_parse_connection_url():
 
     for url in ('://', 'fooproto://foo:bar'):
         assert_raises(URLParseError, parse_connection_url, url)
+
+def test_qt_logging_handler():
+    from PyQt4 import QtCore
+    import logging
+
+    QtCore.QCoreApplication.instance()
+    logging.basicConfig(level=logging.DEBUG,
+            format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
+
+    logger = logging.getLogger(__name__)
+
+    def on_log_record(log_record):
+        on_log_record.invoked = True
+
+    qt_logger = util.QtLogEmitter()
+    qt_logger.log_record.connect(on_log_record)
+    logging.getLogger(__name__).addHandler(qt_logger.get_handler())
+
+    logger.debug("Hello World!")
+
+    assert on_log_record.invoked

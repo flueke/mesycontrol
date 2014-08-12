@@ -255,3 +255,25 @@ def list_serial_ports():
     for p in patterns:
         ret.extend(sorted(glob.glob(p)))
     return ret
+
+class CallbackLoggingHandler(logging.Handler):
+    def __init__(self, callback):
+        super(CallbackLoggingHandler, self).__init__()
+        self.callback = callback
+
+    def emit(self, log_record):
+        try:
+            self.acquire()
+            self.callback(log_record)
+        finally:
+            self.release()
+
+class QtLogEmitter(QObject):
+    log_record = pyqtSignal(object)
+
+    def __init__(self, parent=None):
+        super(QtLogEmitter, self).__init__(parent)
+        self._handler = CallbackLoggingHandler(self.log_record.emit)
+
+    def get_handler(self):
+        return self._handler
