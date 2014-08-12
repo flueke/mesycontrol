@@ -6,8 +6,6 @@ from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtSignal
 import os
 
-from hw_model import MRCModel
-from app_model import MRC
 import device_description
 import util
 
@@ -34,11 +32,11 @@ def find_data_dir(main_file):
     return os.path.dirname(os.path.abspath(main_file))
 
 class ApplicationRegistry(QtCore.QObject):
-    mrc_model_added   = pyqtSignal(MRCModel)
-    mrc_model_removed = pyqtSignal(MRCModel)
+    mrc_model_added   = pyqtSignal(object) #: MRCModel
+    mrc_model_removed = pyqtSignal(object) #: MRCModel
 
-    mrc_added         = pyqtSignal(MRC)
-    mrc_removed       = pyqtSignal(MRC)
+    mrc_added         = pyqtSignal(object) #: MRC
+    mrc_removed       = pyqtSignal(object) #: MRC
 
     def __init__(self, main_file, parent=None):
         super(ApplicationRegistry, self).__init__(parent)
