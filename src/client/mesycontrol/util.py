@@ -2,6 +2,7 @@ from PyQt4.QtCore import QObject, QTimer, pyqtProperty, pyqtSignal
 from PyQt4.QtCore import Qt
 import gc
 import logging
+import sys
 import weakref
 
 class NamedObject(QObject):
@@ -30,7 +31,7 @@ class NamedObject(QObject):
         return None
 
     name = pyqtProperty(str, get_name, set_name, notify=sig_name_changed)
-        
+
 class TreeNode(QObject):
     """Support class for implementing the nodes of a Qt tree model."""
     def __init__(self, ref, parent=None):
@@ -249,12 +250,40 @@ def make_logging_source_adapter(logger_name, object_instance):
             dict(source=weakref.ref(object_instance)))
 
 def list_serial_ports():
+    if sys.platform.startswith('linux'):
+        return list_serial_ports_linux()
+    elif sys.platform.startswith('win32'):
+        return list(list_serial_ports_windows())
+
+def list_serial_ports_linux():
     import glob
     patterns = ("/dev/ttyUSB?", "/dev/ttyUSB??", "/dev/ttyS?", "/dev/ttyS??")
     ret      = list()
     for p in patterns:
         ret.extend(sorted(glob.glob(p)))
     return ret
+
+def list_serial_ports_windows():
+    """
+    Uses the Win32 registry to return an iterator
+    of serial (COM) ports existing on this computer.
+    Source: http://eli.thegreenplace.net/2009/07/31/listing-all-serial-ports-on-windows-with-python/
+    """
+    import _winreg as winreg
+    import itertools
+    path = 'HARDWARE\\DEVICEMAP\\SERIALCOMM'
+    try:
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path)
+    except WindowsError:
+        raise IterationError
+
+    for i in itertools.count():
+        try:
+            val = winreg.EnumValue(key, i)
+            yield str(val[1])
+        except EnvironmentError:
+            break
+
 
 class CallbackLoggingHandler(logging.Handler):
     def __init__(self, callback):
