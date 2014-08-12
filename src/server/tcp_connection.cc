@@ -41,7 +41,7 @@ void TCPConnection::start()
 
 void TCPConnection::stop(bool graceful)
 {
-  if (graceful && (!m_write_queue.empty() || m_write_in_progress)) {
+  if (m_socket.is_open() && graceful && (!m_write_queue.empty() || m_write_in_progress)) {
     m_stopping = true;
   } else if (m_socket.is_open()) {
     BOOST_LOG_SEV(m_log, log::lvl::info) << "Closing connection from " << connection_string();
@@ -81,6 +81,9 @@ void TCPConnection::start_read_message_size()
 
 void TCPConnection::handle_read_message_size(const boost::system::error_code &ec, std::size_t n_bytes)
 {
+  if (m_stopping)
+    return;
+
   if (!ec) {
     m_read_size = ntohs(m_read_size);
 
@@ -99,12 +102,15 @@ void TCPConnection::handle_read_message_size(const boost::system::error_code &ec
     m_read_buf.resize(m_read_size);
     start_read_message();
   } else {
-    if (!m_stopping) {
-      BOOST_LOG_SEV(m_log, log::lvl::error) << connection_string()
-        << ": error reading message size: " << ec.message();
+    if (ec == boost::asio::error::eof) {
+      BOOST_LOG_SEV(m_log, log::lvl::info) << connection_string()
+        << ": connection closed by peer";
     }
-
-    m_connection_manager.stop(shared_from_this());
+    else if (!m_stopping) {
+      BOOST_LOG_SEV(m_log, log::lvl::error) << connection_string()
+        << ": error reading message size: " << ec.message() << ec;
+    }
+    m_connection_manager.stop(shared_from_this(), false);
   }
 }
 
