@@ -110,12 +110,12 @@ class ServerProcess(QtCore.QObject):
         self.process.start(program, args, QtCore.QIODevice.ReadOnly)
 
     def stop(self, kill=False):
-        if self.is_running():
-            if kill:
-                self.process.kill()
-            else:
-                self.process.terminate()
-            self.process.waitForFinished(3000)
+        if not self.is_running():
+            return False
+        if kill:
+            self.process.kill()
+        else:
+            self.process.terminate()
 
     def is_running(self):
         return self.process.state() == QtCore.QProcess.Running
