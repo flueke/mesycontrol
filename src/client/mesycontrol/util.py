@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# Author: Florian Lüke <florianlueke@gmx.net>
 from PyQt4.QtCore import QObject, QTimer, pyqtProperty, pyqtSignal
 from PyQt4.QtCore import Qt
 import gc
@@ -184,11 +187,13 @@ def parse_connection_url(url):
                 raise URLParseError("Non-numeric baud rate '%s'" % baud)
             baud = int(baud)
         else:
-            baud = 9600
+            baud = 0
         return dict(serial_port=serial_port, baud_rate=baud)
 
     if len(proto) == 0 and len(port) == 0:
-        raise URLParseError("Missing protocol or port")
+        if not len(serial_port):
+            raise URLParseError("Missing protocol or port")
+        return dict(serial_port=serial_port, baud_rate=0)
 
     if len(proto) == 0:
         proto = 'tcp'
@@ -275,7 +280,7 @@ def list_serial_ports_windows():
     try:
         key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path)
     except WindowsError:
-        raise IterationError
+        raise StopIteration
 
     for i in itertools.count():
         try:

@@ -4,17 +4,17 @@ from mesycontrol.util import URLParseError
 from mesycontrol import util
 
 def test_parse_connection_url():
-    d = parse_connection_url('serial:///dev/ttyUSB0@115200')
-    assert_dict_equal(d, dict(serial_port='/dev/ttyUSB0', baud_rate=115200))
+    for url in ('serial:///dev/ttyUSB0@115200', '/dev/ttyUSB0@115200'):
+        d = parse_connection_url(url)
+        assert_dict_equal(d, dict(serial_port='/dev/ttyUSB0', baud_rate=115200))
 
-    d = parse_connection_url('serial:///dev/ttyUSB0')
-    assert_dict_equal(d, dict(serial_port='/dev/ttyUSB0', baud_rate=9600))
+    for url in ('serial:///dev/ttyUSB0', '/dev/ttyUSB0'):
+        d = parse_connection_url(url)
+        assert_dict_equal(d, dict(serial_port='/dev/ttyUSB0', baud_rate=0), 'failed for url=%s' % url)
 
-    d = parse_connection_url('/dev/ttyUSB0@115200')
-    assert_dict_equal(d, dict(serial_port='/dev/ttyUSB0', baud_rate=115200))
-
-    for url in ('serial:///dev/ttyUSB0@', '/dev/ttyUSB0@', 'serial:///dev/ttyUSB0@foo',
-            '/dev/ttyUSB0@foo', 'serial://@', '@9600', 'serial://@9600', '@', 'serial://'):
+    for url in ('serial:///dev/ttyUSB0@', '/dev/ttyUSB0@',
+            'serial:///dev/ttyUSB0@foo', '/dev/ttyUSB0@foo',
+            'serial://@', '@9600', 'serial://@9600', '@', 'serial://'):
         assert_raises(URLParseError, parse_connection_url, url)
 
     d = parse_connection_url('tcp://example.com:666')
