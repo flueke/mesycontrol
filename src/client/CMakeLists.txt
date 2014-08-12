@@ -44,8 +44,6 @@ set(PYTHON_SOURCES
 
 configure_file(${SETUP_PY_IN} ${SETUP_PY})
 
-# Run the generated distutils setup.py script to build the binaries and install
-# into the build directory.
 if (WIN32)
   # On Windows the command line does not work correctly:
   # "C:\<some-path>" becomes "C:<some-path>"
@@ -55,10 +53,9 @@ else (WIN32)
   set(DISTUTILS_PREFIX "${CMAKE_BINARY_DIR}/python-install")
 endif (WIN32)
 
+# Run the generated distutils setup.py script to build the binaries and install
+# into the build directory.
 add_custom_command(OUTPUT ${STAMP}
-    # On Windows the command line does not work correctly:
-    # "C:\<some-path>" becomes "C:<some-path>"
-    # Using a relative prefix works and installs under the current binary dir.
     COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} install --prefix="${DISTUTILS_PREFIX}"
     COMMAND ${CMAKE_COMMAND} -E touch ${STAMP}
     DEPENDS ${PYTHON_SOURCES})
