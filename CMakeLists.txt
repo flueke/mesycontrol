@@ -7,9 +7,10 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 # Add the local cmake directory to the module path
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
+# Pull information from git:
 # GIT_SHA1 contains the complete git hash
-# GIT_VERSION contains the latest git tag and the start of the git hash if
-# there have been changes since the tag has been created
+# GIT_VERSION contains the name of the latest git tag and the start of the git hash if
+# there have been changes since the tag has been created.
 include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC GIT_SHA1)
 git_describe(GIT_VERSION)
@@ -24,6 +25,7 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ DESTINATION share/scripts
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doc/ DESTINATION share/doc USE_SOURCE_PERMISSIONS)
 
 
+# CPack configuration used for 'make package'
 set(CPACK_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${GIT_VERSION}")
 set(CPACK_PACKAGE_VERSION "${GIT_VERSION}")
 set(CPACK_PACKAGE_VENDOR "mesytec")
@@ -33,7 +35,6 @@ if (WIN32)
     set(CPACK_GENERATOR "ZIP" "NSIS")
     set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL "ON")
     set(CPACK_NSIS_PACKAGE_NAME "mesycontrol")
-    #set(CPACK_PACKAGE_INSTALL_REGISTRY_KEY "mesycontrol")
 else(WIN32)
     set(CPACK_GENERATOR "TBZ2")
 endif(WIN32)
