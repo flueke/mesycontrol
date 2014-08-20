@@ -19,6 +19,9 @@ from util import TreeNode
 column_names  = ('name', 'rc', 'idc', 'connection_state', 'queue_size', 'silent_mode', 'write_access')
 column_titles = ('Name', 'RC', 'IDC', 'Connection State', 'Queue Size', 'Silent Mode', 'Write Access')
 
+def column_index(column_name):
+    return column_names.index(column_name)
+
 class TreeNodeWithModel(TreeNode):
     def __init__(self, ref, model, parent=None):
         super(TreeNodeWithModel, self).__init__(ref, parent)
@@ -38,11 +41,22 @@ class MRCNode(TreeNodeWithModel):
         super(MRCNode, self).__init__(mrc, model, parent)
         self.children = [BusNode(mrc, bus, model, self) for bus in range(2)]
 
-        slt = partial(model.node_data_changed, node=self, col1=0, col2=model.columnCount())
-        mrc.state_changed.connect(slt)
-        mrc.write_access_changed.connect(slt)
-        mrc.silence_changed.connect(slt)
-        mrc.request_queue_size_changed.connect(slt)
+        slt = partial(model.node_data_changed, node=self,
+                col1=column_index('connection_state'), col2=column_index('connection_state'))
+        mrc.connecting.connect(slt)
+        mrc.connected.connect(slt)
+        mrc.disconnected.connect(slt)
+        mrc.ready.connect(slt)
+
+        mrc.write_access_changed.connect(partial(model.node_data_changed, node=self,
+            col1=column_index('write_access'), col2=column_index('write_access')))
+
+        mrc.silence_changed.connect(partial(model.node_data_changed, node=self,
+            col1=column_index('silent_mode'), col2=column_index('silent_mode')))
+
+        mrc.request_queue_size_changed.connect(partial(model.node_data_changed, node=self,
+            col1=column_index('queue_size'), col2=column_index('queue_size')))
+
 
     def flags(self, column):
         column_name = column_names[column]
@@ -60,7 +74,7 @@ class MRCNode(TreeNodeWithModel):
             if column_name == 'name':
                 return str(mrc)
             elif column_name == 'connection_state':
-                return mrc.state
+                return mrc.is_connected()
             elif column_name == 'queue_size':
                 return mrc.get_request_queue_size()
             elif column_name == 'silent_mode':
@@ -108,7 +122,7 @@ class MRCNode(TreeNodeWithModel):
 
     def _slt_scanbus(self):
         for i in range(2):
-            self.ref.model.controller.scanbus(i)
+            self.ref.scanbus(i)
 
     def _slt_connect(self):
         self.ref.connect()
@@ -120,15 +134,19 @@ class MRCNode(TreeNodeWithModel):
         self.sig_close_mrc.emit(self.ref)
 
 class BusNode(TreeNodeWithModel):
+    sig_apply_config = pyqtSignal(object)
+
     def __init__(self, mrc, bus, model, parent):
         super(BusNode, self).__init__(mrc, model, parent)
         self.bus = bus
         self.log = util.make_logging_source_adapter(__name__, self)
 
-        devices = filter(lambda d: d.model.bus == bus, mrc.get_devices())
+        devices = filter(lambda d: d.bus == bus, mrc.get_devices())
 
         self.log.debug("BusNode(mrc=%s, bus=%d): %d devices present",
                 self.ref, self.bus, len(devices))
+
+        self.sig_apply_config.connect(model.sig_apply_config)
 
         for device in devices:
             device_node = DeviceNode(device, model, self)
@@ -152,7 +170,7 @@ class BusNode(TreeNodeWithModel):
         return ret
 
     def _slt_scanbus(self):
-        self.ref.model.controller.scanbus(self.bus)
+        self.ref.scanbus(self.bus)
 
 class DeviceNode(TreeNodeWithModel):
     sig_open_device        = pyqtSignal(object)
@@ -165,13 +183,17 @@ class DeviceNode(TreeNodeWithModel):
         self.log = util.make_logging_source_adapter(__name__, self)
         self.log.debug("DeviceNode(id=%d, device=%s, parent=%s)", id(self), self.ref, parent)
 
-        slt = partial(model.node_data_changed, node=self, col1=0, col2=model.columnCount())
-        device.rc_changed.connect(slt)
-        device.idc_changed.connect(slt)
-        device.state_changed.connect(slt)
-        device.address_conflict_changed.connect(slt)
-        device.name_changed.connect(slt)
-        device.request_queue_size_changed.connect(slt)
+        device.name_changed.connect(partial(model.node_data_changed, node=self,
+            col1=column_index('name'), col2=column_index('name')))
+
+        device.rc_changed.connect(partial(model.node_data_changed, node=self,
+            col1=column_index('rc'), col2=column_index('rc')))
+
+        device.idc_changed.connect(partial(model.node_data_changed, node=self,
+            col1=column_index('idc'), col2=column_index('idc')))
+
+        device.request_queue_size_changed.connect(partial(model.node_data_changed, node=self,
+            col1=column_index('queue_size'), col2=column_index('queue_size')))
 
     def flags(self, column):
         if column in (0,):
@@ -290,7 +312,7 @@ class SetupTreeModel(QtCore.QAbstractItemModel):
         self.endRemoveRows()
 
     def _on_device_added(self, device, mrc_node):
-        bus_node = filter(lambda n: n.bus == device.model.bus, mrc_node.children)[0]
+        bus_node = filter(lambda n: n.bus == device.bus, mrc_node.children)[0]
         bus_idx  = self.index(bus_node.row, 0, self.index(mrc_node.row, 0, QModelIndex()))
 
         device_node = DeviceNode(device, self, bus_node)
@@ -384,6 +406,7 @@ class SetupTreeView(QtGui.QTreeView):
     def setModel(self, model):
         if self.model() is not None:
             self.model().disconnect(self)
+            self.model().setParent(None)
 
         super(SetupTreeView, self).setModel(model)
 
@@ -473,11 +496,8 @@ class SetupTreeView(QtGui.QTreeView):
         else:
             try:
                 device_config = config_builder.get_result()
-                cfg = config.Config()
-                cfg.add_device_config(device_config)
                 with open(filename, 'w') as f:
-                    config_xml.write_file(cfg, f)
-                device.config = device_config
+                    config_xml.write_device_config_to_file(device_config, f)
             except IOError as e:
                 QtGui.QMessageBox.critical(self, "Error", "Writing to %s failed: %s" % (filename, e))
             else:

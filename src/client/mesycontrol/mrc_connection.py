@@ -23,7 +23,7 @@ class AbstractConnection(QtCore.QObject):
 
     connecting               = pyqtSignal()
     connected                = pyqtSignal()
-    disconnected             = pyqtSignal()
+    disconnected             = pyqtSignal(object)
     connection_error         = pyqtSignal(ConnectionError)
 
     message_sent             = pyqtSignal(Message)               #: message
@@ -135,7 +135,7 @@ class MesycontrolConnection(AbstractConnection):
         self._client = tcp_client.TCPClient(self)
         self._client.connecting.connect(self.connecting)
         self._client.connected.connect(self.connected)
-        self._client.disconnected.connect(self.disconnected)
+        self._client.disconnected.connect(self._on_client_disconnected)
         self._client.socket_error.connect(self._slt_socket_error)
 
         self._client.message_sent.connect(self.message_sent)
@@ -172,6 +172,9 @@ class MesycontrolConnection(AbstractConnection):
 
     def get_write_queue_size(self):
         return self._client.get_write_queue_size()
+    
+    def _on_client_disconnected(self):
+        self.disconnected.emit(None)
 
     def _slt_socket_error(self, errc, errstr):
         self.connection_error.emit(ConnectionError(errstr, errc))

@@ -1,13 +1,7 @@
-* enumerate com ports
-* Source layout, package building, installation need improvement
 * Track config sources. Ask about unsaved changes.
 * Improve Command:
   - get first/all failed subcommand(s) from CommandGroups
   - add __str__ to Commands
-
-* Virtual connections:
-  - load setup to virtual connections
-  - create new virtual, add/remove devices from virtual
 
 * How to handle the RC setting? For MHV4 enabling/disabling RC can be dangerous.
   -> User can easily change it
@@ -25,10 +19,6 @@
 * Scripting:
   - Standalone vs. running inside the GUI
   - Wrapper documentation
-
-* build system
-  - fix cxfreeze prefix issue on windows
-  - fix slow performance on windows
 
 STARTED - DeviceDescription: add conversion to human readable units (<unit label="mA" factor="1000.0")
 DONE - DeviceDescription: add value range to parameters (min, max). Make sure input in SI units is rounded correctly

@@ -43,7 +43,7 @@ class ServerProcess(QtCore.QObject):
     default_listen_port    = 23000
     default_baud_rate      = 9600
     default_mrc_port       = 4001
-    default_verbosity      = 10
+    default_verbosity      = 3
 
     sig_started  = pyqtSignal()
 
@@ -163,7 +163,7 @@ class ServerProcess(QtCore.QObject):
 
     def _slt_stdout_ready(self):
         data = str(self.process.readAllStandardOutput())
-        self.log.info(data)
+        self.log.debug(data)
         self.sig_stdout.emit(data)
 
 class ProcessPool(QtCore.QObject):

@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from command import Command
 from functools import partial
+import util
+from command import Command
 
 class ErrorResponse(Exception):
     def __init__(self, response):
@@ -12,25 +13,21 @@ class ErrorResponse(Exception):
     def __str__(self):
         return "ErrorResponse(%s)" % self.response.get_error_string()
 
+class ConnectionError(Exception):
+    def __init__(self, text="Disconnected from device", errinfo=None):
+        super(ConnectionError, self).__init__(text)
+        self.errinfo = errinfo
+
 class MRCCommand(Command):
     def __init__(self, mrc, parent=None):
         super(MRCCommand, self).__init__(parent)
         self.mrc       = mrc
         self._response = None
-        mrc.state_changed.connect(self._on_mrc_state_changed)
+        mrc.disconnected.connect(self._on_mrc_disconnected)
 
-    def _on_mrc_state_changed(self, old_state, new_state, info):
-        if not self.mrc.is_connected():
-            self._exception = info if info is not None else RuntimeError("Disconnected from server")
-            self._stopped(False)
-
-    def _handle_disconnected(self):
-        self._exception = RuntimeError("Disconnected from server")
+    def _on_mrc_disconnected(self, info=None):
+        self._exception = ConnectionError("Disconnected from device", info)
         self._stopped(False)
-
-    #def _handle_connection_error(self, err_object):
-    #    self._exception = err_object
-    #    self._stopped(False)
 
     def _handle_response(self, request, response):
         self._response = response
@@ -60,7 +57,18 @@ class SetParameter(MRCCommand):
 
     def _start(self):
         self.log.debug("%s started", str(self))
-        self.device.set_parameter(self.address, self.value, self._handle_response)
+        self.device.set_parameter(self.address, self.value, self._handle_set_response)
+
+    def _handle_set_response(self, request, response):
+        self._response = response
+        if response.is_error():
+            self._stopped(True)
+        else:
+            self.device.read_parameter(self.address, self._handle_read_response)
+
+    def _handle_read_response(self, request, response):
+        self._response = response
+        self._stopped(True)
 
     def _get_result(self):
         res = super(SetParameter, self)._get_result()
@@ -69,14 +77,12 @@ class SetParameter(MRCCommand):
     def __str__(self):
         return "SetParameter(device=%s, addr=%d,val=%d)" % (self.device, self.address, self.value)
 
-import util
-
 class ReadParameter(MRCCommand):
     def __init__(self, device, address, parent=None):
         super(ReadParameter, self).__init__(device, parent)
         self.device  = device
         self.address = address
-        self.log = util.make_logging_source_adapter(__name__, self)
+        self.log     = util.make_logging_source_adapter(__name__, self)
 
     def _start(self):
         self.log.debug("Reading %d", self.address)
@@ -166,4 +172,24 @@ class RefreshMemory(Command):
         if response.is_error():
             self._stopped(False)
         elif response.par == 255:
+            self._stopped(True)
+
+class FetchMissingParameters(Command):
+    def __init__(self, device, mirror=False, parent=None):
+        super(FetchMissingParameters, self).__init__(parent)
+        self.device = device
+        self.mirror = mirror
+
+    def _start(self):
+        for i in range(256):
+            if not self.device.has_parameter(i):
+                if self.mirror:
+                    self.device.read_mirror_parameter(i, self._handle_response)
+                else:
+                    self.device.read_parameter(i, self._handle_response)
+
+    def _handle_response(self, request, response):
+        if response.is_error():
+            self._stopped(False)
+        elif self.device.has_all_parameters():
             self._stopped(True)

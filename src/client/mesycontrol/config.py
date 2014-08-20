@@ -5,52 +5,279 @@
 from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtProperty
 from PyQt4.QtCore import pyqtSignal
+from functools import partial
 
 from command import SequentialCommandGroup
-from config_loader import ConfigLoader, ConfigVerifier
-from mrc_command import ReadParameter, Scanbus
+from command import Command
 from mrc_connection import MesycontrolConnection, LocalMesycontrolConnection
 import application_registry
-import device_description
+import app_model
+import config_loader
+import hw_model
+import mrc_command
 import mrc_connection
+import mrc_controller
+import util
 
-class Config(QtCore.QObject):
-    changed = pyqtSignal()
+class ConfigObject(QtCore.QObject):
+    name_changed          = pyqtSignal(str)
+    description_changed   = pyqtSignal(str)
 
     def __init__(self, parent=None):
-        super(Config, self).__init__(parent)
-        self._name           = None
-        self._description    = None
-        self._mrc_configs    = list()
-        self._device_configs = list()
+        super(ConfigObject, self).__init__(parent)
+        self._name        = None
+        self._description = None
 
     def get_name(self):
         return self._name if self._name is not None else str()
 
     def set_name(self, name):
-        old_value = self.name
         self._name = str(name) if name is not None else None
-        if self.name != old_value:
-            self.changed.emit()
+        self.name_changed.emit(self.name)
+
+    def get_description(self):
+        return self._description if self._description is not None else str()
+
+    def set_description(self, description):
+        self._description = str(description) if description is not None else None
+        self.description_changed.emit(self.name)
+
+    name        = pyqtProperty(str, get_name, set_name, notify=name_changed)
+    description = pyqtProperty(str, get_description, set_description, notify=description_changed)
+
+class DeviceConfig(ConfigObject):
+    idc_changed             = pyqtSignal(int)
+    bus_changed             = pyqtSignal(int)
+    address_changed         = pyqtSignal(int)
+    rc_changed              = pyqtSignal(bool)
+    parameter_added         = pyqtSignal(int)       #: address
+    parameter_removed       = pyqtSignal(int)       #: address
+    parameter_value_changed = pyqtSignal(int, int)  #: address, value
+    parameter_alias_changed = pyqtSignal(int, str)  #: address, alias
+
+    def __init__(self, parent=None):
+        super(DeviceConfig, self).__init__(parent)
+        self._idc        = None
+        self._bus        = None
+        self._address    = None
+        self._rc         = None
+        self._parameters = dict()
+
+    def get_idc(self):
+        return self._idc
+
+    def set_idc(self, idc):
+        self._idc = int(idc)
+        self.idc_changed.emit(self.idc)
+
+    def get_bus(self):
+        return self._bus
+
+    def set_bus(self, bus):
+        self._bus = int(bus)
+        self.bus_changed.emit(self.bus)
+
+    def get_address(self):
+        return self._address
+
+    def set_address(self, address):
+        self._address = int(address)
+        self.address_changed.emit(self.address)
+
+    def get_rc(self):
+        return self._rc
+
+    def set_rc(self, rc):
+        self._rc = bool(rc)
+        self.rc_changed.emit(self.rc)
+
+    def contains_parameter(self, address):
+        return address in self._parameters
+
+    def add_parameter(self, address, value=None, alias=None):
+        if self.contains_parameter(address):
+            raise DeviceConfigError("Duplicate parameter address %d" % address)
+
+        param_config = ParameterConfig(address, value, alias)
+
+        self.add_parameter_config(param_config)
+
+    def add_parameter_config(self, param_config):
+        if self.contains_parameter(param_config.address):
+            raise DeviceConfigError("Duplicate parameter address %d" % param_config.address)
+
+        self._parameters[param_config.address] = param_config
+        param_config.value_changed.connect(partial(self._on_parameter_value_changed,
+            address=param_config.address))
+        param_config.alias_changed.connect(partial(self._on_parameter_alias_changed,
+            address=param_config.address))
+        self.parameter_added.emit(param_config.address)
+
+    def remove_parameter(self, address):
+        if not self.contains_parameter(address):
+            raise DeviceConfigError("Address %d not present in DeviceConfig" % address)
+        del self._parameters[address]
+        self.parameter_removed.emit(address)
+
+    def get_parameter(self, address):
+        return self._parameters[address]
+
+    def get_parameters(self):
+        return sorted(self._parameters.values(), key=lambda cfg: cfg.address)
+
+    def set_parameter_value(self, address, value):
+        if self.contains_parameter(address):
+            self._parameters[address]['value'] = int(value) if value is not None else None
+            self.parameter_value_changed.emit(address, self.get_parameter_value(address))
+        else:
+            self.add_parameter(address, value)
+
+    def get_parameter_value(self, address):
+        if not self.contains_parameter(address):
+            raise DeviceConfigError("Address %d not present in DeviceConfig" % address)
+        return self.get_parameter_dict()['value']
+
+    def set_parameter_alias(self, address, alias):
+        if self.contains_parameter(address):
+            self._parameters[address]['alias'] = str(alias) if alias is not None else None
+            self.parameter_alias_changed.emit(address, self.get_parameter_alias(address))
+        else:
+            self.add_parameter(address, alias=alias)
+
+    def get_parameter_alias(self, address):
+        if not self.contains_parameter(address):
+            raise DeviceConfigError("Address %d not present in DeviceConfig" % address)
+        return self.get_parameter_dict()['alias']
+
+    def _on_parameter_value_changed(self, value, address):
+        self.parameter_value_changed.emit(address, value)
+
+    def _on_parameter_alias_changed(self, alias, address):
+        self.parameter_alias_changed.emit(address, alias)
+
+    idc     = pyqtProperty(int, get_idc, set_idc, notify=idc_changed)
+    bus     = pyqtProperty(int, get_bus, set_bus, notify=bus_changed)
+    address = pyqtProperty(int, get_address, set_address, notify=address_changed)
+    rc      = pyqtProperty(bool, get_rc, set_rc, notify=rc_changed)
+
+class MRCConfig(ConfigObject):
+    device_config_added   = pyqtSignal(DeviceConfig)
+    device_config_removed = pyqtSignal(DeviceConfig)
+    connection_config_set = pyqtSignal(object)
+
+    def __init__(self, parent=None):
+        super(MRCConfig, self).__init__(parent)
+        self._connection_config = None
+        self._device_configs = list()
 
     def add_device_config(self, device_config):
+        if self.has_device_config(device_config.bus, device_config.address):
+            raise RuntimeError("DeviceConfig exists (bus=%d, address=%d)" %
+                    (device_config.bus, device_config.address))
+
+        device_config.setParent(self)
         self._device_configs.append(device_config)
+        self.device_config_added.emit(device_config)
+
+    def remove_device_config(self, device_config):
+        self._device_configs.remove(device_config)
+        device_config.setParent(None)
+        self.device_config_removed.emit(device_config)
+
+    def get_device_config(self, bus, address):
+        try:
+            return filter(lambda cfg: cfg.bus == bus and cfg.address == address,
+                    self._device_configs)[0]
+        except IndexError:
+            raise KeyError("No device config for bus=%d, address=%d" % (bus, address))
+
+    def get_device_configs(self, bus=None):
+        if bus is None:
+            return list(self._device_configs)
+        return filter(lambda cfg: cfg.bus == bus, self._device_configs)
+
+    def has_device_config(self, bus, address):
+        try:
+            self.get_device_config(bus, address)
+            return True
+        except KeyError:
+            return False
+
+    def set_connection_config(self, connection_config):
+        self._connection_config = connection_config
+        self.connection_config_set.emit(connection_config)
+
+    def get_connection_config(self):
+        return self._connection_config
+
+    device_configs    = pyqtProperty(list, get_device_configs)
+    connection_config = pyqtProperty(object, get_connection_config, set_connection_config)
+
+class Setup(ConfigObject):
+    device_config_added   = pyqtSignal(DeviceConfig)
+    device_config_removed = pyqtSignal(DeviceConfig)
+    mrc_config_added      = pyqtSignal(MRCConfig)
+    mrc_config_removed    = pyqtSignal(MRCConfig)
+
+    def __init__(self, parent=None):
+        super(Setup, self).__init__(parent)
+        self._mrc_configs    = list()
+        self._device_configs = list()
+
+    def add_device_config(self, device_config):
+        """Add the given device config to this setup."""
+        device_config.setParent(self)
+        self._device_configs.append(device_config)
+        self.device_config_added.emit(device_config)
+
+    def remove_device_config(self, device_config):
+        try:
+            self._device_configs.remove(device_config)
+            device_config.setParent(None)
+            self.device_config_removed.emit(device_config)
+            return True
+        except ValueError:
+            return False
 
     def get_device_configs(self):
+        """Returns a list of the top level device configs in this setup.
+        Note: This list does not contain the child device configs of this
+        setups mrc configs.
+        """
         return list(self._device_configs)
+
+    def get_all_device_configs(self):
+        ret = self.device_configs
+        for mrc_cfg in self.mrc_configs:
+            ret.extend(mrc_cfg.device_configs)
 
     def get_device_configs_by_idc(self, idc):
         return filter(lambda cfg: cfg.idc == idc, self._device_configs)
 
-    def add_connection_config(self, mrc_config):
+    def add_mrc_config(self, mrc_config):
         self._mrc_configs.append(mrc_config)
+        self.mrc_config_added.emit(mrc_config)
 
-    def get_connection_configs(self):
+    def remove_mrc_config(self, mrc_config):
+        try:
+            self._mrc_configs.remove(mrc_config)
+        except ValueError:
+            return False
+        self.mrc_config_removed.emit(mrc_config)
+        return True
+
+    def get_mrc_configs(self):
+        """Returns a list of the MRC configs in this setup."""
         return list(self._mrc_configs)
 
-    name = pyqtProperty(str, get_name, set_name)
+    mrc_configs    = pyqtProperty(list, get_mrc_configs)
+    device_configs = pyqtProperty(list, get_device_configs)
 
-class MRCConnectionConfigError(Exception):
+
+class MRCConfigError(Exception):
+    pass
+
+class DeviceConfigError(Exception):
     pass
 
 class MRCConnectionConfig(QtCore.QObject):
@@ -73,16 +300,11 @@ class MRCConnectionConfig(QtCore.QObject):
     def is_local_connection(self):
         return self.is_serial_connection() or self.is_tcp_connection()
 
-    def is_connection_valid(self):
+    def is_valid(self):
         """Returns true if a connection method has been set, false otherwise."""
         return (self.is_mesycontrol_connection()
                 or self.is_serial_connection()
                 or self.is_tcp_connection())
-
-    def is_valid(self):
-        """Returns true if a connection method and a name have been set."""
-        return (self.name is not None
-                and self.is_connection_valid())
 
     def get_connection_info(self):
         if self.is_serial_connection():
@@ -93,7 +315,6 @@ class MRCConnectionConfig(QtCore.QObject):
             return "mesycontrol://%s:%d" % (self.mesycontrol_host, self.mesycontrol_port)
 
     def reset(self):
-        self._name = None
         self.reset_connection()
 
     def reset_connection(self):
@@ -104,40 +325,34 @@ class MRCConnectionConfig(QtCore.QObject):
         self._tcp_host = None
         self._tcp_port = None
 
-    def set_name(self, name):
-        self._name = str(name)
-
-    def get_name(self):
-        return self._name
-
     def set_mesycontrol_host(self, host):
-        if self.is_connection_valid() and not self.is_mesycontrol_connection():
-            raise MRCConnectionConfigError("Cannot set mesycontrol_host on non-mesycontrol connection.")
+        if self.is_valid() and not self.is_mesycontrol_connection():
+            raise MRCConfigError("Cannot set mesycontrol_host on non-mesycontrol connection.")
         self._mesycontrol_host = str(host)
 
     def set_mesycontrol_port(self, port):
-        if self.is_connection_valid() and not self.is_mesycontrol_connection():
-            raise MRCConnectionConfigError("Cannot set mesycontrol_port on non-mesycontrol connection.")
+        if self.is_valid() and not self.is_mesycontrol_connection():
+            raise MRCConfigError("Cannot set mesycontrol_port on non-mesycontrol connection.")
         self._mesycontrol_port = int(port)
 
     def set_serial_device(self, device):
-        if self.is_connection_valid() and not self.is_serial_connection():
-            raise MRCConnectionConfigError("Cannot set serial_device on non-serial connection.")
+        if self.is_valid() and not self.is_serial_connection():
+            raise MRCConfigError("Cannot set serial_device on non-serial connection.")
         self._serial_device = str(device)
 
     def set_serial_baud_rate(self, baud):
-        if self.is_connection_valid() and not self.is_serial_connection():
-            raise MRCConnectionConfigError("Cannot set serial_baud_rate on non-serial connection.")
+        if self.is_valid() and not self.is_serial_connection():
+            raise MRCConfigError("Cannot set serial_baud_rate on non-serial connection.")
         self._serial_baud_rate = int(baud)
 
     def set_tcp_host(self, host):
-        if self.is_connection_valid() and not self.is_tcp_connection():
-            raise MRCConnectionConfigError("Cannot set tcp_host on non-tcp connection.")
+        if self.is_valid() and not self.is_tcp_connection():
+            raise MRCConfigError("Cannot set tcp_host on non-tcp connection.")
         self._tcp_host = str(host)
 
     def set_tcp_port(self, port):
-        if self.is_connection_valid() and not self.is_tcp_connection():
-            raise MRCConnectionConfigError("Cannot set tcp_port on non-tcp connection.")
+        if self.is_valid() and not self.is_tcp_connection():
+            raise MRCConfigError("Cannot set tcp_port on non-tcp connection.")
         self._tcp_port = int(port)
 
     def get_mesycontrol_host(self):
@@ -169,7 +384,6 @@ class MRCConnectionConfig(QtCore.QObject):
 
         return None
 
-    name                = pyqtProperty(str, get_name, set_name)
     mesycontrol_host    = pyqtProperty(str, get_mesycontrol_host, set_mesycontrol_host)
     mesycontrol_port    = pyqtProperty(int, get_mesycontrol_port, set_mesycontrol_port)
     serial_device       = pyqtProperty(str, get_serial_device, set_serial_device)
@@ -177,110 +391,9 @@ class MRCConnectionConfig(QtCore.QObject):
     tcp_host            = pyqtProperty(str, get_tcp_host, set_tcp_host)
     tcp_port            = pyqtProperty(int, get_tcp_port, set_tcp_port)
 
-class DeviceConfigError(Exception):
-    pass
-
-class DeviceConfig(QtCore.QObject):
-    """Mesytec device configuration containing ParameterConfig instances.
-    Optionally an MRCConnectionConfig name, bus and device numbers may be
-    specified."""
-
-    changed = pyqtSignal()
-    name_changed             = pyqtSignal(object)
-    bus_changed              = pyqtSignal(int)
-    address_changed          = pyqtSignal(int)
-    idc_changed              = pyqtSignal(int)
-    rc_changed               = pyqtSignal(bool)
-    parameter_changed        = pyqtSignal(int, int, int) #: address, old_value, new_value
-
-    def __init__(self, device_idc, parent=None):
-        super(DeviceConfig, self).__init__(parent)
-        self._idc        = None
-        self._bus        = None
-        self._address    = None
-        self._rc         = None
-        self._name       = None
-        self._parameters = list()
-
-        self.idc = device_idc
-
-    def get_name(self):
-        return self._name
-
-    def set_name(self, name):
-        self._name = str(name) if name is not None else None
-        self.name_changed.emit(self.name)
-
-    def get_idc(self):
-        return self._idc
-
-    def set_idc(self, idc):
-        changed = self.idc != int(idc)
-        self._idc = int(idc)
-        if changed:
-            self.changed.emit()
-
-    def get_bus(self):
-        return self._bus
-
-    def set_bus(self, bus):
-        changed = self.bus != int(bus)
-        self._bus = int(bus)
-        if changed:
-            self.changed.emit()
-
-    def get_address(self):
-        return self._address
-
-    def set_address(self, address):
-        changed = self.address != int(address)
-        self._address = int(address)
-        if changed:
-            self.changed.emit()
-
-    def get_rc(self):
-        return self._rc
-
-    def set_rc(self, rc):
-        changed = self.rc != bool(rc)
-        self._rc = bool(rc)
-        if changed:
-            self.changed.emit()
-
-    def contains_parameter(self, address):
-        return any(address == p.address for p in self._parameters)
-
-    def add_parameter(self, parameter):
-        if self.contains_parameter(parameter.address):
-            raise DeviceConfigError("Duplicate parameter address %d" % parameter.address)
-
-        parameter.setParent(self)
-        self._parameters.append(parameter)
-        self.changed.emit()
-
-    def del_parameter(self, parameter):
-        if parameter in self._parameters:
-            self._parameters.remove(parameter)
-            parameter.setParent(None)
-            self.changed.emit()
-
-    def get_parameter(self, address):
-        try:
-            return filter(lambda p: p.address == address, self._parameters)[0]
-        except IndexError:
-            return None
-
-    def get_parameters(self):
-        return list(self._parameters)
-
-    idc     = pyqtProperty(int,  get_idc, set_idc)
-    bus     = pyqtProperty(int,  get_bus, set_bus)
-    address = pyqtProperty(int,  get_address, set_address)
-    rc      = pyqtProperty(bool, get_rc, set_rc)
-    name    = pyqtProperty(str,  get_name, set_name)
-
 class ParameterConfig(QtCore.QObject):
-    changed = pyqtSignal()
+    value_changed = pyqtSignal(object) #: int value or None
+    alias_changed = pyqtSignal(object) #: str value or None
 
     def __init__(self, address, value=None, alias=None, parent=None):
         super(ParameterConfig, self).__init__(parent)
@@ -295,19 +408,19 @@ class ParameterConfig(QtCore.QObject):
         return self._value
 
     def set_value(self, value):
-        changed = self.value != int(value)
-        self._value = int(value)
-        if changed:
-            self.changed.emit()
+        new_value = int(value) if value is not None else None
+        if self.value != new_value:
+            self._value = new_value
+            self.value_changed.emit(self.value)
 
     def get_alias(self):
         return self._alias
 
     def set_alias(self, alias):
-        changed = self._alias != str(alias)
-        self._alias = str(alias)
-        if changed:
-            self.changed.emit()
+        new_alias = str(alias) if alias is not None else None
+        if self.alias != new_alias:
+            self._alias = new_alias
+            self.alias_changed.emit(self.alias)
 
     #: Numeric parameter address.
     address = pyqtProperty(int, get_address)
@@ -317,11 +430,13 @@ class ParameterConfig(QtCore.QObject):
     alias   = pyqtProperty(str, get_alias, set_alias)
 
 def make_device_config(device):
-    device_config         = DeviceConfig(device.idc)
-    device_config.name    = device.name
-    device_config.bus     = device.bus
-    device_config.address = device.address
-    device_config.rc      = device.rc
+    device_config = device.config
+    if device_config is None:
+        device_config         = DeviceConfig()
+        device_config.idc     = device.idc
+        device_config.bus     = device.bus
+        device_config.address = device.address
+        device_config.rc      = device.rc
 
     param_filter = lambda pd: not pd.read_only and not pd.do_not_store
 
@@ -332,7 +447,10 @@ def make_device_config(device):
             raise DeviceConfigError("Required memory value not present", address)
 
         value = device.get_parameter(address)
-        device_config.add_parameter(ParameterConfig(address, value))
+        if not device_config.contains_parameter(address):
+            device_config.add_parameter(address, value)
+        else:
+            device_config.get_parameter(address).value = value
 
     return device_config
 
@@ -375,7 +493,7 @@ class SetupBuilder(SequentialCommandGroup):
         param_filter = lambda pd: not pd.read_only and not pd.do_not_store
 
         for param_description in filter(param_filter, device_descr.parameters.values()):
-            self.add(ReadParameter(device, param_description.address))
+            self.add(mrc_command.ReadParameter(device, param_description.address))
 
     def add_mrc(self, mrc):
         """Add all devices connected to the given MRC to the setup"""
@@ -391,7 +509,7 @@ class SetupBuilder(SequentialCommandGroup):
         # models memory has been read and it's thus ok to call
         # make_device_config().
 
-        ret = Config()
+        ret = Setup()
         ret.connection_configs.extend(self._connection_configs.itervalues())
         ret.device_configs.extend(
                 (make_device_config(device) for device in self._devices))
@@ -408,7 +526,7 @@ class DeviceConfigBuilder(SequentialCommandGroup):
 
         for param_descr in required_parameters:
             if not device.has_parameter(param_descr.address):
-                self.add(ReadParameter(device, param_descr.address))
+                self.add(mrc_command.ReadParameter(device, param_descr.address))
 
     def get_result(self):
         if self.has_failed():
@@ -416,78 +534,228 @@ class DeviceConfigBuilder(SequentialCommandGroup):
 
         return make_device_config(self.device)
 
-class DelayedConfigLoader(SequentialCommandGroup):
-    def __init__(self, mrc, device_config, device_description, verify=True, parent=None):
-        super(DelayedConfigLoader, self).__init__(parent)
-        self.mrc         = mrc
-        self.config      = device_config
-        self.description = device_description
-        self._verify     = verify
+class DeviceConfigCompleter(SequentialCommandGroup):
+    """Makes sure all parameters needed to complete this devices config are present.
+    This command issues read requests for missing parameters. The device object
+    will then automatically fill in missing config values.
+    """
+    def __init__(self, device, parent=None):
+        super(DeviceConfigCompleter, self).__init__(parent)
+        self.device = device
+
+        param_filter = lambda pd: not pd.read_only and not pd.do_not_store
+        required_parameters = filter(param_filter, device.description.parameters.values())
+
+        for param_descr in required_parameters:
+            if not device.config.contains_parameter(param_descr.address):
+                if not device.has_parameter(param_descr.address):
+                    self.add(mrc_command.ReadParameter(device, param_descr.address))
+
+class SetupCompleter(SequentialCommandGroup):
+    """Makes sure all required parameters for all connected devices in this setup are present.
+    Uses DeviceConfigCompleter to complete individual device configurations.
+    """
+    def __init__(self, setup, parent=None):
+        super(SetupCompleter, self).__init__(parent)
+        self.setup = setup
+
+        for mrc_config in setup.mrc_configs:
+            mrc = application_registry.instance.find_mrc_by_config(mrc_config)
+            for device in mrc.get_devices():
+                self.add(DeviceConfigCompleter(device))
+
+#class DelayedConfigLoader(SequentialCommandGroup):
+#    def __init__(self, mrc, device_config, device_description, verify=True, parent=None):
+#        super(DelayedConfigLoader, self).__init__(parent)
+#        self.mrc         = mrc
+#        self.config      = device_config
+#        self.description = device_description
+#        self._verify     = verify
+#
+#    def _start(self):
+#        try:
+#            bus    = self.config.bus_number
+#            dev    = self.config.device_address
+#            device = self.mrc.device_models[bus][dev]
+#        except KeyError:
+#            raise RuntimeError("Device not found (bus=%d, dev=%d)" % (bus, dev))
+#
+#        if device.idc != self.config.device_idc:
+#            raise RuntimeError("Device IDC mismatch (bus=%d, dev=%d, idc=%d, expected idc=%d)" %
+#                    (bus, dev, device.idc, self.config.device_idc))
+#
+#        self.add(ConfigLoader(device, self.config, self.description))
+#        if self._verify:
+#            self.add(ConfigVerifier(device, self.config))
+#
+#        super(DelayedConfigLoader, self)._start()
+
+#class SetupLoader(SequentialCommandGroup):
+#    def __init__(self, config, parent=None):
+#        super(SetupLoader, self).__init__(parent)
+#        self._config = config
+#        self._mrc_to_device_configs = dict()
+#        self.app_model = application_registry.instance
+#
+#        for device_config in config.device_configs:
+#            connection_name = device_config.connection_name
+#            try:
+#                connection = filter(lambda c: c.mrc.name == connection_name, self.app_model.mrc_connections)[0]
+#            except IndexError:
+#                try:
+#                    # Find the connection config referenced by the device
+#                    # config and use it to create a new connection.
+#                    connection_config = filter(lambda cfg: cfg.name == connection_name, config.connection_configs)[0]
+#                    connection = mrc_connection.factory(config=connection_config)
+#                    self.app_model.registerConnection(connection)
+#                except IndexError:
+#                    raise RuntimeError("Connection not found: %s" % connection_name)
+#
+#            connection.sig_connection_error.connect(self._slt_connection_error)
+#
+#            if not connection.is_connected():
+#                connection.connect()
+#
+#            mrc = connection.mrc_model
+#
+#            if mrc not in self._mrc_to_device_configs:
+#                self._mrc_to_device_configs[mrc] = list()
+#            self._mrc_to_device_configs[mrc].append(device_config)
+#
+#        for mrc in self._mrc_to_device_configs.keys():
+#            for bus in range(2):
+#                self.add(Scanbus(mrc, bus))
+#
+#        for mrc, cfgs in self._mrc_to_device_configs.iteritems():
+#            for cfg in cfgs:
+#                descr = self.app_model.get_device_description_by_idc(cfg.device_idc)
+#                if descr is None:
+#                    descr = device_description.makeGenericDescription(cfg.device_idc)
+#                self.add(DelayedConfigLoader(mrc, cfg, descr))
+#
+#    def _slt_connection_error(self, error_object):
+#        self._exception = error_object
+#        self._stopped(False)
+
+class SetupLoader(Command):
+    """Loads the given setup.
+    Steps:
+        for each mrc not contained in the setup:
+            disconnect and remove the mrc from the application
+
+        for each mrc_config in setup.mrc_configs:
+            if not application_registry.instance.find_mrc_by_config(mrc_config):
+                create MRC and connect and set mrc_config
+            else:
+                set mrc_config
+        wait until everything is connected and ready.
+        for each device in the MRCs belonging to this setup:
+            apply config to device
+    """
+
+    def __init__(self, setup, parent=None):
+        super(SetupLoader, self).__init__(parent)
+        self.setup = setup
+        self.log   = util.make_logging_source_adapter(__name__, self)
+        self._pending_mrcs = set()
+        self._pending_config_loaders = set()
 
     def _start(self):
+        self._failed = False
+        registry = application_registry.instance
+        registry.register('active_setup', self.setup)
+
+        mrcs_to_remove = set(registry.get_mrcs())
+
+        for mrc_config in self.setup.mrc_configs:
+            mrc = registry.find_mrc_by_config(mrc_config)
+            if mrc is not None:
+                mrcs_to_remove.remove(mrc)
+
+        for mrc in mrcs_to_remove:
+            self.log.info("Removing MRC %s", mrc)
+            mrc.disconnect()
+            registry.unregister_mrc(mrc)
+
+        for mrc_config in self.setup.mrc_configs:
+            mrc = registry.find_mrc_by_config(mrc_config)
+            if mrc is not None:
+                self.log.info("Found MRC %s: applying config", mrc)
+                mrc.config = mrc_config
+                if not mrc.is_connected():
+                    mrc.connect()
+                    mrc.ready.connect(partial(self._on_mrc_ready, mrc=mrc))
+                    mrc.disconnected.connect(partial(self._on_mrc_disconnected, mrc=mrc))
+                else:
+                    self._on_mrc_ready(mrc)
+            else:
+                connection = mrc_connection.factory(config=mrc_config.connection_config)
+                mrc_model = hw_model.MRCModel()
+                mrc_model.controller = mrc_controller.MesycontrolMRCController(connection, mrc_model)
+                registry.register_mrc_model(mrc_model)
+                mrc = app_model.MRC(mrc_model=mrc_model, mrc_config=mrc_config)
+                registry.register_mrc(mrc)
+                mrc.ready.connect(partial(self._on_mrc_ready, mrc=mrc))
+                mrc.disconnected.connect(partial(self._on_mrc_disconnected, mrc=mrc))
+                self._pending_mrcs.add(mrc)
+                self.log.info("Created MRC %s", mrc)
+                mrc.connect()
+
+        self._completion_check()
+
+    def _on_mrc_ready(self, mrc):
+        self.log.info("MRC %s is ready. Loading configs")
         try:
-            bus    = self.config.bus_number
-            dev    = self.config.device_address
-            device = self.mrc.device_models[bus][dev]
+            self._pending_mrcs.remove(mrc)
         except KeyError:
-            raise RuntimeError("Device not found (bus=%d, dev=%d)" % (bus, dev))
+            pass
 
-        if device.idc != self.config.device_idc:
-            raise RuntimeError("Device IDC mismatch (bus=%d, dev=%d, idc=%d, expected idc=%d)" %
-                    (bus, dev, device.idc, self.config.device_idc))
+        for device_config in mrc.config.device_configs:
+            device = mrc.get_device(device_config.bus, device_config.address)
+            if not device.has_model():
+                continue
 
-        self.add(ConfigLoader(device, self.config, self.description))
-        if self._verify:
-            self.add(ConfigVerifier(device, self.config))
+            loader = config_loader.ConfigLoader(device, device_config)
+            loader.stopped.connect(partial(self._on_config_loader_stopped, config_loader=loader))
+            self._pending_config_loaders.add(loader)
+            loader.start()
 
-        super(DelayedConfigLoader, self)._start()
+        self._completion_check()
 
-class SetupLoader(SequentialCommandGroup):
-    def __init__(self, config, parent=None):
-        super(SetupLoader, self).__init__(parent)
-        self._config = config
-        self._mrc_to_device_configs = dict()
-        self.app_model = application_registry.instance
+    def _on_mrc_disconnected(self, mrc, info=None):
+        try:
+            self._pending_mrcs.remove(mrc)
+        except KeyError:
+            pass
+        self._failed = True
+        self._completion_check()
 
-        for device_config in config.device_configs:
-            connection_name = device_config.connection_name
-            try:
-                connection = filter(lambda c: c.mrc.name == connection_name, self.app_model.mrc_connections)[0]
-            except IndexError:
-                try:
-                    # Find the connection config referenced by the device
-                    # config and use it to create a new connection.
-                    connection_config = filter(lambda cfg: cfg.name == connection_name, config.connection_configs)[0]
-                    connection = mrc_connection.factory(config=connection_config)
-                    self.app_model.registerConnection(connection)
-                except IndexError:
-                    raise RuntimeError("Connection not found: %s" % connection_name)
+    def _on_config_loader_stopped(self, config_loader):
+        try:
+            self._pending_config_loaders.remove(config_loader)
+        except KeyError:
+            pass
+        self._failed = config_loader.has_failed()
+        self._completion_check()
 
-            connection.sig_connection_error.connect(self._slt_connection_error)
+    def _completion_check(self):
+        if len(self._pending_mrcs) == 0 and len(self._pending_config_loaders) == 0:
+            self._stopped(True)
 
-            if not connection.is_connected():
-                connection.connect()
+    def _has_failed(self):
+        return self._failed
 
-            mrc = connection.mrc_model
+    def _stop(self):
+        for loader in self._pending_config_loaders:
+            loader.stop()
+        for mrc in self._pending_mrcs:
+            mrc.disconnect()
 
-            if mrc not in self._mrc_to_device_configs:
-                self._mrc_to_device_configs[mrc] = list()
-            self._mrc_to_device_configs[mrc].append(device_config)
-
-        for mrc in self._mrc_to_device_configs.keys():
-            for bus in range(2):
-                self.add(Scanbus(mrc, bus))
-
-        for mrc, cfgs in self._mrc_to_device_configs.iteritems():
-            for cfg in cfgs:
-                descr = self.app_model.get_device_description_by_idc(cfg.device_idc)
-                if descr is None:
-                    descr = device_description.makeGenericDescription(cfg.device_idc)
-                self.add(DelayedConfigLoader(mrc, cfg, descr))
-
-    def _slt_connection_error(self, error_object):
-        self._exception = error_object
-        self._stopped(False)
+#class SetupLoader(SequentialCommandGroup):
+#    def __init__(self, setup, parent=None):
+#        super(SetupLoader, self).__init__(parent)
+#        self.setup = setup
+#        self.registry = application_registry.instance
 
 # Operations:
 # * Load Setup:

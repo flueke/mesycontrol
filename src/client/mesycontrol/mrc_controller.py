@@ -114,12 +114,12 @@ class MesycontrolMRCController(AbstractMRCController):
     def set_model(self, mrc_model):
         self._model = weakref.ref(mrc_model) if mrc_model is not None else None
 
-        if self.connection.is_connected():
-            self.model.state = MRCModel.Connected
-        elif self.connection.is_connecting():
-            self.model.state = MRCModel.Connecting
+        if self.is_connected():
+            self.model.set_connected()
+        elif self.is_connecting():
+            self.model.set_connecting()
         else:
-            self.model.state = MRCModel.Disconnected
+            self.model.set_disconnected()
 
     model = pyqtProperty(MRCModel, get_model, set_model)
 
@@ -132,6 +132,9 @@ class MesycontrolMRCController(AbstractMRCController):
 
     def is_connected(self):
         return self.connection.is_connected()
+
+    def is_connecting(self):
+        return self.connection.is_connecting()
 
     def get_connection_info(self):
         return self.connection.get_info()
@@ -190,18 +193,18 @@ class MesycontrolMRCController(AbstractMRCController):
         return self._queue_request(m, response_handler)
 
     def _on_connecting(self):
-        self.model.state = MRCModel.Connecting
+        self.model.set_connecting()
 
     def _on_connected(self):
-        self.model.state = MRCModel.Connected
+        self.model.set_connected()
         for i in range(2):
             self.scanbus(i)
 
     def _on_disconnected(self):
-        self.model.state = MRCModel.Disconnected
+        self.model.set_disconnected()
 
     def _on_connection_error(self, error_info):
-        self.model.set_state(MRCModel.Disconnected, error_info)
+        self.model.set_disconnected(error=error_info)
 
     def _on_message_received(self, msg):
         mt = msg.get_type_name()

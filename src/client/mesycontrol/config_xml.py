@@ -5,8 +5,7 @@
 from xml.dom import minidom
 from xml.etree import ElementTree
 from xml.etree.ElementTree import TreeBuilder
-from config import Config, MRCConnectionConfig, DeviceConfig, ParameterConfig
-from device_description import DeviceDescription, ParameterDescription
+import config
 
 class InvalidArgument(RuntimeError):
     pass
@@ -21,85 +20,173 @@ def parse_etree(et):
     root = et.getroot()
     if root.tag != 'mesycontrol':
         raise InvalidArgument("invalid root tag '%s', expected 'mesycontrol'" % root.tag)
-    return parse_etree_element(root)
+    return parse_setup(root)
 
-def parse_etree_element(element):
-    cfg = Config()
+def parse_setup(element):
+    ret = config.Setup()
 
-    for desc_node in element.iter('device_description'):
-        cfg.device_descriptions.append(parse_device_description(desc_node))
-
-    for config_node in element.iter('device_config'):
-        cfg.add_device_config(parse_device_config(config_node))
-
-    for connection_node in element.iter('connection_config'):
-        cfg.add_connection_config(parse_connection_config(connection_node))
-
-    return cfg
-
-def parse_device_description(desc_node):
-    device_desc = DeviceDescription(desc_node.find('idc').text)
-
-    n = desc_node.find('name')
+    n = element.find('name')
     if n is not None:
-        device_desc.name = n.text
+        ret.name = n.text
 
-    for param_node in desc_node.iter('parameter'):
-        param_desc         = ParameterDescription(param_node.find('address').text)
+    n = element.find('description')
+    if n is not None:
+        ret.description = n.text
 
-        n = param_node.find('name')
-        param_desc.name    = n.text if n is not None else None
+    for config_node in element.findall('device_config'):
+        ret.add_device_config(parse_device_config(config_node))
 
-        n = param_node.find('poll')
-        param_desc.poll = True if n is not None and int(n.text) else False
+    for mrc_node in element.findall('mrc_config'):
+        ret.add_mrc_config(parse_mrc_config(mrc_node))
 
-        n = param_node.find('read_only')
-        param_desc.read_only = True if n is not None and int(n.text) else False
+    return ret
 
-        n = param_node.find('critical')
-        param_desc.critical = True if n is not None and int(n.text) else False
+def setup_to_etree(setup):
+    tb = TreeBuilder()
+    tb.start("mesycontrol", {})
 
-        n = param_node.find('safe_value')
-        param_desc.safe_value = int(n.text) if n is not None else 0
+    _add_tag(tb, 'name', setup.name)
+    _add_tag(tb, 'description', setup.description)
 
-        n = param_node.find('do_not_store')
-        param_desc.do_not_store = True if n is not None and int(n.text) else False
+    for obj in setup.get_device_configs():
+        _device_config_to_etree(obj, tb)
 
-        device_desc.add_parameter(param_desc)
+    for obj in setup.get_mrc_configs():
+        _mrc_config_to_etree(obj, tb)
 
-    return device_desc
+    tb.end("mesycontrol")
+
+    return ElementTree.ElementTree(tb.close())
+
+def device_config_to_etree(device_config):
+    tb = TreeBuilder()
+    _device_config_to_etree(device_config, tb)
+    return ElementTree.ElementTree(tb.close())
+
+def mrc_config_to_etree(mrc_config):
+    tb = TreeBuilder()
+    _mrc_config_to_etree(mrc_config, tb)
+    return ElementTree.ElementTree(tb.close())
+
+def write_device_config_to_file(device_config, f):
+    tb = TreeBuilder()
+    tb.start("mesycontrol", {})
+    _device_config_to_etree(device_config, tb)
+    tb.end("mesycontrol")
+
+    tree = ElementTree.ElementTree(tb.close())
+    f.write(xml_tree_to_string(tree))
 
 def parse_device_config(config_node):
-    device_config = DeviceConfig(config_node.find('device_idc').text)
+    device_config = config.DeviceConfig()
+
+    n = config_node.find('idc')
+    if n is not None:
+        device_config.idc = n.text
 
     n = config_node.find('name')
     if n is not None:
         device_config.name = n.text
 
-    n = config_node.find('connection_name')
+    n = config_node.find('description')
     if n is not None:
-        device_config.connection_name = n.text
+        device_config.description = n.text
 
-    n = config_node.find('bus_number')
+    n = config_node.find('bus')
     if n is not None:
-        device_config.bus_number = n.text
+        device_config.bus = n.text
 
-    n = config_node.find('device_address')
+    n = config_node.find('address')
     if n is not None:
-        device_config.device_address = n.text
+        device_config.address = n.text
+
+    n = config_node.find('rc')
+    if n is not None:
+        int_val = int(n.text)
+        device_config.rc = int_val != 0
 
     for param_node in config_node.iter('parameter_config'):
-        param_config = ParameterConfig(**param_node.attrib)
-        device_config.add_parameter(param_config)
+        param_config = config.ParameterConfig(**param_node.attrib)
+        device_config.add_parameter_config(param_config)
 
     return device_config
 
-def parse_connection_config(connection_node):
-    connection_config = MRCConnectionConfig()
+def _device_config_to_etree(cfg, tb):
+    tb.start('device_config', {})
 
-    n = connection_node.find('name')
+    _add_tag(tb, 'idc', cfg.idc)
+
+    if cfg.name is not None:
+        _add_tag(tb, 'name', cfg.name)
+
+    if cfg.description is not None:
+        _add_tag(tb, 'description', cfg.description)
+
+    if cfg.bus is not None:
+        _add_tag(tb, 'bus', cfg.bus)
+
+    if cfg.address is not None:
+        _add_tag(tb, 'address', cfg.address)
+
+    if cfg.rc is not None:
+        _add_tag(tb, 'rc', 1 if cfg.rc else 0)
+
+    for p in cfg.get_parameters():
+        if p.value is None and p.alias is None:
+            continue
+
+        attrs = dict(address=str(p.address))
+
+        if p.value is not None:
+            attrs['value'] = str(p.value)
+
+        if p.alias is not None:
+            attrs['alias'] = str(p.alias)
+
+        tb.start("parameter_config", attrs)
+        tb.end("parameter_config")
+
+    tb.end("device_config")
+
+def parse_mrc_config(config_node):
+    ret = config.MRCConfig()
+
+    n = config_node.find('name')
     if n is not None:
-        connection_config.name = n.text
+        ret.name = n.text
+
+    n = config_node.find('description')
+    if n is not None:
+        ret.description = n.text
+
+    n = config_node.find('connection_config')
+    if n is not None:
+        ret.set_connection_config(parse_connection_config(n))
+
+    for n in config_node.iter('device_config'):
+        ret.add_device_config(parse_device_config(n))
+
+    return ret
+
+def _mrc_config_to_etree(cfg, tb):
+    tb.start('mrc_config', {})
+
+    if cfg.name is not None:
+        _add_tag(tb, 'name', cfg.name)
+
+    if cfg.description is not None:
+        _add_tag(tb, 'description', cfg.description)
+
+    if cfg.get_connection_config() is not None:
+        _connection_config_to_etree(cfg.get_connection_config(), tb)
+
+    for dev_cfg in cfg.get_device_configs():
+        _device_config_to_etree(dev_cfg, tb)
+
+    tb.end('mrc_config')
+
+def parse_connection_config(connection_node):
+    connection_config = config.MRCConnectionConfig()
 
     # mesycontrol
     n = connection_node.find('mesycontrol_host')
@@ -130,31 +217,17 @@ def parse_connection_config(connection_node):
 
     return connection_config
 
-def to_etree(cfg):
-    tb = TreeBuilder()
-    tb.start("mesycontrol", {})
+def write_setup_to_file(setup, f):
+    tree = setup_to_etree(setup)
+    f.write(xml_tree_to_string(tree))
 
-    for obj in cfg.get_connection_configs():
-        _connection_config_to_etree(obj, tb)
-
-    for obj in cfg.get_device_configs():
-        _device_config_to_etree(obj, tb)
-
-    #for obj in cfg.device_descriptions:
-    #    _device_description_to_etree(obj, tb)
-
-    tb.end("mesycontrol")
-
-    return ElementTree.ElementTree(tb.close())
-
-def write_file(cfg, f):
-    xml = ElementTree.tostring(to_etree(cfg).getroot())
-    xml = minidom.parseString(xml).toprettyxml(indent='  ')
-    f.write(xml)
+def xml_tree_to_string(tree):
+    ugly   = ElementTree.tostring(tree.getroot())
+    pretty = minidom.parseString(ugly).toprettyxml(indent='  ')
+    return pretty
 
 def _connection_config_to_etree(cfg, tb):
     tb.start('connection_config', {})
-    _add_tag(tb, 'name', cfg.name)
 
     if cfg.is_mesycontrol_connection():
         _add_tag(tb, 'mesycontrol_host', cfg.mesycontrol_host)
@@ -169,6 +242,38 @@ def _connection_config_to_etree(cfg, tb):
         _add_tag(tb, 'serial_baud_rate', cfg.serial_baud_rate)
 
     tb.end('connection_config')
+
+#def parse_device_description(desc_node):
+#    device_desc = DeviceDescription(desc_node.find('idc').text)
+#
+#    n = desc_node.find('name')
+#    if n is not None:
+#        device_desc.name = n.text
+#
+#    for param_node in desc_node.iter('parameter'):
+#        param_desc         = ParameterDescription(param_node.find('address').text)
+#
+#        n = param_node.find('name')
+#        param_desc.name    = n.text if n is not None else None
+#
+#        n = param_node.find('poll')
+#        param_desc.poll = True if n is not None and int(n.text) else False
+#
+#        n = param_node.find('read_only')
+#        param_desc.read_only = True if n is not None and int(n.text) else False
+#
+#        n = param_node.find('critical')
+#        param_desc.critical = True if n is not None and int(n.text) else False
+#
+#        n = param_node.find('safe_value')
+#        param_desc.safe_value = int(n.text) if n is not None else 0
+#
+#        n = param_node.find('do_not_store')
+#        param_desc.do_not_store = True if n is not None and int(n.text) else False
+#
+#        device_desc.add_parameter(param_desc)
+#
+#    return device_desc
 
 def _device_description_to_etree(desc, tb):
     tb.start("device_description", {})
@@ -203,38 +308,6 @@ def _device_description_to_etree(desc, tb):
         tb.end("parameter")
 
     tb.end("device_description")
-
-def _device_config_to_etree(cfg, tb):
-    tb.start('device_config', {})
-
-    _add_tag(tb, 'device_idc', cfg.idc)
-
-    if cfg.name is not None:
-        _add_tag(tb, 'name', cfg.name)
-
-    #if cfg.connection_name is not None:
-    #    _add_tag(tb, 'connection_name', cfg.connection_name)
-
-    if cfg.bus is not None:
-        _add_tag(tb, 'bus_number', cfg.bus)
-
-    if cfg.address is not None:
-        _add_tag(tb, 'device_address', cfg.address)
-
-    for p in cfg.get_parameters():
-        if p.value is not None or p.alias is not None:
-            attrs = dict(address=str(p.address))
-
-            if p.value is not None:
-                attrs['value'] = str(p.value)
-
-            if p.alias is not None:
-                attrs['alias'] = str(p.alias)
-
-            tb.start("parameter_config", attrs)
-            tb.end("parameter_config")
-
-    tb.end("device_config")
 
 def _add_tag(tb, tag, text, attrs = {}):
     tb.start(tag, {})

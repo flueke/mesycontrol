@@ -47,6 +47,7 @@ class ApplicationRegistry(QtCore.QObject):
         self.mrc_models = list()
         self.mrcs       = list()
         self.device_descriptions = set()
+        self._object_registry = dict()
 
         self.load_system_descriptions()
 
@@ -120,6 +121,18 @@ class ApplicationRegistry(QtCore.QObject):
             self.unregister_mrc_model(mrc.model)
             self.mrc_removed.emit(mrc)
 
+    def find_mrc_by_config(self, mrc_config):
+        for mrc in self.mrcs:
+            controller = mrc.model.controller
+            if hasattr(controller, 'connection'):
+                con = controller.connection
+                if con.matches_config(mrc_config.connection_config):
+                    return mrc
+        return None
+
+    def get_mrcs(self):
+        return list(self.mrcs)
+
     def find_connection_by_config(self, connection_config):
         for mrc_model in self.mrc_models:
             controller = mrc_model.controller
@@ -128,3 +141,15 @@ class ApplicationRegistry(QtCore.QObject):
                 if connection.matches_config(connection_config):
                     return connection
         return None
+
+    def get(self, key):
+        return self._object_registry.get(key, None)
+
+    def register(self, key, obj):
+        self._object_registry[key] = obj
+
+    def unregister(self, key):
+        del self._object_registry[key]
+
+    def has_key(self, key):
+        return key in self._object_registry

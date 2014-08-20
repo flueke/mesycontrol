@@ -7,15 +7,15 @@ from PyQt4 import QtGui
 from PyQt4 import uic
 import weakref
 import application_registry
+from app_model import Device
 
-class MHV4(QtCore.QObject):
+class MHV4(Device):
     def __init__(self, device, parent=None):
         self.device = weakref.ref(device)
 
 class ChannelWidget(QtGui.QWidget):
     def __init__(self, mhv4, channel, parent=None):
         super(ChannelWidget, self).__init__(parent)
-        #uic.loadUi(resource_stream('ui', 'mhv4_channel.ui'), self)
         uic.loadUi(application_registry.instance.find_data_file('mesycontrol/ui/mhv4_channel.ui'), self)
         self.mhv4    = weakref.ref(mhv4)
         self.channel = channel

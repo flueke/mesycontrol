@@ -6,6 +6,7 @@ from qt import *
 import util
 import logging
 import sys
+import traceback
 
 class LogView(QtGui.QTextEdit):
     def __init__(self, parent=None):
@@ -17,6 +18,16 @@ class LogView(QtGui.QTextEdit):
 
     def handle_log_record(self, log_record):
         self.append(self.formatter.format(log_record))
+
+    def handle_exception(self, exc_type, exc_value, exc_trace):
+        old_color = self.textColor()
+        try:
+            self.setTextColor(QtGui.QColor("#ff0000"))
+
+            for line in traceback.format_exception(exc_type, exc_value, exc_trace):
+                self.append(line)
+        finally:
+            self.setTextColor(old_color)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,

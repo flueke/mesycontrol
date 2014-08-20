@@ -14,6 +14,9 @@ import mrc_command
 column_names  = ('address', 'name', 'value', 'set_value')
 column_titles = ('Address', 'Name', 'Value', 'Set Value') 
 
+def column_index(column_name):
+    return column_names.index(column_name)
+
 class ParameterNode(TreeNode):
     data_changed = pyqtSignal()
 
@@ -21,9 +24,13 @@ class ParameterNode(TreeNode):
         super(ParameterNode, self).__init__(device, parent)
         self.address = address
         device.parameter_changed.connect(self._on_parameter_changed)
-        device.config_parameter_changed.connect(self._on_parameter_changed)
+        device.config_parameter_value_changed.connect(self._on_config_parameter_changed)
 
     def _on_parameter_changed(self, address, old, new):
+        if self.address == address:
+            self.data_changed.emit()
+
+    def _on_config_parameter_changed(self, address, value):
         if self.address == address:
             self.data_changed.emit()
 
@@ -39,7 +46,7 @@ class ParameterNode(TreeNode):
         return self.ref.model.get_memory().get(self.address, None)
 
     def get_config(self):
-        if self.ref.config is not None:
+        if self.ref.config is not None and self.ref.config.contains_parameter(self.address):
             return self.ref.config.get_parameter(self.address)
         return None
 
@@ -53,6 +60,13 @@ class ParameterNode(TreeNode):
         param_config = self.get_config()
         param_descr  = self.get_description()
         column_name  = column_names[column]
+
+        if (role == Qt.BackgroundRole
+                and column_name in ('value', 'set_value')
+                and mem_value is not None
+                and param_config is not None
+                and mem_value != param_config.value):
+            return QtGui.QColor("#ff0000")
 
         if role in (Qt.DisplayRole, Qt.EditRole):
             if column_name == 'address':
@@ -87,7 +101,7 @@ class ParameterNode(TreeNode):
             int_value, ok = value.toInt()
             if not ok:
                 return False
-            self.ref.set_parameter(self.address, int_value)
+            mrc_command.SetParameter(self.ref, self.address, int_value).start()
             param_config = self.get_config()
             if param_config is not None:
                 param_config.value = int_value
@@ -101,7 +115,7 @@ class ParameterNode(TreeNode):
         return ret
 
     def _slt_refresh(self):
-        self.ref.read_parameter(self.address)
+        mrc_command.ReadParameter(self.ref, self.address).start()
 
     def _slt_refresh_all(self):
         mrc_command.RefreshMemory(self.ref).start()

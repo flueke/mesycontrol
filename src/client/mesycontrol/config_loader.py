@@ -40,7 +40,8 @@ class ConfigLoader(SequentialCommandGroup):
                 self.add(SetParameter(self.device, param_cfg.address, param_cfg.value))
 
         def set_config():
-            self.device.config = self.config
+            if self.device.config is not self.config:
+                self.device.config = self.config
 
         self.add(Callable(set_config))
 

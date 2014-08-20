@@ -6,6 +6,9 @@ from PyQt4 import QtGui
 
 from device_tableview import DeviceTableModel, DeviceTableView
 
+# TODO: refactor this to DeviceView (DeviceWidget should be the specific device
+# widget)
+
 class DeviceWidget(QtGui.QWidget):
     def __init__(self, parent=None):
         super(DeviceWidget, self).__init__(parent)
@@ -18,6 +21,9 @@ class DeviceWidget(QtGui.QWidget):
 def factory(device):
     table_model   = DeviceTableModel(device)
     table_view    = DeviceTableView(table_model)
-    device_widget = DeviceWidget()
-    device_widget.set_table_view(table_view)
-    return device_widget
+    #device_widget = application_registry.instance.make_device_widget(device)
+    
+    device_view = DeviceWidget()
+    device_view.set_table_view(table_view)
+    #device_view.set_device_widget(device_widget)
+    return device_view

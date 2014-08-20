@@ -10,11 +10,10 @@ import weakref
 import util
 
 class MRCModel(QtCore.QObject):
-    #: State enum. 'Ready' state is entered once both busses have been scanned.
-    Disconnected, Connecting, Connected, Ready = states = set(range(4))
-
-    #: state_changed(old_state, new_state, new_state_info=None)
-    state_changed  = pyqtSignal(int, int, object)
+    connecting               = pyqtSignal()
+    connected                = pyqtSignal()
+    disconnected             = pyqtSignal(object) #: error object or None
+    ready                    = pyqtSignal(bool)
 
     #: bus_scanned(bus, data)
     bus_scanned    = pyqtSignal(int, object)
@@ -27,12 +26,14 @@ class MRCModel(QtCore.QObject):
 
     def __init__(self, parent=None):
         super(MRCModel, self).__init__(parent)
-        self.log             = util.make_logging_source_adapter(__name__, self)
-        self._controller     = None
-        self._devices        = list()
-        self._busses_scanned = set()
-        self._state          = MRCModel.Disconnected
-        self._state_info     = None
+        self.log               = util.make_logging_source_adapter(__name__, self)
+        self._controller       = None
+        self._devices          = list()
+        self._busses_scanned   = set()
+        self._connected        = False
+        self._connecting       = False
+        self._ready            = False
+        self._connection_error = None
 
     def set_scanbus_data(self, bus, data):
         for addr in range(16):
@@ -54,8 +55,8 @@ class MRCModel(QtCore.QObject):
         self._busses_scanned.add(bus)
         self.bus_scanned.emit(bus, data)
 
-        if self.state == MRCModel.Connected and len(self._busses_scanned) >= 2:
-            self.state = MRCModel.Ready
+        if self.is_connected() and len(self._busses_scanned) >= 2:
+            self._set_ready(True)
 
     def set_parameter(self, bus, dev, par, val):
         self.get_device(bus, dev).set_parameter(par, val)
@@ -94,36 +95,42 @@ class MRCModel(QtCore.QObject):
         self.device_added.emit(device)
 
     def _remove_device(self, device):
-        self.devices.remove(device)
-        device.setParent(None)
+        self._devices.remove(device)
+        device.mrc = None
         self.device_removed.emit(device)
 
-    def get_state(self):
-        return self._state
+    def set_connected(self):
+        self._connected = True
+        self._busses_scanned = set()
+        self.connected.emit()
 
-    def get_state_info(self):
-        return self._state_info
+    def set_connecting(self):
+        self._connected = False
+        self._connecting = True
+        self.connecting.emit()
 
-    def set_state(self, new_state, new_info=None):
-        if new_state not in MRCModel.states:
-            raise RuntimeError("MRCModel.set_state: invalid state")
+    def set_disconnected(self, error=None):
+        self._connected  = False
+        self._connecting = False
+        self._connection_error = error
+        self._set_ready(False)
+        self.disconnected.emit(error)
 
-        old_state        = self.state
-        old_info         = self.state_info
-        self._state      = new_state
-        self._state_info = new_info
+    def _set_ready(self, is_ready):
+        self._ready = is_ready
+        self.ready.emit(self.is_ready())
 
-        if self.state == MRCModel.Disconnected:
-            self._busses_scanned = set()
-
-        if old_state != new_state or old_info != new_info:
-            self.state_changed.emit(old_state, new_state, new_info)
+    def is_connecting(self):
+        return self._connecting
 
     def is_connected(self):
-        return self.state in (MRCModel.Connected, MRCModel.Ready)
+        return self._connected
+
+    def is_disconnected(self):
+        return not self._connected
 
     def is_ready(self):
-        return self.state == MRCModel.Ready
+        return self._connected and self._ready
 
     def get_controller(self):
         return self._controller
@@ -132,7 +139,6 @@ class MRCModel(QtCore.QObject):
         if self.controller is not None:
             self.controller.set_model(None)
 
-        self.state       = MRCModel.Disconnected
         self._controller = controller
 
         if self.controller is not None:
@@ -143,18 +149,13 @@ class MRCModel(QtCore.QObject):
             return self.controller.get_connection_info()
         return None
 
-    state      = pyqtProperty(int,    get_state, set_state, notify=state_changed)
-    state_info = pyqtProperty(object, get_state_info)
-    connected  = pyqtProperty(bool,   is_connected)
-    ready      = pyqtProperty(bool,   is_ready)
     controller = pyqtProperty(object, get_controller, set_controller)
 
 class DeviceModel(QtCore.QObject):
-    #: state enum
-    Disconnected, Connecting, Connected, AddressConflict, Ready = states = set(range(5))
-
-    #: state_changed(old_state, new_state, new_state_info=None)
-    state_changed = pyqtSignal(int, int, object)
+    connecting      = pyqtSignal()
+    connected       = pyqtSignal()
+    disconnected    = pyqtSignal(object) #: error object or None
+    ready           = pyqtSignal(bool)
 
     #: idc_changed(idc)
     idc_changed   = pyqtSignal(int)
@@ -183,8 +184,6 @@ class DeviceModel(QtCore.QObject):
 
         self._controller = None
         self._mrc        = None
-        self._state      = DeviceModel.Disconnected
-        self._state_info = None
         self._bus        = bus
         self._address    = address
         self._idc        = idc
@@ -193,66 +192,42 @@ class DeviceModel(QtCore.QObject):
         self.reset_mirror()
         self.mrc         = mrc
         self.controller  = controller
+        self._ready      = False
 
     def set_mrc(self, mrc):
         if self.mrc is not None:
-            # remove signal/slot connections
-            self.mrc.disconnect(self)
+            self.mrc.connected.disconnect(self.connected)
+            self.mrc.connecting.disconnect(self.connecting)
+            self.mrc.disconnected.disconnect(self.disconnected)
 
-        self.state = DeviceModel.Disconnected
         self._mrc  = weakref.ref(mrc) if mrc is not None else None
 
         if self.mrc is not None:
-            self.mrc.state_changed.connect(self._on_mrc_state_changed)
-            self._on_mrc_state_changed(MRCModel.Disconnected, mrc.state, mrc.state_info)
+            self.mrc.connected.connect(self.connected)
+            self.mrc.connecting.connect(self.connecting)
+            self.mrc.disconnected.connect(self.disconnected)
 
     def get_mrc(self):
         return self._mrc() if self._mrc is not None else None
 
-    def get_state(self):
-        return self._state
-
-    def get_state_info(self):
-        return self._state_info
-
-    def set_state(self, new_state, new_info=None):
-        if new_state not in DeviceModel.states:
-            raise RuntimeError("DeviceModel.set_state: invalid state")
-
-        old_state        = self.state
-        old_info         = self.state_info
-        self._state      = new_state
-        self._state_info = new_info
-
-        self.log.debug("DeviceModel.set_state: old_state=%d, new_state=%d, new_info=%s",
-                old_state, new_state, new_info)
-
-        if self.state == DeviceModel.Disconnected or (
-                old_state == DeviceModel.AddressConflict and
-                new_state != DeviceModel.AddressConflict):
-            self.reset_mem()
-            self.reset_mirror()
-
-        if old_state != new_state or old_info != new_info:
-            self.state_changed.emit(old_state, new_state, new_info)
-
     def set_address_conflict(self, b):
-        if b:
-            self.state = DeviceModel.AddressConflict
-        elif self.mrc is not None and self.mrc.is_connected():
-            self.state = DeviceModel.Connected
-        else:
-            self.state = DeviceModel.Disconnected
+        self._address_confilct = b
+        self.address_conflict_changed.emit(b)
 
     def has_address_conflict(self):
-        return self.state == DeviceModel.AddressConflict
+        return self._address_confilct
+
+    def is_connecting(self):
+        return self.mrc.is_connecting()
 
     def is_connected(self):
-        return self.state in (DeviceModel.Connected, DeviceModel.AddressConflict,
-                DeviceModel.Ready)
+        return self.mrc.is_connected()
+
+    def is_disconnected(self):
+        return self.mrc.is_disconnected()
 
     def is_ready(self):
-        return self.state == DeviceModel.Ready
+        return self._ready
 
     def has_parameter(self, address):
         return address in self._memory
@@ -267,8 +242,8 @@ class DeviceModel(QtCore.QObject):
         if old_value != value:
             self.parameter_changed.emit(address, old_value, value)
 
-        if self.state == DeviceModel.Connected and len(self._memory) >= 256:
-            self.state = DeviceModel.Ready
+        if self.is_connected() and len(self._memory) >= 256:
+            self._set_ready(True)
 
     def has_mirror_parameter(self, address):
         return address in self._mirror
@@ -286,20 +261,11 @@ class DeviceModel(QtCore.QObject):
     def reset_mem(self):
         self._memory = dict()
         self.memory_reset.emit()
+        self._set_ready(False)
 
     def reset_mirror(self):
         self._mirror = dict()
         self.mirror_reset.emit()
-
-    def _on_mrc_state_changed(self, old_state, new_state, info=None):
-        self.log.debug("mrc_model state changed: mrc_model=%s, device_controller=%s", self.mrc, self.controller)
-        self.log.debug("mrc_model state changed: old=%d, new=%d, info=%s", old_state, new_state, str(info))
-        if new_state == MRCModel.Disconnected:
-            self.set_state(DeviceModel.Disconnected, info)
-        elif new_state == MRCModel.Connecting:
-            self.set_state(DeviceModel.Connecting, info)
-        elif new_state == MRCModel.Connected:
-            self.set_state(DeviceModel.Connected, info)
 
     def get_bus(self):
         return self._bus
@@ -340,10 +306,10 @@ class DeviceModel(QtCore.QObject):
         if self.controller is not None:
             self.controller.set_model(self)
 
-    state        = pyqtProperty(int,    get_state, set_state, notify=state_changed)
-    state_info   = pyqtProperty(object, get_state_info)
-    connected    = pyqtProperty(bool,   is_connected)
-    ready        = pyqtProperty(bool,   is_ready)
+    def _set_ready(self, is_ready):
+        self._ready = is_ready
+        self.ready.emit(self.is_ready())
+
     bus          = pyqtProperty(int,    get_bus)
     address      = pyqtProperty(int,    get_address)
     rc           = pyqtProperty(bool,   get_rc, set_rc, notify=rc_changed)
