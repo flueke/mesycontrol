@@ -23,7 +23,6 @@ from mesycontrol import mrc_controller
 from mesycontrol import mrc_command
 from mesycontrol import setup_treeview
 from mesycontrol import util
-from mesycontrol.config import SetupBuilder, SetupLoader
 from mesycontrol.ui.connect_dialog import ConnectDialog
 
 class MainWindow(QtGui.QMainWindow):
@@ -39,8 +38,14 @@ class MainWindow(QtGui.QMainWindow):
         self.setup_tree_view.sig_close_mrc.connect(self._slt_close_mrc)
         application_registry.instance.mrc_added.connect(self.setup_tree_view.model().add_mrc)
         application_registry.instance.mrc_removed.connect(self.setup_tree_view.model().remove_mrc)
-        subwin = self._add_subwindow(self.setup_tree_view, "Device Tree")
-        subwin.resize(400, 300)
+
+        dw_setup_tree = QtGui.QDockWidget("Setup", self)
+        dw_setup_tree.setWidget(self.setup_tree_view)
+        dw_setup_tree.setFeatures(QtGui.QDockWidget.DockWidgetMovable | QtGui.QDockWidget.DockWidgetFloatable)
+        self.addDockWidget(Qt.LeftDockWidgetArea, dw_setup_tree)
+
+        #subwin = self._add_subwindow(self.setup_tree_view, "Device Tree")
+        #subwin.resize(400, 300)
 
         log_emitter = util.QtLogEmitter(parent=self)
         logging.getLogger().addHandler(log_emitter.get_handler())
@@ -48,8 +53,13 @@ class MainWindow(QtGui.QMainWindow):
         self.log_view = log_view.LogView(parent=self)
         log_emitter.log_record.connect(self.log_view.handle_log_record)
         application_registry.instance.register('exception_logger', self.log_view.handle_exception)
-        subwin = self._add_subwindow(self.log_view, "Log View")
-        subwin.resize(400, 300)
+
+        dw_log_view = QtGui.QDockWidget("Application Log", self)
+        dw_log_view.setWidget(self.log_view)
+        dw_log_view.setFeatures(QtGui.QDockWidget.DockWidgetMovable | QtGui.QDockWidget.DockWidgetFloatable)
+        self.addDockWidget(Qt.BottomDockWidgetArea, dw_log_view)
+        #subwin = self._add_subwindow(self.log_view, "Log View")
+        #subwin.resize(400, 300)
 
     def on_qapp_quit(self):
         logging.info("Exiting...")

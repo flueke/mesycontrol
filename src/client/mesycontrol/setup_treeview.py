@@ -16,8 +16,8 @@ import util
 import weakref
 from util import TreeNode
 
-column_names  = ('name', 'rc', 'idc', 'connection_state', 'queue_size', 'silent_mode', 'write_access')
-column_titles = ('Name', 'RC', 'IDC', 'Connection State', 'Queue Size', 'Silent Mode', 'Write Access')
+column_names  = ('name', 'info', 'rc', 'idc', 'config_state', 'queue_size', 'silent_mode', 'write_access')
+column_titles = ('Name', 'Info', 'RC', 'IDC', 'Config'      , 'Queue Size', 'Silent Mode', 'Write Access')
 
 def column_index(column_name):
     return column_names.index(column_name)
@@ -30,10 +30,6 @@ class TreeNodeWithModel(TreeNode):
     def get_model(self):
         return self._model()
 
-class SetupNode(TreeNode):
-    def __init__(self, setup, parent):
-        super(SetupNode, self).__init__(setup, parent)
-
 class MRCNode(TreeNodeWithModel):
     sig_close_mrc = pyqtSignal(object)
 
@@ -42,11 +38,12 @@ class MRCNode(TreeNodeWithModel):
         self.children = [BusNode(mrc, bus, model, self) for bus in range(2)]
 
         slt = partial(model.node_data_changed, node=self,
-                col1=column_index('connection_state'), col2=column_index('connection_state'))
+                col1=column_index('name'), col2=column_index('name'))
         mrc.connecting.connect(slt)
         mrc.connected.connect(slt)
         mrc.disconnected.connect(slt)
         mrc.ready.connect(slt)
+        mrc.name_changed.connect(slt)
 
         mrc.write_access_changed.connect(partial(model.node_data_changed, node=self,
             col1=column_index('write_access'), col2=column_index('write_access')))
@@ -70,12 +67,33 @@ class MRCNode(TreeNodeWithModel):
     def data(self, column, role):
         column_name = column_names[column]
         mrc         = self.ref
-        if role in (Qt.DisplayRole, Qt.StatusTipRole, Qt.ToolTipRole, Qt.EditRole):
-            if column_name == 'name':
+
+        if column_name == 'name':
+            if role == Qt.DecorationRole:
+                if mrc.is_ready():
+                    return QtGui.QColor(Qt.green)
+                if mrc.is_connected():
+                    return QtGui.QColor(Qt.darkGreen)
+                if mrc.is_connecting():
+                    return QtGui.QColor(Qt.magenta)
+                if mrc.is_disconnected():
+                    return QtGui.QColor(Qt.red)
+
+            if role in (Qt.ToolTipRole, Qt.StatusTipRole):
+                if mrc.is_ready():
+                    return "ready"
+                if mrc.is_connected():
+                    return "connected"
+                if mrc.is_connecting():
+                    return "connecting"
+                if mrc.is_disconnected():
+                    return "disconnected"
+
+            if role in (Qt.DisplayRole, Qt.EditRole):
                 return str(mrc)
-            elif column_name == 'connection_state':
-                return mrc.is_connected()
-            elif column_name == 'queue_size':
+
+        if role in (Qt.DisplayRole, Qt.StatusTipRole, Qt.ToolTipRole, Qt.EditRole):
+            if column_name == 'queue_size':
                 return mrc.get_request_queue_size()
             elif column_name == 'silent_mode':
                 return mrc.is_silenced()
@@ -96,24 +114,26 @@ class MRCNode(TreeNodeWithModel):
         return None
 
     def set_data(self, column, value, role):
+        if role != Qt.EditRole:
+            return False
+
         column_name = column_names[column]
-        if role == Qt.EditRole:
-            if column_name == 'name':
-                self.ref.name = value.toString()
-                return True
-        #if column == 0:
-        #    if role == Qt.EditRole:
-        #        self.ref.name = value.toString()
-        #        return True
-        #    elif role == Qt.CheckStateRole:
-        #        print "check0ring!"
-        #        return True
+        mrc         = self.ref
+
+        if column_name == 'name':
+            name = str(value.toString())
+            if not len(name):
+                name = None
+
+            mrc.name = value.toString()
+            return True
+
         return False
 
     def context_menu(self):
         ret = QtGui.QMenu()
-        ret.addAction("Scanbus").triggered.connect(self._slt_scanbus)
         if self.ref.is_connected():
+            ret.addAction("Scanbus").triggered.connect(self._slt_scanbus)
             ret.addAction("Disconnect").triggered.connect(self._slt_disconnect)
         else:
             ret.addAction("Connect").triggered.connect(self._slt_connect)
@@ -157,7 +177,8 @@ class BusNode(TreeNodeWithModel):
             self.children.append(device_node)
 
     def data(self, column, role):
-        if column == 0:
+        column_name = column_names[column]
+        if column_name == 'name':
             if role in (Qt.StatusTipRole, Qt.ToolTipRole):
                 return "Bus %d" % self.bus
             elif role == Qt.DisplayRole:
@@ -183,8 +204,13 @@ class DeviceNode(TreeNodeWithModel):
         self.log = util.make_logging_source_adapter(__name__, self)
         self.log.debug("DeviceNode(id=%d, device=%s, parent=%s)", id(self), self.ref, parent)
 
-        device.name_changed.connect(partial(model.node_data_changed, node=self,
-            col1=column_index('name'), col2=column_index('name')))
+        slt = partial(model.node_data_changed, node=self,
+                col1=column_index('name'), col2=column_index('name'))
+        device.connecting.connect(slt)
+        device.connected.connect(slt)
+        device.disconnected.connect(slt)
+        device.ready.connect(slt)
+        device.name_changed.connect(slt)
 
         device.rc_changed.connect(partial(model.node_data_changed, node=self,
             col1=column_index('rc'), col2=column_index('rc')))
@@ -196,7 +222,8 @@ class DeviceNode(TreeNodeWithModel):
             col1=column_index('queue_size'), col2=column_index('queue_size')))
 
     def flags(self, column):
-        if column in (0,):
+        column_name = column_names[column]
+        if column_name == 'name':
             ret =  (Qt.ItemIsSelectable | Qt.ItemIsEditable | Qt.ItemIsEnabled)
             if self.checkable:
                 ret |= Qt.ItemIsUserCheckable
@@ -206,10 +233,34 @@ class DeviceNode(TreeNodeWithModel):
     def data(self, column, role):
         column_name = column_names[column]
         device      = self.ref
-        if role in (Qt.DisplayRole, Qt.StatusTipRole, Qt.ToolTipRole, Qt.EditRole):
-            if column_name == 'name':
+
+
+        if column_name == 'name':
+            if role == Qt.DecorationRole:
+                if device.is_ready():
+                    return QtGui.QColor(Qt.green)
+                if device.is_connected():
+                    return QtGui.QColor(Qt.darkGreen)
+                if device.is_connecting():
+                    return QtGui.QColor(Qt.magenta)
+                if device.is_disconnected():
+                    return QtGui.QColor(Qt.red)
+
+            if role in (Qt.ToolTipRole, Qt.StatusTipRole):
+                if device.is_ready():
+                    return "ready"
+                if device.is_connected():
+                    return "connected"
+                if device.is_connecting():
+                    return "connecting"
+                if device.is_disconnected():
+                    return "disconnected"
+
+            if role in (Qt.DisplayRole, Qt.EditRole):
                 return str(device)
-            elif column_name == 'rc':
+
+        if role in (Qt.DisplayRole, Qt.StatusTipRole, Qt.ToolTipRole, Qt.EditRole):
+            if column_name == 'rc':
                 if role in (Qt.DisplayRole,):
                     return "on" if device.rc else "off"
                 elif role in (Qt.StatusTipRole, Qt.ToolTipRole):
@@ -241,13 +292,14 @@ class DeviceNode(TreeNodeWithModel):
 
     def context_menu(self):
         ret = QtGui.QMenu()
-        ret.addAction("Open").triggered.connect(self._slt_open_device)
-        ret.addAction("Toggle RC").triggered.connect(self._slt_toggle_rc)
-        ret.addAction("Refresh Memory").triggered.connect(self._slt_refresh_memory)
-        if self.ref.config is not None:
-            ret.addAction("Apply config").triggered.connect(self._slt_apply_config)
-        ret.addAction("Save config to file").triggered.connect(self._slt_save_device_config)
-        ret.addAction("Load config from file").triggered.connect(self._slt_load_device_config)
+        if self.ref.is_connected():
+            ret.addAction("Open").triggered.connect(self._slt_open_device)
+            ret.addAction("Toggle RC").triggered.connect(self._slt_toggle_rc)
+            ret.addAction("Refresh Memory").triggered.connect(self._slt_refresh_memory)
+            if self.ref.config is not None:
+                ret.addAction("Apply config").triggered.connect(self._slt_apply_config)
+            ret.addAction("Save config to file").triggered.connect(self._slt_save_device_config)
+            ret.addAction("Load config from file").triggered.connect(self._slt_load_device_config)
         return ret
 
     def _slt_open_device(self):

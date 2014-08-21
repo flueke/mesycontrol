@@ -32,7 +32,6 @@ class MRCModel(QtCore.QObject):
         self._busses_scanned   = set()
         self._connected        = False
         self._connecting       = False
-        self._ready            = False
         self._connection_error = None
 
     def set_scanbus_data(self, bus, data):
@@ -55,8 +54,8 @@ class MRCModel(QtCore.QObject):
         self._busses_scanned.add(bus)
         self.bus_scanned.emit(bus, data)
 
-        if self.is_connected() and len(self._busses_scanned) >= 2:
-            self._set_ready(True)
+        if self.is_ready():
+            self.ready.emit(True)
 
     def set_parameter(self, bus, dev, par, val):
         self.get_device(bus, dev).set_parameter(par, val)
@@ -100,24 +99,22 @@ class MRCModel(QtCore.QObject):
         self.device_removed.emit(device)
 
     def set_connected(self):
-        self._connected = True
+        self._connected      = True
+        self._connecting     = False
         self._busses_scanned = set()
         self.connected.emit()
 
     def set_connecting(self):
-        self._connected = False
+        self._connected  = False
         self._connecting = True
         self.connecting.emit()
 
     def set_disconnected(self, error=None):
-        self._connected  = False
-        self._connecting = False
-        self._connection_error = error
-        self._set_ready(False)
+        self._connected         = False
+        self._connecting        = False
+        self._connection_error  = error
+        self._busses_scanned    = set()
         self.disconnected.emit(error)
-
-    def _set_ready(self, is_ready):
-        self._ready = is_ready
         self.ready.emit(self.is_ready())
 
     def is_connecting(self):
@@ -130,7 +127,7 @@ class MRCModel(QtCore.QObject):
         return not self._connected
 
     def is_ready(self):
-        return self._connected and self._ready
+        return self.is_connected() and self._busses_scanned == set((0, 1))
 
     def get_controller(self):
         return self._controller
@@ -198,14 +195,14 @@ class DeviceModel(QtCore.QObject):
         if self.mrc is not None:
             self.mrc.connected.disconnect(self.connected)
             self.mrc.connecting.disconnect(self.connecting)
-            self.mrc.disconnected.disconnect(self.disconnected)
+            self.mrc.disconnected.disconnect(self._on_mrc_disconnected)
 
         self._mrc  = weakref.ref(mrc) if mrc is not None else None
 
         if self.mrc is not None:
             self.mrc.connected.connect(self.connected)
             self.mrc.connecting.connect(self.connecting)
-            self.mrc.disconnected.connect(self.disconnected)
+            self.mrc.disconnected.connect(self._on_mrc_disconnected)
 
     def get_mrc(self):
         return self._mrc() if self._mrc is not None else None
@@ -227,7 +224,7 @@ class DeviceModel(QtCore.QObject):
         return self.mrc.is_disconnected()
 
     def is_ready(self):
-        return self._ready
+        return self.is_connected() and set(self._memory.keys()) == set(xrange(256))
 
     def has_parameter(self, address):
         return address in self._memory
@@ -242,8 +239,8 @@ class DeviceModel(QtCore.QObject):
         if old_value != value:
             self.parameter_changed.emit(address, old_value, value)
 
-        if self.is_connected() and len(self._memory) >= 256:
-            self._set_ready(True)
+        if self.is_ready():
+            self.ready.emit(True)
 
     def has_mirror_parameter(self, address):
         return address in self._mirror
@@ -261,7 +258,7 @@ class DeviceModel(QtCore.QObject):
     def reset_mem(self):
         self._memory = dict()
         self.memory_reset.emit()
-        self._set_ready(False)
+        self.ready.emit(False)
 
     def reset_mirror(self):
         self._mirror = dict()
@@ -306,8 +303,10 @@ class DeviceModel(QtCore.QObject):
         if self.controller is not None:
             self.controller.set_model(self)
 
-    def _set_ready(self, is_ready):
-        self._ready = is_ready
+    def _on_mrc_disconnected(self):
+        self.disconnected.emit()
+        self.reset_mem()
+        self.reset_mirror()
         self.ready.emit(self.is_ready())
 
     bus          = pyqtProperty(int,    get_bus)
