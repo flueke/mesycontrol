@@ -20,7 +20,8 @@ class MRC1Initializer:
         const boost::shared_ptr<MRC1Connection> &mrc1_connection,
         MRC1Connection::ErrorCodeCallback completion_handler):
       m_mrc1(mrc1_connection),
-      m_completion_handler(completion_handler)
+      m_completion_handler(completion_handler),
+      m_log(log::keywords::channel="MRC1Initializer")
     {
     }
 
@@ -48,6 +49,9 @@ class MRC1Initializer:
 
         m_init_data.pop_front();
       } else {
+        BOOST_LOG_SEV(m_log, log::lvl::info) << "init data write error message: " << ec.message();
+        BOOST_LOG_SEV(m_log, log::lvl::info) << "init data write error condition: " << ec.default_error_condition();
+
         /* Translate operation_canceled from the timeout handler to a timed_out error. */
         if (ec == errc::operation_canceled)
           m_completion_handler(boost::system::error_code(errc::timed_out, boost::system::system_category()));
@@ -94,6 +98,7 @@ class MRC1Initializer:
     MRC1Connection::ErrorCodeCallback m_completion_handler;
     boost::asio::streambuf m_read_buffer;
     std::deque<std::string> m_init_data;
+    log::Logger m_log;
 };
 
 const boost::posix_time::time_duration
