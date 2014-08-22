@@ -116,6 +116,7 @@ class Device(QtCore.QObject):
             self.model.connecting.disconnect(self.connecting)
             self.model.connected.disconnect(self.connected)
             self.model.disconnected.disconnect(self.disconnected)
+            self.model.ready.disconnect(self.ready)
             self.model.idc_changed.disconnect(self.idc_changed)
             self.model.rc_changed.disconnect(self.rc_changed)
             self.model.address_conflict_changed.disconnect(self.address_conflict_changed)
@@ -135,6 +136,7 @@ class Device(QtCore.QObject):
             self.model.connecting.connect(self.connecting)
             self.model.connected.connect(self.connected)
             self.model.disconnected.connect(self.disconnected)
+            self.model.ready.connect(self.ready)
             self.model.idc_changed.connect(self.idc_changed)
             self.model.rc_changed.connect(self.rc_changed)
             self.model.address_conflict_changed.connect(self.address_conflict_changed)
@@ -300,7 +302,19 @@ class Device(QtCore.QObject):
             return False
         return self.model.is_connected()
 
+    def is_connecting(self):
+        if not self.has_model():
+            return False
+        return self.model.is_connecting()
+
+    def is_disconnected(self):
+        if not self.has_model():
+            return True
+        return self.model.is_disconnected()
+
     def is_ready(self):
+        if not self.has_model():
+            return False
         return self.model.is_ready()
 
     model       = pyqtProperty(object, get_model, set_model, notify=model_set)

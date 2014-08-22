@@ -207,6 +207,9 @@ class DeviceModel(QtCore.QObject):
     def get_mrc(self):
         return self._mrc() if self._mrc is not None else None
 
+    def has_mrc(self):
+        return self.mrc is not None
+
     def set_address_conflict(self, b):
         self._address_confilct = b
         self.address_conflict_changed.emit(b)
@@ -215,15 +218,23 @@ class DeviceModel(QtCore.QObject):
         return self._address_confilct
 
     def is_connecting(self):
+        if not self.has_mrc():
+            return False
         return self.mrc.is_connecting()
 
     def is_connected(self):
+        if not self.has_mrc():
+            return False
         return self.mrc.is_connected()
 
     def is_disconnected(self):
+        if not self.has_mrc():
+            return True
         return self.mrc.is_disconnected()
 
     def is_ready(self):
+        if not self.has_mrc():
+            return False
         return self.is_connected() and set(self._memory.keys()) == set(xrange(256))
 
     def has_parameter(self, address):
@@ -304,7 +315,7 @@ class DeviceModel(QtCore.QObject):
             self.controller.set_model(self)
 
     def _on_mrc_disconnected(self):
-        self.disconnected.emit()
+        self.disconnected.emit(None)
         self.reset_mem()
         self.reset_mirror()
         self.ready.emit(self.is_ready())

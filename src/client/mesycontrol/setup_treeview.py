@@ -19,8 +19,17 @@ from util import TreeNode
 column_names  = ('name', 'info', 'rc', 'idc', 'config_state', 'queue_size', 'silent_mode', 'write_access')
 column_titles = ('Name', 'Info', 'RC', 'IDC', 'Config'      , 'Queue Size', 'Silent Mode', 'Write Access')
 
-def column_index(column_name):
-    return column_names.index(column_name)
+def column_index(col_name):
+    try:
+        return column_names.index(col_name)
+    except ValueError:
+        return None
+
+def column_name(col_idx):
+    try:
+        return column_names[col_idx]
+    except IndexError:
+        return None
 
 class TreeNodeWithModel(TreeNode):
     def __init__(self, ref, model, parent=None):
@@ -338,7 +347,8 @@ class SetupTreeModel(QtCore.QAbstractItemModel):
         self.log  = util.make_logging_source_adapter(__name__, self)
 
     def node_data_changed(self, node, col1=None, col2=None):
-        self.log.debug("node_data_changed(node=%s, col1=%d, col2=%d", node, col1, col2)
+        self.log.debug("node_data_changed(node=%s, col1=%s(%d), col2=%s(%d)",
+                node, column_name(col1), col1, column_name(col2), col2)
         if col1 is None: col1 = 0
         if col2 is None: col2 = self.columnCount()
         idx1 = self.createIndex(node.row, col1, node)
@@ -482,7 +492,7 @@ class SetupTreeView(QtGui.QTreeView):
         if idx.isValid():
             node = idx.internalPointer()
             menu = node.context_menu()
-            if menu is not None:
+            if menu is not None and not menu.isEmpty():
                 menu.exec_(self.mapToGlobal(pos))
 
     def _slt_item_doubleclicked(self, idx):

@@ -15,19 +15,29 @@ class LogView(QtGui.QTextEdit):
         self.setLineWrapMode(QtGui.QTextEdit.NoWrap)
         self.formatter = logging.Formatter(
                 '[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
+        self._mutex = QtCore.QMutex()
+        self._original_text_color = self.textColor()
 
     def handle_log_record(self, log_record):
-        self.append(self.formatter.format(log_record))
+        with QtCore.QMutexLocker(self._mutex):
+            self.append(self.formatter.format(log_record))
 
     def handle_exception(self, exc_type, exc_value, exc_trace):
-        old_color = self.textColor()
-        try:
-            self.setTextColor(QtGui.QColor("#ff0000"))
+        with QtCore.QMutexLocker(self._mutex):
+            try:
+                self.setTextColor(QtGui.QColor("#ff0000"))
 
-            for line in traceback.format_exception(exc_type, exc_value, exc_trace):
-                self.append(line)
-        finally:
-            self.setTextColor(old_color)
+                for line in traceback.format_exception(exc_type, exc_value, exc_trace):
+                    self.append(line)
+            finally:
+                self.setTextColor(self._original_text_color)
+
+    def contextMenuEvent(self, event):
+        pos  = event.globalPos()
+        menu = self.createStandardContextMenu(pos)
+        menu.addAction("Clear").triggered.connect(self.clear)
+        menu.exec_(pos)
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,
