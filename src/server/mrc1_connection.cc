@@ -49,8 +49,8 @@ class MRC1Initializer:
 
         m_init_data.pop_front();
       } else {
-        BOOST_LOG_SEV(m_log, log::lvl::info) << "init data write error message: " << ec.message();
-        BOOST_LOG_SEV(m_log, log::lvl::info) << "init data write error condition: " << ec.default_error_condition();
+        BOOST_LOG_SEV(m_log, log::lvl::info) << "init data write error. message:   " << ec.message();
+        BOOST_LOG_SEV(m_log, log::lvl::info) << "init data write error. condition: " << ec.default_error_condition();
 
         /* Translate operation_canceled from the timeout handler to a timed_out error. */
         if (ec == errc::operation_canceled)
@@ -70,6 +70,8 @@ class MRC1Initializer:
         else
           check_result(); // done
       } else {
+        BOOST_LOG_SEV(m_log, log::lvl::info) << "init data read error. message:   " << ec.message();
+        BOOST_LOG_SEV(m_log, log::lvl::info) << "init data read error. condition: " << ec.default_error_condition();
         m_completion_handler(ec);
       }
     }
