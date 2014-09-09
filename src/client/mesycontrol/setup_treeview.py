@@ -40,7 +40,7 @@ class TreeNodeWithModel(TreeNode):
         return self._model()
 
 class MRCNode(TreeNodeWithModel):
-    sig_close_mrc = pyqtSignal(object)
+    sig_remove_mrc = pyqtSignal(object)
 
     def __init__(self, mrc, model, parent):
         super(MRCNode, self).__init__(mrc, model, parent)
@@ -62,7 +62,6 @@ class MRCNode(TreeNodeWithModel):
 
         mrc.request_queue_size_changed.connect(partial(model.node_data_changed, node=self,
             col1=column_index('queue_size'), col2=column_index('queue_size')))
-
 
     def flags(self, column):
         column_name = column_names[column]
@@ -109,17 +108,6 @@ class MRCNode(TreeNodeWithModel):
             elif column_name == 'write_access':
                 return mrc.has_write_access()
 
-                #if len(self.ref.name):
-                #    return '%s (%s)' % (self.ref.name, self.ref.connection.get_info())
-                #return 'MRC-1 at %s' % (self.ref.connection.get_info())
-            #elif role == Qt.EditRole:
-            #    return self.ref.name
-            #elif role == Qt.DecorationRole:
-            #    return QtGui.QColor(Qt.green)
-            #elif role == Qt.BackgroundRole:
-            #    return QtGui.QBrush(Qt.red)
-            #elif role == Qt.CheckStateRole and self.checkable:
-            #    return Qt.Checked
         return None
 
     def set_data(self, column, value, role):
@@ -146,7 +134,7 @@ class MRCNode(TreeNodeWithModel):
             ret.addAction("Disconnect").triggered.connect(self._slt_disconnect)
         else:
             ret.addAction("Connect").triggered.connect(self._slt_connect)
-        ret.addAction("Close").triggered.connect(self._slt_close)
+        ret.addAction("Remove from Setup").triggered.connect(self._slt_remove_mrc)
         return ret
 
     def _slt_scanbus(self):
@@ -159,8 +147,8 @@ class MRCNode(TreeNodeWithModel):
     def _slt_disconnect(self):
         self.ref.disconnect()
 
-    def _slt_close(self):
-        self.sig_close_mrc.emit(self.ref)
+    def _slt_remove_mrc(self):
+        self.sig_remove_mrc.emit(self.ref)
 
 class BusNode(TreeNodeWithModel):
     sig_apply_config = pyqtSignal(object)
@@ -229,6 +217,9 @@ class DeviceNode(TreeNodeWithModel):
 
         device.request_queue_size_changed.connect(partial(model.node_data_changed, node=self,
             col1=column_index('queue_size'), col2=column_index('queue_size')))
+
+        device.config_set.connect(partial(model.node_data_changed, node=self))
+        device.model_set.connect(partial(model.node_data_changed, node=self))
 
     def flags(self, column):
         column_name = column_names[column]
@@ -336,7 +327,7 @@ class DeviceNode(TreeNodeWithModel):
 
 class SetupTreeModel(QtCore.QAbstractItemModel):
     sig_open_device        = pyqtSignal(object)
-    sig_close_mrc          = pyqtSignal(object)
+    sig_remove_mrc         = pyqtSignal(object)
     sig_save_device_config = pyqtSignal(object)
     sig_load_device_config = pyqtSignal(object)
     sig_apply_config       = pyqtSignal(object)
@@ -347,10 +338,12 @@ class SetupTreeModel(QtCore.QAbstractItemModel):
         self.log  = util.make_logging_source_adapter(__name__, self)
 
     def node_data_changed(self, node, col1=None, col2=None):
-        self.log.debug("node_data_changed(node=%s, col1=%s(%d), col2=%s(%d)",
-                node, column_name(col1), col1, column_name(col2), col2)
         if col1 is None: col1 = 0
         if col2 is None: col2 = self.columnCount()
+
+        self.log.debug("node_data_changed(node=%s, col1=%s(%d), col2=%s(%d)",
+                node, column_name(col1), col1, column_name(col2), col2)
+
         idx1 = self.createIndex(node.row, col1, node)
         idx2 = self.createIndex(node.row, col2, node)
         self.dataChanged.emit(idx1, idx2)
@@ -358,7 +351,7 @@ class SetupTreeModel(QtCore.QAbstractItemModel):
     def add_mrc(self, mrc):
         mrc_node = MRCNode(mrc, self, self.root)
         mrc.device_added.connect(partial(self._on_device_added, mrc_node=mrc_node))
-        mrc_node.sig_close_mrc.connect(self.sig_close_mrc)
+        mrc_node.sig_remove_mrc.connect(self.sig_remove_mrc)
 
         self.beginInsertRows(QModelIndex(), len(self.root.children), len(self.root.children))
         self.root.children.append(mrc_node)
@@ -451,7 +444,7 @@ class SetupTreeModel(QtCore.QAbstractItemModel):
 
 class SetupTreeView(QtGui.QTreeView):
     sig_open_device = pyqtSignal(object)
-    sig_close_mrc   = pyqtSignal(object)
+    sig_remove_mrc  = pyqtSignal(object)
 
     def __init__(self, model=None, parent=None):
         super(SetupTreeView, self).__init__(parent)
@@ -474,7 +467,7 @@ class SetupTreeView(QtGui.QTreeView):
 
         model.rowsInserted.connect(self._slt_rows_inserted)
         model.sig_open_device.connect(self.sig_open_device)
-        model.sig_close_mrc.connect(self.sig_close_mrc)
+        model.sig_remove_mrc.connect(self.sig_remove_mrc)
         model.sig_save_device_config.connect(self._slt_save_device_config)
         model.sig_load_device_config.connect(self._slt_load_device_config)
         model.sig_apply_config.connect(self._slt_apply_device_config)

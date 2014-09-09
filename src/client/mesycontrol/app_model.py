@@ -120,7 +120,7 @@ class Device(QtCore.QObject):
             self.model.idc_changed.disconnect(self.idc_changed)
             self.model.rc_changed.disconnect(self.rc_changed)
             self.model.address_conflict_changed.disconnect(self.address_conflict_changed)
-            self.model.parameter_changed.disconnect(self.parameter_changed)
+            self.model.parameter_changed.disconnect(self._on_model_parameter_changed)
             self.model.mirror_parameter_changed.disconnect(self.mirror_parameter_changed)
 
             self.model.controller.write_access_changed.disconnect(self.write_access_changed)
@@ -334,6 +334,7 @@ class MRC(QtCore.QObject):
     disconnected                = pyqtSignal(object) #: error object or None
     ready                       = pyqtSignal(bool)
     device_added                = pyqtSignal(Device)
+    device_removed              = pyqtSignal(Device)
     write_access_changed        = pyqtSignal(bool)
     silence_changed             = pyqtSignal(bool)
     request_queue_size_changed  = pyqtSignal(int)
@@ -346,6 +347,7 @@ class MRC(QtCore.QObject):
     def __init__(self, mrc_model=None, mrc_config=None, parent=None):
         super(MRC, self).__init__(parent)
         self.log      = util.make_logging_source_adapter(__name__, self)
+        self.log.debug("MRC(model=%s, config=%s)", mrc_model, mrc_config)
         self._model   = None
         self._config  = None
         self._devices = list()
@@ -375,6 +377,7 @@ class MRC(QtCore.QObject):
             self.model.disconnected.disconnect(self.disconnected)
             self.model.ready.disconnect(self.ready)
             self.model.device_added.disconnect(self._on_device_model_added)
+            self.model.device_removed.disconnect(self._on_device_model_removed)
             self.model.controller.write_access_changed.disconnect(self.write_access_changed)
             self.model.controller.silence_changed.disconnect(self.silence_changed)
             self.model.controller.request_queue_size_changed.disconnect(self.request_queue_size_changed)
@@ -393,6 +396,7 @@ class MRC(QtCore.QObject):
             self.model.disconnected.connect(self.disconnected)
             self.model.ready.connect(self.ready)
             self.model.device_added.connect(self._on_device_model_added)
+            self.model.device_removed.connect(self._on_device_model_removed)
             self.model.controller.write_access_changed.connect(self.write_access_changed)
             self.model.controller.silence_changed.connect(self.silence_changed)
             self.model.controller.request_queue_size_changed.connect(self.request_queue_size_changed)
@@ -515,7 +519,7 @@ class MRC(QtCore.QObject):
             # No Device present yet. There should be no DeviceConfig for this
             # device either as otherwise a Device instance would've been
             # created at the time the config was set.
-            self.log.info("_on_device_model_added: no existing device found")
+            self.log.info("_on_device_model_added: no existing device found. self.config=%s", self.config)
             device_config=None
             if self.config is not None:
                 assert not self.config.has_device_config(device_model.bus,

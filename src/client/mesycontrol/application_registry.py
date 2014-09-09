@@ -6,7 +6,12 @@ from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtSignal
 import os
 
+import app_model
+import config
 import device_description
+import hw_model
+import mrc_connection
+import mrc_controller
 import util
 
 instance = None
@@ -153,3 +158,31 @@ class ApplicationRegistry(QtCore.QObject):
 
     def has_key(self, key):
         return key in self._object_registry
+
+    def make_mrc_connection(self, **kwargs):
+        connection       = mrc_connection.factory(**kwargs)
+        model            = hw_model.MRCModel()
+        model.controller = mrc_controller.MesycontrolMRCController(connection, model)
+        self.register_mrc_model(model)
+
+        mrc_config = config.MRCConfig()
+        mrc_config.connection_config = config.make_connection_config(connection)
+
+        mrc = app_model.MRC(mrc_model=model, mrc_config=mrc_config)
+
+        self.register_mrc(mrc)
+
+        # Important step: register the newly created mrc_config. Otherwise it
+        # would be garbage collected.
+        active_setup = self.get('active_setup')
+
+        if active_setup is None:
+            active_setup = config.Setup()
+            self.register('active_setup', active_setup)
+
+        active_setup.add_mrc_config(mrc.config)
+
+        if 'connect' in kwargs and kwargs['connect']:
+            mrc.connect()
+
+        return mrc

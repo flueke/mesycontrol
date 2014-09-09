@@ -18,6 +18,10 @@ import mrc_command
 import mrc_connection
 import mrc_controller
 import util
+import weakref
+
+class ConfigError(Exception):
+    pass
 
 class ConfigObject(QtCore.QObject):
     name_changed          = pyqtSignal(str)
@@ -96,7 +100,7 @@ class DeviceConfig(ConfigObject):
 
     def add_parameter(self, address, value=None, alias=None):
         if self.contains_parameter(address):
-            raise DeviceConfigError("Duplicate parameter address %d" % address)
+            raise ConfigError("Duplicate parameter address %d" % address)
 
         param_config = ParameterConfig(address, value, alias)
 
@@ -104,7 +108,7 @@ class DeviceConfig(ConfigObject):
 
     def add_parameter_config(self, param_config):
         if self.contains_parameter(param_config.address):
-            raise DeviceConfigError("Duplicate parameter address %d" % param_config.address)
+            raise ConfigError("Duplicate parameter address %d" % param_config.address)
 
         self._parameters[param_config.address] = param_config
         param_config.value_changed.connect(partial(self._on_parameter_value_changed,
@@ -115,7 +119,7 @@ class DeviceConfig(ConfigObject):
 
     def remove_parameter(self, address):
         if not self.contains_parameter(address):
-            raise DeviceConfigError("Address %d not present in DeviceConfig" % address)
+            raise ConfigError("Address %d not present in DeviceConfig" % address)
         del self._parameters[address]
         self.parameter_removed.emit(address)
 
@@ -134,7 +138,7 @@ class DeviceConfig(ConfigObject):
 
     def get_parameter_value(self, address):
         if not self.contains_parameter(address):
-            raise DeviceConfigError("Address %d not present in DeviceConfig" % address)
+            raise ConfigError("Address %d not present in DeviceConfig" % address)
         return self.get_parameter_dict()['value']
 
     def set_parameter_alias(self, address, alias):
@@ -146,7 +150,7 @@ class DeviceConfig(ConfigObject):
 
     def get_parameter_alias(self, address):
         if not self.contains_parameter(address):
-            raise DeviceConfigError("Address %d not present in DeviceConfig" % address)
+            raise ConfigError("Address %d not present in DeviceConfig" % address)
         return self.get_parameter_dict()['alias']
 
     def _on_parameter_value_changed(self, value, address):
@@ -164,6 +168,7 @@ class MRCConfig(ConfigObject):
     device_config_added   = pyqtSignal(DeviceConfig)
     device_config_removed = pyqtSignal(DeviceConfig)
     connection_config_set = pyqtSignal(object)
+    setup_changed         = pyqtSignal(object)
 
     def __init__(self, parent=None):
         super(MRCConfig, self).__init__(parent)
@@ -210,8 +215,18 @@ class MRCConfig(ConfigObject):
     def get_connection_config(self):
         return self._connection_config
 
+    def get_setup(self):
+        return self._setup() if self._setup is not None else None
+
+    def set_setup(self, setup):
+        changed = self.setup is not setup
+        self._setup = weakref.ref(setup) if setup is not None else None
+        if changed:
+            self.setup_changed.emit(self.setup)
+
     device_configs    = pyqtProperty(list, get_device_configs)
     connection_config = pyqtProperty(object, get_connection_config, set_connection_config)
+    setup             = pyqtProperty(object, set_setup, get_setup, notify=setup_changed)
 
 class Setup(ConfigObject):
     device_config_added   = pyqtSignal(DeviceConfig)
@@ -221,11 +236,13 @@ class Setup(ConfigObject):
 
     def __init__(self, parent=None):
         super(Setup, self).__init__(parent)
+        self.log = util.make_logging_source_adapter(__name__, self)
         self._mrc_configs    = list()
         self._device_configs = list()
 
     def add_device_config(self, device_config):
         """Add the given device config to this setup."""
+        self.log.debug("adding %s", device_config)
         device_config.setParent(self)
         self._device_configs.append(device_config)
         self.device_config_added.emit(device_config)
@@ -255,6 +272,11 @@ class Setup(ConfigObject):
         return filter(lambda cfg: cfg.idc == idc, self._device_configs)
 
     def add_mrc_config(self, mrc_config):
+        for mrc_cfg in self.mrc_configs:
+            if mrc_cfg.connection_config.matches(mrc_config.connection_config):
+                raise ConfigError("Request to add duplicate mrc connection to the setup (%s)"
+                        % mrc_cfg.connection_config)
+
         self._mrc_configs.append(mrc_config)
         self.mrc_config_added.emit(mrc_config)
 
@@ -272,13 +294,6 @@ class Setup(ConfigObject):
 
     mrc_configs    = pyqtProperty(list, get_mrc_configs)
     device_configs = pyqtProperty(list, get_device_configs)
-
-
-class MRCConfigError(Exception):
-    pass
-
-class DeviceConfigError(Exception):
-    pass
 
 class MRCConnectionConfig(QtCore.QObject):
     """MRC connection configuration. Possible connection types are serial, tcp
@@ -314,6 +329,9 @@ class MRCConnectionConfig(QtCore.QObject):
         if self.is_mesycontrol_connection():
             return "mesycontrol://%s:%d" % (self.mesycontrol_host, self.mesycontrol_port)
 
+    def __str__(self):
+        return "MRCConnectionConfig(%s)" % self.get_connection_info()
+
     def reset(self):
         self.reset_connection()
 
@@ -327,32 +345,32 @@ class MRCConnectionConfig(QtCore.QObject):
 
     def set_mesycontrol_host(self, host):
         if self.is_valid() and not self.is_mesycontrol_connection():
-            raise MRCConfigError("Cannot set mesycontrol_host on non-mesycontrol connection.")
+            raise ConfigError("Cannot set mesycontrol_host on non-mesycontrol connection.")
         self._mesycontrol_host = str(host)
 
     def set_mesycontrol_port(self, port):
         if self.is_valid() and not self.is_mesycontrol_connection():
-            raise MRCConfigError("Cannot set mesycontrol_port on non-mesycontrol connection.")
+            raise ConfigError("Cannot set mesycontrol_port on non-mesycontrol connection.")
         self._mesycontrol_port = int(port)
 
     def set_serial_device(self, device):
         if self.is_valid() and not self.is_serial_connection():
-            raise MRCConfigError("Cannot set serial_device on non-serial connection.")
+            raise ConfigError("Cannot set serial_device on non-serial connection.")
         self._serial_device = str(device)
 
     def set_serial_baud_rate(self, baud):
         if self.is_valid() and not self.is_serial_connection():
-            raise MRCConfigError("Cannot set serial_baud_rate on non-serial connection.")
+            raise ConfigError("Cannot set serial_baud_rate on non-serial connection.")
         self._serial_baud_rate = int(baud)
 
     def set_tcp_host(self, host):
         if self.is_valid() and not self.is_tcp_connection():
-            raise MRCConfigError("Cannot set tcp_host on non-tcp connection.")
+            raise ConfigError("Cannot set tcp_host on non-tcp connection.")
         self._tcp_host = str(host)
 
     def set_tcp_port(self, port):
         if self.is_valid() and not self.is_tcp_connection():
-            raise MRCConfigError("Cannot set tcp_port on non-tcp connection.")
+            raise ConfigError("Cannot set tcp_port on non-tcp connection.")
         self._tcp_port = int(port)
 
     def get_mesycontrol_host(self):
@@ -383,6 +401,25 @@ class MRCConnectionConfig(QtCore.QObject):
                     'mrc_port': self.get_tcp_port()}
 
         return None
+
+    def matches(self, other):
+        """Returns true if this config matches the connection config given in
+        `other'. Matching means that both configs would connect to the same
+        hardware."""
+        if self.is_mesycontrol_connection() and other.is_mesycontrol_connection():
+            return (self.mesycontrol_host == other.mesycontrol_host and
+                    self.mesycontrol_port == other.mesycontrol_port)
+
+        elif self.is_serial_connection() and other.is_serial_connection():
+            # The baud rate is deliberately ignored here
+            return (self.serial_device == other.serial_device)
+
+        elif self.is_tcp_connection() and other.is_tcp_connection():
+            return (self.tcp_host == other.tcp_host and
+                    self.tcp_port == other.tcp_port)
+
+        return False
+
 
     mesycontrol_host    = pyqtProperty(str, get_mesycontrol_host, set_mesycontrol_host)
     mesycontrol_port    = pyqtProperty(int, get_mesycontrol_port, set_mesycontrol_port)
@@ -444,7 +481,7 @@ def make_device_config(device):
         address = param_description.address
 
         if not device.has_parameter(address):
-            raise DeviceConfigError("Required memory value not present", address)
+            raise ConfigError("Required memory value not present", address)
 
         value = device.get_parameter(address)
         if not device_config.contains_parameter(address):
@@ -561,6 +598,10 @@ class SetupCompleter(SequentialCommandGroup):
 
         for mrc_config in setup.mrc_configs:
             mrc = application_registry.instance.find_mrc_by_config(mrc_config)
+
+            if mrc is None:
+                raise RuntimeError("No MRC found for MRC config: %s" % mrc_config)
+
             for device in mrc.get_devices():
                 self.add(DeviceConfigCompleter(device))
 
@@ -656,7 +697,7 @@ class SetupLoader(Command):
     def __init__(self, setup, parent=None):
         super(SetupLoader, self).__init__(parent)
         self.setup = setup
-        self.log   = util.make_logging_source_adapter(__name__, self)
+        self.log   = util.make_logging_source_adapter(__name__+'.'+self.__class__.__name__, self)
         self._pending_mrcs = set()
         self._pending_config_loaders = set()
 
@@ -667,9 +708,13 @@ class SetupLoader(Command):
 
         mrcs_to_remove = set(registry.get_mrcs())
 
+        self.log.error("to_remove=%s", mrcs_to_remove)
+        self.log.error("mrc_configs=%s", self.setup.mrc_configs)
+
         for mrc_config in self.setup.mrc_configs:
             mrc = registry.find_mrc_by_config(mrc_config)
             if mrc is not None:
+                self.log.info("removing %s", mrc)
                 mrcs_to_remove.remove(mrc)
 
         for mrc in mrcs_to_remove:

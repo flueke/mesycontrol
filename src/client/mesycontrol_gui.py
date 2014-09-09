@@ -35,7 +35,7 @@ class MainWindow(QtGui.QMainWindow):
 
         self.setup_tree_view = setup_treeview.SetupTreeView(parent=self)
         self.setup_tree_view.sig_open_device.connect(self._slt_open_device_window)
-        self.setup_tree_view.sig_close_mrc.connect(self._slt_close_mrc)
+        self.setup_tree_view.sig_remove_mrc.connect(self._slt_remove_mrc_from_setup)
         application_registry.instance.mrc_added.connect(self.setup_tree_view.model().add_mrc)
         application_registry.instance.mrc_removed.connect(self.setup_tree_view.model().remove_mrc)
 
@@ -43,9 +43,6 @@ class MainWindow(QtGui.QMainWindow):
         dw_setup_tree.setWidget(self.setup_tree_view)
         dw_setup_tree.setFeatures(QtGui.QDockWidget.DockWidgetMovable | QtGui.QDockWidget.DockWidgetFloatable)
         self.addDockWidget(Qt.LeftDockWidgetArea, dw_setup_tree)
-
-        #subwin = self._add_subwindow(self.setup_tree_view, "Device Tree")
-        #subwin.resize(400, 300)
 
         log_emitter = util.QtLogEmitter(parent=self)
         logging.getLogger().addHandler(log_emitter.get_handler())
@@ -58,8 +55,6 @@ class MainWindow(QtGui.QMainWindow):
         dw_log_view.setWidget(self.log_view)
         dw_log_view.setFeatures(QtGui.QDockWidget.DockWidgetMovable | QtGui.QDockWidget.DockWidgetFloatable)
         self.addDockWidget(Qt.BottomDockWidgetArea, dw_log_view)
-        #subwin = self._add_subwindow(self.log_view, "Log View")
-        #subwin.resize(400, 300)
 
     def on_qapp_quit(self):
         logging.info("Exiting...")
@@ -80,24 +75,7 @@ class MainWindow(QtGui.QMainWindow):
             QtGui.QMessageBox.critical(self, "Connection error", "Connection exists")
             return
 
-        connection       = mrc_connection.factory(config=dialog.connection_config)
-        model            = hw_model.MRCModel()
-        model.controller = mrc_controller.MesycontrolMRCController(connection, model) # FIXME: depends on the connection type! factory for this!
-        application_registry.instance.register_mrc_model(model)
-
-        mrc_config = config.MRCConfig()
-        mrc_config.connection_config = config.make_connection_config(connection)
-        mrc = app_model.MRC(mrc_model=model, mrc_config=mrc_config)
-        application_registry.instance.register_mrc(mrc)
-
-        active_setup = application_registry.instance.get('active_setup')
-        if active_setup is None:
-            active_setup = config.Setup()
-            application_registry.instance.register('active_setup', active_setup)
-
-        active_setup.add_mrc_config(mrc_config)
-
-        connection.connect()
+        application_registry.instance.make_mrc_connection(config=connection_config, connect=True)
 
     def _add_subwindow(self, widget, title):
         subwin = self.mdiArea.addSubWindow(widget)
@@ -119,13 +97,17 @@ class MainWindow(QtGui.QMainWindow):
         subwin.widget().show()
         self.mdiArea.setActiveSubWindow(subwin)
 
-    def _slt_close_mrc(self, mrc):
+    def _slt_remove_mrc_from_setup(self, mrc):
         mrc.disconnect()
-        #self.setup_tree_view.model().remove_mrc(mrc)
+
+        active_setup = application_registry.instance.get('active_setup')
+        active_setup.remove_mrc_config(mrc.config)
+
         for device in mrc.get_devices():
             if device in self._device_windows:
                 self.mdiArea.removeSubWindow(self._device_windows[device])
                 del self._device_windows[device]
+
         application_registry.instance.unregister_mrc(mrc)
 
     @pyqtSlot()
@@ -200,79 +182,6 @@ class MainWindow(QtGui.QMainWindow):
                 QtGui.QMessageBox.critical(self, "Error", "Writing to %s failed: %s" % (filename, e))
             else:
                 QtGui.QMessageBox.information(self, "Info", "Configuration written to %s" % filename)
-
-
-#    @pyqtSlot()
-#    def on_actionLoad_Setup_triggered(self):
-#        filename = QtGui.QFileDialog.getOpenFileName(self, "Open setup file",
-#                filter="XML files (*.xml);; *")
-#
-#        if not len(filename):
-#            return
-#
-#        try:
-#            setup = config_xml.parse_file(filename)
-#        except IOError as e:
-#            QtGui.QMessageBox.critical(self, "Error", "Reading from %s failed: %s" % (filename, e))
-#            return
-#
-#        try:
-#            setup_loader = SetupLoader(setup)
-#
-#            pd = QtGui.QProgressDialog(self)
-#            pd.setMaximum(len(setup_loader))
-#            pd.setValue(0)
-#
-#            def update_progress(current, total):
-#                pd.setMaximum(total)
-#                pd.setValue(current)
-#
-#            setup_loader.progress_changed.connect(update_progress)
-#            setup_loader.stopped.connect(pd.close)
-#            setup_loader.start()
-#            pd_result = pd.exec_()
-#            if pd_result == 0:
-#                setup_loader.stop()
-#            setup_loader.get_result()
-#            QtGui.QMessageBox.information(self, "Info", "Setup loaded from %s" % filename)
-#        except Exception as e:
-#            QtGui.QMessageBox.critical(self, "Error", "Setup loading failed: %s" % e)
-
-#    @pyqtSlot()
-#    def on_actionSave_Setup_triggered(self):
-#        filename = QtGui.QFileDialog.getSaveFileName(self, "Save setup as",
-#                filter="XML files (*.xml);; *")
-#
-#        if not len(filename):
-#            return
-#
-#        setup_builder = SetupBuilder()
-#        for conn in self.app_model.mrc_connections:
-#            setup_builder.add_mrc(conn.mrc_model)
-#
-#        pd = QtGui.QProgressDialog(self)
-#        pd.setMaximum(len(setup_builder))
-#        pd.setValue(0)
-#
-#        def update_progress(current, total):
-#            pd.setValue(current)
-#
-#        setup_builder.progress_changed.connect(update_progress)
-#        setup_builder.stopped.connect(pd.close)
-#        setup_builder.start()
-#        pd.exec_()
-#
-#        if setup_builder.has_failed():
-#            QtGui.QMessageBox.critical(self, "Error", "Setup building failed")
-#        else:
-#            try:
-#                config = setup_builder.get_result()
-#                with open(filename, 'w') as f:
-#                    config_xml.write_file(config, f)
-#            except IOError as e:
-#                QtGui.QMessageBox.critical(self, "Error", "Writing to %s failed: %s" % (filename, e))
-#            else:
-#                QtGui.QMessageBox.information(self, "Info", "Configuration written to %s" % filename)
 
 def signal_handler(signum, frame):
     logging.info("Received signal %s. Quitting...",
