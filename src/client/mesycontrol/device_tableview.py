@@ -14,8 +14,17 @@ import mrc_command
 column_names  = ('address', 'name', 'value', 'set_value')
 column_titles = ('Address', 'Name', 'Value', 'Set Value') 
 
-def column_index(column_name):
-    return column_names.index(column_name)
+def column_index(col_name):
+    try:
+        return column_names.index(col_name)
+    except ValueError:
+        return None
+
+def column_name(col_idx):
+    try:
+        return column_names[col_idx]
+    except IndexError:
+        return None
 
 class ParameterNode(TreeNode):
     data_changed = pyqtSignal()
@@ -206,6 +215,19 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                     self.index(idx.row(), self.columnCount()))
         return ret
 
+class DeviceTableItemDelegate(QtGui.QStyledItemDelegate):
+    def __init__(self, parent=None):
+        super(DeviceTableItemDelegate, self).__init__(parent)
+
+    def createEditor(self, parent, options, idx):
+        editor = super(DeviceTableItemDelegate, self).createEditor(parent, options, idx)
+
+        if column_name(idx.column()) == 'set_value':
+            editor.setMinimum(0)
+            editor.setMaximum(65535)
+
+        return editor
+
 class DeviceTableView(QtGui.QTableView):
     def __init__(self, model, parent=None):
         super(DeviceTableView, self).__init__(parent)
@@ -227,7 +249,8 @@ class DeviceTableView(QtGui.QTableView):
         self.doubleClicked.connect(self._on_item_doubleclicked)
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._slt_context_menu_requested)
-        self.setMouseTracking(True) # FIXME: why?
+        self.setMouseTracking(True)
+        self.setItemDelegate(DeviceTableItemDelegate())
 
     def _on_item_doubleclicked(self, idx):
         idx = self.sort_model.mapToSource(idx)
