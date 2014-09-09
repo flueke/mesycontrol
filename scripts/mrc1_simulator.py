@@ -20,6 +20,7 @@
 import asynchat
 import asyncore
 import getopt
+import logging
 import random
 import socket
 import sys
@@ -208,6 +209,7 @@ class MRC1ConnectionHandler(asynchat.async_chat):
 class MRC1Server(asyncore.dispatcher):
    def __init__(self, host, port, mrc1):
       asyncore.dispatcher.__init__(self)
+      logging.info("Listening on %s:%d", host, port)
       self.mrc1 = mrc1
       self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
       self.set_reuse_addr()
@@ -218,11 +220,14 @@ class MRC1Server(asyncore.dispatcher):
       pair = self.accept()
       if pair is not None:
          sock, addr = pair
-         print 'Incoming connection from %s' % repr(addr)
+         logging.info("Incoming connection from %s", repr(addr))
          handler = MRC1ConnectionHandler(sock, self.mrc1)
 
 if __name__ == "__main__":
    host, port = "localhost", 4001
+
+   logging.basicConfig(level=logging.DEBUG,
+         format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
    try:
       opts, args = getopt.getopt(sys.argv[1:], 'h:p:')
