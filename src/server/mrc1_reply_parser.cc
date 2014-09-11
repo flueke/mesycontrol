@@ -115,6 +115,7 @@ bool MRC1ReplyParser::parse_scanbus(const std::string &reply_line)
 {
   static const boost::regex re_header("^ID-SCAN\\ BUS\\ (\\d+):\\s*$");
   static const boost::regex re_body("^(\\d+):\\ (-|((\\d+),\\ (ON|0FF)))\\s*$"); // 0FF with 0 not O!
+  static const boost::regex re_no_resp("^ERR:NO RESP\\s*$");
   boost::smatch matches;
 
   if (regex_match(reply_line, matches, re_header)) {
@@ -162,6 +163,10 @@ bool MRC1ReplyParser::parse_scanbus(const std::string &reply_line)
     }
 
     return (dev >= 15); // 15 is the last bus address
+  } else if (regex_match(reply_line, matches, re_no_resp)) {
+    BOOST_LOG_SEV(m_log, log::lvl::error) << "Error parsing scanbus reply: no response";
+    m_response = MessageFactory::make_error_response(error_type::mrc_no_response);
+    return true;
   }
 
   BOOST_LOG_SEV(m_log, log::lvl::error) << "Error parsing scanbus reply. Received '" << reply_line << "'";
