@@ -64,3 +64,12 @@ def test_qt_logging_handler():
     logger.debug("Hello World!")
 
     assert on_log_record.invoked
+
+def test_make_logging_source_adapter():
+    class TestClass():
+        pass
+
+    test_instance = TestClass()
+
+    log = util.make_logging_source_adapter(__name__, test_instance)
+    assert log.logger.name == "%s.%s" % (__name__, test_instance.__class__.__name__)

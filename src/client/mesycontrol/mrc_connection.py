@@ -70,6 +70,9 @@ class AbstractConnection(QtCore.QObject):
     def get_write_queue_size(self):
         raise NotImplementedError()
 
+    def queue_request(self, msg, response_handler=None):
+        raise NotImplementedError()
+
     def cancel_request(self, request_id):
         raise NotImplementedError()
 

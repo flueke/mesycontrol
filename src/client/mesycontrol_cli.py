@@ -3,4 +3,4 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 if __name__ == "__main__":
-    raise NotImplemented("Nothing here yet")
+    raise NotImplementedError("Nothing here yet")

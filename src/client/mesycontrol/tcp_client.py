@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from mesycontrol.protocol import Message, MessageError
+from mesycontrol.protocol import Message, MessageError, ErrorInfo
 from PyQt4 import QtCore
 from PyQt4 import QtNetwork
 from PyQt4.QtCore import pyqtSignal, pyqtProperty, pyqtSlot
@@ -129,13 +129,22 @@ class TCPClient(QtCore.QObject):
 
     def cancel_request(self, request_id):
         try:
-            tup = filter(lambda t: id(t) == request_id, self._write_queue)[0]
-            self.log.debug("Canceling request %s, response_handler=%s, id=%d", tup[0], tup[1], id(tup))
+            tup = request, response_handler = filter(lambda t: id(t) == request_id, self._write_queue)[0]
+
+            self.log.debug("Canceling request %s, response_handler=%s, id=%d",
+                    request, response_handler, request_id)
+
             self._write_queue.remove(tup)
-            self.request_canceled.emit(id(tup), tup[0])
             self.write_queue_size_changed.emit(self.get_write_queue_size())
             if self.get_write_queue_size() == 0:
                 self.write_queue_empty.emit()
+
+            if response_handler is not None:
+                response_handler(request, Message('response_error',
+                    error_code=ErrorInfo.by_name['request_canceled']))
+
+            self.request_canceled.emit(request_id, request)
+
             return True
         except IndexError:
             return False
@@ -249,8 +258,22 @@ class TCPClient(QtCore.QObject):
 
         self.disconnected.emit()
 
+        if self._current_request_tuple is not None:
+            request, response_handler = self._current_request_tuple
+            if response_handler is not None:
+                response_handler(request, Message('response_error',
+                    error_code=ErrorInfo.by_name['request_canceled']))
+            self._current_request_tuple = None
+
     @pyqtSlot(int)
     def _slt_socket_error(self, socket_error):
         self.log.error("%s:%d: %s" % (self.host, self.port, self._socket.errorString()))
         self.socket_error.emit(socket_error, self._socket.errorString())
         self.disconnected.emit()
+
+        if self._current_request_tuple is not None:
+            request, response_handler = self._current_request_tuple
+            if response_handler is not None:
+                response_handler(request, Message('response_error',
+                    error_code=ErrorInfo.by_name['request_canceled']))
+            self._current_request_tuple = None

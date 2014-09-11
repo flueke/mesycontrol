@@ -6,6 +6,7 @@
 # - Device descriptions used to read and write config files
 
 import logging
+import logging.handlers
 import signal
 import sys
 from PyQt4 import QtCore, QtGui, uic
@@ -201,8 +202,13 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,
             format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
+    logging.getLogger().addHandler(
+            logging.handlers.SocketHandler('localhost', 9020))
+
     #logging.getLogger("mesycontrol.tcp_client").setLevel(logging.DEBUG)
     logging.getLogger("PyQt4.uic").setLevel(logging.INFO)
+
+    logging.info("Starting up...")
 
     # Signal handling
     signal.signum_to_name = dict((getattr(signal, n), n)

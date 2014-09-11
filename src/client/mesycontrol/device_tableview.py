@@ -228,6 +228,35 @@ class DeviceTableItemDelegate(QtGui.QStyledItemDelegate):
 
         return editor
 
+class DeviceTableSortFilterProxyModel(QtGui.QSortFilterProxyModel):
+    """QSortFilterProxyModel subclass to be used with the DeviceTableView.
+    Filtering capabilities:
+      * known addresses
+      * read / write addresses
+      * addresses with the poll flag set
+    """
+    def __init__(self, parent=None):
+        super(DeviceTableSortFilterProxyModel, self).__init__(parent)
+        self._filter_unknown   = False
+        self._filter_read_only = False
+
+    def set_filter_unknown(self, on_off):
+        """If enabled any unknown parameter addresses are hidden. `Unknown'
+        means that the devices DeviceProfile does not contain the address.
+        """
+        self._filter_unknown = on_off
+        self.invalidateFilter()
+
+    def get_filter_unknown(self):
+        return self._filter_unknown
+
+    def set_filter_read_only(self, on_off):
+        self._filter_read_only = on_off
+        self.invalidateFilter()
+
+    def get_filter_read_only(self):
+        return self._filter_read_only
+
 class DeviceTableView(QtGui.QTableView):
     def __init__(self, model, parent=None):
         super(DeviceTableView, self).__init__(parent)

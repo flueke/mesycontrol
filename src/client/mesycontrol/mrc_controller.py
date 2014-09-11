@@ -22,6 +22,7 @@ class AbstractMRCController(QtCore.QObject):
 
     def __init__(self, mrc_model, parent=None):
         super(AbstractMRCController, self).__init__(parent)
+        self.log    = util.make_logging_source_adapter(__name__, self)
         self._model = None
         self.model  = mrc_model
 
@@ -201,10 +202,15 @@ class MesycontrolMRCController(AbstractMRCController):
             self.scanbus(i)
 
     def _on_disconnected(self):
+        self.log.info("Disconnected from %s. Canceling pending requests.", self.connection.get_info())
         self.model.set_disconnected()
+        self.connection.cancel_all_requests()
 
     def _on_connection_error(self, error_info):
+        self.log.info("Connection error from %s: %s. Canceling pending requests.",
+                self.connection.get_info(), error_info)
         self.model.set_disconnected(error=error_info)
+        self.connection.cancel_all_requests()
 
     def _on_message_received(self, msg):
         mt = msg.get_type_name()
@@ -252,7 +258,7 @@ class DeviceController(QtCore.QObject):
         self.log             = util.make_logging_source_adapter(__name__, self)
         self._mrc_controller = weakref.ref(mrc_controller)
         self.model           = device_model
-        self._request_ids    = list()
+        self._request_ids    = set()
 
         mrc_controller.write_access_changed.connect(self.write_access_changed)
         mrc_controller.silence_changed.connect(self.silence_changed)
@@ -302,7 +308,8 @@ class DeviceController(QtCore.QObject):
     model          = pyqtProperty(DeviceModel, get_model, set_model)
 
     def _add_request_id(self, request_id):
-        self._request_ids.append(request_id)
+        self._request_ids.add(request_id)
+        self.request_queue_size_changed.emit(self.get_request_queue_size())
         return request_id
 
     def _on_request_sent(self, request_id, request):
@@ -322,6 +329,8 @@ class DeviceController(QtCore.QObject):
             self._request_ids.remove(request_id)
             self.request_canceled.emit(request_id, request)
             self.request_queue_size_changed.emit(self.get_request_queue_size())
+            self.log.debug("removed canceled request %d from local queue. new queue size=%d, queue=%s",
+                    request_id, self.get_request_queue_size(), self._request_ids)
 
     def get_request_queue_size(self):
         return len(self._request_ids)
@@ -336,7 +345,7 @@ class DeviceController(QtCore.QObject):
             self.cancel_request(request_id)
 
     def get_request_ids(self):
-        return list(self._request_ids)
+        return set(self._request_ids)
 
     def has_write_access(self):
         return self.mrc_controller.has_write_access()

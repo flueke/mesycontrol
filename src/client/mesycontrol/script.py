@@ -13,8 +13,6 @@ from mrc_command import *
 import hw_model
 import mrc_controller
 import app_model
-from config_xml import parse_file as parse_config_file
-from config_xml import write_file as write_config_file
 
 class DeviceWrapper(QtCore.QObject):
     def __init__(self, device, parent=None):

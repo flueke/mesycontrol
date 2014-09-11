@@ -261,6 +261,9 @@ class ErrorInfo:
         },
       { 'code': 12,
         'name': 'mrc_address_conflict'
+        },
+      { 'code': 13,
+        'name': 'request_canceled'
         }
       ]
 
@@ -278,6 +281,7 @@ class ErrorInfo:
 class Message(object):
   def __init__(self, type_code, **kwargs):
     self._type_code = MessageInfo.get_message_info(type_code)['code']
+    self._error_code = None
 
     for k,v in kwargs.iteritems():
       setattr(self, k, v)
@@ -301,7 +305,10 @@ class Message(object):
     return self.get_type_name() == 'response_error'
 
   def get_error_code(self):
-    return self.error_code
+    return self._error_code
+
+  def set_error_code(self, error_code):
+    self._error_code = error_code
 
   def get_error_string(self):
     return ErrorInfo.by_code[self.get_error_code()]['name']
@@ -332,11 +339,12 @@ class Message(object):
   def set_value(self, value):
     self._value = int(value)
 
-  type_code = property(get_type_code)
-  bus       = property(get_bus, set_bus)
-  dev       = property(get_dev, set_dev)
-  par       = property(get_par, set_par)
-  val       = property(get_value, set_value)
+  type_code  = property(get_type_code)
+  bus        = property(get_bus, set_bus)
+  dev        = property(get_dev, set_dev)
+  par        = property(get_par, set_par)
+  val        = property(get_value, set_value)
+  error_code = property(get_error_code, set_error_code)
 
   def serialize(self):
     type_info = self.get_type_info()

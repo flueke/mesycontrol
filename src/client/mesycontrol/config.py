@@ -159,6 +159,10 @@ class DeviceConfig(ConfigObject):
     def _on_parameter_alias_changed(self, alias, address):
         self.parameter_alias_changed.emit(address, alias)
 
+    def __str__(self):
+        return "DeviceConfig(name=%s, idc=%d, bus=%d, address=%d, %d parameters" % (
+                self.name, self.idc, self.bus, self.address, len(self.get_parameters()))
+
     idc     = pyqtProperty(int, get_idc, set_idc, notify=idc_changed)
     bus     = pyqtProperty(int, get_bus, set_bus, notify=bus_changed)
     address = pyqtProperty(int, get_address, set_address, notify=address_changed)
@@ -223,6 +227,10 @@ class MRCConfig(ConfigObject):
         self._setup = weakref.ref(setup) if setup is not None else None
         if changed:
             self.setup_changed.emit(self.setup)
+
+    def __str__(self):
+        return "MRCConfig(name=%s, connection=%s, %d device configs)" % (
+                self.name, self.connection_config.get_connection_info(), len(self.device_configs))
 
     device_configs    = pyqtProperty(list, get_device_configs)
     connection_config = pyqtProperty(object, get_connection_config, set_connection_config)
@@ -697,7 +705,7 @@ class SetupLoader(Command):
     def __init__(self, setup, parent=None):
         super(SetupLoader, self).__init__(parent)
         self.setup = setup
-        self.log   = util.make_logging_source_adapter(__name__+'.'+self.__class__.__name__, self)
+        self.log   = util.make_logging_source_adapter(__name__, self)
         self._pending_mrcs = set()
         self._pending_config_loaders = set()
 
@@ -708,13 +716,9 @@ class SetupLoader(Command):
 
         mrcs_to_remove = set(registry.get_mrcs())
 
-        self.log.error("to_remove=%s", mrcs_to_remove)
-        self.log.error("mrc_configs=%s", self.setup.mrc_configs)
-
         for mrc_config in self.setup.mrc_configs:
             mrc = registry.find_mrc_by_config(mrc_config)
             if mrc is not None:
-                self.log.info("removing %s", mrc)
                 mrcs_to_remove.remove(mrc)
 
         for mrc in mrcs_to_remove:
@@ -795,6 +799,11 @@ class SetupLoader(Command):
             loader.stop()
         for mrc in self._pending_mrcs:
             mrc.disconnect()
+
+    def _get_result(self):
+        if not self.is_complete():
+            return False
+        return not self.has_failed()
 
 #class SetupLoader(SequentialCommandGroup):
 #    def __init__(self, setup, parent=None):

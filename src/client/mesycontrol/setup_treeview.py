@@ -16,8 +16,8 @@ import util
 import weakref
 from util import TreeNode
 
-column_names  = ('name', 'info', 'rc', 'idc', 'config_state', 'queue_size', 'silent_mode', 'write_access')
-column_titles = ('Name', 'Info', 'RC', 'IDC', 'Config'      , 'Queue Size', 'Silent Mode', 'Write Access')
+column_names  = ('name', 'info', 'rc', 'idc', 'queue_size', 'silent_mode', 'write_access')
+column_titles = ('Name', 'Info', 'RC', 'IDC', 'Queue Size', 'Silent Mode', 'Write Access')
 
 def column_index(col_name):
     try:

@@ -82,10 +82,9 @@ class Device(QtCore.QObject):
             device_description=None, parent=None):
         super(Device, self).__init__(parent)
 
-        self._model       = None
-        self._config      = None
-        self.log = util.make_logging_source_adapter(__name__, self)
-
+        self._model      = None
+        self._config     = None
+        self.log         = util.make_logging_source_adapter(__name__, self)
         self.model       = device_model
         self.config      = device_config
         self.description = device_description
@@ -168,6 +167,12 @@ class Device(QtCore.QObject):
         # FIXME: RuntimeError: wrapped C/C++ object of type DeviceConfig has been deleted
         # FIXME: not sure why this happens. the DeviceConfig constructor gets called
         # FIXME: way to reproduce: connect, load device config, load setup which includes that device -> bam, dead
+        # FIXME: This happens because this Device object only keeps a weak
+        # reference to the DeviceConfig. When loading a complete setup the
+        # Setup object keeps the DeviceConfig object alive. FIX: When loading a
+        # single device config into an existing Setup tree it (the config)
+        # should replace any config in the setup and take its place.
+
         #if self.config is not None:
         #    self.log.debug("Device.config is not None: %s, parent=%s", self.config, self.config.parent())
         #    self.config.name_changed.disconnect(self.name_changed)
@@ -370,7 +375,7 @@ class MRC(QtCore.QObject):
         return self._model() if self._model is not None else None
 
     def set_model(self, model):
-        # FIXME: destroy excisting Device instances
+        # FIXME: destroy existing Device instances
         if self.model is not None:
             self.model.connected.disconnect(self.connected)
             self.model.connecting.disconnect(self.connecting)

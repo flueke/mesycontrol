@@ -9,9 +9,58 @@ import weakref
 import application_registry
 from app_model import Device
 
-class MHV4(Device):
-    def __init__(self, device, parent=None):
-        self.device = weakref.ref(device)
+class MHV4_800V(Device):
+    class Polarity:
+        negative = 0
+        positive = 1
+
+    num_channels  = 4
+    idc           = 27
+
+    actual_voltage_changed = pyqtSignal(int, float)     #: channel, value
+    target_voltage_changed = pyqtSignal(int, float)     #: channel, value
+    voltage_limit_changed  = pyqtSignal(int, float)     #: channel, value
+    actual_current_changed = pyqtSignal(int, float)     #: channel, value
+    current_limit_changed  = pyqtSignal(int, float)     #: channel, value
+    channel_state_changed  = pyqtSignal(int, bool)      #: channel, value
+    polarity_changed       = pyqtSignal(int, Polarity)  #: channel, value
+
+    def __init__(self, device_model=None, device_config=None, device_description=None, parent=None):
+        if device_model is not None and device_model.idc != MHV4_800V.idc:
+            raise RuntimeError("MHV4_800V: expected device_model.idc=%d, got %d"
+                    % (MHV4_800V.idc, device_model.idc))
+
+        if device_config is not None and device_config.idc != MHV4_800V.idc:
+            raise RuntimeError("MHV4_800V: expected device_config.idc=%d, got %d"
+                    % (MHV4_800V.idc, device_config.idc))
+
+        if device_description is not None and device_description.idc != MHV4_800V.idc:
+            raise RuntimeError("MHV4_800V: expected device_description.idc=%d, got %d"
+                    % (MHV4_800V.idc, device_description.idc))
+        elif device_description is None:
+            device_description = application_registry.instance.get_device_description_by_idc(MHV4_800V.idc)
+
+        super(MHV4_800V, self).__init__(device_model=device_model, device_config=device_config,
+                device_description=device_description, parent=parent)
+
+        self.log = util.make_logging_source_adapter(__name__, self)
+
+    def get_actual_voltage(self, channel):
+    def get_target_voltage(self, channel):
+    def set_target_voltage(self, channel, voltage):
+
+    def get_voltage_limit(self, channel):
+    def set_voltage_limit(self, channel, voltage):
+
+    def get_actual_current(self, channel):
+    def get_current_limit(self, channel):
+    def set_current_limit(self, channel, current):
+
+    def get_channel_state(self, channel):
+    def set_channel_state(self, channel, on_off):
+
+    def get_polarity(self, channel):
+    def set_polarity(self, channel, polarity):
 
 class ChannelWidget(QtGui.QWidget):
     def __init__(self, mhv4, channel, parent=None):

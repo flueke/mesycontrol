@@ -115,10 +115,10 @@ class Command(QtCore.QObject):
         return self._exception
 
     def __len__(self): return 1
-    def _start(self): raise NotImplemented()
-    def _stop(self): raise NotImplemented()
-    def _has_failed(self): raise NotImplemented()
-    def _get_result(self): raise NotImplemented()
+    def _start(self): raise NotImplementedError()
+    def _stop(self): raise NotImplementedError()
+    def _has_failed(self): raise NotImplementedError()
+    def _get_result(self): raise NotImplementedError()
 
 class CommandGroup(Command):
     """Abstract base for a group of commands."""
