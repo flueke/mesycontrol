@@ -2,22 +2,22 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
+from functools import partial
 from PyQt4 import QtCore
 from PyQt4 import QtGui
+from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import QModelIndex
 from PyQt4.QtCore import Qt
-from PyQt4.QtCore import pyqtSignal
-from functools import partial
+import weakref
+
 import config
-import config_xml
 import config_loader
+import config_xml
 import mrc_command
 import util
-import weakref
-from util import TreeNode
 
-column_names  = ('name', 'info', 'rc', 'idc', 'queue_size', 'silent_mode', 'write_access')
-column_titles = ('Name', 'Info', 'RC', 'IDC', 'Queue Size', 'Silent Mode', 'Write Access')
+column_names  = ('name', 'rc', 'idc', 'queue_size', 'silent_mode', 'write_access')
+column_titles = ('Name', 'RC', 'IDC', 'Queue Size', 'Silent Mode', 'Write Access')
 
 def column_index(col_name):
     try:
@@ -31,7 +31,36 @@ def column_name(col_idx):
     except IndexError:
         return None
 
-class TreeNodeWithModel(TreeNode):
+class SetupTreeRCComboBoxItemDelegate(QtGui.QStyledItemDelegate):
+    def __init__(self, parent=None):
+        super(SetupTreeRCComboBoxItemDelegate, self).__init__(parent)
+
+    def createEditor(self, parent, options, idx):
+        combo = QtGui.QComboBox(parent)
+        combo.addItem("on",  True)
+        combo.addItem("off", False)
+
+        # Hack to make the combobox commit immediately after the user selects
+        # an item.
+        def on_combo_activated(index):
+            self.commitData.emit(combo)
+            self.closeEditor.emit(combo, QtGui.QAbstractItemDelegate.NoHint)
+        combo.activated.connect(on_combo_activated)
+
+        return combo
+
+    def setEditorData(self, editor, idx):
+        rc = idx.data(Qt.EditRole).toBool()
+        combo_idx = editor.findData(rc)
+        if combo_idx >= 0:
+            editor.setCurrentIndex(combo_idx)
+
+    def setModelData(self, editor, model, idx):
+        combo_idx  = editor.currentIndex()
+        combo_data = editor.itemData(combo_idx).toBool()
+        model.setData(idx, combo_data)
+
+class TreeNodeWithModel(util.TreeNode):
     def __init__(self, ref, model, parent=None):
         super(TreeNodeWithModel, self).__init__(ref, parent)
         self._model = weakref.ref(model)
@@ -97,8 +126,10 @@ class MRCNode(TreeNodeWithModel):
                 if mrc.is_disconnected():
                     return "disconnected"
 
-            if role in (Qt.DisplayRole, Qt.EditRole):
+            if role == Qt.DisplayRole:
                 return str(mrc)
+            if role == Qt.EditRole:
+                return mrc.name if mrc.is_named() else str()
 
         if role in (Qt.DisplayRole, Qt.StatusTipRole, Qt.ToolTipRole, Qt.EditRole):
             if column_name == 'queue_size':
@@ -223,11 +254,8 @@ class DeviceNode(TreeNodeWithModel):
 
     def flags(self, column):
         column_name = column_names[column]
-        if column_name == 'name':
-            ret =  (Qt.ItemIsSelectable | Qt.ItemIsEditable | Qt.ItemIsEnabled)
-            if self.checkable:
-                ret |= Qt.ItemIsUserCheckable
-            return ret
+        if column_name in ('name', 'rc'):
+            return (Qt.ItemIsSelectable | Qt.ItemIsEditable | Qt.ItemIsEnabled)
         return None
 
     def data(self, column, role):
@@ -256,15 +284,19 @@ class DeviceNode(TreeNodeWithModel):
                 if device.is_disconnected():
                     return "disconnected"
 
-            if role in (Qt.DisplayRole, Qt.EditRole):
+            if role == Qt.DisplayRole:
                 return str(device)
+            if role == Qt.EditRole:
+                return device.name if device.is_named() else str()
 
         if role in (Qt.DisplayRole, Qt.StatusTipRole, Qt.ToolTipRole, Qt.EditRole):
             if column_name == 'rc':
                 if role in (Qt.DisplayRole,):
                     return "on" if device.rc else "off"
                 elif role in (Qt.StatusTipRole, Qt.ToolTipRole):
-                    return "RC Status (double click to toggle)"
+                    return "RC Status (double click to change)"
+                elif role == Qt.EditRole:
+                    return device.rc
             elif column_name == 'idc':
                 return device.idc
             elif column_name == 'queue_size':
@@ -288,6 +320,11 @@ class DeviceNode(TreeNodeWithModel):
                 name = None
             device.name = name
             return True
+
+        if column_name == 'rc':
+            device.rc = value
+            return True
+
         return False
 
     def context_menu(self):
@@ -320,11 +357,6 @@ class DeviceNode(TreeNodeWithModel):
     def _slt_apply_config(self):
         self.sig_apply_config.emit(self.ref)
 
-    def double_clicked(self, column):
-        column_name = column_names[column]
-        if column_name == 'rc':
-            self._slt_toggle_rc()
-
 class SetupTreeModel(QtCore.QAbstractItemModel):
     sig_open_device        = pyqtSignal(object)
     sig_remove_mrc         = pyqtSignal(object)
@@ -334,7 +366,7 @@ class SetupTreeModel(QtCore.QAbstractItemModel):
 
     def __init__(self, parent=None):
         super(SetupTreeModel, self).__init__(parent)
-        self.root = TreeNode(None)
+        self.root = util.TreeNode(None)
         self.log  = util.make_logging_source_adapter(__name__, self)
 
     def node_data_changed(self, node, col1=None, col2=None):
@@ -455,8 +487,8 @@ class SetupTreeView(QtGui.QTreeView):
 
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._slt_context_menu_requested)
-        self.doubleClicked.connect(self._slt_item_doubleclicked)
         self.setMouseTracking(True)
+        self.setItemDelegateForColumn(column_index('rc'), SetupTreeRCComboBoxItemDelegate())
 
     def setModel(self, model):
         if self.model() is not None:
@@ -479,6 +511,7 @@ class SetupTreeView(QtGui.QTreeView):
 
         for i in range(self.model().columnCount(parent_idx)):
             self.resizeColumnToContents(i)
+        self.setColumnWidth(column_index('rc'), 50)
 
     def _slt_context_menu_requested(self, pos):
         idx = self.indexAt(pos)
@@ -487,12 +520,6 @@ class SetupTreeView(QtGui.QTreeView):
             menu = node.context_menu()
             if menu is not None and not menu.isEmpty():
                 menu.exec_(self.mapToGlobal(pos))
-
-    def _slt_item_doubleclicked(self, idx):
-        if not (self.model().flags(idx) & Qt.ItemIsEditable):
-            node = idx.internalPointer()
-            if hasattr(node, 'double_clicked'):
-                node.double_clicked(idx.column())
 
     def _slt_save_device_config(self, device):
         self.log.debug("save_device_config triggered for %s", device)

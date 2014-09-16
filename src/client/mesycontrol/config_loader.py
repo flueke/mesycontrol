@@ -5,7 +5,8 @@
 from command import Callable
 from command import CommandException
 from command import SequentialCommandGroup
-from mrc_command import ReadParameter, SetParameter
+from mrc_command import ReadParameter
+from mrc_command import SetParameter
 
 class ConfigLoader(SequentialCommandGroup):
     def __init__(self, device, device_config, parent=None):
@@ -39,10 +40,15 @@ class ConfigLoader(SequentialCommandGroup):
             if param_descr is not None and param_descr.critical:
                 self.add(SetParameter(self.device, param_cfg.address, param_cfg.value))
 
+        def set_rc():
+            if self.config.rc is not None:
+                self.device.rc = self.config.rc
+
         def set_config():
             if self.device.config is not self.config:
                 self.device.config = self.config
 
+        self.add(Callable(set_rc))
         self.add(Callable(set_config))
 
 class ConfigVerifier(SequentialCommandGroup):

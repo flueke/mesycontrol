@@ -2,14 +2,16 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from PyQt4 import QtCore
 from PyQt4 import QtGui
 from PyQt4 import uic
+from PyQt4.QtCore import pyqtSignal
 import weakref
-import application_registry
-from app_model import Device
 
-class MHV4_800V(Device):
+import application_registry
+import app_model
+import util
+
+class MHV4_800V(app_model.Device):
     class Polarity:
         negative = 0
         positive = 1
@@ -46,21 +48,45 @@ class MHV4_800V(Device):
         self.log = util.make_logging_source_adapter(__name__, self)
 
     def get_actual_voltage(self, channel):
+        pass
+
     def get_target_voltage(self, channel):
+        pass
+
     def set_target_voltage(self, channel, voltage):
+        pass
+
 
     def get_voltage_limit(self, channel):
+        pass
+
     def set_voltage_limit(self, channel, voltage):
+        pass
+
 
     def get_actual_current(self, channel):
+        pass
+
     def get_current_limit(self, channel):
+        pass
+
     def set_current_limit(self, channel, current):
+        pass
+
 
     def get_channel_state(self, channel):
+        pass
+
     def set_channel_state(self, channel, on_off):
+        pass
+
 
     def get_polarity(self, channel):
+        pass
+
     def set_polarity(self, channel, polarity):
+        pass
+
 
 class ChannelWidget(QtGui.QWidget):
     def __init__(self, mhv4, channel, parent=None):

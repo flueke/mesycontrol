@@ -5,12 +5,11 @@
 from PyQt4 import QtCore
 from PyQt4.QtCore import QProcess
 from PyQt4.QtCore import pyqtSignal, pyqtProperty
+from functools import partial
 import logging
 import os
-import weakref
-import application_registry
 import util
-from functools import partial
+import weakref
 
 class InvalidArgument(Exception):
     pass
@@ -58,6 +57,7 @@ class ServerProcess(QtCore.QObject):
 
     def __init__(self, parent = None):
         super(ServerProcess, self).__init__(parent)
+        import application_registry
 
         self.binary_path     = application_registry.instance.bin_dir
         self.binary_name     = ServerProcess.default_binary_name
@@ -208,6 +208,7 @@ class ProcessPool(QtCore.QObject):
 pool = ProcessPool()
 
 if __name__ == "__main__":
+    import application_registry
     import sys
 
     logging.basicConfig(level=logging.DEBUG,

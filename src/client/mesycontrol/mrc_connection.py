@@ -4,10 +4,11 @@
 
 from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtSignal, pyqtProperty
-from protocol import Message
-from util import parse_connection_url
-import tcp_client
+
+import protocol
 import server_process
+import tcp_client
+import util
 
 class ConnectionError(Exception):
     pass
@@ -26,19 +27,19 @@ class AbstractConnection(QtCore.QObject):
     disconnected             = pyqtSignal(object)
     connection_error         = pyqtSignal(ConnectionError)
 
-    message_sent             = pyqtSignal(Message)               #: message
-    message_received         = pyqtSignal(Message)               #: message
-    response_received        = pyqtSignal(Message, Message)      #: request, response
+    message_sent             = pyqtSignal(protocol.Message) #: message
+    message_received         = pyqtSignal(protocol.Message) #: message
+    response_received        = pyqtSignal(protocol.Message, protocol.Message)   #: request, response
 
-    request_sent             = pyqtSignal(object, Message)          #: request_id, request
-    request_canceled         = pyqtSignal(object, Message)          #: request_id, request
-    request_completed        = pyqtSignal(object, Message, Message) #: request_id, request, response
+    request_sent             = pyqtSignal(object, protocol.Message)                     #: request_id, request
+    request_canceled         = pyqtSignal(object, protocol.Message)                     #: request_id, request
+    request_completed        = pyqtSignal(object, protocol.Message, protocol.Message)   #: request_id, request, response
 
-    notification_received    = pyqtSignal(Message)
-    error_received           = pyqtSignal(Message)
+    notification_received    = pyqtSignal(protocol.Message)
+    error_received           = pyqtSignal(protocol.Message)
 
     idle                     = pyqtSignal()
-    write_queue_size_changed = pyqtSignal(int)                   #: new size
+    write_queue_size_changed = pyqtSignal(int)  #: new size
 
     write_access_changed     = pyqtSignal(bool)
     silence_changed          = pyqtSignal(bool)
@@ -88,13 +89,13 @@ class AbstractConnection(QtCore.QObject):
         else:
             t = "request_release_write_access"
 
-        self.send_message(Message(t), response_handler)
+        self.send_message(protocol.Message(t), response_handler)
 
     def is_silenced(self):
         return self._silenced
 
     def set_silenced(self, silenced, response_handler=None):
-        self.send_message(Message('request_set_silent_mode', bool_value=silenced),
+        self.send_message(protocol.Message('request_set_silent_mode', bool_value=silenced),
                 response_handler)
 
     def matches_config(self, connection_config):
@@ -301,7 +302,7 @@ def factory(**kwargs):
         return ret
 
     elif url is not None:
-        return factory(**parse_connection_url(url))
+        return factory(**util.parse_connection_url(url))
     else:
         mesycontrol_host = kwargs.get('mesycontrol_host', None)
         mesycontrol_port = kwargs.get('mesycontrol_port', None)

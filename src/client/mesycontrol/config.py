@@ -6,24 +6,34 @@ from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtProperty
 from PyQt4.QtCore import pyqtSignal
 from functools import partial
+from functools import wraps
+import util
+import weakref
 
-from command import SequentialCommandGroup
-from command import Command
-from mrc_connection import MesycontrolConnection, LocalMesycontrolConnection
 import application_registry
 import app_model
+import command
 import config_loader
 import hw_model
 import mrc_command
 import mrc_connection
 import mrc_controller
-import util
-import weakref
+
+def makes_dirty(f):
+    """Method decorator which executes `wrapped_object.set_dirty()' after
+    successful method invokation."""
+    @wraps(f)
+    def wrapper(self, *args, **kwargs):
+        ret = f(self, *args, **kwargs)
+        self.set_dirty()
+        return ret
+    return wrapper
 
 class ConfigError(Exception):
     pass
 
 class ConfigObject(QtCore.QObject):
+    dirty_changed         = pyqtSignal(bool)
     name_changed          = pyqtSignal(str)
     description_changed   = pyqtSignal(str)
 
@@ -31,10 +41,12 @@ class ConfigObject(QtCore.QObject):
         super(ConfigObject, self).__init__(parent)
         self._name        = None
         self._description = None
+        self._dirty       = False
 
     def get_name(self):
         return self._name if self._name is not None else str()
 
+    @makes_dirty
     def set_name(self, name):
         self._name = str(name) if name is not None else None
         self.name_changed.emit(self.name)
@@ -42,9 +54,21 @@ class ConfigObject(QtCore.QObject):
     def get_description(self):
         return self._description if self._description is not None else str()
 
+    @makes_dirty
     def set_description(self, description):
         self._description = str(description) if description is not None else None
         self.description_changed.emit(self.name)
+
+    def set_dirty(self):
+        self._dirty = True
+        self.dirty_changed.emit(self.is_dirty())
+
+    def is_dirty(self):
+        return self._dirty
+
+    def clear_dirty(self):
+        self._dirty = False
+        self.dirty_changed.emit(self.is_dirty())
 
     name        = pyqtProperty(str, get_name, set_name, notify=name_changed)
     description = pyqtProperty(str, get_description, set_description, notify=description_changed)
@@ -70,6 +94,7 @@ class DeviceConfig(ConfigObject):
     def get_idc(self):
         return self._idc
 
+    @makes_dirty
     def set_idc(self, idc):
         self._idc = int(idc)
         self.idc_changed.emit(self.idc)
@@ -77,6 +102,7 @@ class DeviceConfig(ConfigObject):
     def get_bus(self):
         return self._bus
 
+    @makes_dirty
     def set_bus(self, bus):
         self._bus = int(bus)
         self.bus_changed.emit(self.bus)
@@ -84,6 +110,7 @@ class DeviceConfig(ConfigObject):
     def get_address(self):
         return self._address
 
+    @makes_dirty
     def set_address(self, address):
         self._address = int(address)
         self.address_changed.emit(self.address)
@@ -91,6 +118,7 @@ class DeviceConfig(ConfigObject):
     def get_rc(self):
         return self._rc
 
+    @makes_dirty
     def set_rc(self, rc):
         self._rc = bool(rc)
         self.rc_changed.emit(self.rc)
@@ -106,6 +134,7 @@ class DeviceConfig(ConfigObject):
 
         self.add_parameter_config(param_config)
 
+    @makes_dirty
     def add_parameter_config(self, param_config):
         if self.contains_parameter(param_config.address):
             raise ConfigError("Duplicate parameter address %d" % param_config.address)
@@ -117,6 +146,7 @@ class DeviceConfig(ConfigObject):
             address=param_config.address))
         self.parameter_added.emit(param_config.address)
 
+    @makes_dirty
     def remove_parameter(self, address):
         if not self.contains_parameter(address):
             raise ConfigError("Address %d not present in DeviceConfig" % address)
@@ -169,8 +199,8 @@ class DeviceConfig(ConfigObject):
     rc      = pyqtProperty(bool, get_rc, set_rc, notify=rc_changed)
 
 class MRCConfig(ConfigObject):
-    device_config_added   = pyqtSignal(DeviceConfig)
-    device_config_removed = pyqtSignal(DeviceConfig)
+    device_config_added   = pyqtSignal(object)  #: DeviceConfig
+    device_config_removed = pyqtSignal(object)  #: DeviceConfig
     connection_config_set = pyqtSignal(object)
     setup_changed         = pyqtSignal(object)
 
@@ -502,7 +532,7 @@ def make_device_config(device):
 def make_connection_config(connection):
     ret = MRCConnectionConfig()
 
-    if type(connection) is LocalMesycontrolConnection:
+    if type(connection) is mrc_connection.LocalMesycontrolConnection:
         server = connection.server
         if server.mrc_serial_port is not None:
             ret.serial_device    = server.mrc_serial_port
@@ -510,7 +540,7 @@ def make_connection_config(connection):
         elif server.mrc_host is not None:
             ret.tcp_host = server.mrc_host
             ret.tcp_port = server.mrc_port
-    elif type(connection) is MesycontrolConnection:
+    elif type(connection) is mrc_connection.MesycontrolConnection:
         ret.mesycontrol_host = connection.host
         ret.mesycontrol_port = connection.port
     else:
@@ -518,7 +548,7 @@ def make_connection_config(connection):
 
     return ret
 
-class SetupBuilder(SequentialCommandGroup):
+class SetupBuilder(command.SequentialCommandGroup):
     def __init__(self, parent=None):
         super(SetupBuilder, self).__init__(parent)
         self._devices = set()
@@ -561,7 +591,7 @@ class SetupBuilder(SequentialCommandGroup):
 
         return ret
 
-class DeviceConfigBuilder(SequentialCommandGroup):
+class DeviceConfigBuilder(command.SequentialCommandGroup):
     def __init__(self, device, parent=None):
         super(DeviceConfigBuilder, self).__init__(parent)
         self.device = device
@@ -579,7 +609,7 @@ class DeviceConfigBuilder(SequentialCommandGroup):
 
         return make_device_config(self.device)
 
-class DeviceConfigCompleter(SequentialCommandGroup):
+class DeviceConfigCompleter(command.SequentialCommandGroup):
     """Makes sure all parameters needed to complete this devices config are present.
     This command issues read requests for missing parameters. The device object
     will then automatically fill in missing config values.
@@ -596,7 +626,7 @@ class DeviceConfigCompleter(SequentialCommandGroup):
                 if not device.has_parameter(param_descr.address):
                     self.add(mrc_command.ReadParameter(device, param_descr.address))
 
-class SetupCompleter(SequentialCommandGroup):
+class SetupCompleter(command.SequentialCommandGroup):
     """Makes sure all required parameters for all connected devices in this setup are present.
     Uses DeviceConfigCompleter to complete individual device configurations.
     """
@@ -686,7 +716,7 @@ class SetupCompleter(SequentialCommandGroup):
 #        self._exception = error_object
 #        self._stopped(False)
 
-class SetupLoader(Command):
+class SetupLoader(command.Command):
     """Loads the given setup.
     Steps:
         for each mrc not contained in the setup:

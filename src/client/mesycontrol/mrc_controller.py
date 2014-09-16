@@ -7,9 +7,8 @@ from PyQt4.QtCore import pyqtProperty
 from PyQt4.QtCore import pyqtSignal
 import weakref
 
-from hw_model import MRCModel
-from hw_model import DeviceModel
-from protocol import Message
+import hw_model
+import protocol
 import util
 
 class AbstractMRCController(QtCore.QObject):
@@ -32,7 +31,7 @@ class AbstractMRCController(QtCore.QObject):
     def set_model(self, mrc_model):
         self._model = weakref.ref(mrc_model) if mrc_model is not None else None
 
-    model = pyqtProperty(MRCModel, get_model, set_model)
+    model = pyqtProperty(hw_model.MRCModel, get_model, set_model)
 
     # connection commands
     def connect(self):
@@ -122,7 +121,7 @@ class MesycontrolMRCController(AbstractMRCController):
         else:
             self.model.set_disconnected()
 
-    model = pyqtProperty(MRCModel, get_model, set_model)
+    model = pyqtProperty(hw_model.MRCModel, get_model, set_model)
 
     # connection related methods
     def connect(self):
@@ -146,14 +145,14 @@ class MesycontrolMRCController(AbstractMRCController):
         else:
             mt = "request_release_write_access"
 
-        m = Message(mt)
+        m = protocol.Message(mt)
         return self._queue_request(m, response_handler)
 
     def has_write_access(self):
         return self.connection.has_write_access()
 
     def set_silenced(self, on_off, response_handler=None):
-        m = Message('request_set_silent_mode', bool_value=on_off)
+        m = protocol.Message('request_set_silent_mode', bool_value=on_off)
         return self._queue_request(m, response_handler)
 
     def is_silenced(self):
@@ -161,36 +160,36 @@ class MesycontrolMRCController(AbstractMRCController):
 
     # MRC-1 commands
     def scanbus(self, bus, response_handler=None):
-        m = Message('request_scanbus', bus=bus)
+        m = protocol.Message('request_scanbus', bus=bus)
         return self._queue_request(m, response_handler)
 
     def set_rc(self, bus, device, on_off, response_handler=None):
         mt = 'request_rc_on' if on_off else 'request_rc_off'
-        m  = Message(mt, bus=bus, dev=device)
+        m  = protocol.Message(mt, bus=bus, dev=device)
         return self._queue_request(m, response_handler)
 
     def reset(self, bus, device, response_handler=None):
-        m = Message('request_reset', bus=bus, dev=device)
+        m = protocol.Message('request_reset', bus=bus, dev=device)
         return self._queue_request(m, response_handler)
 
     def copy_mem(self, bus, device, response_handler=None):
-        m = Message('request_copy', bus=bus, dev=device)
+        m = protocol.Message('request_copy', bus=bus, dev=device)
         return self._queue_request(m, response_handler)
 
     def read_parameter(self, bus, device, address, response_handler=None):
-        m = Message('request_read', bus=bus, dev=device, par=address)
+        m = protocol.Message('request_read', bus=bus, dev=device, par=address)
         return self._queue_request(m, response_handler)
 
     def set_parameter(self, bus, device, address, value, response_handler=None):
-        m = Message('request_set', bus=bus, dev=device, par=address, val=value)
+        m = protocol.Message('request_set', bus=bus, dev=device, par=address, val=value)
         return self._queue_request(m, response_handler)
 
     def read_mirror_parameter(self, bus, device, address, response_handler=None):
-        m = Message('request_mirror_read', bus=bus, dev=device, par=address)
+        m = protocol.Message('request_mirror_read', bus=bus, dev=device, par=address)
         return self._queue_request(m, response_handler)
 
     def set_mirror_parameter(self, bus, device, address, value, response_handler=None):
-        m = Message('request_mirror_set', bus=bus, dev=device, par=address, val=value)
+        m = protocol.Message('request_mirror_set', bus=bus, dev=device, par=address, val=value)
         return self._queue_request(m, response_handler)
 
     def _on_connecting(self):
@@ -249,9 +248,9 @@ class DeviceController(QtCore.QObject):
     silence_changed            = pyqtSignal(bool)
 
     request_queue_size_changed = pyqtSignal(int)
-    request_sent               = pyqtSignal(object, Message)          #: request_id, request
-    request_canceled           = pyqtSignal(object, Message)          #: request_id, request
-    request_completed          = pyqtSignal(object, Message, Message) #: request_id, request, response
+    request_sent               = pyqtSignal(object, protocol.Message)                   #: request_id, request
+    request_canceled           = pyqtSignal(object, protocol.Message)                   #: request_id, request
+    request_completed          = pyqtSignal(object, protocol.Message, protocol.Message) #: request_id, request, response
 
     def __init__(self, mrc_controller, device_model=None, parent=None):
         super(DeviceController, self).__init__(parent)
@@ -305,7 +304,7 @@ class DeviceController(QtCore.QObject):
         return self._mrc_controller()
 
     mrc_controller = pyqtProperty(AbstractMRCController, get_mrc_controller)
-    model          = pyqtProperty(DeviceModel, get_model, set_model)
+    model          = pyqtProperty(hw_model.DeviceModel, get_model, set_model)
 
     def _add_request_id(self, request_id):
         self._request_ids.add(request_id)

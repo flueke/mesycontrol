@@ -7,9 +7,9 @@ from PyQt4.QtCore import Qt
 from functools import partial
 import weakref
 
-from app_model import Device
-from util import TreeNode
+import app_model
 import mrc_command
+import util
 
 column_names  = ('address', 'name', 'value', 'set_value')
 column_titles = ('Address', 'Name', 'Value', 'Set Value') 
@@ -26,7 +26,7 @@ def column_name(col_idx):
     except IndexError:
         return None
 
-class ParameterNode(TreeNode):
+class ParameterNode(util.TreeNode):
     data_changed = pyqtSignal()
 
     def __init__(self, device, address, parent):
@@ -133,7 +133,7 @@ class ParameterNode(TreeNode):
 class DeviceTableModel(QtCore.QAbstractTableModel):
     def __init__(self, device, parent=None):
         super(DeviceTableModel, self).__init__(parent)
-        self.root   = TreeNode(None)
+        self.root   = util.TreeNode(None)
         self.device = device
 
     def set_device(self, device):
@@ -159,7 +159,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
     def get_node(self, row):
         return self.root.children[row]
 
-    device = pyqtProperty(Device, get_device, set_device)
+    device = pyqtProperty(app_model.Device, get_device, set_device)
 
     def _on_parameter_node_changed(self, address):
         idx1 = self.createIndex(address, 0, self.root)

@@ -5,14 +5,15 @@
 import contextlib, logging, signal, sys
 from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtProperty
-import util
-import application_registry
-import mrc_connection
+
 from command import *
 from mrc_command import *
-import hw_model
-import mrc_controller
+import application_registry
 import app_model
+import hw_model
+import mrc_connection
+import mrc_controller
+import util
 
 class DeviceWrapper(QtCore.QObject):
     def __init__(self, device, parent=None):

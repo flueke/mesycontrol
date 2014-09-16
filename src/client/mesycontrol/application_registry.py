@@ -4,6 +4,7 @@
 
 from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtSignal
+import importlib
 import os
 
 import app_model
@@ -37,11 +38,14 @@ def find_data_dir(main_file):
     return os.path.dirname(os.path.abspath(main_file))
 
 class ApplicationRegistry(QtCore.QObject):
-    mrc_model_added   = pyqtSignal(object) #: MRCModel
-    mrc_model_removed = pyqtSignal(object) #: MRCModel
+    mrc_model_added   = pyqtSignal(object) #: hw_model.MRCModel
+    mrc_model_removed = pyqtSignal(object) #: hw_model.MRCModel
 
-    mrc_added         = pyqtSignal(object) #: MRC
-    mrc_removed       = pyqtSignal(object) #: MRC
+    mrc_added         = pyqtSignal(object) #: app_model.MRC
+    mrc_removed       = pyqtSignal(object) #: app_model.MRC
+
+    device_added      = pyqtSignal(object) #: app_model.Device
+    device_removed    = pyqtSignal(object) #: app_model.Device
 
     def __init__(self, main_file, parent=None):
         super(ApplicationRegistry, self).__init__(parent)
@@ -67,7 +71,6 @@ class ApplicationRegistry(QtCore.QObject):
     def load_system_descriptions(self):
         # FIXME: use globbing to get the list of files to import (and make
         # cxfreeze distutils install those files to a location outside the zip)
-        import importlib
         for mod_name in ('device_description_mhv4', 'device_description_mhv4_800v', 'device_description_mscf16'):
             try:
                 #mod = importlib.import_module(mod_name, 'mesycontrol')
@@ -117,6 +120,10 @@ class ApplicationRegistry(QtCore.QObject):
         mrc.setParent(self)
         self.register_mrc_model(mrc.model)
         self.mrcs.append(mrc)
+
+        mrc.device_added.connect(self.device_added)
+        mrc.device_removed.connect(self.device_removed)
+
         self.mrc_added.emit(mrc)
 
     def unregister_mrc(self, mrc):
@@ -186,3 +193,6 @@ class ApplicationRegistry(QtCore.QObject):
             mrc.connect()
 
         return mrc
+
+    def make_qsettings(self):
+        return QtCore.QSettings("mesytec", "mesycontrol")

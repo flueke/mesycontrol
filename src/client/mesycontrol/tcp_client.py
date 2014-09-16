@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from mesycontrol.protocol import Message, MessageError, ErrorInfo
 from PyQt4 import QtCore
 from PyQt4 import QtNetwork
 from PyQt4.QtCore import pyqtSignal, pyqtProperty, pyqtSlot
 import struct
 import util
+
+import protocol
 
 class Stats:
     def __init__(self):
@@ -43,13 +44,13 @@ class TCPClient(QtCore.QObject):
     disconnected             = pyqtSignal()
     socket_error             = pyqtSignal(int, str)
 
-    message_sent             = pyqtSignal(Message)               #: message
-    message_received         = pyqtSignal(Message)               #: message
-    response_received        = pyqtSignal(Message, Message)      #: request, response
+    message_sent             = pyqtSignal(protocol.Message)               #: message
+    message_received         = pyqtSignal(protocol.Message)               #: message
+    response_received        = pyqtSignal(protocol.Message, protocol.Message)      #: request, response
 
-    request_sent             = pyqtSignal(object, Message)          #: request_id, request
-    request_canceled         = pyqtSignal(object, Message)          #: request_id, request
-    request_completed        = pyqtSignal(object, Message, Message) #: request_id, request, response
+    request_sent             = pyqtSignal(object, protocol.Message)          #: request_id, request
+    request_canceled         = pyqtSignal(object, protocol.Message)          #: request_id, request
+    request_completed        = pyqtSignal(object, protocol.Message, protocol.Message) #: request_id, request, response
 
     write_queue_empty        = pyqtSignal()
     write_queue_size_changed = pyqtSignal(int)                   #: new size
@@ -140,8 +141,8 @@ class TCPClient(QtCore.QObject):
                 self.write_queue_empty.emit()
 
             if response_handler is not None:
-                response_handler(request, Message('response_error',
-                    error_code=ErrorInfo.by_name['request_canceled']))
+                response_handler(request, protocol.Message('response_error',
+                    error_code=protocol.ErrorInfo.by_name['request_canceled']))
 
             self.request_canceled.emit(request_id, request)
 
@@ -183,7 +184,7 @@ class TCPClient(QtCore.QObject):
             if self.get_write_queue_size() == 0:
                 self.write_queue_empty.emit()
         except IndexError:
-            self.log.debug("Message queue is empty")
+            self.log.debug("protocol.Message queue is empty")
             return
 
     def _slt_socket_bytesWritten(self, n_bytes):
@@ -199,8 +200,8 @@ class TCPClient(QtCore.QObject):
         if self._read_size > 0 and self._socket.bytesAvailable() >= self._read_size:
             message_data = self._socket.read(self._read_size)
             try:
-                message = Message.deserialize(message_data)
-            except MessageError as e:
+                message = protocol.Message.deserialize(message_data)
+            except protocol.MessageError as e:
                 self.log.error("Could not deserialize incoming message: %s.", e)
                 return
 
@@ -261,8 +262,8 @@ class TCPClient(QtCore.QObject):
         if self._current_request_tuple is not None:
             request, response_handler = self._current_request_tuple
             if response_handler is not None:
-                response_handler(request, Message('response_error',
-                    error_code=ErrorInfo.by_name['request_canceled']))
+                response_handler(request, protocol.Message('response_error',
+                    error_code=protocol.ErrorInfo.by_name['request_canceled']))
             self._current_request_tuple = None
 
     @pyqtSlot(int)
@@ -274,6 +275,6 @@ class TCPClient(QtCore.QObject):
         if self._current_request_tuple is not None:
             request, response_handler = self._current_request_tuple
             if response_handler is not None:
-                response_handler(request, Message('response_error',
-                    error_code=ErrorInfo.by_name['request_canceled']))
+                response_handler(request, protocol.Message('response_error',
+                    error_code=protocol.ErrorInfo.by_name['request_canceled']))
             self._current_request_tuple = None

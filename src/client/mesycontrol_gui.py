@@ -9,18 +9,16 @@ import logging
 import logging.handlers
 import signal
 import sys
+import weakref
+from functools import partial
 from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import pyqtSlot
 from PyQt4.Qt import Qt
 from mesycontrol import application_registry
-from mesycontrol import app_model
 from mesycontrol import device_widget
 from mesycontrol import config
 from mesycontrol import config_xml
-from mesycontrol import hw_model
 from mesycontrol import log_view
-from mesycontrol import mrc_connection
-from mesycontrol import mrc_controller
 from mesycontrol import mrc_command
 from mesycontrol import setup_treeview
 from mesycontrol import util
@@ -29,11 +27,11 @@ from mesycontrol.ui.connect_dialog import ConnectDialog
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, parent = None):
         super(MainWindow, self).__init__(parent)
+        self.log = util.make_logging_source_adapter(__name__, self)
         QtCore.QCoreApplication.instance().aboutToQuit.connect(self.on_qapp_quit)
         uic.loadUi(application_registry.instance.find_data_file('mesycontrol/ui/mainwin.ui'), self)
 
-        self._device_windows = {}
-
+        # Setup Tree Dock Widget
         self.setup_tree_view = setup_treeview.SetupTreeView(parent=self)
         self.setup_tree_view.sig_open_device.connect(self._slt_open_device_window)
         self.setup_tree_view.sig_remove_mrc.connect(self._slt_remove_mrc_from_setup)
@@ -41,10 +39,12 @@ class MainWindow(QtGui.QMainWindow):
         application_registry.instance.mrc_removed.connect(self.setup_tree_view.model().remove_mrc)
 
         dw_setup_tree = QtGui.QDockWidget("Setup", self)
+        dw_setup_tree.setObjectName("dw_setup_tree")
         dw_setup_tree.setWidget(self.setup_tree_view)
         dw_setup_tree.setFeatures(QtGui.QDockWidget.DockWidgetMovable | QtGui.QDockWidget.DockWidgetFloatable)
         self.addDockWidget(Qt.LeftDockWidgetArea, dw_setup_tree)
 
+        # Log View Dock Widget
         log_emitter = util.QtLogEmitter(parent=self)
         logging.getLogger().addHandler(log_emitter.get_handler())
 
@@ -53,10 +53,21 @@ class MainWindow(QtGui.QMainWindow):
         application_registry.instance.register('exception_logger', self.log_view.handle_exception)
 
         dw_log_view = QtGui.QDockWidget("Application Log", self)
+        dw_log_view.setObjectName("dw_log_view")
         dw_log_view.setWidget(self.log_view)
         dw_log_view.setFeatures(QtGui.QDockWidget.DockWidgetMovable | QtGui.QDockWidget.DockWidgetFloatable)
         self.addDockWidget(Qt.BottomDockWidgetArea, dw_log_view)
 
+        # Mapping of: Device -> Subwindow
+        self._device_windows = dict()
+
+        application_registry.instance.device_added.connect(self._on_application_registry_device_added)
+
+        settings = application_registry.instance.make_qsettings()
+        self.restoreGeometry(settings.value("mainwin_geometry").toByteArray())
+        self.restoreState(settings.value("mainwin_winstate").toByteArray())
+
+    @pyqtSlot()
     def on_qapp_quit(self):
         logging.info("Exiting...")
         application_registry.instance.shutdown()
@@ -77,39 +88,6 @@ class MainWindow(QtGui.QMainWindow):
             return
 
         application_registry.instance.make_mrc_connection(config=connection_config, connect=True)
-
-    def _add_subwindow(self, widget, title):
-        subwin = self.mdiArea.addSubWindow(widget)
-        subwin.setWindowTitle(title)
-        subwin.setAttribute(Qt.WA_DeleteOnClose, False)
-        subwin.show()
-        return subwin
-
-    def _slt_open_device_window(self, device):
-        if not self._device_windows.has_key(device):
-            widget = device_widget.factory(device)
-            widget.setParent(self)
-            self._device_windows[device] = self._add_subwindow(widget, str(device))
-            if not device.has_all_parameters():
-                mrc_command.FetchMissingParameters(device).start()
-
-        subwin = self._device_windows[device]
-        subwin.show()
-        subwin.widget().show()
-        self.mdiArea.setActiveSubWindow(subwin)
-
-    def _slt_remove_mrc_from_setup(self, mrc):
-        mrc.disconnect()
-
-        active_setup = application_registry.instance.get('active_setup')
-        active_setup.remove_mrc_config(mrc.config)
-
-        for device in mrc.get_devices():
-            if device in self._device_windows:
-                self.mdiArea.removeSubWindow(self._device_windows[device])
-                del self._device_windows[device]
-
-        application_registry.instance.unregister_mrc(mrc)
 
     @pyqtSlot()
     def on_actionLoad_Setup_triggered(self):
@@ -184,6 +162,90 @@ class MainWindow(QtGui.QMainWindow):
             else:
                 QtGui.QMessageBox.information(self, "Info", "Configuration written to %s" % filename)
 
+    @pyqtSlot()
+    def on_actionClose_Setup_triggered(self):
+        pass
+        #active_setup = application_registry.instance.get_active_setup()
+        #if active_setup.is_modified():
+        #    # run Save As dialog here
+        #    pass
+
+        #for mrc in active_setup.mrcs:
+        #    for device in mrc.devices:
+        #        close_device_window(device)
+
+        #active_setup.disconnect() # disconnects all MRCs contained in the setup
+
+        #application_registry.instance.set_active_setup(config.Setup()) # replace the old Setup with a new, empty Setup
+
+    def _on_application_registry_device_added(self, device):
+        self.log.debug("ApplicationRegistry added a new device: %s", device)
+        device.name_changed.connect(partial(self._on_device_name_changed, device_ref=weakref.ref(device)))
+
+    def _on_device_name_changed(self, name, device_ref):
+        device = device_ref() if device_ref is not None else None
+        self.log.debug("Device name changed: device=%s, name=%s", device, name)
+
+        try:
+            subwin = self._device_windows[device]
+            subwin.setWindowTitle(str(device))
+        except KeyError:
+            pass
+
+    def _add_subwindow(self, widget, title):
+        subwin = self.mdiArea.addSubWindow(widget)
+        subwin.setWindowTitle(title)
+        subwin.show()
+        return subwin
+
+    def _slt_open_device_window(self, device):
+        try:
+            subwin = self._device_windows[device]
+            self.log.debug("Found window for Device %s", device)
+        except KeyError:
+            self.log.debug("Creating window for Device %s", device)
+            widget = device_widget.factory(device)
+            widget.setParent(self)
+
+            subwin = self._add_subwindow(widget, str(device))
+            subwin.device = device
+            subwin.installEventFilter(self)
+
+            self._device_windows[device] = subwin
+        finally:
+            subwin.show()
+            subwin.widget().show()
+            self.mdiArea.setActiveSubWindow(subwin)
+            # FIXME: the table view itself should fetch any parameters it needs
+            if not device.has_all_parameters():
+                mrc_command.FetchMissingParameters(device).start()
+
+    def _slt_remove_mrc_from_setup(self, mrc):
+        mrc.disconnect()
+
+        active_setup = application_registry.instance.get('active_setup')
+        active_setup.remove_mrc_config(mrc.config)
+
+        for device in mrc.get_devices():
+            if device in self._device_windows:
+                self.mdiArea.removeSubWindow(self._device_windows[device])
+                #del self._device_windows[device]
+
+        application_registry.instance.unregister_mrc(mrc)
+
+    def eventFilter(self, watched_object, event):
+        if event.type() == QtCore.QEvent.Close and hasattr(watched_object, 'device'):
+            # A device window is about to be closed
+            self.log.debug("Device Window for %s is closing", watched_object.device)
+            del self._device_windows[watched_object.device]
+        return False # Do not filter out the event
+
+    def closeEvent(self, event):
+        settings = application_registry.instance.make_qsettings()
+        settings.setValue("mainwin_geometry", self.saveGeometry())
+        settings.setValue("mainwin_winstate", self.saveState())
+        super(MainWindow, self).closeEvent(event)
+
 def signal_handler(signum, frame):
     logging.info("Received signal %s. Quitting...",
             signal.signum_to_name.get(signum, "%d" % signum))
@@ -198,6 +260,9 @@ def app_except_hook(exc_type, exc_value, exc_trace):
     sys.__excepthook__(exc_type, exc_value, exc_trace)
 
 if __name__ == "__main__":
+
+
+
     # Logging setup
     logging.basicConfig(level=logging.DEBUG,
             format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
