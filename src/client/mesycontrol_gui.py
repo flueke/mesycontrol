@@ -63,6 +63,7 @@ class MainWindow(QtGui.QMainWindow):
 
         application_registry.instance.device_added.connect(self._on_application_registry_device_added)
 
+        # Load settings
         settings = application_registry.instance.make_qsettings()
         self.restoreGeometry(settings.value("mainwin_geometry").toByteArray())
         self.restoreState(settings.value("mainwin_winstate").toByteArray())
@@ -229,7 +230,6 @@ class MainWindow(QtGui.QMainWindow):
         for device in mrc.get_devices():
             if device in self._device_windows:
                 self.mdiArea.removeSubWindow(self._device_windows[device])
-                #del self._device_windows[device]
 
         application_registry.instance.unregister_mrc(mrc)
 

@@ -4,7 +4,7 @@ mesycontrol server documentation
 .. toctree::
    :maxdepth: 2
 
-.. doxygenindex::
+.. .. doxygenindex::
 .. .. doxygenfunction::
 .. .. doxygenstruct::
 .. .. doxygenenum::

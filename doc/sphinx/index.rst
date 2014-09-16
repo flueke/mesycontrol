@@ -54,14 +54,74 @@ mesycontrol does not require any additional dependencies on Windows. Running
 the supplied installer and following the wizard should correctly install the
 software and create a start menu entry for the GUI application.
 
-Using mesycontrol
------------------
-
 Architecture Overview
 ---------------------
+**TODO**: add a diagram here
 
-Graphical User Interface
-------------------------
+
+Using the mesycontrol GUI
+-------------------------
+* empty setup at startup
+* add MRCs to the setup via the the menu: **File -> Connect**
+* Connection types
+
+  * Serial: the MRC is directly plugged into your computer (either via USB or
+    using a real COM port). Available serial ports should be auto detected.
+    Additionaly different serial port names can be added by typing in the
+    *Serial Port* drop down box.
+  * TCP: the MRC is located at a remote site and connected to either a PC or to
+    a serial server device. Specify hostname/IP address and port to establish a
+    connection.
+  * Mesycontrol: a mesycontrol server process is running stand-alone on a
+    network reachable machine.
+
+* MRC and device specific actions can be performed via context menu in the
+  setup tree view (right click to open the context menu). Actions include:
+  scanbus, disconnect, remove MRC from setup, open a device view, save/load
+  device config to/from file.
+* To save the complete setup to disk use the **File -> Save Setup** menu entry.
+* Loading a setup is achieved via **File -> Load Setup**.
+  Loading a setup will connect to all MRCs contained in the setup file and will
+  load all device configs onto the devices. In case of missing devices or
+  devices not matching the device IDC given in the setup an error is reported
+  and the corresponding device is highlighted in the setup tree view.
+
+Device control
+^^^^^^^^^^^^^^
+* device table view
+* device profiles
+* specialized device panels
+* unsupported devices
+
+Stand-alone server operation
+----------------------------
+* binary location:
+
+  * linux: bin/mesycontrol_server
+  * windows: mesycontrol_server.exe in the installation path
+
+* Handles all MRC communication
+* Opens a listening socket and waits for mesycontrol clients to connect
+* An overview of all options is available by running::
+  $ ./mesycontrol_server --help
+* Common use cases:
+
+  * Using a local serial port and listening on all network interfaces:::
+
+    $ ./mesycontrol_server --mrc-serial-port=/dev/ttyUSB0
+
+  * Local serial port as above but limit the listening socket to a certain IP
+    address and using a different listening port:::
+
+    $ ./mesycontrol_server --mrc-serial-port=/dev/ttyUSB0 \
+        --listen-address=192.168.168.202 --listen-port=23023
+
+  * Connection to a serial server:::
+
+    $ ./mesycontrol_server --mrc-host=example.com --mrc-port=42000
+
+* To stop a running server instance use **CTRL-C** in the terminal or send the
+  termination signal to the process (e.g. via the *kill* command)
 
 Scripting
 ---------

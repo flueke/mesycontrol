@@ -33,3 +33,43 @@
 #     ${doxy_extra_files}
 #     DESTINATION share/doc/${CMAKE_PROJECT_NAME})
 #ENDIF()
+
+find_package(Sphinx)
+
+if (SPHINX_FOUND)
+  set(SPHINX_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/sphinx-build")
+  set(SPHINX_CACHE_DIR "${CMAKE_CURRENT_BINARY_DIR}/sphinx-cache")
+  set(SPHINX_HTML_DIR  "${CMAKE_CURRENT_BINARY_DIR}/sphinx-html")
+  set(SPHINX_LATEX_DIR "${CMAKE_CURRENT_BINARY_DIR}/sphinx-latex")
+
+  configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/sphinx/conf.py.in"
+    "${SPHINX_BUILD_DIR}/conf.py"
+    @ONLY)
+
+  add_custom_target(mesycontrol_html_docs ALL
+    ${SPHINX_EXECUTABLE}
+    -q
+    -b html
+    -c "${SPHINX_BUILD_DIR}"
+    -d "${SPHINX_CACHE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/sphinx"
+    "${SPHINX_HTML_DIR}"
+    COMMENT "Building HTML documentation with Sphinx")
+
+  add_custom_target(mesycontrol_pdf_docs ALL
+    ${SPHINX_EXECUTABLE}
+    -q
+    -b latex
+    -c "${SPHINX_BUILD_DIR}"
+    -d "${SPHINX_CACHE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/sphinx"
+    "${SPHINX_LATEX_DIR}"
+    COMMAND
+    make -C ${SPHINX_LATEX_DIR} all-pdf
+    COMMENT "Building PDF documentation with Sphinx")
+
+  install(DIRECTORY "${SPHINX_HTML_DIR}/" DESTINATION "share/doc/html")
+  install(FILES "${SPHINX_LATEX_DIR}/mesycontrol.pdf" DESTINATION "share/doc")
+
+endif()

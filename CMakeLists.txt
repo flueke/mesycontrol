@@ -22,8 +22,6 @@ add_subdirectory(src)
 add_subdirectory(doc)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ DESTINATION share/scripts USE_SOURCE_PERMISSIONS)
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doc/ DESTINATION share/doc USE_SOURCE_PERMISSIONS)
-
 
 # CPack configuration used for 'make package'
 set(CPACK_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${GIT_VERSION}")
