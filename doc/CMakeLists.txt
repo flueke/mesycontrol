@@ -37,34 +37,46 @@
 find_package(Sphinx)
 
 if (SPHINX_FOUND)
-  set(SPHINX_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/sphinx-build")
-  set(SPHINX_CACHE_DIR "${CMAKE_CURRENT_BINARY_DIR}/sphinx-cache")
-  set(SPHINX_HTML_DIR  "${CMAKE_CURRENT_BINARY_DIR}/sphinx-html")
-  set(SPHINX_LATEX_DIR "${CMAKE_CURRENT_BINARY_DIR}/sphinx-latex")
+  set(SPHINX_SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/sphinx-source")
+  set(SPHINX_BUILD_DIR  "${CMAKE_CURRENT_BINARY_DIR}/sphinx-build")
+  set(SPHINX_CACHE_DIR  "${CMAKE_CURRENT_BINARY_DIR}/sphinx-cache")
+  set(SPHINX_HTML_DIR   "${CMAKE_CURRENT_BINARY_DIR}/sphinx-html")
+  set(SPHINX_LATEX_DIR  "${CMAKE_CURRENT_BINARY_DIR}/sphinx-latex")
 
-  configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/sphinx/conf.py.in"
-    "${SPHINX_BUILD_DIR}/conf.py"
-    @ONLY)
+  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sphinx/conf.py.in" "${SPHINX_SOURCE_DIR}/conf.py" @ONLY)
+  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sphinx/index.rst"  "${SPHINX_SOURCE_DIR}" @COPYONLY)
+  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sphinx/client.rst" "${SPHINX_SOURCE_DIR}" @COPYONLY)
+  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sphinx/server.rst" "${SPHINX_SOURCE_DIR}" @COPYONLY)
 
   add_custom_target(mesycontrol_html_docs ALL
+    sphinx-apidoc
+    -o "${SPHINX_SOURCE_DIR}"
+    "${CMAKE_SOURCE_DIR}/src/client/mesycontrol"
+
+    COMMAND
     ${SPHINX_EXECUTABLE}
     -q
     -b html
     -c "${SPHINX_BUILD_DIR}"
     -d "${SPHINX_CACHE_DIR}"
-    "${CMAKE_CURRENT_SOURCE_DIR}/sphinx"
+    "${SPHINX_SOURCE_DIR}"
     "${SPHINX_HTML_DIR}"
     COMMENT "Building HTML documentation with Sphinx")
 
   add_custom_target(mesycontrol_pdf_docs ALL
+    sphinx-apidoc
+    -o "${SPHINX_SOURCE_DIR}"
+    "${CMAKE_SOURCE_DIR}/src/client/mesycontrol"
+
+    COMMAND
     ${SPHINX_EXECUTABLE}
     -q
     -b latex
     -c "${SPHINX_BUILD_DIR}"
     -d "${SPHINX_CACHE_DIR}"
-    "${CMAKE_CURRENT_SOURCE_DIR}/sphinx"
+    "${SPHINX_SOURCE_DIR}"
     "${SPHINX_LATEX_DIR}"
+
     COMMAND
     make -C ${SPHINX_LATEX_DIR} all-pdf
     COMMENT "Building PDF documentation with Sphinx")

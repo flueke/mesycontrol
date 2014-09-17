@@ -1,0 +1,12 @@
+graph architecture {
+  node [shape=box] MHV4_1 MHV4_2 MSCF16 MRC1
+  node [shape=ellipse] mesycontrol_server mesycontrol_gui mesycontrol_cli
+
+  MRC1 -- MHV4_1 [label="RC bus"]
+  MRC1 -- MHV4_2
+  MRC1 -- MSCF16
+  MRC1 -- mesycontrol_server [label="USB / Serial / TCP" len=1.5]
+  mesycontrol_server -- mesycontrol_gui [label="TCP"]
+  mesycontrol_server -- mesycontrol_cli
+  mesycontrol_server -- mesycontrol_script
+} 

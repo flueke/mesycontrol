@@ -22,7 +22,7 @@ Features
   the mesytec hardware
 * Storing and loading of single device configurations and complete setups
   (multiple devices and multiple MRCs)
-* Tabular view of the device memory.
+* Tabular view of the device memory
 * Specialized panels for MHV-4 and MSCF-16
 * Polling of frequently changing parameters (e.g. voltage or current)
 * Scripting support (Python) to automate device control
@@ -56,8 +56,11 @@ software and create a start menu entry for the GUI application.
 
 Architecture Overview
 ---------------------
-**TODO**: add a diagram here
+.. graphviz:: architecture.dot
 
+mesycontrol is divided into two parts, the server handling MRC connectivity and
+communication, and the client part connecting to running server processes via
+TCP.
 
 Using the mesycontrol GUI
 -------------------------
@@ -103,24 +106,26 @@ Stand-alone server operation
 * Handles all MRC communication
 * Opens a listening socket and waits for mesycontrol clients to connect
 * An overview of all options is available by running::
+
   $ ./mesycontrol_server --help
+
 * Common use cases:
 
   * Using a local serial port and listening on all network interfaces:::
 
-    $ ./mesycontrol_server --mrc-serial-port=/dev/ttyUSB0
+      $ ./mesycontrol_server --mrc-serial-port=/dev/ttyUSB0
 
   * Local serial port as above but limit the listening socket to a certain IP
     address and using a different listening port:::
 
-    $ ./mesycontrol_server --mrc-serial-port=/dev/ttyUSB0 \
+      $ ./mesycontrol_server --mrc-serial-port=/dev/ttyUSB0 \
         --listen-address=192.168.168.202 --listen-port=23023
 
   * Connection to a serial server:::
 
-    $ ./mesycontrol_server --mrc-host=example.com --mrc-port=42000
+      $ ./mesycontrol_server --mrc-host=example.com --mrc-port=42000
 
-* To stop a running server instance use **CTRL-C** in the terminal or send the
+* To stop a running server instance hit *CTRL-C* in the terminal or send the
   termination signal to the process (e.g. via the *kill* command)
 
 Scripting
@@ -130,6 +135,17 @@ Scripting
    :members:
    :undoc-members:
    :special-members:
+
+mesycontrol protocol
+--------------------
+
+API documentation
+-----------------
+.. toctree::
+   :maxdepth: 2
+
+   client
+   server
 
 
 Indices and tables
