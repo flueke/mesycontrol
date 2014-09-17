@@ -62,6 +62,17 @@ mesycontrol is divided into two parts, the server handling MRC connectivity and
 communication, and the client part connecting to running server processes via
 TCP.
 
+The client will transparently spawn its own server process if the user requests
+a MRC connection via serial port or USB.
+
+Concepts
+^^^^^^^^
+* A *Setup* contains MRC configurations which in turn contain device configurations
+* mesycontrol merges the hardware tree formed by MRC, RC bus and devices with
+  the Setup tree. MRCs are matched by their address, devices by their bus
+  number, bus address, and device IDC.
+
+
 Using the mesycontrol GUI
 -------------------------
 * empty setup at startup
@@ -136,16 +147,17 @@ Scripting
    :undoc-members:
    :special-members:
 
-mesycontrol protocol
---------------------
+Network protocol
+----------------
 
 API documentation
 -----------------
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
-   client
-   server
+   Client API (Python) <modules>
+..   mesycontrol
+..   server
 
 
 Indices and tables

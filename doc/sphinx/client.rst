@@ -1,11 +1,12 @@
-mesycontrol client documentation
-================================
+.. mesycontrol client documentation
+.. ================================
+.. 
+.. .. toctree::
+..    :maxdepth: 2
+.. 
+.. .. automodule::
+..    mesycontrol
+..    :members:
+..    :undoc-members:
 
-.. toctree::
-   :maxdepth: 2
-
-.. automodule::
-   mesycontrol
-   :members:
-   :undoc-members:
-   :special-members:
+.. .. include:: mesycontrol.rst
