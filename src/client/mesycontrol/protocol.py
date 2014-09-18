@@ -124,7 +124,7 @@ class MessageInfo:
       { 'code': 24,
         'name': 'request_set_silent_mode',
         'format': '?',
-        'format_args': ('bool_value')
+        'format_args': ('bool_value',)
         },
 
       { 'code': 25,
@@ -137,6 +137,7 @@ class MessageInfo:
       { 'code': 41,
         'name': 'response_scanbus',
         'format': 'B32B',
+        'format_comment': '<bus> (<idc> <bool>){16}',
         'deserializer': deserialize_scanbus_response,
         'str_func': str_scanbus_response
         },
@@ -196,7 +197,7 @@ class MessageInfo:
       { 'code': 64,
         'name': 'notify_can_acquire_write_access',
         'format': '?',
-        'format_args': ('bool_value')
+        'format_args': ('bool_value',)
         },
       ]
 
@@ -224,46 +225,60 @@ class MessageInfo:
 class ErrorInfo:
   info_list = [
       { 'code': 0,
-        'name': 'unknown_error'
+        'name': 'unknown_error',
+        'description': 'An unknown error occured.',
         },
       { 'code': 1,
-        'name': 'invalid_message_type'
+        'name': 'invalid_message_type',
+        'description': 'An invalid message type code was received.',
         },
       { 'code': 2,
-        'name': 'invalid_message_size'
+        'name': 'invalid_message_size',
+        'description': 'The transmitted message size did not match the expected message size.',
         },
       { 'code': 3,
-        'name': 'bus_out_of_range'
+        'name': 'bus_out_of_range',
+        'description': 'The given bus number was out of range.',
         },
       { 'code': 4,
-        'name': 'dev_out_of_range'
+        'name': 'dev_out_of_range',
+        'description': 'The given device address was out of range.',
         },
       { 'code': 5,
-        'name': 'mrc_no_response'
+        'name': 'mrc_no_response',
+        'description': 'The device did not respond. Most likely the bus address is not in use.',
         },
       { 'code': 6,
-        'name': 'mrc_comm_timeout'
+        'name': 'mrc_comm_timeout',
+        'description': 'Timeout communicating with the MRC.',
         },
       { 'code': 7,
-        'name': 'mrc_comm_error'
+        'name': 'mrc_comm_error',
+        'description': 'Non-timeout MRC communication error.',
         },
       { 'code': 8,
-        'name': 'silenced'
+        'name': 'silenced',
+        'description': 'Bus activity requested but silent mode is active.',
         },
       { 'code': 9,
-        'name': 'mrc_connect_error'
+        'name': 'mrc_connect_error',
+        'description': 'The MRC connection could not be established.',
         },
       { 'code': 10,
-        'name': 'permission_denied'
+        'name': 'permission_denied',
+        'description': 'Permission denied. The client does not have write access.',
         },
       { 'code': 11,
-        'name': 'mrc_parse_error'
+        'name': 'mrc_parse_error',
+        'description': 'MRC parse error.',
         },
       { 'code': 12,
-        'name': 'mrc_address_conflict'
+        'name': 'mrc_address_conflict',
+        'description': 'Address conflict detected.',
         },
       { 'code': 13,
-        'name': 'request_canceled'
+        'name': 'request_canceled',
+        'description': 'The request was canceled.',
         }
       ]
 

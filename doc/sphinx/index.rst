@@ -109,10 +109,10 @@ Device control
 
 Stand-alone server operation
 ----------------------------
-* binary location:
+* Binary location:
 
-  * linux: bin/mesycontrol_server
-  * windows: mesycontrol_server.exe in the installation path
+  * Linux: bin/mesycontrol_server
+  * Windows: mesycontrol_server.exe in the installation path
 
 * Handles all MRC communication
 * Opens a listening socket and waits for mesycontrol clients to connect
@@ -149,16 +149,63 @@ Scripting
 
 Network protocol
 ----------------
+Message Format
+^^^^^^^^^^^^^^
+The message format is: <**size**> <**type_code**> <**type_dependent_data**>
 
-API documentation
------------------
-.. toctree::
-   :maxdepth: 1
+**size** is a 2 byte *unsigned integer* specifying the size of the following
+message - including the **type_code** byte - in bytes. This field is used to
+validate the received data as the correct message size is known by looking at
+the **type_code** field.
 
-   Client API (Python) <modules>
-..   mesycontrol
-..   server
+Multibyte numeric data is encoded in network byte order.
 
+Communication largely follows the request-response model: The mesycontrol
+client sends a single request to the server, then waits for a response to
+arrive. Additionally the server sends out notification messages to propagate
+state changes to all connected clients.
+
+Data Types
+^^^^^^^^^^
+
++------------+----------+---------------------+---------------------------------------------------------------+
+| **Name**   | **Size** | **Range**           | **Description**                                               |
++============+==========+=====================+===============================================================+
+| msg_type   | 1 Byte   | enum                | Message type code. See below for valid values.                |
++------------+----------+---------------------+---------------------------------------------------------------+
+| bus        | 1 Byte   | [0..1]              | Mesytec RC bus number.                                        |
++------------+----------+---------------------+---------------------------------------------------------------+
+| dev        | 1 Byte   | [0..15]             | Device bus address.                                           |
++------------+----------+---------------------+---------------------------------------------------------------+
+| par        | 1 Byte   | [0..255]            | Parameter memory address.                                     |
++------------+----------+---------------------+---------------------------------------------------------------+
+| val        | 4 Bytes  | [-(2^31-1)..2^31-1] | Parameter value.                                              |
++------------+----------+---------------------+---------------------------------------------------------------+
+| idc        | 1 Byte   | [0..255]            | Device ID code. 0 means no device is present.                 |
++------------+----------+---------------------+---------------------------------------------------------------+
+| error_code | 1 Byte   | enum                | Error codes. See below for a list of codes and their meaning. |
++------------+----------+---------------------+---------------------------------------------------------------+
+| bool_value | 1 Byte   | [0..1]              | Boolean value.                                                |
++------------+----------+---------------------+---------------------------------------------------------------+
+
+Request Messages
+^^^^^^^^^^^^^^^^
+
+.. include:: protocol_requests.rst
+
+Response Messages
+^^^^^^^^^^^^^^^^^
+
+.. include:: protocol_responses.rst
+
+Notification Messages
+^^^^^^^^^^^^^^^^^^^^^
+
+.. include:: protocol_notifications.rst
+
+Error Codes
+^^^^^^^^^^^
+.. include:: protocol_error_codes.rst
 
 Indices and tables
 ==================
