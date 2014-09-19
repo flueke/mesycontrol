@@ -1,6 +1,9 @@
 # generate documentation using the sphinx system
 find_package(Sphinx)
 
+if (WIN32)
+	message("FIXME: skipping documentation build on windows")
+else(WIN32)
 if (SPHINX_FOUND)
   find_package(PythonInterp REQUIRED)
 
@@ -75,6 +78,7 @@ if (SPHINX_FOUND)
 else()
   message("Sphinx not found, documentation will not be generated!")
 endif()
+endif(WIN32)
 
 #FIND_PACKAGE(Doxygen)
 #IF(DOXYGEN_FOUND)
