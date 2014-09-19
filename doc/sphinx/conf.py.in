@@ -101,8 +101,14 @@ pygments_style = 'sphinx'
 # If true, keep warnings as "system message" paragraphs in the built documents.
 #keep_warnings = False
 
+# breathe configuration: integrate doxygen documentation into sphinx
 #breathe_projects = { "mesycontrol server": "/home/florian/src/mesycontrol/doc/doxygen-server/xml" }
 #breathe_default_project = "mesycontrol server"
+
+# sphinx.ext.todo config
+# If todo_include_todos is true the directives todo:: and todolist:: will
+# generate output, else they produce nothing. Defaults to False
+todo_include_todos = True
 
 # -- Options for HTML output ----------------------------------------------
 

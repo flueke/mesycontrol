@@ -72,9 +72,16 @@ Concepts
   the Setup tree. MRCs are matched by their address, devices by their bus
   number, bus address, and device IDC.
 
+.. todo::
+
+   Add an image showing the hardware and the setup trees and how they're merged.
 
 Using the mesycontrol GUI
 -------------------------
+.. todo::
+
+   Complete sentences and better explanations
+
 * empty setup at startup
 * add MRCs to the setup via the the menu: **File -> Connect**
 * Connection types
@@ -102,6 +109,15 @@ Using the mesycontrol GUI
 
 Device control
 ^^^^^^^^^^^^^^
+.. todo::
+
+   Implement filters for the device table view.
+   Improve how missing memory values are fetched.
+   Implement device panels and specialized device functionality available to
+   scripts.
+   Refactor DeviceDescription to DeviceProfile.
+   Implement polling
+
 * device table view
 * device profiles
 * specialized device panels
@@ -141,6 +157,14 @@ Stand-alone server operation
 
 Scripting
 ---------
+Scripting support both in the GUI and from the command line is available using
+Python scripts.
+.. todo::
+
+   Implement and unit test the scripting functionality. 
+   Device specific functions/methods should be available and usable in scripts
+   as well as in the GUI.
+
 
 .. .. automodule:: mesycontrol.app_model
    :members:
@@ -206,6 +230,10 @@ Notification Messages
 Error Codes
 ^^^^^^^^^^^
 .. include:: protocol_error_codes.rst
+
+TODOS
+=====
+.. todolist::
 
 Indices and tables
 ==================
