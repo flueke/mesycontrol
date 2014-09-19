@@ -67,19 +67,82 @@ a MRC connection via serial port or USB.
 
 Concepts
 ^^^^^^^^
+* **MRC configuration**
+
+  Contains name, description, connection information and device configs.
+
+* **Device configuration**
+
+  Contains name, description, IDC, bus number and bus address, RC status and
+  parameter values.
+
+* **Device profile**
+
+  A device profile contains information about a specific device class,
+  identified by its IDC. The information consists of a device name (e.g.
+  MHV-4-800V or MSCF-16) and parameter profiles.
+
+* **Parameter profile**
+
+  A parameter profile holds information about a device memory address.
+  Currently the following data can be stored in a parameter profile:
+
+.. tabularcolumns:: | l | l | l | p{10cm} |
+..
+
+  +--------------+--------------+-------------+-----------------------------------------------------------+
+  | **Data**     | **Required** | **Default** | **Description**                                           |
+  +==============+==============+=============+===========================================================+
+  | address      | Y            |             | The parameters memory address.                            |
+  +--------------+--------------+-------------+-----------------------------------------------------------+
+  | name         | N            | None        | Descriptive name for this parameter (e.g.                 |
+  |              |              |             | *channel1_voltage_write* for the MHV-4 target voltage     |
+  |              |              |             | write address for channel 1).                             |
+  +--------------+--------------+-------------+-----------------------------------------------------------+
+  | poll         | N            | False       | Indicates that this parameter should be polled            |
+  |              |              |             | repeatedly. If polling is actually activated depends on   |
+  |              |              |             | the device view / device panel that's active.             |
+  +--------------+--------------+-------------+-----------------------------------------------------------+
+  | read_only    | N            | False       | The parameter is read-only. Its value will not be stored  |
+  |              |              |             | when writing a device configuration to file.              |
+  +--------------+--------------+-------------+-----------------------------------------------------------+
+  | critical     | N            | False       | This flag marks an address that can have adverse effects  |
+  |              |              |             | when written to the device (e.g. MHV-4 channel enable     |
+  |              |              |             | write address). This flag should be used in combination   |
+  |              |              |             | with the *safe_value* field.                              |
+  +--------------+--------------+-------------+-----------------------------------------------------------+
+  | safe_value   | N            | 0           | A safe value for a parameter marked as *critical*. See    |
+  |              |              |             | below for a description about how *safe_value* and        |
+  |              |              |             | *criticial* influence device config loading.              |
+  +--------------+--------------+-------------+-----------------------------------------------------------+
+  | do_not_store | N            | False       | Marks a parameter that should not be stored in the device |
+  |              |              |             | configuration but is not strictly read-only. Example:     |
+  |              |              |             | MSCF-16 copy function (address 99).                       |
+  +--------------+--------------+-------------+-----------------------------------------------------------+
+  | value_range  | N            | [0..65535]  | Minimum and maximum values this parameter supports.       |
+  +--------------+--------------+-------------+-----------------------------------------------------------+
+  | units        | N            | None        | A list of unit conversions for this parameter. Each unit  |
+  |              |              |             | conversion definition contains a label, a factor and an   |
+  |              |              |             | offset. The latter two are used to convert between raw    |
+  |              |              |             | parameter values and unit values.                         |
+  +--------------+--------------+-------------+-----------------------------------------------------------+
+
+
 * A *Setup* contains MRC configurations which in turn contain device configurations
 * mesycontrol merges the hardware tree formed by MRC, RC bus and devices with
   the Setup tree. MRCs are matched by their address, devices by their bus
   number, bus address, and device IDC.
 
 .. todo::
+   Finish value_range and units implementation. Make unit conversion accessible from the GUI.
 
-   Add an image showing the hardware and the setup trees and how they're merged.
+   Add an image showing the hardware and config trees and how they're merged.
+
+   Define and explain when and if polling is active.
 
 Using the mesycontrol GUI
 -------------------------
 .. todo::
-
    Complete sentences and better explanations
 
 * empty setup at startup
