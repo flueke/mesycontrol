@@ -90,42 +90,42 @@ Concepts
 .. tabularcolumns:: | l | l | l | p{10cm} |
 ..
 
-  +--------------+--------------+-------------+-----------------------------------------------------------+
-  | **Data**     | **Required** | **Default** | **Description**                                           |
-  +==============+==============+=============+===========================================================+
-  | address      | Y            |             | The parameters memory address.                            |
-  +--------------+--------------+-------------+-----------------------------------------------------------+
-  | name         | N            | None        | Descriptive name for this parameter (e.g.                 |
-  |              |              |             | *channel1_voltage_write* for the MHV-4 target voltage     |
-  |              |              |             | write address for channel 1).                             |
-  +--------------+--------------+-------------+-----------------------------------------------------------+
-  | poll         | N            | False       | Indicates that this parameter should be polled            |
-  |              |              |             | repeatedly. If polling is actually activated depends on   |
-  |              |              |             | the device view / device panel that's active.             |
-  +--------------+--------------+-------------+-----------------------------------------------------------+
-  | read_only    | N            | False       | The parameter is read-only. Its value will not be stored  |
-  |              |              |             | when writing a device configuration to file.              |
-  +--------------+--------------+-------------+-----------------------------------------------------------+
-  | critical     | N            | False       | This flag marks an address that can have adverse effects  |
-  |              |              |             | when written to the device (e.g. MHV-4 channel enable     |
-  |              |              |             | write address). This flag should be used in combination   |
-  |              |              |             | with the *safe_value* field.                              |
-  +--------------+--------------+-------------+-----------------------------------------------------------+
-  | safe_value   | N            | 0           | A safe value for a parameter marked as *critical*. See    |
-  |              |              |             | below for a description about how *safe_value* and        |
-  |              |              |             | *criticial* influence device config loading.              |
-  +--------------+--------------+-------------+-----------------------------------------------------------+
-  | do_not_store | N            | False       | Marks a parameter that should not be stored in the device |
-  |              |              |             | configuration but is not strictly read-only. Example:     |
-  |              |              |             | MSCF-16 copy function (address 99).                       |
-  +--------------+--------------+-------------+-----------------------------------------------------------+
-  | value_range  | N            | [0..65535]  | Minimum and maximum values this parameter supports.       |
-  +--------------+--------------+-------------+-----------------------------------------------------------+
-  | units        | N            | None        | A list of unit conversions for this parameter. Each unit  |
-  |              |              |             | conversion definition contains a label, a factor and an   |
-  |              |              |             | offset. The latter two are used to convert between raw    |
-  |              |              |             | parameter values and unit values.                         |
-  +--------------+--------------+-------------+-----------------------------------------------------------+
+  +--------------+-------------+-----------------------------------------------------------+
+  | **Data**     | **Default** | **Description**                                           |
+  +==============+=============+===========================================================+
+  | address      |             | The parameters memory address.                            |
+  +--------------+-------------+-----------------------------------------------------------+
+  | name         | None        | Descriptive name for this parameter (e.g.                 |
+  |              |             | *channel1_voltage_write* for the MHV-4 target voltage     |
+  |              |             | write address for channel 1).                             |
+  +--------------+-------------+-----------------------------------------------------------+
+  | poll         | False       | Indicates that this parameter should be polled            |
+  |              |             | repeatedly. If polling is actually activated depends on   |
+  |              |             | the device view / device panel that's active.             |
+  +--------------+-------------+-----------------------------------------------------------+
+  | read_only    | False       | The parameter is read-only. Its value will not be stored  |
+  |              |             | when writing a device configuration to file.              |
+  +--------------+-------------+-----------------------------------------------------------+
+  | critical     | False       | This flag marks an address that can have adverse effects  |
+  |              |             | when written to the device (e.g. MHV-4 channel enable     |
+  |              |             | write address). This flag should be used in combination   |
+  |              |             | with the *safe_value* field.                              |
+  +--------------+-------------+-----------------------------------------------------------+
+  | safe_value   | 0           | A safe value for a parameter marked as *critical*. See    |
+  |              |             | below for a description about how *safe_value* and        |
+  |              |             | *criticial* influence device config loading.              |
+  +--------------+-------------+-----------------------------------------------------------+
+  | do_not_store | False       | Marks a parameter that should not be stored in the device |
+  |              |             | configuration but is not strictly read-only. Example:     |
+  |              |             | MSCF-16 copy function (address 99).                       |
+  +--------------+-------------+-----------------------------------------------------------+
+  | value_range  | [0..65535]  | Minimum and maximum values this parameter supports.       |
+  +--------------+-------------+-----------------------------------------------------------+
+  | units        | None        | A list of unit conversions for this parameter. Each unit  |
+  |              |             | conversion definition contains a label, a factor and an   |
+  |              |             | offset. The latter two are used to convert between raw    |
+  |              |             | parameter values and unit values.                         |
+  +--------------+-------------+-----------------------------------------------------------+
 
 
 * A *Setup* contains MRC configurations which in turn contain device configurations
@@ -222,6 +222,8 @@ Scripting
 ---------
 Scripting support both in the GUI and from the command line is available using
 Python scripts.
+
+.. include:: scripting.rst
 .. todo::
 
    Implement and unit test the scripting functionality. 
