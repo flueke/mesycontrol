@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from device_description import DeviceDescription
+from device_profile import DeviceProfile
 
-description_dict = {
+profile_dict = {
         'name': 'MHV-4',
         'idc': 17,
         'parameters': [
@@ -62,38 +62,5 @@ description_dict = {
             ]
 }
 
-def get_device_description():
-    return DeviceDescription.fromDict(description_dict)
-
-if __name__ == "__main__":
-    import config
-    import config_xml
-    import logging
-    from xml.dom import minidom
-    from xml.etree import ElementTree
-
-    logging.basicConfig(level=logging.DEBUG,
-            format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
-
-    cfg = config.Config()
-    device_description = get_device_description()
-    cfg.device_descriptions.append(device_description)
-
-    xml_string = ElementTree.tostring(config_xml.to_etree(cfg).getroot())
-    xml_string = minidom.parseString(xml_string).toprettyxml(indent='  ')
-
-    print "DeviceDescription XML for idc=%d, name=%s:" % (device_description.idc, device_description.name)
-    print
-    print xml_string
-    print
-    print "Parsing generated XML...",
-
-    parsed_cfg = config_xml.parse_string(xml_string)
-
-    assert len(parsed_cfg.device_descriptions) == 1
-
-    parsed_descr = parsed_cfg.device_descriptions[0]
-
-    assert parsed_descr == device_description
-
-    print "OK!"
+def get_device_profile():
+    return DeviceProfile.fromDict(profile_dict)

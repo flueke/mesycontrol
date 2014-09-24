@@ -59,16 +59,16 @@ class ParameterNode(util.TreeNode):
             return self.ref.config.get_parameter(self.address)
         return None
 
-    def get_description(self):
-        if self.ref.description is not None:
-            return self.ref.description.get_parameter_by_address(self.address)
+    def get_profile(self):
+        if self.ref.profile is not None:
+            return self.ref.profile.get_parameter_by_address(self.address)
         return None
 
     def data(self, column, role):
-        mem_value    = self.get_value()
-        param_config = self.get_config()
-        param_descr  = self.get_description()
-        column_name  = column_names[column]
+        mem_value     = self.get_value()
+        param_config  = self.get_config()
+        param_profile = self.get_profile()
+        column_name   = column_names[column]
 
         if (role == Qt.BackgroundRole
                 and column_name in ('value', 'set_value')
@@ -84,8 +84,8 @@ class ParameterNode(util.TreeNode):
                 return mem_value
             elif column_name == 'name':
                 if role == Qt.DisplayRole:
-                    return param_descr.name if param_descr is not None else None
-                return param_descr.name if param_descr is not None else str()
+                    return param_profile.name if param_profile is not None else None
+                return param_profile.name if param_profile is not None else str()
             elif column_name == 'alias':
                 if role == Qt.DisplayRole:
                     return param_config.alias if param_config is not None else None

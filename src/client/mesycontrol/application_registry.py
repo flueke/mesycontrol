@@ -68,14 +68,14 @@ class ApplicationRegistry(QtCore.QObject):
             mrc_model.controller.disconnect()
             self.unregister_mrc_model(mrc_model)
 
-    def load_system_descriptions(self):
+    def load_system_profiles(self):
         # FIXME: use globbing to get the list of files to import (and make
         # cxfreeze distutils install those files to a location outside the zip)
         for mod_name in ('device_profile_mhv4', 'device_profile_mhv4_800v', 'device_profile_mscf16'):
             try:
                 #mod = importlib.import_module(mod_name, 'mesycontrol')
                 mod = importlib.import_module("mesycontrol." + mod_name)
-                device_profile = mod.get_deviec_profile()
+                device_profile = mod.get_device_profile()
                 self.log.debug("Loaded device profile %s", device_profile)
                 self.device_profiles.add(device_profile)
             except ImportError as e:

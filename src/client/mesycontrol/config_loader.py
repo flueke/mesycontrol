@@ -18,38 +18,39 @@ class ConfigLoader(SequentialCommandGroup):
     def _prepare(self):
         self.clear()
 
-        dev_descr = self.device.description
+        def assign_config():
+            if self.device.config is not self.config:
+                self.device.assign_config(self.config)
+
+        self.add(Callable(assign_config))
+
+        dev_profile = self.device.profile
 
         # Set critical params to safe values first
-        for param_descr in dev_descr.get_critical_parameters():
-            self.add(SetParameter(self.device, param_descr.address, param_descr.safe_value))
+        for param_profile in dev_profile.get_critical_parameters():
+            self.add(SetParameter(self.device, param_profile.address, param_profile.safe_value))
 
         # Set values from config
         for param_cfg in self.config.get_parameters():
-            param_descr = dev_descr.get_parameter_by_address(param_cfg.address)
+            param_profile = dev_profile.get_parameter_by_address(param_cfg.address)
 
-            if (param_descr is None
-                    or (not param_descr.critical
-                        and not param_descr.read_only
-                        and not param_descr.do_not_store)):
+            if (param_profile is None
+                    or (not param_profile.critical
+                        and not param_profile.read_only
+                        and not param_profile.do_not_store)):
                 self.add(SetParameter(self.device, param_cfg.address, param_cfg.value))
 
         # Set critical param config values
         for param_cfg in self.config.get_parameters():
-            param_descr = dev_descr.get_parameter_by_address(param_cfg.address)
-            if param_descr is not None and param_descr.critical:
+            param_profile = dev_profile.get_parameter_by_address(param_cfg.address)
+            if param_profile is not None and param_profile.critical:
                 self.add(SetParameter(self.device, param_cfg.address, param_cfg.value))
 
         def set_rc():
             if self.config.rc is not None:
                 self.device.rc = self.config.rc
 
-        def set_config():
-            if self.device.config is not self.config:
-                self.device.config = self.config
-
         self.add(Callable(set_rc))
-        self.add(Callable(set_config))
 
 class ConfigVerifier(SequentialCommandGroup):
     def __init__(self, device_model, device_config, parent=None):

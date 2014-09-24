@@ -10,7 +10,6 @@ import logging
 import weakref
 
 import config
-import device_profile
 import hw_model
 import util
 
@@ -171,17 +170,11 @@ class Device(QtCore.QObject):
         return self._config() if self._config is not None else None
 
     def set_config(self, config):
-        # FIXME: RuntimeError: wrapped C/C++ object of type DeviceConfig has been deleted
-        # FIXME: not sure why this happens. the DeviceConfig constructor gets called
-        # FIXME: way to reproduce: connect, load device config, load setup which includes that device -> bam, dead
-        # FIXME: This happens because this Device object only keeps a weak
-        # reference to the DeviceConfig. When loading a complete setup the
-        # Setup object keeps the DeviceConfig object alive. FIX: When loading a
-        # single device config into an existing Setup tree it (the config)
-        # should replace any config in the setup and take its place.
-
-        # XXX: leftoff, fix this problem somehow!
-
+        """Sets a new config object for this device.
+        Note: This device will not take ownership of the config object! If you
+        want to integrate a new config object into an existing app_model tree
+        use the assign_config() method below.
+        """
         if self.config is not None:
             self.log.debug("Device.config is not None: %s, parent=%s", self.config, self.config.parent())
             self.config.name_changed.disconnect(self.name_changed)
@@ -210,6 +203,13 @@ class Device(QtCore.QObject):
             self.config.parameter_alias_changed.connect(self.config_parameter_alias_changed)
 
         self.config_set.emit(self.config)
+
+    def assign_config(self, config):
+        """Assigns a new config object to this device.
+        The config object will be integrated into the app_model and config
+        trees. Ownership will be taken by the underlying mrc config.
+        """
+        self.mrc.set_device_config(self, config)
 
     def get_profile(self):
         return self._profile() if self._profile is not None else None
@@ -270,15 +270,18 @@ class Device(QtCore.QObject):
     def set_parameter(self, address, value, response_handler=None):
         return self.model.controller.set_parameter(address, value, response_handler)
 
+    @config_required
     def get_config_parameter(self, address):
         return self.config.get_parameter(address)
 
+    @config_required
     def has_config_parameter(self, address):
         return self.config.contains_parameter(address)
 
     def has_all_parameters(self):
         return all(map(self.has_parameter, range(256)))
 
+    @model_required
     def get_memory(self):
         return self.model.get_memory()
 
@@ -335,6 +338,9 @@ class Device(QtCore.QObject):
             return False
         return self.model.is_ready()
 
+    def get_mrc(self):
+        return self.parent()
+
     model   = pyqtProperty(object, get_model, set_model, notify=model_set)
     config  = pyqtProperty(object, get_config, set_config, notify=config_set)
     profile = pyqtProperty(object, get_profile, set_profile)
@@ -343,6 +349,7 @@ class Device(QtCore.QObject):
     address = pyqtProperty(int, get_address)
     idc     = pyqtProperty(int, get_idc, notify=idc_changed)
     rc      = pyqtProperty(bool, get_rc, set_rc, notify=rc_changed)
+    mrc     = pyqtProperty(object, get_mrc)
 
 
 class MRC(QtCore.QObject):
@@ -524,6 +531,13 @@ class MRC(QtCore.QObject):
     def scanbus(self, bus, response_handler=None):
         return self.model.controller.scanbus(bus, response_handler)
 
+    def set_device_config(self, device, config):
+        if self.get_device(device.bus, device.address) is not device:
+            raise RuntimeError("Given device %s is not a child of %s", device, self)
+
+        self.config.remove_device_config(device.config)
+        self.config.add_device_config(config)
+
     def _on_device_model_added(self, device_model):
         self.log.info("_on_device_model_added: bus=%d, address=%d", device_model.bus, device_model.address)
         # Check if a Device instance matching the models bus and address
@@ -542,24 +556,19 @@ class MRC(QtCore.QObject):
             self.log.info("_on_device_model_added: no existing device found. self.config=%s", self.config)
             device_config=None
             if self.config is not None:
-                assert not self.config.has_device_config(device_model.bus,
-                        device_model.address)
-                device_config = config.DeviceConfig()
-                device_config.idc = device_model.idc
-                device_config.bus = device_model.bus
-                device_config.address = device_model.address
+                assert not self.config.has_device_config(
+                        device_model.bus, device_model.address)
+                device_config           = config.DeviceConfig()
+                device_config.idc       = device_model.idc
+                device_config.bus       = device_model.bus
+                device_config.address   = device_model.address
                 # add_device_config will trigger _on_device_config_added, which
                 # in turn will create a Device instance. This means after the
-                # next line the call to get_device() must succeed and return
+                # next line the call to get_device() will succeed and return
                 # the newly created Device instance.
                 self.config.add_device_config(device_config)
                 device = self.get_device(device_model.bus, device_model.address)
                 device.set_model(device_model)
-
-            #self.log.info("_on_device_model_added: Creating Device(model=%s, config=%s, parent=%s)",
-            #        device_model, device_config, self)
-            #device = device_factory(device_model=device_model, device_config=device_config, parent=self)
-            #self._add_device(device)
 
     def _on_device_model_removed(self, device_model):
         device = self.get_device(bus=device_model.bus, address=device_model.address)
