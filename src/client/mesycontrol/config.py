@@ -302,6 +302,10 @@ class Setup(ConfigObject):
         return list(self._device_configs)
 
     def get_all_device_configs(self):
+        """Returns a list of all device configs in this setup. The list
+        contains both top-level configs and any device config children of the
+        mrc configs contained in this setup.
+        """
         ret = self.device_configs
         for mrc_cfg in self.mrc_configs:
             ret.extend(mrc_cfg.device_configs)
@@ -315,12 +319,14 @@ class Setup(ConfigObject):
                 raise ConfigError("Request to add duplicate mrc connection to the setup (%s)"
                         % mrc_cfg.connection_config)
 
+        mrc_config.setParent(self)
         self._mrc_configs.append(mrc_config)
         self.mrc_config_added.emit(mrc_config)
 
     def remove_mrc_config(self, mrc_config):
         try:
             self._mrc_configs.remove(mrc_config)
+            mrc_config.setParent(None)
         except ValueError:
             return False
         self.mrc_config_removed.emit(mrc_config)
@@ -515,8 +521,8 @@ def make_device_config(device):
 
     param_filter = lambda pd: not pd.read_only and not pd.do_not_store
 
-    for param_description in filter(param_filter, device.description.parameters.values()):
-        address = param_description.address
+    for param_profile in filter(param_filter, device.profile.parameters.values()):
+        address = param_profile.address
 
         if not device.has_parameter(address):
             raise ConfigError("Required memory value not present", address)

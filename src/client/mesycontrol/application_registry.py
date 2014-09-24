@@ -9,7 +9,7 @@ import os
 
 import app_model
 import config
-import device_description
+import device_profile
 import hw_model
 import mrc_connection
 import mrc_controller
@@ -49,16 +49,16 @@ class ApplicationRegistry(QtCore.QObject):
 
     def __init__(self, main_file, parent=None):
         super(ApplicationRegistry, self).__init__(parent)
-        self.log        = util.make_logging_source_adapter(__name__, self)
-        self.main_file  = main_file
-        self.bin_dir    = os.path.abspath(os.path.dirname(main_file))
-        self.data_dir   = find_data_dir(main_file)
-        self.mrc_models = list()
-        self.mrcs       = list()
-        self.device_descriptions = set()
-        self._object_registry = dict()
+        self.log                = util.make_logging_source_adapter(__name__, self)
+        self.main_file          = main_file
+        self.bin_dir            = os.path.abspath(os.path.dirname(main_file))
+        self.data_dir           = find_data_dir(main_file)
+        self.mrc_models         = list()
+        self.mrcs               = list()
+        self.device_profiles    = set()
+        self._object_registry   = dict()
 
-        self.load_system_descriptions()
+        self.load_system_profiles()
 
     def shutdown(self):
         for mrc in self.mrcs:
@@ -71,31 +71,31 @@ class ApplicationRegistry(QtCore.QObject):
     def load_system_descriptions(self):
         # FIXME: use globbing to get the list of files to import (and make
         # cxfreeze distutils install those files to a location outside the zip)
-        for mod_name in ('device_description_mhv4', 'device_description_mhv4_800v', 'device_description_mscf16'):
+        for mod_name in ('device_profile_mhv4', 'device_profile_mhv4_800v', 'device_profile_mscf16'):
             try:
                 #mod = importlib.import_module(mod_name, 'mesycontrol')
                 mod = importlib.import_module("mesycontrol." + mod_name)
-                device_description = mod.get_device_description()
-                self.log.debug("Loaded device description %s", device_description)
-                self.device_descriptions.add(device_description)
+                device_profile = mod.get_deviec_profile()
+                self.log.debug("Loaded device profile %s", device_profile)
+                self.device_profiles.add(device_profile)
             except ImportError as e:
-                self.log.error("Error loading device description from %s: %s", mod_name, str(e))
+                self.log.error("Error loading device profile from %s: %s", mod_name, str(e))
 
 
-    def get_device_description_by_idc(self, idc):
+    def get_device_profile_by_idc(self, idc):
         try:
-            return filter(lambda d: d.idc == idc, self.device_descriptions)[0]
+            return filter(lambda d: d.idc == idc, self.device_profiles)[0]
         except IndexError:
-            return device_description.make_generic_description(idc)
+            return device_profile.make_generic_profile(idc)
 
-    def get_device_description_by_name(self, name):
+    def get_device_profile_by_name(self, name):
         try:
-            return filter(lambda d: d.name == name, self.device_descriptions)[0]
+            return filter(lambda d: d.name == name, self.device_profiles)[0]
         except IndexError:
             raise RuntimeError("No device description for name %s" % name)
 
     def get_device_name_by_idc(self, idc):
-        return self.get_device_description_by_idc(idc).name
+        return self.get_device_profile_by_idc(idc).name
 
     def find_data_file(self, filename):
         return os.path.join(self.data_dir, filename)

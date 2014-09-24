@@ -10,18 +10,18 @@ import logging
 import weakref
 
 import config
-import device_description
+import device_profile
 import hw_model
 import util
 
 def device_factory(device_model=None, device_config=None, parent=None):
     import application_registry
     idc = device_model.idc if device_model is not None else device_config.idc
-    description  = application_registry.instance.get_device_description_by_idc(idc)
+    profile  = application_registry.instance.get_device_profile_by_idc(idc)
     logging.getLogger(__name__).debug("Creating Device(model=%s, config=%s, config.parent=%s)",
             device_model, device_config, device_config.parent())
     return Device(device_model=device_model, device_config=device_config,
-            device_descr=description, parent=parent)
+            profile=profile, parent=parent)
 
 
 def model_required(f):
@@ -43,6 +43,7 @@ def config_required(f):
 class Device(QtCore.QObject):
     config_set                      = pyqtSignal(object)    #: a new config object has been set (config.DeviceConfig)
     model_set                       = pyqtSignal(object)    #: a new model object has been set (hw_model.DeviceModel)
+    profile_set                     = pyqtSignal(object)    #: a new profile object has been set(device_profile.DeviceProfile)
 
     # hw model related:
     idc_changed                     = pyqtSignal(int)           #: the hardware idc changed
@@ -75,22 +76,24 @@ class Device(QtCore.QObject):
     request_canceled                = pyqtSignal(object, object)          #: request_id, request
     request_completed               = pyqtSignal(object, object, object)  #: request_id, request, response
 
-    def __init__(self, device_model=None, device_config=None,
-            device_descr=None, parent=None):
+    def __init__(self, device_model=None, device_config=None, profile=None,
+            parent=None):
         super(Device, self).__init__(parent)
 
-        self._model      = None
-        self._config     = None
-        self.log         = util.make_logging_source_adapter(__name__, self)
-        self.model       = device_model
-        self.config      = device_config
-        self.description = device_descr
+        self.log            = util.make_logging_source_adapter(__name__, self)
+
+        self._model         = None
+        self._config        = None
+        self._profile       = None
+        self.model          = device_model
+        self.config         = device_config
+        self.profile        = profile
 
     def __str__(self):
-        if self.description is not None:
+        if self.profile is not None:
             if self.is_named():
-                return "%s %s@(%d,%d)" % (self.name, self.description.name, self.bus, self.address)
-            return "%s@(%d,%d)" % (self.description.name, self.bus, self.address)
+                return "%s %s@(%d,%d)" % (self.name, self.profile.name, self.bus, self.address)
+            return "%s@(%d,%d)" % (self.profile.name, self.bus, self.address)
         else:
             if self.is_named():
                 return "%s Device(idc=%d)@(%d,%d)" % (self.name, self.idc, self.bus, self.address)
@@ -151,9 +154,10 @@ class Device(QtCore.QObject):
 
     def _on_model_parameter_changed(self, address, old_value, new_value):
         if self.has_config() and not self.config.contains_parameter(address):
-            param_descr = self.description.get_parameter_by_address(address)
-            if param_descr is not None and not param_descr.read_only and not param_descr.do_not_store:
-                self.log.debug("Adding parameter (%d=%d) to config", address, new_value)
+            param_profile = self.profile.get_parameter_by_address(address)
+            if param_profile is not None and param_profile.should_be_stored():
+                self.log.debug("Adding parameter name=%s,addr=%d,val=%d) to config for %s",
+                        param_profile.name, address, new_value, self)
                 self.config.add_parameter(address, new_value)
 
         self.parameter_changed.emit(address, old_value, new_value)
@@ -176,18 +180,20 @@ class Device(QtCore.QObject):
         # single device config into an existing Setup tree it (the config)
         # should replace any config in the setup and take its place.
 
-        #if self.config is not None:
-        #    self.log.debug("Device.config is not None: %s, parent=%s", self.config, self.config.parent())
-        #    self.config.name_changed.disconnect(self.name_changed)
-        #    self.config.description_changed.disconnect(self.description_changed)
-        #    self.config.idc_changed.disconnect(self.config_idc_changed)
-        #    self.config.bus_changed.disconnect(self.config_bus_changed)
-        #    self.config.address_changed.disconnect(self.config_address_changed)
-        #    self.config.rc_changed.disconnect(self.config_rc_changed)
-        #    self.config.parameter_added.disconnect(self.config_parameter_added)
-        #    self.config.parameter_removed.disconnect(self.config_parameter_removed)
-        #    self.config.parameter_value_changed.disconnect(self.config_parameter_value_changed)
-        #    self.config.parameter_alias_changed.disconnect(self.config_parameter_alias_changed)
+        # XXX: leftoff, fix this problem somehow!
+
+        if self.config is not None:
+            self.log.debug("Device.config is not None: %s, parent=%s", self.config, self.config.parent())
+            self.config.name_changed.disconnect(self.name_changed)
+            self.config.description_changed.disconnect(self.description_changed)
+            self.config.idc_changed.disconnect(self.config_idc_changed)
+            self.config.bus_changed.disconnect(self.config_bus_changed)
+            self.config.address_changed.disconnect(self.config_address_changed)
+            self.config.rc_changed.disconnect(self.config_rc_changed)
+            self.config.parameter_added.disconnect(self.config_parameter_added)
+            self.config.parameter_removed.disconnect(self.config_parameter_removed)
+            self.config.parameter_value_changed.disconnect(self.config_parameter_value_changed)
+            self.config.parameter_alias_changed.disconnect(self.config_parameter_alias_changed)
 
         self._config = weakref.ref(config) if config is not None else None
 
@@ -205,11 +211,12 @@ class Device(QtCore.QObject):
 
         self.config_set.emit(self.config)
 
-    def get_description(self):
-        return self._description() if self._description is not None else None
+    def get_profile(self):
+        return self._profile() if self._profile is not None else None
 
-    def set_description(self, description):
-        self._description = weakref.ref(description) if description is not None else None
+    def set_profile(self, profile):
+        self._profile = weakref.ref(profile) if profile is not None else None
+        self.profile_set.emit(self.profile)
 
     def set_name(self, name):
         self.config.name = name
@@ -328,10 +335,9 @@ class Device(QtCore.QObject):
             return False
         return self.model.is_ready()
 
-    model       = pyqtProperty(object, get_model, set_model, notify=model_set)
-    config      = pyqtProperty(object, get_config, set_config, notify=config_set)
-    description = pyqtProperty(device_description.DeviceDescription, get_description, set_description)
-
+    model   = pyqtProperty(object, get_model, set_model, notify=model_set)
+    config  = pyqtProperty(object, get_config, set_config, notify=config_set)
+    profile = pyqtProperty(object, get_profile, set_profile)
     name    = pyqtProperty(str, get_name, set_name, notify=name_changed)
     bus     = pyqtProperty(int, get_bus)
     address = pyqtProperty(int, get_address)
