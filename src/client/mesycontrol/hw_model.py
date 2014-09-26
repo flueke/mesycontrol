@@ -152,7 +152,6 @@ class DeviceModel(QtCore.QObject):
     connecting      = pyqtSignal()
     connected       = pyqtSignal()
     disconnected    = pyqtSignal(object) #: error object or None
-    ready           = pyqtSignal(bool)
 
     #: idc_changed(idc)
     idc_changed   = pyqtSignal(int)
@@ -181,15 +180,16 @@ class DeviceModel(QtCore.QObject):
 
         self._controller = None
         self._mrc        = None
-        self._bus        = bus
-        self._address    = address
-        self._idc        = idc
-        self._rc         = rc
+        self._bus        = int(bus)
+        self._address    = int(address)
+        self._idc        = int(idc)
+        self._rc         = bool(rc)
+
         self.reset_mem()
         self.reset_mirror()
+
         self.mrc         = mrc
         self.controller  = controller
-        self._ready      = False
 
     def set_mrc(self, mrc):
         if self.mrc is not None:
@@ -232,11 +232,6 @@ class DeviceModel(QtCore.QObject):
             return True
         return self.mrc.is_disconnected()
 
-    def is_ready(self):
-        if not self.has_mrc():
-            return False
-        return self.is_connected() and set(self._memory.keys()) == set(xrange(256))
-
     def has_parameter(self, address):
         return address in self._memory
 
@@ -249,9 +244,6 @@ class DeviceModel(QtCore.QObject):
 
         if old_value != value:
             self.parameter_changed.emit(address, old_value, value)
-
-        if self.is_ready():
-            self.ready.emit(True)
 
     def has_mirror_parameter(self, address):
         return address in self._mirror
@@ -269,7 +261,6 @@ class DeviceModel(QtCore.QObject):
     def reset_mem(self):
         self._memory = dict()
         self.memory_reset.emit()
-        self.ready.emit(False)
 
     def reset_mirror(self):
         self._mirror = dict()
@@ -315,10 +306,9 @@ class DeviceModel(QtCore.QObject):
             self.controller.set_model(self)
 
     def _on_mrc_disconnected(self):
-        self.disconnected.emit(None)
         self.reset_mem()
         self.reset_mirror()
-        self.ready.emit(self.is_ready())
+        self.disconnected.emit(None)
 
     bus          = pyqtProperty(int,    get_bus)
     address      = pyqtProperty(int,    get_address)

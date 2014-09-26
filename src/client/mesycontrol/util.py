@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
+from PyQt4 import QtCore
 from PyQt4.QtCore import QObject, QTimer, pyqtProperty, pyqtSignal
 from PyQt4.QtCore import Qt
 import gc
@@ -335,3 +336,83 @@ def which(program):
                 return exe_file
 
     return None
+
+class AnyValue(object):
+    pass
+
+# Inspired by waitForSignal() from https://github.com/hlamer/enki/blob/master/tests/base.py
+def wait_for_signal(signal, expected_args=None, timeout_ms=0, emitting_callable=None):
+    """Uses a local Qt event loop to wait for the given signal to arrive.
+
+    expected_args specifies which arguments are expected once the signal is
+    emitted. If expected_args is None any arguments are valid. To specify a
+    placeholder argument use the AnyValue class above (put the class directly
+    into the argument sequence, don't instantiate it).
+
+    timeout_ms gives the maximum time in milliseconds to wait for the signal.
+    If 0 this function will wait forever.
+
+    emitting_callable can be used to pass a callable object to the function.
+    This callable will be invoked from within the internal event loop. This is
+    neccessary to avoid missing signals connected via Qt's direct connection
+    mechanism (the signal would arrive before the event loop was started and
+    thus it would be missed completely).
+
+    The return value is True if the signal arrived within the given timeout and
+    with the correct arguments. Otherwise False is returned.
+    """
+
+    log = logging.getLogger(__name__ + '.wait_for_signal')
+
+    def do_args_match(expected, given):
+        if len(expected) != len(given):
+            return False
+
+        combined = zip(expected, given)
+
+        for exp_arg, given_arg in combined:
+            if exp_arg == AnyValue:
+                continue
+
+            if exp_arg != given_arg:
+                return False
+
+        return True
+
+    loop  = QtCore.QEventLoop()
+
+    def the_slot(*args):
+        if expected_args is None or do_args_match(expected_args, args):
+            log.debug("slot arguments match expected arguments")
+            loop.exit(0)
+        else:
+            log.debug("slot arguments do not match expected arguments")
+            loop.exit(1)
+
+    def on_timeout():
+        log.debug("timeout reached while waiting for signal")
+        loop.exit(1)
+
+    signal.connect(the_slot)
+
+    timer = QtCore.QTimer()
+    timer.setSingleShot(True)
+    timer.timeout.connect(on_timeout)
+
+    if emitting_callable is not None:
+        log.debug("invoking emitter %s", emitting_callable)
+        QtCore.QTimer.singleShot(0, emitting_callable)
+
+    if timeout_ms > 0:
+        log.debug("starting timer with timeout=%d", timeout_ms)
+        timer.start(timeout_ms)
+
+    exitcode = loop.exec_()
+
+    log.debug("eventloop returned %d", exitcode)
+
+    timer.stop()
+    timer.timeout.disconnect(on_timeout)
+    signal.disconnect(the_slot)
+
+    return exitcode == 0

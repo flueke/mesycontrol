@@ -237,7 +237,6 @@ class DeviceNode(TreeNodeWithModel):
         device.connecting.connect(slt)
         device.connected.connect(slt)
         device.disconnected.connect(slt)
-        device.ready.connect(slt)
         device.name_changed.connect(slt)
 
         device.rc_changed.connect(partial(model.node_data_changed, node=self,
@@ -265,8 +264,6 @@ class DeviceNode(TreeNodeWithModel):
 
         if column_name == 'name':
             if role == Qt.DecorationRole:
-                if device.is_ready():
-                    return QtGui.QColor(Qt.green)
                 if device.is_connected():
                     return QtGui.QColor(Qt.darkGreen)
                 if device.is_connecting():
@@ -275,8 +272,6 @@ class DeviceNode(TreeNodeWithModel):
                     return QtGui.QColor(Qt.red)
 
             if role in (Qt.ToolTipRole, Qt.StatusTipRole):
-                if device.is_ready():
-                    return "ready"
                 if device.is_connected():
                     return "connected"
                 if device.is_connecting():

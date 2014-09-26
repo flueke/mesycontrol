@@ -32,6 +32,8 @@ class ParameterNode(util.TreeNode):
     def __init__(self, device, address, parent):
         super(ParameterNode, self).__init__(device, parent)
         self.address = address
+        self._read_request_id = None
+
         device.parameter_changed.connect(self._on_parameter_changed)
         device.config_parameter_value_changed.connect(self._on_config_parameter_changed)
 
@@ -52,7 +54,14 @@ class ParameterNode(util.TreeNode):
         return ret
 
     def get_value(self):
-        return self.ref.model.get_memory().get(self.address, None)
+        if not self.ref.has_parameter(self.address):
+            if self._read_request_id is None:
+                self._read_request_id = self.ref.read_parameter(self.address, self._handle_read_response)
+            return None
+        return self.ref.get_parameter(self.address)
+
+    def _handle_read_response(self, request, response):
+        self._read_request_id = None
 
     def get_config(self):
         if self.ref.config is not None and self.ref.config.contains_parameter(self.address):
@@ -65,23 +74,22 @@ class ParameterNode(util.TreeNode):
         return None
 
     def data(self, column, role):
-        mem_value     = self.get_value()
         param_config  = self.get_config()
         param_profile = self.get_profile()
         column_name   = column_names[column]
 
         if (role == Qt.BackgroundRole
                 and column_name in ('value', 'set_value')
-                and mem_value is not None
-                and param_config is not None
-                and mem_value != param_config.value):
+                and self.ref.has_parameter(self.address)
+                and self.get_config() is not None
+                and self.get_value() != self.get_config().value):
             return QtGui.QColor("#ff0000")
 
         if role in (Qt.DisplayRole, Qt.EditRole):
             if column_name == 'address':
                 return self.address
             elif column_name == 'value':
-                return mem_value
+                return self.get_value()
             elif column_name == 'name':
                 if role == Qt.DisplayRole:
                     return param_profile.name if param_profile is not None else None
@@ -93,8 +101,8 @@ class ParameterNode(util.TreeNode):
             elif column_name == 'set_value':
                 if param_config is not None:
                     return param_config.value
-                elif mem_value is not None:
-                    return mem_value
+                elif self.get_value() is not None:
+                    return self.get_value()
                 elif role == Qt.EditRole:
                     return int()
         return None
@@ -129,7 +137,6 @@ class ParameterNode(util.TreeNode):
     def _slt_refresh_all(self):
         mrc_command.RefreshMemory(self.ref).start()
 
-# table model
 class DeviceTableModel(QtCore.QAbstractTableModel):
     def __init__(self, device, parent=None):
         super(DeviceTableModel, self).__init__(parent)
@@ -151,6 +158,8 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
 
         self._device = weakref.ref(device)
 
+        device.memory_reset.connect(self._reset_model)
+
         self.endResetModel()
 
     def get_device(self):
@@ -165,6 +174,10 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         idx1 = self.createIndex(address, 0, self.root)
         idx2 = self.createIndex(address, self.columnCount(), self.root)
         self.dataChanged.emit(idx1, idx2)
+
+    def _reset_model(self):
+        self.beginResetModel()
+        self.endResetModel()
 
 
     # ===== QAbstractItemModel implementation =====

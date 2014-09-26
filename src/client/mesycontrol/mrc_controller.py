@@ -328,8 +328,8 @@ class DeviceController(QtCore.QObject):
             self._request_ids.remove(request_id)
             self.request_canceled.emit(request_id, request)
             self.request_queue_size_changed.emit(self.get_request_queue_size())
-            self.log.debug("removed canceled request %d from local queue. new queue size=%d, queue=%s",
-                    request_id, self.get_request_queue_size(), self._request_ids)
+            self.log.debug("removed canceled request %d from local queue. new queue size=%d", 
+                    request_id, self.get_request_queue_size())
 
     def get_request_queue_size(self):
         return len(self._request_ids)

@@ -19,7 +19,6 @@ from mesycontrol import device_widget
 from mesycontrol import config
 from mesycontrol import config_xml
 from mesycontrol import log_view
-from mesycontrol import mrc_command
 from mesycontrol import setup_treeview
 from mesycontrol import util
 from mesycontrol.ui.connect_dialog import ConnectDialog
@@ -132,6 +131,11 @@ class MainWindow(QtGui.QMainWindow):
         if not len(filename):
             return
 
+        filename = str(filename)
+
+        if not filename.endswith(".xml"):
+            filename += ".xml"
+
         setup = application_registry.instance.get('active_setup')
 
         if setup is None:
@@ -217,9 +221,6 @@ class MainWindow(QtGui.QMainWindow):
             subwin.show()
             subwin.widget().show()
             self.mdiArea.setActiveSubWindow(subwin)
-            # FIXME: the table view itself should fetch any parameters it needs
-            if not device.has_all_parameters():
-                mrc_command.FetchMissingParameters(device).start()
 
     def _slt_remove_mrc_from_setup(self, mrc):
         mrc.disconnect()

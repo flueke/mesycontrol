@@ -267,8 +267,7 @@ def factory(**kwargs):
     """Connection factory.
     Supported keyword arguments in order of priority:
         - config:
-          MRCConnectionConfig instance specifying the details of the
-          connection.
+          MRCConnectionConfig instance specifying the details of the connection.
         - url:
           A string that is passed to util.parse_connection_url(). The resulting
           dictionary will then be used to create the connection.
@@ -284,9 +283,9 @@ def factory(**kwargs):
     Additionally 'parent' may specify a parent QObject for the resulting
     connection.
     """
-    config = kwargs.get('config', None)
-    url    = kwargs.get('url', None)
-    parent = kwargs.get('parent', None)
+    config  = kwargs.get('config', None)
+    url     = kwargs.get('url', None)
+    parent  = kwargs.get('parent', None)
 
     if config is not None:
         ret = None

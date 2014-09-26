@@ -11,11 +11,11 @@ import application_registry
 import app_model
 import util
 
-class MHV4_800V(app_model.Device):
-    class Polarity:
-        negative = 0
-        positive = 1
+class Polarity:
+    negative = 0
+    positive = 1
 
+class MHV4_800V(app_model.Device):
     num_channels  = 4
     idc           = 27
 
@@ -25,7 +25,7 @@ class MHV4_800V(app_model.Device):
     actual_current_changed = pyqtSignal(int, float)     #: channel, value
     current_limit_changed  = pyqtSignal(int, float)     #: channel, value
     channel_state_changed  = pyqtSignal(int, bool)      #: channel, value
-    polarity_changed       = pyqtSignal(int, int)       #: channel, Polarity
+    polarity_changed       = pyqtSignal(int, Polarity)  #: channel, Polarity
 
     def __init__(self, device_model=None, device_config=None, device_description=None, parent=None):
         if device_model is not None and device_model.idc != MHV4_800V.idc:

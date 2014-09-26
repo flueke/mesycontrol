@@ -31,8 +31,8 @@ class ConfigError(Exception):
 
 class ConfigObject(QtCore.QObject):
     dirty_changed         = pyqtSignal(bool)
-    name_changed          = pyqtSignal(str)
-    description_changed   = pyqtSignal(str)
+    name_changed          = pyqtSignal(object)
+    description_changed   = pyqtSignal(object)
 
     def __init__(self, parent=None):
         super(ConfigObject, self).__init__(parent)
@@ -70,15 +70,53 @@ class ConfigObject(QtCore.QObject):
     name        = pyqtProperty(str, get_name, set_name, notify=name_changed)
     description = pyqtProperty(str, get_description, set_description, notify=description_changed)
 
+class ParameterConfig(QtCore.QObject):
+    value_changed = pyqtSignal(object) #: int value or None
+    alias_changed = pyqtSignal(object) #: str value or None
+
+    def __init__(self, address, value=None, alias=None, parent=None):
+        super(ParameterConfig, self).__init__(parent)
+        self._address = int(address)
+        self._value   = int(value) if value is not None else None
+        self._alias   = str(alias) if alias is not None else None
+
+    def get_address(self):
+        return self._address
+
+    def get_value(self):
+        return self._value
+
+    def set_value(self, value):
+        new_value = int(value) if value is not None else None
+        if self.value != new_value:
+            self._value = new_value
+            self.value_changed.emit(self.value)
+
+    def get_alias(self):
+        return self._alias
+
+    def set_alias(self, alias):
+        new_alias = str(alias) if alias is not None else None
+        if self.alias != new_alias:
+            self._alias = new_alias
+            self.alias_changed.emit(self.alias)
+
+    #: Numeric parameter address.
+    address = pyqtProperty(int, get_address)
+    #: The parameters unsigned short value (int or None)
+    value   = pyqtProperty(object, get_value, set_value)
+    #: Optional user defined alias for the parameter (str or None)
+    alias   = pyqtProperty(object, get_alias, set_alias)
+
 class DeviceConfig(ConfigObject):
     idc_changed             = pyqtSignal(int)
     bus_changed             = pyqtSignal(int)
     address_changed         = pyqtSignal(int)
     rc_changed              = pyqtSignal(bool)
-    parameter_added         = pyqtSignal(int)       #: address
-    parameter_removed       = pyqtSignal(int)       #: address
-    parameter_value_changed = pyqtSignal(int, int)  #: address, value
-    parameter_alias_changed = pyqtSignal(int, str)  #: address, alias
+    parameter_added         = pyqtSignal([int], [ParameterConfig])       #: [address], [ParameterConfig]
+    parameter_removed       = pyqtSignal([int], [ParameterConfig])       #: [address], [ParameterConfig]
+    parameter_value_changed = pyqtSignal([int, object], [ParameterConfig])  #: [address, value], [ParameterConfig]
+    parameter_alias_changed = pyqtSignal([int, object], [ParameterConfig])  #: [address, alias], [ParameterConfig]
 
     def __init__(self, parent=None):
         super(DeviceConfig, self).__init__(parent)
@@ -137,63 +175,73 @@ class DeviceConfig(ConfigObject):
             raise ConfigError("Duplicate parameter address %d" % param_config.address)
 
         self._parameters[param_config.address] = param_config
+
         param_config.value_changed.connect(partial(self._on_parameter_value_changed,
             address=param_config.address))
+
         param_config.alias_changed.connect(partial(self._on_parameter_alias_changed,
             address=param_config.address))
-        self.parameter_added.emit(param_config.address)
+
+        self.parameter_added[int].emit(param_config.address)
+        self.parameter_added[ParameterConfig].emit(param_config)
 
     @makes_dirty
     def remove_parameter(self, address):
         if not self.contains_parameter(address):
             raise ConfigError("Address %d not present in DeviceConfig" % address)
+
+        param_config = self._parameters[address]
         del self._parameters[address]
-        self.parameter_removed.emit(address)
+
+        self.parameter_removed[int].emit(address)
+        self.parameter_removed[ParameterConfig].emit(param_config)
 
     def get_parameter(self, address):
-        return self._parameters[address]
+        try:
+            return self._parameters[address]
+        except KeyError:
+            raise ConfigError("Address %d not present in DeviceConfig" % address)
 
     def get_parameters(self):
         return sorted(self._parameters.values(), key=lambda cfg: cfg.address)
 
     def set_parameter_value(self, address, value):
         if self.contains_parameter(address):
-            self._parameters[address]['value'] = int(value) if value is not None else None
-            self.parameter_value_changed.emit(address, self.get_parameter_value(address))
+            self.get_parameter(address).value = int(value) if value is not None else None
         else:
             self.add_parameter(address, value)
 
     def get_parameter_value(self, address):
-        if not self.contains_parameter(address):
-            raise ConfigError("Address %d not present in DeviceConfig" % address)
-        return self.get_parameter_dict()['value']
+        return self.get_parameter(address).value
 
     def set_parameter_alias(self, address, alias):
         if self.contains_parameter(address):
-            self._parameters[address]['alias'] = str(alias) if alias is not None else None
-            self.parameter_alias_changed.emit(address, self.get_parameter_alias(address))
+            self.get_parameter(address).alias = str(alias) if alias is not None else None
         else:
             self.add_parameter(address, alias=alias)
 
     def get_parameter_alias(self, address):
-        if not self.contains_parameter(address):
-            raise ConfigError("Address %d not present in DeviceConfig" % address)
-        return self.get_parameter_dict()['alias']
+        return self.get_parameter(address).alias
 
+    @makes_dirty
     def _on_parameter_value_changed(self, value, address):
-        self.parameter_value_changed.emit(address, value)
+        self.parameter_value_changed[int, object].emit(address, value)
+        self.parameter_value_changed[ParameterConfig].emit(self.get_parameter(address))
 
+    @makes_dirty
     def _on_parameter_alias_changed(self, alias, address):
-        self.parameter_alias_changed.emit(address, alias)
+        self.parameter_alias_changed[int, object].emit(address, alias)
+        self.parameter_alias_changed[ParameterConfig].emit(self.get_parameter(address))
 
     def __str__(self):
         return "DeviceConfig(name=%s, idc=%d, bus=%d, address=%d, %d parameters" % (
                 self.name, self.idc, self.bus, self.address, len(self.get_parameters()))
 
-    idc     = pyqtProperty(int, get_idc, set_idc, notify=idc_changed)
-    bus     = pyqtProperty(int, get_bus, set_bus, notify=bus_changed)
-    address = pyqtProperty(int, get_address, set_address, notify=address_changed)
-    rc      = pyqtProperty(bool, get_rc, set_rc, notify=rc_changed)
+    idc         = pyqtProperty(int, get_idc, set_idc, notify=idc_changed)
+    bus         = pyqtProperty(int, get_bus, set_bus, notify=bus_changed)
+    address     = pyqtProperty(int, get_address, set_address, notify=address_changed)
+    rc          = pyqtProperty(bool, get_rc, set_rc, notify=rc_changed)
+    parameters  = pyqtProperty(list, get_parameters)
 
 class MRCConfig(ConfigObject):
     device_config_added   = pyqtSignal(object)  #: DeviceConfig
@@ -313,6 +361,8 @@ class Setup(ConfigObject):
     def add_mrc_config(self, mrc_config):
         for mrc_cfg in self.mrc_configs:
             if mrc_cfg.connection_config.matches(mrc_config.connection_config):
+                self.log.error("Request to add duplicate mrc connection to the setup. new_cfg=%s, mrc_configs in setup=%s",
+                        mrc_config, self.get_mrc_configs())
                 raise ConfigError("Request to add duplicate mrc connection to the setup (%s)"
                         % mrc_cfg.connection_config)
 
@@ -321,17 +371,19 @@ class Setup(ConfigObject):
         self.mrc_config_added.emit(mrc_config)
 
     def remove_mrc_config(self, mrc_config):
-        try:
-            self._mrc_configs.remove(mrc_config)
-            mrc_config.setParent(None)
-        except ValueError:
-            return False
+        self.log.debug("Removing MRC config %s", mrc_config)
+        self._mrc_configs.remove(mrc_config)
+        mrc_config.setParent(None)
         self.mrc_config_removed.emit(mrc_config)
-        return True
+        self.log.debug("Removed MRC config %s. %d MRC configs left in setup.",
+                mrc_config, len(self._mrc_configs))
 
     def get_mrc_configs(self):
         """Returns a list of the MRC configs in this setup."""
         return list(self._mrc_configs)
+
+    def contains_mrc_config(self, mrc_config):
+        return mrc_config in self.mrc_configs
 
     mrc_configs    = pyqtProperty(list, get_mrc_configs)
     device_configs = pyqtProperty(list, get_device_configs)
@@ -469,44 +521,6 @@ class MRCConnectionConfig(QtCore.QObject):
     tcp_host            = pyqtProperty(str, get_tcp_host, set_tcp_host)
     tcp_port            = pyqtProperty(int, get_tcp_port, set_tcp_port)
 
-class ParameterConfig(QtCore.QObject):
-    value_changed = pyqtSignal(object) #: int value or None
-    alias_changed = pyqtSignal(object) #: str value or None
-
-    def __init__(self, address, value=None, alias=None, parent=None):
-        super(ParameterConfig, self).__init__(parent)
-        self._address = int(address)
-        self._value   = int(value) if value is not None else None
-        self._alias   = str(alias) if alias is not None else None
-
-    def get_address(self):
-        return self._address
-
-    def get_value(self):
-        return self._value
-
-    def set_value(self, value):
-        new_value = int(value) if value is not None else None
-        if self.value != new_value:
-            self._value = new_value
-            self.value_changed.emit(self.value)
-
-    def get_alias(self):
-        return self._alias
-
-    def set_alias(self, alias):
-        new_alias = str(alias) if alias is not None else None
-        if self.alias != new_alias:
-            self._alias = new_alias
-            self.alias_changed.emit(self.alias)
-
-    #: Numeric parameter address.
-    address = pyqtProperty(int, get_address)
-    #: The parameters unsigned short value.
-    value   = pyqtProperty(int, get_value, set_value)
-    #: Optional user defined alias for the parameter.
-    alias   = pyqtProperty(str, get_alias, set_alias)
-
 def make_device_config(device):
     device_config = device.config
     if device_config is None:
@@ -577,11 +591,14 @@ class DeviceConfigCompleter(command.SequentialCommandGroup):
     def __init__(self, device, parent=None):
         super(DeviceConfigCompleter, self).__init__(parent)
         self.device = device
+        self.log    = util.make_logging_source_adapter(__name__, self)
 
         param_filter = lambda pd: not pd.read_only and not pd.do_not_store
         required_parameters = filter(param_filter, device.profile.parameters.values())
 
         for param_descr in required_parameters:
+            if device.config is None:
+                self.log.warn("Device %s has no config object!")
             if not device.config.contains_parameter(param_descr.address):
                 if not device.has_parameter(param_descr.address):
                     self.add(mrc_command.ReadParameter(device, param_descr.address))
@@ -629,6 +646,9 @@ class SetupLoader(command.Command):
     def _start(self):
         self._failed = False
         registry = application_registry.instance
+        # Keep the original setup around to avoid any of the configs being
+        # garbage collected.
+        self._old_setup = registry.get('active_setup')
         registry.register('active_setup', self.setup)
 
         mrcs_to_remove = set(registry.get_mrcs())
@@ -647,32 +667,38 @@ class SetupLoader(command.Command):
 
         for mrc_config in self.setup.mrc_configs:
             mrc = registry.find_mrc_by_config(mrc_config)
-            if mrc is not None:
+
+            if mrc is None:
+                mrc = application_registry.instance.make_mrc_connection(
+                        mrc_config=mrc_config, connect=True)
+                self.log.info("Created MRC %s", mrc)
+            else:
                 self.log.info("Found MRC %s: applying config", mrc)
                 mrc.config = mrc_config
-                if not mrc.is_connected():
-                    mrc.connect()
-                    mrc.ready.connect(partial(self._on_mrc_ready, mrc=mrc))
-                    mrc.disconnected.connect(partial(self._on_mrc_disconnected, mrc=mrc))
-                else:
-                    self._on_mrc_ready(mrc)
-            else:
-                mrc = application_registry.instance.make_mrc_connection(
-                        config=mrc_config.connection_config, connect=True)
-                mrc.ready.connect(partial(self._on_mrc_ready, mrc=mrc))
-                mrc.disconnected.connect(partial(self._on_mrc_disconnected, mrc=mrc))
-                self._pending_mrcs.add(mrc)
-                self.log.info("Created MRC %s", mrc)
+
+            self._pending_mrcs.add(mrc)
+            mrc.ready.connect(self._slt_on_mrc_ready)
+            mrc.disconnected.connect(self._slt_on_mrc_disconnected)
+
+            if not mrc.is_connected():
                 mrc.connect()
+            elif mrc.is_ready():
+                self._on_mrc_ready(mrc)
 
         self._completion_check()
 
+    def _slt_on_mrc_ready(self, is_ready):
+        if not is_ready:
+            return
+
+        self._on_mrc_ready(self.sender())
+
     def _on_mrc_ready(self, mrc):
         self.log.info("MRC %s is ready. Loading configs")
-        try:
-            self._pending_mrcs.remove(mrc)
-        except KeyError:
-            pass
+
+        mrc.ready.disconnect(self._slt_on_mrc_ready)
+        mrc.disconnected.disconnect(self._slt_on_mrc_disconnected)
+        self._pending_mrcs.remove(mrc)
 
         for device_config in mrc.config.device_configs:
             device = mrc.get_device(device_config.bus, device_config.address)
@@ -680,25 +706,26 @@ class SetupLoader(command.Command):
                 continue
 
             loader = config_loader.ConfigLoader(device, device_config)
-            loader.stopped.connect(partial(self._on_config_loader_stopped, config_loader=loader))
+            loader.stopped.connect(self._on_config_loader_stopped)
             self._pending_config_loaders.add(loader)
             loader.start()
 
         self._completion_check()
 
-    def _on_mrc_disconnected(self, mrc, info=None):
-        try:
-            self._pending_mrcs.remove(mrc)
-        except KeyError:
-            pass
+    def _slt_on_mrc_disconnected(self, info=None):
+        self._on_mrc_disconnected(self.sender())
+
+    def _on_mrc_disconnected(self, mrc):
+        mrc.ready.disconnect(self._slt_on_mrc_ready)
+        mrc.disconnected.disconnect(self._slt_on_mrc_disconnected)
+        self._pending_mrcs.remove(mrc)
         self._failed = True
         self._completion_check()
 
-    def _on_config_loader_stopped(self, config_loader):
-        try:
-            self._pending_config_loaders.remove(config_loader)
-        except KeyError:
-            pass
+    def _on_config_loader_stopped(self):
+        config_loader = self.sender()
+        config_loader.stopped.disconnect(self._on_config_loader_stopped)
+        self._pending_config_loaders.remove(config_loader)
         self._failed = config_loader.has_failed()
         self._completion_check()
 

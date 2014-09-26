@@ -167,13 +167,17 @@ class ApplicationRegistry(QtCore.QObject):
         return key in self._object_registry
 
     def make_mrc_connection(self, **kwargs):
-        connection       = mrc_connection.factory(**kwargs)
+        try:
+            mrc_config = kwargs['mrc_config']
+            connection = mrc_connection.factory(config=mrc_config.connection_config)
+        except KeyError:
+            connection = mrc_connection.factory(**kwargs)
+            mrc_config = config.MRCConfig()
+            mrc_config.connection_config = config.make_connection_config(connection)
+
         model            = hw_model.MRCModel()
         model.controller = mrc_controller.MesycontrolMRCController(connection, model)
         self.register_mrc_model(model)
-
-        mrc_config = config.MRCConfig()
-        mrc_config.connection_config = config.make_connection_config(connection)
 
         mrc = app_model.MRC(mrc_model=model, mrc_config=mrc_config)
 
@@ -187,7 +191,8 @@ class ApplicationRegistry(QtCore.QObject):
             active_setup = config.Setup()
             self.register('active_setup', active_setup)
 
-        active_setup.add_mrc_config(mrc.config)
+        if not active_setup.contains_mrc_config(mrc.config):
+            active_setup.add_mrc_config(mrc.config)
 
         if 'connect' in kwargs and kwargs['connect']:
             mrc.connect()

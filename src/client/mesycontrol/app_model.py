@@ -16,7 +16,7 @@ import util
 def device_factory(device_model=None, device_config=None, parent=None):
     import application_registry
     idc = device_model.idc if device_model is not None else device_config.idc
-    profile  = application_registry.instance.get_device_profile_by_idc(idc)
+    profile = application_registry.instance.get_device_profile_by_idc(idc)
     logging.getLogger(__name__).debug("Creating Device(model=%s, config=%s, config.parent=%s)",
             device_model, device_config, device_config.parent())
     return Device(device_model=device_model, device_config=device_config,
@@ -50,22 +50,32 @@ class Device(QtCore.QObject):
     connecting                      = pyqtSignal()
     connected                       = pyqtSignal()
     disconnected                    = pyqtSignal()
-    ready                           = pyqtSignal(bool)
     address_conflict_changed        = pyqtSignal(bool)
-    parameter_changed               = pyqtSignal(int, int, int)
-    mirror_parameter_changed        = pyqtSignal(int, int, int)
+    memory_reset                    = pyqtSignal()
+    mirror_reset                    = pyqtSignal()
+
+    #: Signals that a parameter value has changed. For all variants the last
+    #: two integer variables hold the old value and the new value. The first
+    #: variable holds the following information (in order of definition):
+    #: numeric parameter address, parameter name, ParameterProfile instance.
+    #: The last two versions are only emitted if the parameter present in the
+    #: devices profile and has a name.
+    parameter_changed               = pyqtSignal([int, int, int], [str, int, int], [object, int, int])
+
+    #: Like parameter_changed but applies to mirror memory.
+    mirror_parameter_changed        = pyqtSignal([int, int, int], [str, int, int], [object, int, int])
 
     # config related:
-    name_changed                    = pyqtSignal(str)
-    description_changed             = pyqtSignal(str)
+    name_changed                    = pyqtSignal(object)
+    description_changed             = pyqtSignal(object)
     config_idc_changed              = pyqtSignal(int)
     config_bus_changed              = pyqtSignal(int)
     config_address_changed          = pyqtSignal(int)
     config_rc_changed               = pyqtSignal(bool)
-    config_parameter_added          = pyqtSignal(int)       #: address
-    config_parameter_removed        = pyqtSignal(int)       #: address
-    config_parameter_value_changed  = pyqtSignal(int, int)  #: address, value
-    config_parameter_alias_changed  = pyqtSignal(int, str)  #: address, alias
+    config_parameter_added          = pyqtSignal([int], [config.ParameterConfig]) #: address, ParameterConfig
+    config_parameter_removed        = pyqtSignal([int], [config.ParameterConfig]) #: address, ParameterConfig
+    config_parameter_value_changed  = pyqtSignal([int, object], [config.ParameterConfig])  #: address, value
+    config_parameter_alias_changed  = pyqtSignal([int, object], [config.ParameterConfig])  #: address, alias
 
     # controller related
     write_access_changed            = pyqtSignal(bool)
@@ -115,12 +125,13 @@ class Device(QtCore.QObject):
             self.model.connecting.disconnect(self.connecting)
             self.model.connected.disconnect(self.connected)
             self.model.disconnected.disconnect(self.disconnected)
-            self.model.ready.disconnect(self.ready)
             self.model.idc_changed.disconnect(self.idc_changed)
             self.model.rc_changed.disconnect(self._on_model_rc_changed)
             self.model.address_conflict_changed.disconnect(self.address_conflict_changed)
             self.model.parameter_changed.disconnect(self._on_model_parameter_changed)
             self.model.mirror_parameter_changed.disconnect(self.mirror_parameter_changed)
+            self.model.memory_reset.disconnect(self.memory_reset)
+            self.model.mirror_reset.disconnect(self.mirror_reset)
 
             self.model.controller.write_access_changed.disconnect(self.write_access_changed)
             self.model.controller.silence_changed.disconnect(self.silence_changed)
@@ -135,12 +146,13 @@ class Device(QtCore.QObject):
             self.model.connecting.connect(self.connecting)
             self.model.connected.connect(self.connected)
             self.model.disconnected.connect(self.disconnected)
-            self.model.ready.connect(self.ready)
             self.model.idc_changed.connect(self.idc_changed)
             self.model.rc_changed.connect(self._on_model_rc_changed)
             self.model.address_conflict_changed.connect(self.address_conflict_changed)
             self.model.parameter_changed.connect(self._on_model_parameter_changed)
             self.model.mirror_parameter_changed.connect(self.mirror_parameter_changed)
+            self.model.memory_reset.connect(self.memory_reset)
+            self.model.mirror_reset.connect(self.mirror_reset)
 
             self.model.controller.write_access_changed.connect(self.write_access_changed)
             self.model.controller.silence_changed.connect(self.silence_changed)
@@ -152,14 +164,20 @@ class Device(QtCore.QObject):
         self.model_set.emit(self.model)
 
     def _on_model_parameter_changed(self, address, old_value, new_value):
-        if self.has_config() and not self.config.contains_parameter(address):
-            param_profile = self.profile.get_parameter_by_address(address)
-            if param_profile is not None and param_profile.should_be_stored():
+        param_profile = self.profile.get_parameter_by_address(address)
+
+        if (self.has_config() and not self.config.contains_parameter(address)
+                and param_profile is not None and param_profile.should_be_stored()):
                 self.log.debug("Adding parameter name=%s,addr=%d,val=%d) to config for %s",
-                        param_profile.name, address, new_value, self)
+                    param_profile.name, address, new_value, self)
+
                 self.config.add_parameter(address, new_value)
 
-        self.parameter_changed.emit(address, old_value, new_value)
+        self.parameter_changed[int, int, int].emit(address, old_value, new_value)
+
+        if param_profile is not None and param_profile.is_named():
+            self.parameter_changed[str, int, int].emit(param_profile.name, old_value, new_value)
+            self.parameter_changed[object, int, int].emit(param_profile, old_value, new_value)
 
     def _on_model_rc_changed(self, on_off):
         if self.has_config():
@@ -169,11 +187,11 @@ class Device(QtCore.QObject):
     def get_config(self):
         return self._config() if self._config is not None else None
 
-    def set_config(self, config):
+    def set_config(self, cfg):
         """Sets a new config object for this device.
         Note: This device will not take ownership of the config object! If you
         want to integrate a new config object into an existing app_model tree
-        use the assign_config() method below.
+        use assign_config().
         """
         if self.config is not None:
             self.log.debug("Device.config is not None: %s, parent=%s", self.config, self.config.parent())
@@ -183,12 +201,26 @@ class Device(QtCore.QObject):
             self.config.bus_changed.disconnect(self.config_bus_changed)
             self.config.address_changed.disconnect(self.config_address_changed)
             self.config.rc_changed.disconnect(self.config_rc_changed)
-            self.config.parameter_added.disconnect(self.config_parameter_added)
-            self.config.parameter_removed.disconnect(self.config_parameter_removed)
-            self.config.parameter_value_changed.disconnect(self.config_parameter_value_changed)
-            self.config.parameter_alias_changed.disconnect(self.config_parameter_alias_changed)
 
-        self._config = weakref.ref(config) if config is not None else None
+            self.config.parameter_added[int].disconnect(self.config_parameter_added[int])
+            self.config.parameter_added[config.ParameterConfig].disconnect(
+                    self.config_parameter_added[config.ParameterConfig])
+
+            self.config.parameter_removed[int].disconnect(self.config_parameter_removed[int])
+            self.config.parameter_removed[config.ParameterConfig].disconnect(
+                    self.config_parameter_removed[config.ParameterConfig])
+
+            self.config.parameter_value_changed[int, object].disconnect(
+                    self.config_parameter_value_changed[int, object])
+            self.config.parameter_value_changed[config.ParameterConfig].disconnect(
+                    self.config_parameter_value_changed[config.ParameterConfig])
+
+            self.config.parameter_alias_changed[int, object].disconnect(
+                    self.config_parameter_alias_changed[int, object])
+            self.config.parameter_alias_changed[config.ParameterConfig].disconnect(
+                    self.config_parameter_alias_changed[config.ParameterConfig])
+
+        self._config = weakref.ref(cfg) if cfg is not None else None
 
         if self.config is not None:
             self.config.name_changed.connect(self.name_changed)
@@ -197,10 +229,24 @@ class Device(QtCore.QObject):
             self.config.bus_changed.connect(self.config_bus_changed)
             self.config.address_changed.connect(self.config_address_changed)
             self.config.rc_changed.connect(self.config_rc_changed)
-            self.config.parameter_added.connect(self.config_parameter_added)
-            self.config.parameter_removed.connect(self.config_parameter_removed)
-            self.config.parameter_value_changed.connect(self.config_parameter_value_changed)
-            self.config.parameter_alias_changed.connect(self.config_parameter_alias_changed)
+
+            self.config.parameter_added[int].connect(self.config_parameter_added[int])
+            self.config.parameter_added[config.ParameterConfig].connect(
+                    self.config_parameter_added[config.ParameterConfig])
+
+            self.config.parameter_removed[int].connect(self.config_parameter_removed[int])
+            self.config.parameter_removed[config.ParameterConfig].connect(
+                    self.config_parameter_removed[config.ParameterConfig])
+
+            self.config.parameter_value_changed[int, object].connect(
+                    self.config_parameter_value_changed[int, object])
+            self.config.parameter_value_changed[config.ParameterConfig].connect(
+                    self.config_parameter_value_changed[config.ParameterConfig])
+
+            self.config.parameter_alias_changed[int, object].connect(
+                    self.config_parameter_alias_changed[int, object])
+            self.config.parameter_alias_changed[config.ParameterConfig].connect(
+                    self.config_parameter_alias_changed[config.ParameterConfig])
 
         self.config_set.emit(self.config)
 
@@ -333,18 +379,13 @@ class Device(QtCore.QObject):
             return True
         return self.model.is_disconnected()
 
-    def is_ready(self):
-        if not self.has_model():
-            return False
-        return self.model.is_ready()
-
     def get_mrc(self):
         return self.parent()
 
     model   = pyqtProperty(object, get_model, set_model, notify=model_set)
     config  = pyqtProperty(object, get_config, set_config, notify=config_set)
     profile = pyqtProperty(object, get_profile, set_profile)
-    name    = pyqtProperty(str, get_name, set_name, notify=name_changed)
+    name    = pyqtProperty(object, get_name, set_name, notify=name_changed)
     bus     = pyqtProperty(int, get_bus)
     address = pyqtProperty(int, get_address)
     idc     = pyqtProperty(int, get_idc, notify=idc_changed)
@@ -365,8 +406,9 @@ class MRC(QtCore.QObject):
     request_sent                = pyqtSignal(object, object)          #: request_id, request
     request_canceled            = pyqtSignal(object, object)          #: request_id, request
     request_completed           = pyqtSignal(object, object, object)  #: request_id, request, response
-    name_changed                = pyqtSignal(str)
-    description_changed         = pyqtSignal(str)
+    name_changed                = pyqtSignal(object)
+    description_changed         = pyqtSignal(object)
+    bus_scanned                 = pyqtSignal(int, object)   #: bus_scanned(bus, data)
 
     def __init__(self, mrc_model=None, mrc_config=None, parent=None):
         super(MRC, self).__init__(parent)
@@ -403,6 +445,7 @@ class MRC(QtCore.QObject):
             self.model.connecting.disconnect(self.connecting)
             self.model.disconnected.disconnect(self.disconnected)
             self.model.ready.disconnect(self.ready)
+            self.model.bus_scanned.disconnect(self.bus_scanned)
             self.model.device_added.disconnect(self._on_device_model_added)
             self.model.device_removed.disconnect(self._on_device_model_removed)
             self.model.controller.write_access_changed.disconnect(self.write_access_changed)
@@ -422,6 +465,7 @@ class MRC(QtCore.QObject):
             self.model.connecting.connect(self.connecting)
             self.model.disconnected.connect(self.disconnected)
             self.model.ready.connect(self.ready)
+            self.model.bus_scanned.connect(self.bus_scanned)
             self.model.device_added.connect(self._on_device_model_added)
             self.model.device_removed.connect(self._on_device_model_removed)
             self.model.controller.write_access_changed.connect(self.write_access_changed)

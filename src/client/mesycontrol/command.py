@@ -79,7 +79,6 @@ class Command(QtCore.QObject):
         QtCore.QTimer.singleShot(0, self.start)
         self.log.debug("%s: Entering local event loop", self)
         if loop.exec_() < 0:
-            # FIXME: do I need to call self.stop() here?
             raise CommandInterrupted()
         self.log.debug("%s: Local event loop returned", self)
         return self
