@@ -102,12 +102,21 @@ class ServerProcess(QtCore.QObject):
         else:
             raise InvalidArgument("Neither mrc_serial_port nor mrc_host set.")
 
-        program = os.path.join(self.binary_path, self.binary_name)
+        program = util.which(self.binary_name)
+
+        if program is None:
+            program = os.path.join(self.binary_path, self.binary_name)
+
+        self.log.debug("Using server binary '%s'", program)
 
         self._cmd_line = "%s %s" % (program, " ".join(args))
 
         self.log.info("Starting %s", self._cmd_line)
         self.process.start(program, args, QtCore.QIODevice.ReadOnly)
+        self.process.waitForStarted()
+        self.log.info("process state=%s", self.process.state())
+        self.log.info("process error=%s", self.process.error())
+        self.log.info("process error string=%s", self.process.errorString())
 
     def stop(self, kill=False):
         if not self.is_running():
