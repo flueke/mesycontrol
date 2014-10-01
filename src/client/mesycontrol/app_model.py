@@ -14,14 +14,26 @@ import hw_model
 import util
 
 def device_factory(device_model=None, device_config=None, parent=None):
-    import application_registry
-    idc = device_model.idc if device_model is not None else device_config.idc
-    profile = application_registry.instance.get_device_profile_by_idc(idc)
-    logging.getLogger(__name__).debug("Creating Device(model=%s, config=%s, config.parent=%s)",
-            device_model, device_config, device_config.parent())
-    return Device(device_model=device_model, device_config=device_config,
-            profile=profile, parent=parent)
+    if None not in (device_model, device_config) and device_model.idc != device_config.idc:
+        raise RuntimeError("device model idc (%d) does not match device config idc (%d)" %
+                (device_model.idc, device_config.idc))
 
+    import application_registry
+
+    idc             = device_model.idc if device_model is not None else device_config.idc
+    device_class    = application_registry.instance.get_device_class(idc)
+    device_profile  = application_registry.instance.get_device_profile_by_idc(idc)
+
+    if device_profile.idc != idc:
+        raise RuntimeError("device profile idc (%d) does not match expected idc (%d)",
+                device_profile.idc, idc)
+
+    logging.getLogger(__name__+'.device_factory').debug(
+            "Creating Device instance for %s (idc=%d, class=%s, config=%s, profile=%s)",
+            device_model, idc, device_class, device_config, device_profile)
+
+    return device_class(device_model=device_model, device_config=device_config,
+            device_profile=device_profile, parent=parent)
 
 def model_required(f):
     @wraps(f)
@@ -85,8 +97,8 @@ class Device(QtCore.QObject):
     request_canceled                = pyqtSignal(object, object)          #: request_id, request
     request_completed               = pyqtSignal(object, object, object)  #: request_id, request, response
 
-    def __init__(self, device_model=None, device_config=None, profile=None,
-            parent=None):
+    def __init__(self, device_model=None, device_config=None,
+            device_profile=None, parent=None):
         super(Device, self).__init__(parent)
 
         self.log            = util.make_logging_source_adapter(__name__, self)
@@ -96,7 +108,7 @@ class Device(QtCore.QObject):
         self._profile       = None
         self.model          = device_model
         self.config         = device_config
-        self.profile        = profile
+        self.profile        = device_profile
 
     def __str__(self):
         if self.profile is not None:
@@ -305,16 +317,51 @@ class Device(QtCore.QObject):
         return self.model.controller.read_parameter(address, response_handler)
 
     @model_required
-    def get_parameter(self, address):
-        return self.model.get_parameter(address)
-
-    @model_required
     def has_parameter(self, address):
         return self.model.has_parameter(address)
 
+    # ===== get parameter =====
     @model_required
-    def set_parameter(self, address, value, response_handler=None):
+    def _get_parameter(self, profile, unit_label):
+        unit = profile.get_unit(unit_label)
+        return unit.unit_value(self.model.get_parameter(profile.address))
+
+    @model_required
+    def get_parameter(self, address, unit_label='raw'):
+        if unit_label != 'raw':
+            return self._get_parameter(
+                    self.profile.get_parameter_by_address(address),
+                    unit_label)
+
+        return self.model.get_parameter(address)
+
+    @model_required
+    def get_parameter_by_name(self, param_name, unit_label='raw'):
+        return self._get_parameter(
+                self.profile.get_parameter_by_name(param_name),
+                unit_label)
+
+    # ===== set parameter =====
+    @model_required
+    def _set_parameter(self, profile, value, unit_label, response_handler):
+        unit      = profile.get_unit(unit_label)
+        return self.model.controller.set_parameter(profile.address,
+                unit.raw_value(value), response_handler)
+
+    @model_required
+    def set_parameter(self, address, value, unit_label='raw', response_handler=None):
+        if unit_label != 'raw':
+            return self._set_parameter(
+                    self.profile.get_parameter_by_address(address),
+                    value, unit_label, response_handler)
+
         return self.model.controller.set_parameter(address, value, response_handler)
+
+    @model_required
+    def set_parameter_by_name(self, param_name, value, unit_label='raw', response_handler=None):
+        return self._set_parameter(
+                self.profile.get_parameter_by_name(param_name),
+                value, unit_label, response_handler)
 
     @config_required
     def get_config_parameter(self, address):

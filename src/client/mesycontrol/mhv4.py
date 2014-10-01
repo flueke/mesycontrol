@@ -11,51 +11,49 @@ import application_registry
 import app_model
 import util
 
-class Polarity:
+def get_device_info():
+    return (MHV4.idcs, MHV4)
+
+def get_widget_info():
+    return (MHV4.idcs, MHV4Widget)
+
+class Polarity(object):
     negative = 0
     positive = 1
 
-class MHV4_800V(app_model.Device):
+class MHV4(app_model.Device):
     num_channels  = 4
-    idc           = 27
+    idcs          = (17, 27)
 
-    actual_voltage_changed = pyqtSignal(int, float)     #: channel, value
-    target_voltage_changed = pyqtSignal(int, float)     #: channel, value
-    voltage_limit_changed  = pyqtSignal(int, float)     #: channel, value
-    actual_current_changed = pyqtSignal(int, float)     #: channel, value
-    current_limit_changed  = pyqtSignal(int, float)     #: channel, value
+    actual_voltage_changed = pyqtSignal(int, int)     #: channel, raw value
+    target_voltage_changed = pyqtSignal(int, int)     #: channel, raw value
+    voltage_limit_changed  = pyqtSignal(int, int)     #: channel, raw value
+    actual_current_changed = pyqtSignal(int, int)     #: channel, raw value
+    current_limit_changed  = pyqtSignal(int, int)     #: channel, raw value
     channel_state_changed  = pyqtSignal(int, bool)      #: channel, value
     polarity_changed       = pyqtSignal(int, Polarity)  #: channel, Polarity
 
-    def __init__(self, device_model=None, device_config=None, device_description=None, parent=None):
-        if device_model is not None and device_model.idc != MHV4_800V.idc:
-            raise RuntimeError("MHV4_800V: expected device_model.idc=%d, got %d"
-                    % (MHV4_800V.idc, device_model.idc))
-
-        if device_config is not None and device_config.idc != MHV4_800V.idc:
-            raise RuntimeError("MHV4_800V: expected device_config.idc=%d, got %d"
-                    % (MHV4_800V.idc, device_config.idc))
-
-        if device_description is not None and device_description.idc != MHV4_800V.idc:
-            raise RuntimeError("MHV4_800V: expected device_description.idc=%d, got %d"
-                    % (MHV4_800V.idc, device_description.idc))
-        elif device_description is None:
-            device_description = application_registry.instance.get_device_description_by_idc(MHV4_800V.idc)
-
-        super(MHV4_800V, self).__init__(device_model=device_model, device_config=device_config,
-                device_description=device_description, parent=parent)
+    def __init__(self, device_model=None, device_config=None, device_profile=None, parent=None):
+        super(MHV4, self).__init__(device_model=device_model, device_config=device_config,
+                device_profile=device_profile, parent=parent)
 
         self.log = util.make_logging_source_adapter(__name__, self)
 
-    def get_actual_voltage(self, channel):
-        pass
+    def get_actual_voltage(self, channel, unit_label='raw'):
+        return self.get_parameter_by_name('channel%d_voltage_read' % channel, unit_label)
 
-    def get_target_voltage(self, channel):
-        pass
+    def get_target_voltage(self, channel, unit_label='raw'):
+        return self.get_parameter_by_name('channel%d_voltage_write' % channel, unit_label)
 
-    def set_target_voltage(self, channel, voltage):
-        pass
+    def set_target_voltage(self, channel, voltage, unit_label='raw', response_handler=None):
+        return self.set_parameter_by_name('channel%d_voltage_write' % channel, voltage, unit_label, response_handler)
 
+    def set_channel_enabled(self, channel, on_off, response_handler=None):
+        return self.set_parameter_by_name('channel%d_enable_write' % channel, 1 if on_off else 0, response_handler)
+
+    def enable_all_channels(self):
+        for i in range(MHV4.num_channels):
+            self.set_channel_enabled(i+1, True)
 
     def get_voltage_limit(self, channel):
         pass
@@ -115,18 +113,3 @@ class MHV4Widget(QtGui.QWidget):
         vbox = QtGui.QVBoxLayout(self)
         vbox.setContentsMargins(4, 4, 4, 4)
         vbox.addItem(channel_layout)
-
-if __name__ == "__main__":
-    import sys
-    import hw_model
-    import app_model
-
-    qapp = QtGui.QApplication(sys.argv)
-
-    application_registry.instance = application_registry.ApplicationRegistry(__file__)
-
-    mhv4_model  = hw_model.DeviceModel(bus=0, address=0, idc=17, rc=True)
-    mhv4        = app_model.Device(device_model=mhv4_model)
-    mhv4_widget = MHV4Widget(mhv4)
-    mhv4_widget.show()
-    sys.exit(qapp.exec_())

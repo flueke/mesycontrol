@@ -5,7 +5,9 @@
 # - UIs for known devices (MHV4, MSCF16)
 # - Device descriptions used to read and write config files
 
+import argparse
 import logging
+import logging.config
 import logging.handlers
 import signal
 import sys
@@ -15,7 +17,7 @@ from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import pyqtSlot
 from PyQt4.Qt import Qt
 from mesycontrol import application_registry
-from mesycontrol import device_widget
+from mesycontrol import device_view
 from mesycontrol import config
 from mesycontrol import config_xml
 from mesycontrol import log_view
@@ -209,8 +211,9 @@ class MainWindow(QtGui.QMainWindow):
             self.log.debug("Found window for Device %s", device)
         except KeyError:
             self.log.debug("Creating window for Device %s", device)
-            widget = device_widget.factory(device)
-            widget.setParent(self)
+            #widget = device_widget.factory(device)
+            #widget.setParent(self)
+            widget  = device_view.DeviceView(device, self)
 
             subwin = self._add_subwindow(widget, str(device))
             subwin.device = device
@@ -261,18 +264,22 @@ def app_except_hook(exc_type, exc_value, exc_trace):
     sys.__excepthook__(exc_type, exc_value, exc_trace)
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='mesycontrol GUI command line arguments')
+    parser.add_argument('--logging-config', metavar='FILE')
+    opts = parser.parse_args()
 
+    if opts.logging_config is not None:
+        logging.config.fileConfig(opts.logging_config)
+    else:
+        # Logging setup
+        logging.basicConfig(level=logging.DEBUG,
+                format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
+        logging.getLogger().addHandler(
+                logging.handlers.SocketHandler('localhost', 9020))
 
-    # Logging setup
-    logging.basicConfig(level=logging.DEBUG,
-            format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
-
-    logging.getLogger().addHandler(
-            logging.handlers.SocketHandler('localhost', 9020))
-
-    #logging.getLogger("mesycontrol.tcp_client").setLevel(logging.DEBUG)
-    logging.getLogger("PyQt4.uic").setLevel(logging.INFO)
+        #logging.getLogger("mesycontrol.tcp_client").setLevel(logging.DEBUG)
+        logging.getLogger("PyQt4.uic").setLevel(logging.INFO)
 
     logging.info("Starting up...")
 
@@ -281,12 +288,12 @@ if __name__ == "__main__":
             for n in dir(signal) if n.startswith('SIG') and '_' not in n)
     signal.signal(signal.SIGINT, signal_handler)
 
-    application_registry.instance = application_registry.ApplicationRegistry(
-            sys.executable if getattr(sys, 'frozen', False) else __file__)
-
     sys.excepthook = app_except_hook
 
     app = QtGui.QApplication(sys.argv)
+
+    application_registry.instance = application_registry.ApplicationRegistry(
+            sys.executable if getattr(sys, 'frozen', False) else __file__)
 
     # Let the interpreter run every 500 ms to be able to react to signals
     # arriving from the OS.

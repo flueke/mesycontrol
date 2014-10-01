@@ -57,7 +57,7 @@ class SetParameter(MRCCommand):
 
     def _start(self):
         self.log.debug("%s started", str(self))
-        self.device.set_parameter(self.address, self.value, self._handle_set_response)
+        self.device.set_parameter(address=self.address, value=self.value, response_handler=self._handle_set_response)
 
     def _handle_set_response(self, request, response):
         self._response = response

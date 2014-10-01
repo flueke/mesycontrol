@@ -49,16 +49,19 @@ class ApplicationRegistry(QtCore.QObject):
 
     def __init__(self, main_file, parent=None):
         super(ApplicationRegistry, self).__init__(parent)
-        self.log                = util.make_logging_source_adapter(__name__, self)
-        self.main_file          = main_file
-        self.bin_dir            = os.path.abspath(os.path.dirname(main_file))
-        self.data_dir           = find_data_dir(main_file)
-        self.mrc_models         = list()
-        self.mrcs               = list()
-        self.device_profiles    = set()
-        self._object_registry   = dict()
+        self.log                    = util.make_logging_source_adapter(__name__, self)
+        self.main_file              = main_file
+        self.bin_dir                = os.path.abspath(os.path.dirname(main_file))
+        self.data_dir               = find_data_dir(main_file)
+        self.mrc_models             = list()
+        self.mrcs                   = list()
+        self.device_profiles        = set()
+        self.device_classes         = dict()
+        self.device_widget_classes  = dict()
+        self._object_registry       = dict()
 
-        self.load_system_profiles()
+        self._load_system_profiles()
+        self._load_device_classes()
 
     def shutdown(self):
         for mrc in self.mrcs:
@@ -68,19 +71,45 @@ class ApplicationRegistry(QtCore.QObject):
             mrc_model.controller.disconnect()
             self.unregister_mrc_model(mrc_model)
 
-    def load_system_profiles(self):
-        # FIXME: use globbing to get the list of files to import (and make
-        # cxfreeze distutils install those files to a location outside the zip)
+    def _load_system_profiles(self):
         for mod_name in ('device_profile_mhv4', 'device_profile_mhv4_800v', 'device_profile_mscf16'):
             try:
-                #mod = importlib.import_module(mod_name, 'mesycontrol')
                 mod = importlib.import_module("mesycontrol." + mod_name)
+                self.log.debug("Loading device profile from %s", mod.__file__)
+
                 device_profile = mod.get_device_profile()
-                self.log.debug("Loaded device profile %s", device_profile)
                 self.device_profiles.add(device_profile)
+
+                self.log.info("Loaded device profile %s", device_profile)
             except ImportError as e:
                 self.log.error("Error loading device profile from %s: %s", mod_name, str(e))
 
+    def _load_device_classes(self):
+        for mod_name in ('mhv4',):
+            try:
+                mod = importlib.import_module('mesycontrol.' + mod_name)
+                self.log.debug("Loading device class from %s", mod.__file__)
+
+                idcs, class_ = mod.get_device_info()
+
+                for idc in idcs:
+                    self.device_classes[idc] = class_
+
+                idcs, class_ = mod.get_widget_info()
+
+                for idc in idcs:
+                    self.device_widget_classes[idc] = class_
+
+                self.log.info("Loaded device class '%s' for idcs=%s from '%s'",
+                        class_.__name__, idcs, mod.__file__)
+            except ImportError as e:
+                self.log.error("Error loading device class from %s: %s", mod_name, str(e))
+
+    def get_device_class(self, idc):
+        return self.device_classes.get(idc, app_model.Device)
+
+    def get_device_widget_class(self, idc):
+        return self.device_widget_classes.get(idc, None)
 
     def get_device_profile_by_idc(self, idc):
         try:

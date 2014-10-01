@@ -4,15 +4,14 @@ from PyQt4.QtCore import pyqtProperty
 from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import QModelIndex
 from PyQt4.QtCore import Qt
-from functools import partial
 import weakref
 
 import app_model
 import mrc_command
 import util
 
-column_names  = ('address', 'name', 'value', 'set_value')
-column_titles = ('Address', 'Name', 'Value', 'Set Value') 
+column_names  = ('address', 'name', 'value', 'set_value', 'unit_value')
+column_titles = ('Address', 'Name', 'Value', 'Set Value', 'Unit Value')
 
 def column_index(col_name):
     try:
@@ -55,7 +54,7 @@ class ParameterNode(util.TreeNode):
 
     def get_value(self):
         if not self.ref.has_parameter(self.address):
-            if self._read_request_id is None:
+            if self._read_request_id is None and self.ref.is_connected():
                 self._read_request_id = self.ref.read_parameter(self.address, self._handle_read_response)
             return None
         return self.ref.get_parameter(self.address)
@@ -105,6 +104,14 @@ class ParameterNode(util.TreeNode):
                     return self.get_value()
                 elif role == Qt.EditRole:
                     return int()
+            elif param_profile is not None and len(param_profile.units) > 1 and column_name == 'unit_value':
+                unit = param_profile.units[1] # skip the 'raw' unit
+                raw_value = self.get_value()
+                if raw_value is None:
+                    return None
+                unit_value = unit.unit_value(raw_value)
+                return QtCore.QString.fromUtf8("%f %s" % (unit_value, unit.label))
+
         return None
             
 
@@ -153,7 +160,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
 
         for i in range(256):
             parameter_node = ParameterNode(device, i, self.root)
-            parameter_node.data_changed.connect(partial(self._on_parameter_node_changed, address=i))
+            parameter_node.data_changed.connect(self._on_parameter_node_changed)
             self.root.children.append(parameter_node)
 
         self._device = weakref.ref(device)
@@ -170,7 +177,8 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
 
     device = pyqtProperty(app_model.Device, get_device, set_device)
 
-    def _on_parameter_node_changed(self, address):
+    def _on_parameter_node_changed(self):
+        address = self.sender().address
         idx1 = self.createIndex(address, 0, self.root)
         idx2 = self.createIndex(address, self.columnCount(), self.root)
         self.dataChanged.emit(idx1, idx2)
