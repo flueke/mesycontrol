@@ -24,6 +24,11 @@ class ConfigLoader(SequentialCommandGroup):
 
         self.add(Callable(assign_config))
 
+        def disable_polling():
+            self.device.mrc.polling = False
+
+        self.add(Callable(disable_polling))
+
         dev_profile = self.device.profile
 
         # Set critical params to safe values first
@@ -51,6 +56,11 @@ class ConfigLoader(SequentialCommandGroup):
                 self.device.rc = self.config.rc
 
         self.add(Callable(set_rc))
+
+        def enable_polling():
+            self.device.mrc.polling = True
+
+        self.add(Callable(enable_polling))
 
 class ConfigVerifier(SequentialCommandGroup):
     def __init__(self, device_model, device_config, parent=None):

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from PyQt4 import QtCore, QtGui, uic
+from PyQt4 import QtCore, QtGui
 import logging
 import signal
 import sys
@@ -38,7 +38,7 @@ def test_app_model_using_local_setup():
 
     con                             = mrc_connection.factory(serial_port='/dev/ttyUSB0', baud_rate=0)
     mrc_model                       = hw_model.MRCModel()
-    mrc_model.controller            = mrc_controller.MesycontrolMRCController(con, mrc_model)
+    mrc_model.controller            = mrc_controller.MRCController(con, mrc_model)
     mrc_config                      = config.MRCConfig()
     mrc_config.connection_config    = config.make_connection_config(con)
     mrc                             = app_model.MRC(mrc_model=mrc_model, mrc_config=mrc_config)

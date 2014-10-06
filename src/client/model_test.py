@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     connection       = mrc_connection.factory(serial_port='/dev/ttyUSB0', baud_rate=115200)
     model            = hw_model.MRCModel()
-    model.controller = mrc_controller.MesycontrolMRCController(connection, model)
+    model.controller = mrc_controller.MRCController(connection, model)
 
     def on_qapp_quit():
         application_model.instance.shutdown()

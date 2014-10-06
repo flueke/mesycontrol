@@ -11,89 +11,22 @@ import hw_model
 import protocol
 import util
 
-class AbstractMRCController(QtCore.QObject):
+class MRCController(QtCore.QObject):
     write_access_changed            = pyqtSignal(bool)
     silence_changed                 = pyqtSignal(bool)
     request_queue_size_changed      = pyqtSignal(int)
+    request_queue_empty             = pyqtSignal()
     request_sent                    = pyqtSignal(object, object)          #: request_id, request
     request_canceled                = pyqtSignal(object, object)          #: request_id, request
     request_completed               = pyqtSignal(object, object, object)  #: request_id, request, response
 
-    def __init__(self, mrc_model, parent=None):
-        super(AbstractMRCController, self).__init__(parent)
-        self.log    = util.make_logging_source_adapter(__name__, self)
-        self._model = None
-        self.model  = mrc_model
-
-    def get_model(self):
-        return self._model() if self._model is not None else None
-
-    def set_model(self, mrc_model):
-        self._model = weakref.ref(mrc_model) if mrc_model is not None else None
-
-    model = pyqtProperty(hw_model.MRCModel, get_model, set_model)
-
-    # connection commands
-    def connect(self):
-        raise NotImplementedError()
-
-    def disconnect(self):
-        raise NotImplementedError()
-
-    def is_connected(self):
-        raise NotImplementedError()
-
-    def get_connection_info(self):
-        raise NotImplementedError()
-
-    def set_write_access(self, want_access, force=False, response_handler=None):
-        raise NotImplementedError()
-
-    def has_write_access(self):
-        raise NotImplementedError()
-
-    def set_silenced(self, on_off, response_handler=None):
-        raise NotImplementedError()
-
-    def is_silenced(self):
-        raise NotImplementedError()
-
-    # MRC-1 commands
-    def scanbus(self, bus, response_handler=None):
-        raise NotImplementedError()
-
-    def set_rc(self, bus, device, on_off, response_handler=None):
-        raise NotImplementedError()
-
-    def reset(self, bus, device, response_handler=None):
-        raise NotImplementedError()
-
-    def copy_mem(self, bus, device, response_handler=None):
-        raise NotImplementedError()
-
-    def read_parameter(self, bus, device, address, response_handler=None):
-        raise NotImplementedError()
-
-    def set_parameter(self, bus, device, address, value, response_handler=None):
-        raise NotImplementedError()
-
-    # queue, status, history, errors
-    def make_device_controller(self, device=None):
-        return DeviceController(mrc_controller=self, device_model=device)
-
-    def get_request_queue_size(self):
-        raise NotImplementedError()
-
-    def cancel_request(self, request_id):
-        raise NotImplementedError()
-
-    def cancel_all_requests(self):
-        raise NotImplementedError()
-
-class MesycontrolMRCController(AbstractMRCController):
     def __init__(self, mrc_connection, mrc_model, parent=None):
+        super(MRCController, self).__init__(parent)
+        self.log        = util.make_logging_source_adapter(__name__, self)
+        self._model     = None
+        self._poll_flag = True
         self.connection = mrc_connection
-        super(MesycontrolMRCController, self).__init__(mrc_model, parent)
+        self.model      = mrc_model
 
         self.connection.connecting.connect(self._on_connecting)
         self.connection.connected.connect(self._on_connected)
@@ -106,7 +39,7 @@ class MesycontrolMRCController(AbstractMRCController):
         self.connection.request_sent.connect(self.request_sent)
         self.connection.request_canceled.connect(self.request_canceled)
         self.connection.request_completed.connect(self.request_completed)
-        self.connection.write_queue_size_changed.connect(self.request_queue_size_changed)
+        self.connection.write_queue_size_changed.connect(self._on_request_queue_size_changed)
 
     def get_model(self):
         return self._model() if self._model is not None else None
@@ -120,8 +53,6 @@ class MesycontrolMRCController(AbstractMRCController):
             self.model.set_connecting()
         else:
             self.model.set_disconnected()
-
-    model = pyqtProperty(hw_model.MRCModel, get_model, set_model)
 
     # connection related methods
     def connect(self):
@@ -231,6 +162,11 @@ class MesycontrolMRCController(AbstractMRCController):
                 self.model.reset_mem(request.bus, request.dev)
                 self.model.reset_mirror(request.bus, request.dev)
 
+    def _on_request_queue_size_changed(self, size):
+        self.request_queue_size_changed.emit(size)
+        if size == 0:
+            self.request_queue_empty.emit()
+
     def _queue_request(self, message, response_handler):
         return self.connection.queue_request(message, response_handler)
 
@@ -243,6 +179,18 @@ class MesycontrolMRCController(AbstractMRCController):
     def cancel_all_requests(self):
         self.connection.cancel_all_requests()
 
+    def make_device_controller(self, device=None):
+        return DeviceController(mrc_controller=self, device_model=device)
+
+    def should_poll(self):
+        return self._poll_flag
+
+    def set_polling_enabled(self, on_off):
+        self._poll_flag = bool(on_off)
+
+    model   = pyqtProperty(hw_model.MRCModel, get_model, set_model)
+    polling = pyqtProperty(bool, should_poll, set_polling_enabled)
+
 class DeviceController(QtCore.QObject):
     write_access_changed       = pyqtSignal(bool)
     silence_changed            = pyqtSignal(bool)
@@ -254,10 +202,15 @@ class DeviceController(QtCore.QObject):
 
     def __init__(self, mrc_controller, device_model=None, parent=None):
         super(DeviceController, self).__init__(parent)
-        self.log             = util.make_logging_source_adapter(__name__, self)
-        self._mrc_controller = weakref.ref(mrc_controller)
-        self.model           = device_model
-        self._request_ids    = set()
+        self.log                    = util.make_logging_source_adapter(__name__, self)
+        self._mrc_controller        = weakref.ref(mrc_controller)
+        self.model                  = device_model
+        self._request_ids           = set()
+        self.static_subscriptions   = weakref.WeakKeyDictionary()
+        self.volatile_subscriptions = weakref.WeakKeyDictionary()
+        self._poll_flag             = True
+        timer = QtCore.QTimer(self, timeout=self._maybe_fetch_subscriptions)
+        timer.start(500)
 
         mrc_controller.write_access_changed.connect(self.write_access_changed)
         mrc_controller.silence_changed.connect(self.silence_changed)
@@ -303,8 +256,8 @@ class DeviceController(QtCore.QObject):
     def get_mrc_controller(self):
         return self._mrc_controller()
 
-    mrc_controller = pyqtProperty(AbstractMRCController, get_mrc_controller)
-    model          = pyqtProperty(hw_model.DeviceModel, get_model, set_model)
+    def is_connected(self):
+        return self.mrc_controller.is_connected()
 
     def _add_request_id(self, request_id):
         self._request_ids.add(request_id)
@@ -331,6 +284,40 @@ class DeviceController(QtCore.QObject):
             self.log.debug("removed canceled request %d from local queue. new queue size=%d", 
                     request_id, self.get_request_queue_size())
 
+    def _maybe_fetch_subscriptions(self):
+        if not self.is_connected():
+            return
+
+        if self.mrc_controller.get_request_queue_size() > 0:
+            return
+
+        try:
+            # Read unknown static parameters
+            statics   = reduce(lambda x, y: x.union(y), self.static_subscriptions.values())
+            known     = self.model.memory.viewkeys()
+            statics.difference_update(known)
+
+            self.log.info("reading static parameters: %s", statics)
+
+            for addr in statics:
+                self.read_parameter(addr)
+        except TypeError: # reduce with empty sequence
+            pass
+
+        if not self.should_poll():
+            return
+
+        try:
+            # Poll volatile parameters
+            volatiles = reduce(lambda x, y: x.union(y), self.volatile_subscriptions.values())
+
+            self.log.info("reading volatile parameters: %s", volatiles)
+
+            for addr in volatiles:
+                self.read_parameter(addr)
+        except TypeError: # reduce with empty sequence
+            pass
+
     def get_request_queue_size(self):
         return len(self._request_ids)
 
@@ -351,3 +338,35 @@ class DeviceController(QtCore.QObject):
 
     def is_silenced(self):
         return self.mrc_controller.is_silenced()
+
+    def add_static_parameter_subscription(self, subscriber, address):
+        if subscriber not in self.static_subscriptions:
+            self.static_subscriptions[subscriber] = set()
+
+        self.static_subscriptions[subscriber].add(address)
+
+    def add_volatile_parameter_subscription(self, subscriber, address):
+        if subscriber not in self.volatile_subscriptions:
+            self.volatile_subscriptions[subscriber] = set()
+
+        self.volatile_subscriptions[subscriber].add(address)
+
+    def del_static_parameter_subscription(self, subscriber, address):
+        self.static_subscriptions[subscriber].remove(address)
+
+    def del_volatile_parameter_subscription(self, subscriber, address):
+        self.volatile_subscriptions[subscriber].remove(address)
+
+    def should_poll(self):
+        return self.mrc_controller.should_poll() and self._poll_flag
+
+    def set_polling_enabled(self, on_off):
+        self._poll_flag = bool(on_off)
+
+        # Manually initiate polling if needed
+        if self.should_poll() and self.mrc_controller.get_request_queue_size() == 0:
+            self._on_request_queue_empty()
+
+    mrc_controller  = pyqtProperty(MRCController, get_mrc_controller)
+    model           = pyqtProperty(hw_model.DeviceModel, get_model, set_model)
+    polling         = pyqtProperty(bool, should_poll, set_polling_enabled)

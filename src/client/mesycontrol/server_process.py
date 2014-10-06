@@ -113,10 +113,7 @@ class ServerProcess(QtCore.QObject):
 
         self.log.info("Starting %s", self._cmd_line)
         self.process.start(program, args, QtCore.QIODevice.ReadOnly)
-        self.process.waitForStarted()
-        self.log.info("process state=%s", self.process.state())
-        self.log.info("process error=%s", self.process.error())
-        self.log.info("process error string=%s", self.process.errorString())
+        self.process.waitForStarted() # FIXME: remove this blocking call
 
     def stop(self, kill=False):
         if not self.is_running():

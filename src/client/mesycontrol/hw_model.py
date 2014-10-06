@@ -146,7 +146,14 @@ class MRCModel(QtCore.QObject):
             return self.controller.get_connection_info()
         return None
 
-    controller = pyqtProperty(object, get_controller, set_controller)
+    def should_poll(self):
+        return self.controller.should_poll()
+
+    def set_polling_enabled(self, on_off):
+        self.controller.set_polling_enabled(on_off)
+
+    controller  = pyqtProperty(object, get_controller, set_controller)
+    polling     = pyqtProperty(bool,   should_poll, set_polling_enabled)
 
 class DeviceModel(QtCore.QObject):
     connecting      = pyqtSignal()
@@ -310,6 +317,12 @@ class DeviceModel(QtCore.QObject):
         self.reset_mirror()
         self.disconnected.emit(None)
 
+    def should_poll(self):
+        return self.controller.should_poll()
+
+    def set_polling_enabled(self, on_off):
+        self.controller.set_polling_enabled(on_off)
+
     bus          = pyqtProperty(int,    get_bus)
     address      = pyqtProperty(int,    get_address)
     rc           = pyqtProperty(bool,   get_rc, set_rc, notify=rc_changed)
@@ -318,3 +331,4 @@ class DeviceModel(QtCore.QObject):
     mirror       = pyqtProperty(dict,   get_mirror)
     controller   = pyqtProperty(object, get_controller, set_controller)
     mrc          = pyqtProperty(object, get_mrc, set_mrc)
+    polling      = pyqtProperty(bool,   should_poll, set_polling_enabled)

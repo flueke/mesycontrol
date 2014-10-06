@@ -11,7 +11,7 @@ import mrc_command
 import util
 
 column_names  = ('address', 'name', 'value', 'set_value', 'unit_value')
-column_titles = ('Address', 'Name', 'Value', 'Set Value', 'Unit Value')
+column_titles = ('Address', 'Name', 'Raw Value', 'Set Raw Value', 'Unit Value')
 
 def column_index(col_name):
     try:

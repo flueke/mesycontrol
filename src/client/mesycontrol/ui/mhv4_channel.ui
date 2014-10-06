@@ -70,7 +70,7 @@
        <item row="1" column="2">
         <widget class="QLabel" name="lab_current_1">
          <property name="text">
-          <string>uA</string>
+          <string>µA</string>
          </property>
         </widget>
        </item>
@@ -322,7 +322,7 @@ qlineargradient(spread:pad, x1:0.648, y1:0.617455, x2:0.915, y2:0.950545, stop:0
            <string>poti</string>
           </property>
           <property name="suffix">
-           <string> uA</string>
+           <string> µA</string>
           </property>
           <property name="decimals">
            <number>1</number>
@@ -357,7 +357,7 @@ qlineargradient(spread:pad, x1:0.648, y1:0.617455, x2:0.915, y2:0.950545, stop:0
            <string>poti</string>
           </property>
           <property name="suffix">
-           <string> uA</string>
+           <string> µA</string>
           </property>
           <property name="decimals">
            <number>1</number>
@@ -386,7 +386,7 @@ qlineargradient(spread:pad, x1:0.648, y1:0.617455, x2:0.915, y2:0.950545, stop:0
           </item>
           <item>
            <property name="text">
-            <string>postive</string>
+            <string>positive</string>
            </property>
           </item>
          </widget>

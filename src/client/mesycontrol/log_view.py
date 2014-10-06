@@ -2,19 +2,24 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from qt import *
-import util
+from qt import QtCore
+from qt import QtGui
 import logging
 import sys
 import traceback
 
+import util
+
 class LogView(QtGui.QTextEdit):
-    def __init__(self, parent=None):
+    def __init__(self, max_lines=10000, parent=None):
         super(LogView, self).__init__(parent)
         self.setReadOnly(True)
         self.setLineWrapMode(QtGui.QTextEdit.NoWrap)
+        self.document().setMaximumBlockCount(max_lines)
+
         self.formatter = logging.Formatter(
                 '[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
+
         self._mutex = QtCore.QMutex()
         self._original_text_color = self.textColor()
 
@@ -37,7 +42,6 @@ class LogView(QtGui.QTextEdit):
         menu = self.createStandardContextMenu(pos)
         menu.addAction("Clear").triggered.connect(self.clear)
         menu.exec_(pos)
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,

@@ -47,6 +47,8 @@ class ApplicationRegistry(QtCore.QObject):
     device_added      = pyqtSignal(object) #: app_model.Device
     device_removed    = pyqtSignal(object) #: app_model.Device
 
+    active_setup_changed = pyqtSignal(object, object) #: old setup, new setup
+
     def __init__(self, main_file, parent=None):
         super(ApplicationRegistry, self).__init__(parent)
         self.log                    = util.make_logging_source_adapter(__name__, self)
@@ -187,7 +189,12 @@ class ApplicationRegistry(QtCore.QObject):
         return self._object_registry.get(key, None)
 
     def register(self, key, obj):
+        old_object = self._object_registry.get(key, None)
+
         self._object_registry[key] = obj
+
+        if key == 'active_setup':
+            self.active_setup_changed.emit(old_object, obj)
 
     def unregister(self, key):
         del self._object_registry[key]
@@ -205,7 +212,7 @@ class ApplicationRegistry(QtCore.QObject):
             mrc_config.connection_config = config.make_connection_config(connection)
 
         model            = hw_model.MRCModel()
-        model.controller = mrc_controller.MesycontrolMRCController(connection, model)
+        model.controller = mrc_controller.MRCController(connection, model)
         self.register_mrc_model(model)
 
         mrc = app_model.MRC(mrc_model=model, mrc_config=mrc_config)

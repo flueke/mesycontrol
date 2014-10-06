@@ -11,7 +11,10 @@ class InvalidArgument(RuntimeError):
     pass
 
 def parse_file(filename):
-    return parse_etree(ElementTree.parse(filename))
+    ret = parse_etree(ElementTree.parse(filename))
+    ret.filename = filename
+    ret.modified = False
+    return ret
 
 def parse_string(xml_str):
     return parse_etree(ElementTree.ElementTree(ElementTree.fromstring(xml_str)))
@@ -38,6 +41,8 @@ def parse_setup(element):
 
     for mrc_node in element.findall('mrc_config'):
         ret.add_mrc_config(parse_mrc_config(mrc_node))
+
+    ret.modified = False
 
     return ret
 

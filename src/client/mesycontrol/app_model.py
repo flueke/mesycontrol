@@ -57,8 +57,8 @@ class Device(QtCore.QObject):
     profile_set                     = pyqtSignal(object)    #: a new profile object has been set(device_profile.DeviceProfile)
 
     # hw model related:
-    idc_changed                     = pyqtSignal(int)           #: the hardware idc changed
-    rc_changed                      = pyqtSignal(bool)          #: hardware RC flag changed
+    idc_changed                     = pyqtSignal(int)       #: the hardware idc changed
+    rc_changed                      = pyqtSignal(bool)      #: hardware RC flag changed
     connecting                      = pyqtSignal()
     connected                       = pyqtSignal()
     disconnected                    = pyqtSignal()
@@ -84,10 +84,10 @@ class Device(QtCore.QObject):
     config_bus_changed              = pyqtSignal(int)
     config_address_changed          = pyqtSignal(int)
     config_rc_changed               = pyqtSignal(bool)
-    config_parameter_added          = pyqtSignal([int], [config.ParameterConfig]) #: address, ParameterConfig
-    config_parameter_removed        = pyqtSignal([int], [config.ParameterConfig]) #: address, ParameterConfig
-    config_parameter_value_changed  = pyqtSignal([int, object], [config.ParameterConfig])  #: address, value
-    config_parameter_alias_changed  = pyqtSignal([int, object], [config.ParameterConfig])  #: address, alias
+    config_parameter_added          = pyqtSignal([int], [config.ParameterConfig])           #: address, ParameterConfig
+    config_parameter_removed        = pyqtSignal([int], [config.ParameterConfig])           #: address, ParameterConfig
+    config_parameter_value_changed  = pyqtSignal([int, object], [config.ParameterConfig])   #: address, value
+    config_parameter_alias_changed  = pyqtSignal([int, object], [config.ParameterConfig])   #: address, alias
 
     # controller related
     write_access_changed            = pyqtSignal(bool)
@@ -429,6 +429,38 @@ class Device(QtCore.QObject):
     def get_mrc(self):
         return self.parent()
 
+    def add_default_parameter_subscription(self, subscriber):
+        for addr in self.profile.get_static_addresses():
+            self.add_static_parameter_subscription(subscriber, addr)
+
+        for addr in self.profile.get_volatile_addresses():
+            self.add_volatile_parameter_subscription(subscriber, addr)
+
+    def del_default_parameter_subscription(self, subscriber):
+        for addr in self.profile.get_static_addresses():
+            self.del_static_parameter_subscription(subscriber, addr)
+
+        for addr in self.profile.get_volatile_addresses():
+            self.del_volatile_parameter_subscription(subscriber, addr)
+
+    def add_static_parameter_subscription(self, subscriber, address):
+        self.model.controller.add_static_parameter_subscription(subscriber, address)
+
+    def add_volatile_parameter_subscription(self, subscriber, address):
+        self.model.controller.add_volatile_parameter_subscription(subscriber, address)
+
+    def del_static_parameter_subscription(self, subscriber, address):
+        self.model.controller.del_static_parameter_subscription(subscriber, address)
+
+    def del_volatile_parameter_subscription(self, subscriber, address):
+        self.model.controller.del_volatile_parameter_subscription(subscriber, address)
+
+    def should_poll(self):
+        return self.model.should_poll()
+
+    def set_polling_enabled(self, on_off):
+        self.model.set_polling_enabled(on_off)
+
     model   = pyqtProperty(object, get_model, set_model, notify=model_set)
     config  = pyqtProperty(object, get_config, set_config, notify=config_set)
     profile = pyqtProperty(object, get_profile, set_profile)
@@ -438,6 +470,7 @@ class Device(QtCore.QObject):
     idc     = pyqtProperty(int, get_idc, notify=idc_changed)
     rc      = pyqtProperty(bool, get_rc, set_rc, notify=rc_changed)
     mrc     = pyqtProperty(object, get_mrc)
+    polling = pyqtProperty(bool,   should_poll, set_polling_enabled)
 
 
 class MRC(QtCore.QObject):
@@ -525,9 +558,11 @@ class MRC(QtCore.QObject):
     def get_config(self):
         return self._config() if self._config is not None else None
 
-    def set_config(self, config):
+    def set_config(self, cfg):
         """Set a new MRCConfig object. This also updates the configs of any
         Device objects connected to this MRC."""
+
+        self.log.debug("%s: set_config(config=%s)", self, cfg)
 
         if self.config is not None:
             self.config.device_config_added.disconnect(self._on_device_config_added)
@@ -535,7 +570,7 @@ class MRC(QtCore.QObject):
             self.config.name_changed.disconnect(self.name_changed)
             self.config.description_changed.disconnect(self.description_changed)
 
-        self._config = weakref.ref(config) if config is not None else None
+        self._config = weakref.ref(cfg) if cfg is not None else None
 
         if self.config is not None:
             self.config.device_config_added.connect(self._on_device_config_added)
@@ -550,17 +585,25 @@ class MRC(QtCore.QObject):
                 except KeyError:
                     device = None
                 try:
-                    device_config = (config.get_device_config(bus, addr)
-                            if config is not None else None)
+                    device_config = (cfg.get_device_config(bus, addr)
+                            if cfg is not None else None)
                 except KeyError:
                     device_config = None
+
+                self.log.debug("%s: set_config(bus=%d, addr=%d, device=%s, device_config=%s",
+                        self, bus, addr, device, device_config)
 
                 if device_config is not None:
                     self._on_device_config_added(device_config)
                 elif device is not None:
-                    device.config = None
                     if device.model is None:
                         self._remove_device(device)
+                    else:
+                        device_config           = config.DeviceConfig()
+                        device_config.idc       = device.model.idc
+                        device_config.bus       = device.model.bus
+                        device_config.address   = device.model.address
+                        cfg.add_device_config(device_config)
 
     def get_devices(self, bus=None):
         if bus == None:
@@ -707,8 +750,15 @@ class MRC(QtCore.QObject):
         if self.is_named():
             return "%s MRC(%s)" % (self.name, self.model.get_connection_info())
         return "MRC(%s)" % self.model.get_connection_info()
+
+    def should_poll(self):
+        return self.model.should_poll()
+
+    def set_polling_enabled(self, on_off):
+        self.model.set_polling_enabled(on_off)
         
     model       = pyqtProperty(hw_model.MRCModel, get_model, set_model)
     config      = pyqtProperty(config.MRCConfig, get_config, set_config)
     devices     = pyqtProperty(list, get_devices)
     name        = pyqtProperty(str, get_name, set_name, notify=name_changed)
+    polling     = pyqtProperty(bool,   should_poll, set_polling_enabled)

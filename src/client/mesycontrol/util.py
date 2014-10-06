@@ -4,6 +4,7 @@
 from PyQt4 import QtCore
 from PyQt4.QtCore import QObject, QTimer, pyqtProperty, pyqtSignal
 from PyQt4.QtCore import Qt
+import contextlib
 import gc
 import logging
 import os
@@ -379,7 +380,7 @@ def wait_for_signal(signal, expected_args=None, timeout_ms=0, emitting_callable=
 
         return True
 
-    loop  = QtCore.QEventLoop()
+    loop = QtCore.QEventLoop()
 
     def the_slot(*args):
         if expected_args is None or do_args_match(expected_args, args):
@@ -416,3 +417,10 @@ def wait_for_signal(signal, expected_args=None, timeout_ms=0, emitting_callable=
     signal.disconnect(the_slot)
 
     return exitcode == 0
+
+@contextlib.contextmanager
+def block_signals(o):
+    was_blocked = o.signalsBlocked()
+    o.blockSignals(True)
+    yield
+    o.blockSignals(was_blocked)

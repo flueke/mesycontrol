@@ -16,8 +16,8 @@ import config_xml
 import mrc_command
 import util
 
-column_names  = ('name', 'rc', 'idc', 'queue_size', 'silent_mode', 'write_access')
-column_titles = ('Name', 'RC', 'IDC', 'Queue Size', 'Silent Mode', 'Write Access')
+column_names  = ('name', 'rc', 'idc', 'queue_size') # 'silent_mode', 'write_access')
+column_titles = ('Name', 'RC', 'IDC', 'Queue Size') # 'Silent Mode', 'Write Access')
 
 def column_index(col_name):
     try:
@@ -500,9 +500,7 @@ class SetupTreeView(QtGui.QTreeView):
         model.sig_apply_config.connect(self._slt_apply_device_config)
 
     def _slt_rows_inserted(self, parent_idx, start, end):
-        while parent_idx.isValid():
-            self.expand(parent_idx)
-            parent_idx = parent_idx.parent()
+        self.expandAll()
 
         for i in range(self.model().columnCount(parent_idx)):
             self.resizeColumnToContents(i)

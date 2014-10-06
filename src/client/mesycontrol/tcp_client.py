@@ -86,6 +86,8 @@ class TCPClient(QtCore.QObject):
     stats = pyqtProperty(object, get_stats)
 
     def connect(self, host, port):
+        if self.is_connected() or self.is_connecting():
+            return
         self.disconnect()
         self._reset_state()
         self._host = str(host)

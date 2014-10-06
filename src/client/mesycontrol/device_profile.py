@@ -2,12 +2,19 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
+from qt import QtCore
+import functools
+
 class DuplicateParameter(RuntimeError):
     pass
 
 class Unit(object):
-    def __init__(self, unit_label, factor=1.0, offset=0.0):
-        self.label  = str(unit_label)
+    def __init__(self, label, factor=1.0, offset=0.0, name=None):
+        if label is None and name is None:
+            raise RuntimeError("Neither `label' nor `name' given.")
+
+        self.label  = str(label) if label is not None else None
+        self.name   = str(name) if name is not None else self.label
         self.factor = float(factor) #: Factor used for value<->unit conversion.
         self.offset = float(offset) #: Offset used for value<->unit conversion.
 
@@ -37,12 +44,14 @@ class Unit(object):
 
     @staticmethod
     def fromDict(d):
-        ret = Unit(d['label'])
+        label = d.get('label', None)
+        name  = d.get('name', None)
+        ret   = Unit(name=name, label=label)
         if 'factor' in d: ret.factor = d['factor']
         if 'offset' in d: ret.offset = d['offset']
         return ret
         
-raw_unit = Unit('raw', 1.0, 0.0)
+raw_unit = Unit(label=None, name='raw', factor=1.0, offset=0.0)
 
 class Range(object):
     def __init__(self, min_value, max_value):
@@ -61,10 +70,14 @@ class Range(object):
 
         return value
 
+@functools.total_ordering
 class ParameterProfile(object):
     def __init__(self, address):
         self.address        = int(address)      #: Numeric address of the parameter.
         self._name          = None              #: Human readable name.
+        self.index          = None              #: Index number of this parameter if it is part of a sequence
+                                                #: of parameters. E.g.: for MHV4 channels 1 through 4 index numbers
+                                                #: would be 0 through 3.
         self.poll           = False             #: True if this parameter should be polled repeatedly.
         self.read_only      = False             #: True if this parameter is read only. Its
                                                 #  value will not be stored in the configuration.
@@ -97,22 +110,28 @@ class ParameterProfile(object):
     def set_name(self, name):
         self._name = str(name) if name is not None else None
 
-    def get_unit(self, label):
-        return filter(lambda u: u.label == label, self.units)[0]
+    def get_unit(self, label_or_name):
+        return filter(lambda u: u.label == label_or_name or u.name == label_or_name, self.units)[0]
 
     def __eq__(self, o):
-        return (self.address == o.address
-                and self.name == o.name
-                and self.poll == o.poll
-                and self.read_only == o.read_only
-                and self.critical == o.critical
-                and self.safe_value == o.safe_value
-                and self.do_not_store == o.do_not_store
-                and self.value_range == o.value_range
-                and self.unit == o.unit)
+        return self.address == o.address
 
-    def __ne__(self, o):
-        return not (self == o)
+    def __lt__(self, o):
+        return self.address < o.address
+
+    #def __eq__(self, o):
+    #    return (self.address == o.address
+    #            and self.name == o.name
+    #            and self.poll == o.poll
+    #            and self.read_only == o.read_only
+    #            and self.critical == o.critical
+    #            and self.safe_value == o.safe_value
+    #            and self.do_not_store == o.do_not_store
+    #            and self.value_range == o.value_range
+    #            and self.unit == o.unit)
+
+    #def __ne__(self, o):
+    #    return not (self == o)
 
     def __str__(self):
         if self.is_named():
@@ -125,6 +144,7 @@ class ParameterProfile(object):
     def fromDict(d):
         ret = ParameterProfile(d['address'])
         if 'name' in d: ret.name = d['name']
+        if 'index' in d: ret.index = int(d['index'])
         if 'poll' in d: ret.poll = bool(d['poll'])
         if 'read_only' in d: ret.read_only = bool(d['read_only'])
         if 'critical' in d: ret.critical = bool(d['critical'])
@@ -142,54 +162,48 @@ class DeviceProfile(object):
     def __init__(self, idc):
         self.idc        = int(idc)  #: Device Identifier Code
         self.name       = None      #: Device name (e.g. MHV4). Should be unique.
-        self.parameters = dict()    #: Maps ParameterProfile.address to ParameterProfile
+        self.parameters             = list()
+        self.address_parameter_map  = dict()
+        self.name_parameter_map     = dict()
 
     def __str__(self):
         return "DeviceProfile(name=%s, idc=%d)" % (self.name, self.idc)
 
-    def __eq__(self, o):
-        if o is None:
-            return False
-
-        if self.idc != o.idc or self.name != o.name:
-            return False
-
-        if len(self.parameters) != len(o.parameters):
-            return False
-
-        for address, param in self.parameters.iteritems():
-            if param != o.parameters.get(address, None):
-                return False
-
-        return True
-
-    def __ne__(self, o):
-        return not (self == o)
-
     def add_parameter(self, param):
-        if param.address in self.parameters:
+        if param.address in self.address_parameter_map:
             raise DuplicateParameter("Address %d already present in DeviceProfile %s" %
                     (param.address, self))
 
-        self.parameters[param.address] = param
+        self.parameters.append(param)
+        self.address_parameter_map[param.address] = param
+        self.name_parameter_map[param.name] = param
 
     def get_parameter_by_address(self, address):
-        return self.parameters.get(address, None)
+        return self.address_parameter_map.get(address, None)
 
     def get_parameter_by_name(self, name):
-        try:
-            return filter(lambda p: p.name == name, self.parameters.values())[0]
-        except IndexError:
-            return None
+        return self.name_parameter_map.get(name, None)
 
-    def get_parameters(self):
-        return self.parameters.values()
+    def __getitem__(self, key):
+        if isinstance(key, (str, unicode, QtCore.QString)):
+            return self.get_parameter_by_name(str(key))
+        try:
+            ikey = int(key)
+            return self.get_parameter_by_address(ikey)
+        except ValueError:
+            raise TypeError("ParameterProfile indexes must be strings or integers, not %s", type(key).__name__)
 
     def get_critical_parameters(self):
-        return filter(lambda p: p.critical, self.parameters.values())
+        return filter(lambda p: p.critical, self.parameters)
 
     def get_non_critical_parameters(self):
-        return filter(lambda p: not p.critical, self.parameters.values())
+        return filter(lambda p: not p.critical, self.parameters)
+
+    def get_static_addresses(self):
+        return map(lambda p: p.address, filter(lambda p: not p.poll, self.parameters))
+
+    def get_volatile_addresses(self):
+        return map(lambda p: p.address, filter(lambda p: p.poll, self.parameters))
 
     @staticmethod
     def fromDict(d):
