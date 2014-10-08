@@ -9,15 +9,17 @@ from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import QModelIndex
 from PyQt4.QtCore import Qt
 import weakref
+import os
 
+import application_registry
 import config
 import config_loader
 import config_xml
 import mrc_command
 import util
 
-column_names  = ('name', 'rc', 'idc', 'queue_size') # 'silent_mode', 'write_access')
-column_titles = ('Name', 'RC', 'IDC', 'Queue Size') # 'Silent Mode', 'Write Access')
+column_names  = ('name', 'rc', 'idc', 'queue_size') #, 'polling') # 'silent_mode', 'write_access')
+column_titles = ('Name', 'RC', 'IDC', 'Queue Size') #, 'Polling') # 'Silent Mode', 'Write Access')
 
 def column_index(col_name):
     try:
@@ -92,6 +94,9 @@ class MRCNode(TreeNodeWithModel):
         mrc.request_queue_size_changed.connect(partial(model.node_data_changed, node=self,
             col1=column_index('queue_size'), col2=column_index('queue_size')))
 
+        mrc.polling_changed.connect(partial(model.node_data_changed, node=self,
+            col1=column_index('polling'), col2=column_index('polling')))
+
     def flags(self, column):
         column_name = column_names[column]
         if column_name == 'name':
@@ -138,6 +143,8 @@ class MRCNode(TreeNodeWithModel):
                 return mrc.is_silenced()
             elif column_name == 'write_access':
                 return mrc.has_write_access()
+            elif column_name == 'polling':
+                return mrc.polling
 
         return None
 
@@ -248,6 +255,9 @@ class DeviceNode(TreeNodeWithModel):
         device.request_queue_size_changed.connect(partial(model.node_data_changed, node=self,
             col1=column_index('queue_size'), col2=column_index('queue_size')))
 
+        device.polling_changed.connect(partial(model.node_data_changed, node=self,
+            col1=column_index('polling'), col2=column_index('polling')))
+
         device.config_set.connect(partial(model.node_data_changed, node=self))
         device.model_set.connect(partial(model.node_data_changed, node=self))
 
@@ -300,6 +310,8 @@ class DeviceNode(TreeNodeWithModel):
                 return device.is_silenced()
             elif column_name == 'write_access':
                 return device.has_write_access()
+            elif column_name == 'polling':
+                return device.should_poll()
         return None
 
     def set_data(self, column, value, role):
@@ -517,8 +529,11 @@ class SetupTreeView(QtGui.QTreeView):
     def _slt_save_device_config(self, device):
         self.log.debug("save_device_config triggered for %s", device)
 
+        directory_hint = os.path.dirname(str(application_registry.instance.make_qsettings().value(
+                'Files/last_config_file', QtCore.QString()).toString()))
+
         filename = QtGui.QFileDialog.getSaveFileName(self, "Save device config as",
-                filter="XML files (*.xml);; *")
+                directory=directory_hint, filter="XML files (*.xml);; *")
 
         if not len(filename):
             return
@@ -573,6 +588,9 @@ class SetupTreeView(QtGui.QTreeView):
                 device_config = config_builder.get_result()
                 with open(filename, 'w') as f:
                     config_xml.write_device_config_to_file(device_config, f)
+
+                application_registry.instance.make_qsettings().setValue(
+                        'Files/last_config_file', filename)
             except IOError as e:
                 QtGui.QMessageBox.critical(self, "Error", "Writing to %s failed: %s" % (filename, e))
             else:
@@ -581,8 +599,11 @@ class SetupTreeView(QtGui.QTreeView):
     def _slt_load_device_config(self, device):
         self.log.debug("load_device_config triggered for %s", device)
 
+        directory_hint = os.path.dirname(str(application_registry.instance.make_qsettings().value(
+                'Files/last_config_file', QtCore.QString()).toString()))
+
         filename = QtGui.QFileDialog.getOpenFileName(self, "Load device config from file",
-                filter="XML files (*.xml);; *")
+                directory=directory_hint, filter="XML files (*.xml);; *")
 
         if not len(filename):
             return
@@ -620,6 +641,8 @@ class SetupTreeView(QtGui.QTreeView):
             raise
         else:
             QtGui.QMessageBox.information(self, "Info", "Configuration loaded from %s" % filename)
+            application_registry.instance.make_qsettings().setValue(
+                    'Files/last_config_file', filename)
 
     def _slt_apply_device_config(self, device):
         self.log.debug("apply_device_config triggered for %s", device)
