@@ -188,8 +188,7 @@ class DeviceProfile(object):
         if isinstance(key, (str, unicode, QtCore.QString)):
             return self.get_parameter_by_name(str(key))
         try:
-            ikey = int(key)
-            return self.get_parameter_by_address(ikey)
+            return self.get_parameter_by_address(int(key))
         except ValueError:
             raise TypeError("ParameterProfile indexes must be strings or integers, not %s", type(key).__name__)
 
