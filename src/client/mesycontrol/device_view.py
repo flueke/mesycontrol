@@ -17,20 +17,10 @@ class DeviceView(QtGui.QWidget):
         table_view = device_tableview.DeviceTableView(
                 device_tableview.DeviceTableModel(device))
 
-        if False:
-            splitter = QtGui.QSplitter(self)
+        tab_widget = QtGui.QTabWidget(self)
 
-            if widget_class is not None:
-                splitter.addWidget(widget_class(device))
+        if widget_class is not None:
+            tab_widget.addTab(widget_class(device), "Panel")
 
-            splitter.addWidget(table_view)
-            self.layout().addWidget(splitter)
-        
-        if True:
-            tab_widget = QtGui.QTabWidget(self)
-
-            if widget_class is not None:
-                tab_widget.addTab(widget_class(device), "Panel")
-
-            tab_widget.addTab(table_view, "Table")
-            self.layout().addWidget(tab_widget)
+        tab_widget.addTab(table_view, "Table")
+        self.layout().addWidget(tab_widget)
