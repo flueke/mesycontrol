@@ -586,28 +586,18 @@ class MRCConnectionConfig(ConfigObject):
     tcp_host            = pyqtProperty(str, get_tcp_host, set_tcp_host)
     tcp_port            = pyqtProperty(int, get_tcp_port, set_tcp_port)
 
-def make_device_config(device):
-    device_config = device.config
-    if device_config is None:
-        device_config         = DeviceConfig()
-        device_config.idc     = device.idc
-        device_config.bus     = device.bus
-        device_config.address = device.address
-        device_config.rc      = device.rc
+def make_device_config(device, fill_parameters):
+    device_config         = DeviceConfig()
+    device_config.idc     = device.idc
+    device_config.bus     = device.bus
+    device_config.address = device.address
+    device_config.rc      = device.rc
 
-    param_filter = lambda pd: not pd.read_only and not pd.do_not_store
-
-    for param_profile in filter(param_filter, device.profile.parameters.values()):
-        address = param_profile.address
-
-        if not device.has_parameter(address):
-            raise ConfigError("Required memory value not present", address)
-
-        value = device.get_parameter(address)
-        if not device_config.contains_parameter(address):
-            device_config.add_parameter(address, value)
-        else:
-            device_config.get_parameter(address).value = value
+    if fill_parameters:
+        for profile in filter(lambda p: p.should_be_stored(), device.profile.parameters):
+            address = profile.address
+            value   = device.get_parameter(address)
+            device_config.set_parameter_value(address, value)
 
     return device_config
 
@@ -635,18 +625,15 @@ class DeviceConfigBuilder(command.SequentialCommandGroup):
         super(DeviceConfigBuilder, self).__init__(parent)
         self.device = device
 
-        param_filter = lambda pd: not pd.read_only and not pd.do_not_store
-        required_parameters = filter(param_filter, device.profile.parameters.values())
-
-        for param_descr in required_parameters:
-            if not device.has_parameter(param_descr.address):
-                self.add(mrc_command.ReadParameter(device, param_descr.address))
+        for profile in filter(lambda p: p.should_be_stored(), device.profile.parameters):
+            if not device.has_parameter(profile.address):
+                self.add(mrc_command.ReadParameter(device, profile.address))
 
     def get_result(self):
         if self.has_failed():
             return super(DeviceConfigBuilder, self).get_result()
 
-        return make_device_config(self.device)
+        return make_device_config(self.device, fill_parameters=True)
 
 class DeviceConfigCompleter(command.SequentialCommandGroup):
     """Makes sure all parameters needed to complete this devices config are present.
