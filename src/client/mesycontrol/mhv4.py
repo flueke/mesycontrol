@@ -24,7 +24,7 @@ class Polarity(object):
 
 class MHV4(app_model.Device):
     num_channels  = 4
-    idcs          = (17, 27)
+    idcs          = (27,)
 
     actual_voltage_changed = pyqtSignal(int, int)       #: channel, raw value
     target_voltage_changed = pyqtSignal(int, int)       #: channel, raw value
@@ -43,8 +43,6 @@ class MHV4(app_model.Device):
         self.parameter_changed[object, int, int].connect(self._on_parameter_changed)
 
     def _on_parameter_changed(self, param, old_value, new_value):
-        # TODO: make this work for the old MHV4 too!
-        # TODO: MHV4-800V: add tcomp, temp
         p = self.profile
 
         if p['channel0_voltage_write'] <= param <= p['channel3_voltage_write']:

@@ -294,6 +294,14 @@ class MainWindow(QtGui.QMainWindow):
             application_registry.instance.unregister_mrc(mrc)
 
     @pyqtSlot()
+    def on_actionAbout_triggered(self):
+        # TODO: add icon, text and version number
+        dialog = QtGui.QMessageBox(self)
+        dialog.setWindowTitle("About mesycontrol")
+        dialog.setStandardButtons(QtGui.QMessageBox.Ok)
+        dialog.exec_()
+
+    @pyqtSlot()
     def on_actionAbout_Qt_triggered(self):
         QtGui.QApplication.instance().aboutQt()
 

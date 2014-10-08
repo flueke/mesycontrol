@@ -7,13 +7,13 @@ from PyQt4.QtCore import pyqtProperty
 from PyQt4.QtCore import pyqtSignal
 from functools import partial
 from functools import wraps
-import util
 
 import application_registry
 import command
 import config_loader
 import mrc_command
 import mrc_connection
+import util
 
 def modifies(f):
     """Method decorator which executes `wrapped_object.set_modified(True)'
@@ -247,7 +247,7 @@ class DeviceConfig(ConfigObject):
 
     def __str__(self):
         return "DeviceConfig(name=%s, idc=%d, bus=%d, address=%d, %d parameters" % (
-                self.name, self.idc, self.bus, self.address, len(self.get_parameters()))
+                self.name, self.idc, self.bus, self.address, len(self._parameters))
 
     def _set_modified(self, m):
         if not m:

@@ -85,7 +85,6 @@ class ReadParameter(MRCCommand):
         self.log     = util.make_logging_source_adapter(__name__, self)
 
     def _start(self):
-        self.log.debug("Reading %d", self.address)
         self.device.read_parameter(self.address, self._handle_response)
 
     def _get_result(self):
