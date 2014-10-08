@@ -180,7 +180,7 @@ class Device(QtCore.QObject):
 
         if (self.has_config() and not self.config.contains_parameter(address)
                 and param_profile is not None and param_profile.should_be_stored()):
-                self.log.debug("Adding parameter name=%s,addr=%d,val=%d) to config for %s",
+                self.log.debug("Adding parameter (name=%s,addr=%d,val=%d) to config for %s",
                     param_profile.name, address, new_value, self)
 
                 self.config.add_parameter(address, new_value)
@@ -345,15 +345,23 @@ class Device(QtCore.QObject):
     @model_required
     def _set_parameter(self, profile, value, unit_label, response_handler):
         unit      = profile.get_unit(unit_label)
-        return self.model.controller.set_parameter(profile.address,
-                unit.raw_value(value), response_handler)
+        raw_value = unit.raw_value(value)
+
+        ret = self.model.controller.set_parameter(profile.address, raw_value,
+                response_handler)
+
+        if self.has_config() and profile.should_be_stored():
+            self.log.debug("Updating parameter config value (name=%s,addr=%d,val=%d)",
+                    profile.name, profile.address, raw_value)
+            self.config.set_parameter_value(profile.address, raw_value)
+
+        return ret
 
     @model_required
     def set_parameter(self, address, value, unit_label='raw', response_handler=None):
-        if unit_label != 'raw':
-            return self._set_parameter(
-                    self.profile.get_parameter_by_address(address),
-                    value, unit_label, response_handler)
+        profile = self.profile[address]
+        if profile is not None:
+            return self._set_parameter(profile, value, unit_label, response_handler)
 
         return self.model.controller.set_parameter(address, value, response_handler)
 
