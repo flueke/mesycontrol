@@ -8,17 +8,6 @@ profile_dict = {
         'name': 'MHV-4-800V',
         'idc': 27,
         'parameters': [
-            # Voltage
-            { 'address': 0,   'name': 'channel0_voltage_write', 'index': 0, 'range': (0, 8000), 'units': [{'label': 'V', 'factor': 10.0 }] },
-            { 'address': 1,   'name': 'channel1_voltage_write', 'index': 1, 'range': (0, 8000), 'units': [{'label': 'V', 'factor': 10.0 }] },
-            { 'address': 2,   'name': 'channel2_voltage_write', 'index': 2, 'range': (0, 8000), 'units': [{'label': 'V', 'factor': 10.0 }] },
-            { 'address': 3,   'name': 'channel3_voltage_write', 'index': 3, 'range': (0, 8000), 'units': [{'label': 'V', 'factor': 10.0 }] },
-
-            { 'address': 32,  'name': 'channel0_voltage_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 10.0 }] },
-            { 'address': 33,  'name': 'channel1_voltage_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 10.0 }] },
-            { 'address': 34,  'name': 'channel2_voltage_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 10.0 }] },
-            { 'address': 35,  'name': 'channel3_voltage_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 10.0 }] },
-
             # Enable. Mark channel enable setting as critical. 
             { 'address': 4,   'name': 'channel0_enable_write', 'index': 0, 'critical': True },
             { 'address': 5,   'name': 'channel1_enable_write', 'index': 1, 'critical': True },
@@ -30,16 +19,16 @@ profile_dict = {
             { 'address': 38,  'name': 'channel2_enable_read', 'index': 2, 'read_only': True, 'poll': True },
             { 'address': 39,  'name': 'channel3_enable_read', 'index': 3, 'read_only': True, 'poll': True },
 
-            # Current warning limits
-            { 'address':  8,  'name': 'channel0_current_limit_write', 'index': 0, 'units': [{'label': 'µA', 'factor': 1000.0}] },
-            { 'address':  9,  'name': 'channel1_current_limit_write', 'index': 1, 'units': [{'label': 'µA', 'factor': 1000.0}] },
-            { 'address': 10,  'name': 'channel2_current_limit_write', 'index': 2, 'units': [{'label': 'µA', 'factor': 1000.0}] },
-            { 'address': 11,  'name': 'channel3_current_limit_write', 'index': 3, 'units': [{'label': 'µA', 'factor': 1000.0}] },
+            # Polarity
+            { 'address': 14,  'name': 'channel0_polarity_write', 'index': 0, },
+            { 'address': 15,  'name': 'channel1_polarity_write', 'index': 1, },
+            { 'address': 16,  'name': 'channel2_polarity_write', 'index': 2, },
+            { 'address': 17,  'name': 'channel3_polarity_write', 'index': 3, },
 
-            { 'address': 40,  'name': 'channel0_current_limit_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [{'label': 'µA', 'factor': 1000.0}] },
-            { 'address': 41,  'name': 'channel1_current_limit_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [{'label': 'µA', 'factor': 1000.0}] },
-            { 'address': 42,  'name': 'channel2_current_limit_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [{'label': 'µA', 'factor': 1000.0}] },
-            { 'address': 43,  'name': 'channel3_current_limit_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': 'µA', 'factor': 1000.0}] },
+            { 'address': 46,  'name': 'channel0_polarity_read', 'index': 0, 'read_only': True, 'poll': True },
+            { 'address': 47,  'name': 'channel1_polarity_read', 'index': 1, 'read_only': True, 'poll': True },
+            { 'address': 48,  'name': 'channel2_polarity_read', 'index': 2, 'read_only': True, 'poll': True },
+            { 'address': 49,  'name': 'channel3_polarity_read', 'index': 3, 'read_only': True, 'poll': True },
 
             # Voltage limits
             { 'address': 18,  'name': 'channel0_voltage_limit_write', 'index': 0, 'range': (0, 8000), 'units': [{'label': 'V', 'factor': 10.0 }] },
@@ -52,16 +41,16 @@ profile_dict = {
             { 'address': 24,  'name': 'channel2_voltage_limit_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 10.0 }] },
             { 'address': 25,  'name': 'channel3_voltage_limit_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 10.0 }] },
 
-            # Polarity
-            { 'address': 14,  'name': 'channel0_polarity_write', 'index': 0, },
-            { 'address': 15,  'name': 'channel1_polarity_write', 'index': 1, },
-            { 'address': 16,  'name': 'channel2_polarity_write', 'index': 2, },
-            { 'address': 17,  'name': 'channel3_polarity_write', 'index': 3, },
+            # Current warning limits
+            { 'address':  8,  'name': 'channel0_current_limit_write', 'index': 0, 'units': [{'label': 'µA', 'factor': 1000.0}] },
+            { 'address':  9,  'name': 'channel1_current_limit_write', 'index': 1, 'units': [{'label': 'µA', 'factor': 1000.0}] },
+            { 'address': 10,  'name': 'channel2_current_limit_write', 'index': 2, 'units': [{'label': 'µA', 'factor': 1000.0}] },
+            { 'address': 11,  'name': 'channel3_current_limit_write', 'index': 3, 'units': [{'label': 'µA', 'factor': 1000.0}] },
 
-            { 'address': 46,  'name': 'channel0_polarity_read', 'index': 0, 'read_only': True, 'poll': True },
-            { 'address': 47,  'name': 'channel1_polarity_read', 'index': 1, 'read_only': True, 'poll': True },
-            { 'address': 48,  'name': 'channel2_polarity_read', 'index': 2, 'read_only': True, 'poll': True },
-            { 'address': 49,  'name': 'channel3_polarity_read', 'index': 3, 'read_only': True, 'poll': True },
+            { 'address': 40,  'name': 'channel0_current_limit_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [{'label': 'µA', 'factor': 1000.0}] },
+            { 'address': 41,  'name': 'channel1_current_limit_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [{'label': 'µA', 'factor': 1000.0}] },
+            { 'address': 42,  'name': 'channel2_current_limit_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [{'label': 'µA', 'factor': 1000.0}] },
+            { 'address': 43,  'name': 'channel3_current_limit_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': 'µA', 'factor': 1000.0}] },
 
             # Current
             { 'address': 50,  'name': 'channel0_current_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [{'label': 'µA', 'factor': 1000.0}] },
@@ -118,6 +107,17 @@ profile_dict = {
             { 'address': 113,  'name': 'channel1_voltage_prec_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 80.0 }] },
             { 'address': 114,  'name': 'channel2_voltage_prec_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 80.0 }] },
             { 'address': 115,  'name': 'channel3_voltage_prec_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 80.0 }] },
+
+            # Voltage
+            { 'address': 0,   'name': 'channel0_voltage_write', 'index': 0, 'range': (0, 8000), 'units': [{'label': 'V', 'factor': 10.0 }] },
+            { 'address': 1,   'name': 'channel1_voltage_write', 'index': 1, 'range': (0, 8000), 'units': [{'label': 'V', 'factor': 10.0 }] },
+            { 'address': 2,   'name': 'channel2_voltage_write', 'index': 2, 'range': (0, 8000), 'units': [{'label': 'V', 'factor': 10.0 }] },
+            { 'address': 3,   'name': 'channel3_voltage_write', 'index': 3, 'range': (0, 8000), 'units': [{'label': 'V', 'factor': 10.0 }] },
+
+            { 'address': 32,  'name': 'channel0_voltage_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 10.0 }] },
+            { 'address': 33,  'name': 'channel1_voltage_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 10.0 }] },
+            { 'address': 34,  'name': 'channel2_voltage_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 10.0 }] },
+            { 'address': 35,  'name': 'channel3_voltage_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 10.0 }] },
 
             # Misc
             { 'address': 44,  'name': 'rc_enable', 'read_only': True },
