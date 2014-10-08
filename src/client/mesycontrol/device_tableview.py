@@ -29,7 +29,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
     def __init__(self, device, parent=None):
         super(DeviceTableModel, self).__init__(parent)
         self.log    = util.make_logging_source_adapter(__name__, self)
-        self._pending_parameters = set()
+        self._pending_read_commands = dict()
         self.device = device
 
     def set_device(self, device):
@@ -63,18 +63,21 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         self.endResetModel()
 
     def get_value(self, address):
-        if not self.device.has_parameter(address):
-            if self.device.is_connected() and address not in self._pending_parameters:
-                self.log.debug("fetching param %d", address)
-                self.device.read_parameter(address, self._handle_read_response)
-                self._pending_parameters.add(address)
-            return None
-        return self.device.get_parameter(address)
+        if self.device.has_parameter(address):
+            return self.device.get_parameter(address)
 
-    def _handle_read_response(self, request, response):
-        if not response.is_error():
-            self.log.debug("got param %d", response.par)
-            self._pending_parameters.remove(response.par)
+        if self.device.is_connected() and address not in self._pending_read_commands:
+            self.log.debug("reading param %d", address)
+            read_cmd = mrc_command.ReadParameter(self.device, address)
+            read_cmd.stopped.connect(self._on_read_command_stopped)
+            self._pending_read_commands[address] = read_cmd
+            read_cmd.start()
+
+        return None
+
+    def _on_read_command_stopped(self):
+        read_cmd = self.sender()
+        del self._pending_read_commands[read_cmd.address]
 
     device = pyqtProperty(app_model.Device, get_device, set_device)
 
