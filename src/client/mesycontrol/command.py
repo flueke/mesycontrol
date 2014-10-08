@@ -273,3 +273,6 @@ class Callable(Command):
 
     def _has_failed(self):
         return False
+
+    def __str__(self):
+        return "Callable(%s)" % self._callable
