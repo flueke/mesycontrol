@@ -24,6 +24,8 @@ class ConfigLoader(SequentialCommandGroup):
 
         self.add(Callable(assign_config))
 
+        old_polling_state = self.device.mrc.polling
+
         def disable_polling():
             self.device.mrc.polling = False
 
@@ -35,21 +37,17 @@ class ConfigLoader(SequentialCommandGroup):
         for param_profile in dev_profile.get_critical_parameters():
             self.add(SetParameter(self.device, param_profile.address, param_profile.safe_value))
 
-        # Set values from config
-        for param_cfg in self.config.get_parameters():
-            param_profile = dev_profile.get_parameter_by_address(param_cfg.address)
-
-            if (param_profile is None
-                    or (not param_profile.critical
-                        and not param_profile.read_only
-                        and not param_profile.do_not_store)):
-                self.add(SetParameter(self.device, param_cfg.address, param_cfg.value))
+        # Set non-critical config values in device profile order
+        for param_profile in dev_profile.get_non_critical_parameters():
+            if not param_profile.read_only and self.config.contains_parameter(param_profile.address):
+                self.add(SetParameter(self.device, param_profile.address,
+                    self.config.get_parameter_value(param_profile.address)))
 
         # Set critical param config values
-        for param_cfg in self.config.get_parameters():
-            param_profile = dev_profile.get_parameter_by_address(param_cfg.address)
-            if param_profile is not None and param_profile.critical:
-                self.add(SetParameter(self.device, param_cfg.address, param_cfg.value))
+        for param_profile in dev_profile.get_critical_parameters():
+            if self.config.contains_parameter(param_profile.address):
+                self.add(SetParameter(self.device, param_profile.address,
+                    self.config.get_parameter_value(param_profile.address)))
 
         def set_rc():
             if self.config.rc is not None:
@@ -58,7 +56,7 @@ class ConfigLoader(SequentialCommandGroup):
         self.add(Callable(set_rc))
 
         def enable_polling():
-            self.device.mrc.polling = True
+            self.device.mrc.polling = old_polling_state
 
         self.add(Callable(enable_polling))
 
