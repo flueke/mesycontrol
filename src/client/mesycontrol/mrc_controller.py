@@ -19,6 +19,7 @@ class MRCController(QtCore.QObject):
     request_sent                    = pyqtSignal(object, object)          #: request_id, request
     request_canceled                = pyqtSignal(object, object)          #: request_id, request
     request_completed               = pyqtSignal(object, object, object)  #: request_id, request, response
+    polling_changed                 = pyqtSignal(bool)
 
     def __init__(self, mrc_connection, mrc_model, parent=None):
         super(MRCController, self).__init__(parent)
@@ -186,10 +187,13 @@ class MRCController(QtCore.QObject):
         return self._poll_flag
 
     def set_polling_enabled(self, on_off):
+        changed = self.polling != on_off
         self._poll_flag = bool(on_off)
+        if changed:
+            self.polling_changed.emit(self.polling)
 
     model   = pyqtProperty(hw_model.MRCModel, get_model, set_model)
-    polling = pyqtProperty(bool, should_poll, set_polling_enabled)
+    polling = pyqtProperty(bool, should_poll, set_polling_enabled, notify=polling_changed)
 
 class DeviceController(QtCore.QObject):
     write_access_changed       = pyqtSignal(bool)
@@ -199,6 +203,7 @@ class DeviceController(QtCore.QObject):
     request_sent               = pyqtSignal(object, protocol.Message)                   #: request_id, request
     request_canceled           = pyqtSignal(object, protocol.Message)                   #: request_id, request
     request_completed          = pyqtSignal(object, protocol.Message, protocol.Message) #: request_id, request, response
+    polling_changed            = pyqtSignal(bool)
 
     def __init__(self, mrc_controller, device_model=None, parent=None):
         super(DeviceController, self).__init__(parent)
@@ -218,6 +223,7 @@ class DeviceController(QtCore.QObject):
         mrc_controller.request_sent.connect(self._on_request_sent)
         mrc_controller.request_completed.connect(self._on_request_completed)
         mrc_controller.request_canceled.connect(self._on_request_canceled)
+        mrc_controller.polling_changed.connect(self._on_mrc_polling_changed)
 
     def get_model(self):
         return self._model() if self._model is not None else None
@@ -361,11 +367,19 @@ class DeviceController(QtCore.QObject):
         return self.mrc_controller.should_poll() and self._poll_flag
 
     def set_polling_enabled(self, on_off):
+        old_state = self.polling
         self._poll_flag = bool(on_off)
 
         # Manually initiate polling if needed
         if self.should_poll() and self.mrc_controller.get_request_queue_size() == 0:
             self._on_request_queue_empty()
+
+        if old_state != self.polling:
+            self.polling_changed.emit(self.polling)
+
+    def _on_mrc_polling_changed(self, on_off):
+        self.polling_changed.emit(self.polling)
+
 
     mrc_controller  = pyqtProperty(MRCController, get_mrc_controller)
     model           = pyqtProperty(hw_model.DeviceModel, get_model, set_model)

@@ -96,6 +96,7 @@ class Device(QtCore.QObject):
     request_sent                    = pyqtSignal(object, object)          #: request_id, request
     request_canceled                = pyqtSignal(object, object)          #: request_id, request
     request_completed               = pyqtSignal(object, object, object)  #: request_id, request, response
+    polling_changed                 = pyqtSignal(bool)
 
     def __init__(self, device_model=None, device_config=None,
             device_profile=None, parent=None):
@@ -144,6 +145,7 @@ class Device(QtCore.QObject):
             self.model.mirror_parameter_changed.disconnect(self.mirror_parameter_changed)
             self.model.memory_reset.disconnect(self.memory_reset)
             self.model.mirror_reset.disconnect(self.mirror_reset)
+            self.model.polling_changed.disconnect(self.polling_changed)
 
             self.model.controller.write_access_changed.disconnect(self.write_access_changed)
             self.model.controller.silence_changed.disconnect(self.silence_changed)
@@ -165,6 +167,7 @@ class Device(QtCore.QObject):
             self.model.mirror_parameter_changed.connect(self.mirror_parameter_changed)
             self.model.memory_reset.connect(self.memory_reset)
             self.model.mirror_reset.connect(self.mirror_reset)
+            self.model.polling_changed.connect(self.polling_changed)
 
             self.model.controller.write_access_changed.connect(self.write_access_changed)
             self.model.controller.silence_changed.connect(self.silence_changed)
@@ -187,8 +190,9 @@ class Device(QtCore.QObject):
 
         self.parameter_changed[int, int, int].emit(address, old_value, new_value)
 
-        if param_profile is not None and param_profile.is_named():
-            self.parameter_changed[str, int, int].emit(param_profile.name, old_value, new_value)
+        if param_profile is not None:
+            if param_profile.is_named():
+                self.parameter_changed[str, int, int].emit(param_profile.name, old_value, new_value)
             self.parameter_changed[object, int, int].emit(param_profile, old_value, new_value)
 
     def _on_model_rc_changed(self, on_off):
@@ -464,6 +468,8 @@ class Device(QtCore.QObject):
         self.model.controller.del_volatile_parameter_subscription(subscriber, address)
 
     def should_poll(self):
+        if not self.has_model():
+            return False
         return self.model.should_poll()
 
     def set_polling_enabled(self, on_off):
@@ -478,7 +484,7 @@ class Device(QtCore.QObject):
     idc     = pyqtProperty(int, get_idc, notify=idc_changed)
     rc      = pyqtProperty(bool, get_rc, set_rc, notify=rc_changed)
     mrc     = pyqtProperty(object, get_mrc)
-    polling = pyqtProperty(bool,   should_poll, set_polling_enabled)
+    polling = pyqtProperty(bool, should_poll, set_polling_enabled, notify=polling_changed)
 
 
 class MRC(QtCore.QObject):
@@ -497,11 +503,12 @@ class MRC(QtCore.QObject):
     name_changed                = pyqtSignal(object)
     description_changed         = pyqtSignal(object)
     bus_scanned                 = pyqtSignal(int, object)   #: bus_scanned(bus, data)
+    polling_changed             = pyqtSignal(bool)
 
     def __init__(self, mrc_model=None, mrc_config=None, parent=None):
         super(MRC, self).__init__(parent)
         self.log      = util.make_logging_source_adapter(__name__, self)
-        self.log.debug("MRC(model=%s, config=%s)", mrc_model, mrc_config)
+        self.log.debug("Creating MRC(hw_model=%s, config=%s)", mrc_model, mrc_config)
         self._model   = None
         self._config  = None
         self._devices = list()
@@ -536,6 +543,8 @@ class MRC(QtCore.QObject):
             self.model.bus_scanned.disconnect(self.bus_scanned)
             self.model.device_added.disconnect(self._on_device_model_added)
             self.model.device_removed.disconnect(self._on_device_model_removed)
+            self.model.polling_changed.disconnect(self.polling_changed)
+
             self.model.controller.write_access_changed.disconnect(self.write_access_changed)
             self.model.controller.silence_changed.disconnect(self.silence_changed)
             self.model.controller.request_queue_size_changed.disconnect(self.request_queue_size_changed)
@@ -556,6 +565,7 @@ class MRC(QtCore.QObject):
             self.model.bus_scanned.connect(self.bus_scanned)
             self.model.device_added.connect(self._on_device_model_added)
             self.model.device_removed.connect(self._on_device_model_removed)
+            self.model.polling_changed.connect(self.polling_changed)
             self.model.controller.write_access_changed.connect(self.write_access_changed)
             self.model.controller.silence_changed.connect(self.silence_changed)
             self.model.controller.request_queue_size_changed.connect(self.request_queue_size_changed)
@@ -593,24 +603,25 @@ class MRC(QtCore.QObject):
                 except KeyError:
                     device = None
                 try:
-                    device_config = (cfg.get_device_config(bus, addr)
-                            if cfg is not None else None)
+                    device_config = cfg.get_device_config(bus, addr) if cfg is not None else None
                 except KeyError:
                     device_config = None
 
-                self.log.debug("%s: set_config(bus=%d, addr=%d, device=%s, device_config=%s",
-                        self, bus, addr, device, device_config)
-
                 if device_config is not None:
+                    self.log.debug("%s.set_config(): got config for (bus=%d, addr=%d, device=%s, device_config=%s)",
+                            self, bus, addr, device, device_config)
                     self._on_device_config_added(device_config)
                 elif device is not None:
                     if device.model is None:
+                        self.log.debug("%s.set_config(): removing device instance for (bus=%d, addr=%d)",
+                                self, bus, addr)
+
                         self._remove_device(device)
                     else:
-                        device_config           = config.DeviceConfig()
-                        device_config.idc       = device.model.idc
-                        device_config.bus       = device.model.bus
-                        device_config.address   = device.model.address
+                        self.log.debug("%s.set_config(): creating device config for (bus=%d, addr=%d)",
+                                self, bus, addr)
+
+                        device_config = config.make_device_config(device=device, fill_parameters=False)
                         cfg.add_device_config(device_config)
 
     def get_devices(self, bus=None):
@@ -681,13 +692,12 @@ class MRC(QtCore.QObject):
         self.config.add_device_config(config)
 
     def _on_device_model_added(self, device_model):
-        self.log.info("_on_device_model_added: bus=%d, address=%d", device_model.bus, device_model.address)
-        # Check if a Device instance matching the models bus and address
-        # exists. This is the case if a DeviceConfig for (bus,address) is
-        # present but no hw_model.DeviceModel exists.
         try:
+            # Check if a Device instance matching the models bus and address
+            # exists. This is the case if a DeviceConfig for (bus,address) is
+            # present but no hw_model.DeviceModel exists.
             device = self.get_device(bus=device_model.bus, address=device_model.address)
-            self.log.info("_on_device_model_added: found existing device %s", device)
+            self.log.info("%s._on_device_model_added(): found existing Device %s", self, device)
             device.set_model(device_model)
             # The device now has a DeviceModel and a DeviceConfig with matching
             # (bus,address) fields.
@@ -695,15 +705,14 @@ class MRC(QtCore.QObject):
             # No Device present yet. There should be no DeviceConfig for this
             # device either as otherwise a Device instance would've been
             # created at the time the config was set.
-            self.log.info("_on_device_model_added: no existing device found. self.config=%s", self.config)
-            device_config=None
+            self.log.info("%s._on_device_model_added(): no existing Device found. self.config=%s", self, self.config)
+
             if self.config is not None:
                 assert not self.config.has_device_config(
                         device_model.bus, device_model.address)
-                device_config           = config.DeviceConfig()
-                device_config.idc       = device_model.idc
-                device_config.bus       = device_model.bus
-                device_config.address   = device_model.address
+
+                device_config = config.make_device_config(device=device_model, fill_parameters=False)
+
                 # add_device_config will trigger _on_device_config_added, which
                 # in turn will create a Device instance. This means after the
                 # next line the call to get_device() will succeed and return
@@ -721,14 +730,13 @@ class MRC(QtCore.QObject):
                 self._remove_device(device)
 
     def _on_device_config_added(self, device_config):
-        self.log.info("_on_device_config_added: bus=%d, address=%d", device_config.bus, device_config.address)
         try:
             device = self.get_device(bus=device_config.bus, address=device_config.address)
-            self.log.info("_on_device_config_added: found existing device %s", device)
+            self.log.info("%s._on_device_config_added(): found existing Device %s", self, device)
             device.config = device_config
         except KeyError:
-            self.log.info("_on_device_config_added: Creating Device(config=%s, idc=%d, bus=%d, address=%d, parent=%s)",
-                    device_config, device_config.idc, device_config.bus, device_config.address, self)
+            self.log.info("%s._on_device_config_added(): Creating Device(config=%s, idc=%d, bus=%d, address=%d)",
+                    self, device_config, device_config.idc, device_config.bus, device_config.address)
             device = device_factory(device_config=device_config, parent=self)
             self._add_device(device)
 
@@ -769,4 +777,4 @@ class MRC(QtCore.QObject):
     config      = pyqtProperty(config.MRCConfig, get_config, set_config)
     devices     = pyqtProperty(list, get_devices)
     name        = pyqtProperty(str, get_name, set_name, notify=name_changed)
-    polling     = pyqtProperty(bool,   should_poll, set_polling_enabled)
+    polling     = pyqtProperty(bool,   should_poll, set_polling_enabled, notify=polling_changed)

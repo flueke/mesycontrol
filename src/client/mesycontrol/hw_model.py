@@ -6,6 +6,7 @@ from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtProperty
 from PyQt4.QtCore import pyqtSignal
 import weakref
+import sys
 
 import util
 
@@ -23,6 +24,8 @@ class MRCModel(QtCore.QObject):
 
     #: device_removed(DeviceModel)
     device_removed = pyqtSignal(object)
+
+    polling_changed = pyqtSignal(bool)
 
     def __init__(self, parent=None):
         super(MRCModel, self).__init__(parent)
@@ -135,11 +138,13 @@ class MRCModel(QtCore.QObject):
     def set_controller(self, controller):
         if self.controller is not None:
             self.controller.set_model(None)
+            self.controller.polling_changed.disconnect(self.polling_changed)
 
         self._controller = controller
 
         if self.controller is not None:
             self.controller.set_model(self)
+            self.controller.polling_changed.connect(self.polling_changed)
 
     def get_connection_info(self):
         if self.controller is not None:
@@ -153,12 +158,13 @@ class MRCModel(QtCore.QObject):
         self.controller.set_polling_enabled(on_off)
 
     controller  = pyqtProperty(object, get_controller, set_controller)
-    polling     = pyqtProperty(bool,   should_poll, set_polling_enabled)
+    polling     = pyqtProperty(bool,   should_poll, set_polling_enabled, notify=polling_changed)
 
 class DeviceModel(QtCore.QObject):
     connecting      = pyqtSignal()
     connected       = pyqtSignal()
     disconnected    = pyqtSignal(object) #: error object or None
+    polling_changed = pyqtSignal(bool)
 
     #: idc_changed(idc)
     idc_changed   = pyqtSignal(int)
@@ -246,7 +252,7 @@ class DeviceModel(QtCore.QObject):
         return self._memory[address]
 
     def set_parameter(self, address, value):
-        old_value = self.get_parameter(address) if self.has_parameter(address) else None
+        old_value = self.get_parameter(address) if self.has_parameter(address) else -sys.maxint - 1
         self._memory[address] = value
 
         if old_value != value:
@@ -307,10 +313,13 @@ class DeviceModel(QtCore.QObject):
     def set_controller(self, controller):
         if self.controller is not None:
             self.controller.set_model(None)
+            self.controller.polling_changed.disconnect(self.polling_changed)
 
         self._controller = controller
+
         if self.controller is not None:
             self.controller.set_model(self)
+            self.controller.polling_changed.connect(self.polling_changed)
 
     def _on_mrc_disconnected(self):
         self.reset_mem()
