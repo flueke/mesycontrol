@@ -218,6 +218,9 @@ class MainWindow(QtGui.QMainWindow):
         self._save_setup_to_file(application_registry.instance.get('active_setup'),
                 filename)
 
+        application_registry.instance.make_qsettings().setValue(
+                'Files/last_setup_file', filename)
+
     @pyqtSlot()
     def on_actionSave_Setup_triggered(self):
         setup = application_registry.instance.get('active_setup')
@@ -268,6 +271,8 @@ class MainWindow(QtGui.QMainWindow):
                 QtGui.QMessageBox.critical(self, "Error", "Writing to %s failed: %s" % (filename, e))
             else:
                 QtGui.QMessageBox.information(self, "Info", "Configuration written to %s" % filename)
+                application_registry.instance.make_qsettings().setValue(
+                        'Files/last_setup_file', filename)
 
     @pyqtSlot()
     def on_actionClose_Setup_triggered(self):
