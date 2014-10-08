@@ -5,7 +5,15 @@
 from xml.dom import minidom
 from xml.etree import ElementTree
 from xml.etree.ElementTree import TreeBuilder
+
+import application_registry
 import config
+
+class CommentTreeBuilder(TreeBuilder):
+    def comment(self, data):
+        self.start(ElementTree.Comment, {})
+        self.data(data)
+        self.end(ElementTree.Comment)
 
 class InvalidArgument(RuntimeError):
     pass
@@ -47,7 +55,7 @@ def parse_setup(element):
     return ret
 
 def setup_to_etree(setup):
-    tb = TreeBuilder()
+    tb = CommentTreeBuilder()
     tb.start("mesycontrol", {})
 
     _add_tag(tb, 'name', setup.name)
@@ -64,17 +72,17 @@ def setup_to_etree(setup):
     return ElementTree.ElementTree(tb.close())
 
 def device_config_to_etree(device_config):
-    tb = TreeBuilder()
+    tb = CommentTreeBuilder()
     _device_config_to_etree(device_config, tb)
     return ElementTree.ElementTree(tb.close())
 
 def mrc_config_to_etree(mrc_config):
-    tb = TreeBuilder()
+    tb = CommentTreeBuilder()
     _mrc_config_to_etree(mrc_config, tb)
     return ElementTree.ElementTree(tb.close())
 
 def write_device_config_to_file(device_config, f):
-    tb = TreeBuilder()
+    tb = CommentTreeBuilder()
     tb.start("mesycontrol", {})
     _device_config_to_etree(device_config, tb)
     tb.end("mesycontrol")
@@ -111,12 +119,17 @@ def parse_device_config(config_node):
         device_config.rc = int_val != 0
 
     for param_node in config_node.iter('parameter_config'):
-        param_config = config.ParameterConfig(**param_node.attrib)
+        attribs = dict(param_node.attrib)
+        if 'name' in attribs:
+            del attribs['name']
+        param_config = config.ParameterConfig(**attribs)
         device_config.add_parameter_config(param_config)
 
     return device_config
 
 def _device_config_to_etree(cfg, tb):
+    device_profile = application_registry.instance.get_device_profile_by_idc(cfg.idc)
+
     tb.start('device_config', {})
 
     _add_tag(tb, 'idc', cfg.idc)
@@ -147,6 +160,12 @@ def _device_config_to_etree(cfg, tb):
 
         if p.alias is not None:
             attrs['alias'] = str(p.alias)
+
+        param_profile = device_profile.get_parameter_by_address(p.address)
+
+        if param_profile is not None and param_profile.is_named():
+            tb.comment(param_profile.name)
+            #attrs['name'] = param_profile.name
 
         tb.start("parameter_config", attrs)
         tb.end("parameter_config")
