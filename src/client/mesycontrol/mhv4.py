@@ -23,8 +23,24 @@ class Polarity(object):
     positive = 1
 
 class MHV4(app_model.Device):
+    """Model for the 800V MHV-4 high voltage supply."""
     num_channels  = 4
     idcs          = (27,)
+
+    ramp_speeds = {
+            0:   '5 V/s',
+            1:  '25 V/s',
+            2: '100 V/s',
+            3: '500 V/s'
+            }
+
+    tcomp_sources = {
+            0: '0',
+            1: '1',
+            2: '2',
+            3: '3',
+            4: 'off'
+            }
 
     actual_voltage_changed = pyqtSignal(int, int)       #: channel, raw value
     target_voltage_changed = pyqtSignal(int, int)       #: channel, raw value
@@ -41,6 +57,15 @@ class MHV4(app_model.Device):
         self.log = util.make_logging_source_adapter(__name__, self)
 
         self.parameter_changed[object, int, int].connect(self._on_parameter_changed)
+
+    def propagate_state(self):
+        """Propagate the current state using the signals defined in this class."""
+        if not self.has_model():
+            return
+
+        for param_profile in self.profile.parameters:
+            if self.has_parameter(param_profile.address):
+                self._on_parameter_changed(param_profile, 0, self[param_profile.address])
 
     def _on_parameter_changed(self, param, old_value, new_value):
         p = self.profile
@@ -112,9 +137,7 @@ class MHV4(app_model.Device):
         return self.set_parameter_by_name('channel%d_polarity_write' % channel, polarity, 'raw', response_handler)
 
     def get_maximum_voltage(self):
-        if self.profile.name == 'MHV-4-800V':
-            return 800.0
-        return 400.0
+        return 800.0
 
 class ChannelWidget(QtGui.QWidget):
     target_voltage_changed  = pyqtSignal(float)
@@ -243,6 +266,12 @@ class MHV4Widget(QtGui.QWidget):
         vbox = QtGui.QVBoxLayout(self)
         vbox.setContentsMargins(4, 4, 4, 4)
         vbox.addItem(channel_layout)
+
+        # Initialize the GUI with the current state of the device. This is
+        # needed to make newly created widgets work even if all static
+        # parameters are known (static parameters won't get refreshed and thus
+        # no change signals will be emitted).
+        self.device.propagate_state()
 
     @pyqtSlot(float)
     def set_target_voltage(self, voltage):

@@ -59,21 +59,21 @@ profile_dict = {
             { 'address': 53,  'name': 'channel3_current_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': 'µA', 'factor': 1000.0}] },
 
             # Temperature
-            { 'address': 26,  'name': 'channel0_temp_read', 'index': 0, 'read_only': True, 'units': [{'label': '°C', 'factor': 10.0}] },
-            { 'address': 27,  'name': 'channel1_temp_read', 'index': 1, 'read_only': True, 'units': [{'label': '°C', 'factor': 10.0}] },
-            { 'address': 28,  'name': 'channel2_temp_read', 'index': 2, 'read_only': True, 'units': [{'label': '°C', 'factor': 10.0}] },
-            { 'address': 29,  'name': 'channel3_temp_read', 'index': 3, 'read_only': True, 'units': [{'label': '°C', 'factor': 10.0}] },
+            { 'address': 26,  'name': 'channel0_temp_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
+            { 'address': 27,  'name': 'channel1_temp_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
+            { 'address': 28,  'name': 'channel2_temp_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
+            { 'address': 29,  'name': 'channel3_temp_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
 
             # Temperature compensation slope
-            { 'address': 64,  'name': 'channel0_tcomp_slope_write', 'index': 0, 'range': (0, 19999), 'units': [{'label': 'V/°C', 'factor': 10.0, 'offset': 10000.0}] },
-            { 'address': 65,  'name': 'channel1_tcomp_slope_write', 'index': 1, 'range': (0, 19999), 'units': [{'label': 'V/°C', 'factor': 10.0, 'offset': 10000.0}] },
-            { 'address': 66,  'name': 'channel2_tcomp_slope_write', 'index': 2, 'range': (0, 19999), 'units': [{'label': 'V/°C', 'factor': 10.0, 'offset': 10000.0}] },
-            { 'address': 67,  'name': 'channel3_tcomp_slope_write', 'index': 3, 'range': (0, 19999), 'units': [{'label': 'V/°C', 'factor': 10.0, 'offset': 10000.0}] },
+            { 'address': 64,  'name': 'channel0_tcomp_slope_write', 'index': 0, 'range': (0, 19999), 'units': [{'label': 'V/°C', 'offset': -10000.0}] },
+            { 'address': 65,  'name': 'channel1_tcomp_slope_write', 'index': 1, 'range': (0, 19999), 'units': [{'label': 'V/°C', 'offset': -10000.0}] },
+            { 'address': 66,  'name': 'channel2_tcomp_slope_write', 'index': 2, 'range': (0, 19999), 'units': [{'label': 'V/°C', 'offset': -10000.0}] },
+            { 'address': 67,  'name': 'channel3_tcomp_slope_write', 'index': 3, 'range': (0, 19999), 'units': [{'label': 'V/°C', 'offset': -10000.0}] },
 
-            { 'address': 100,  'name': 'channel0_tcomp_slope_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [{'label': 'V/°C', 'factor': 10.0, 'offset': 10000.0}] },
-            { 'address': 101,  'name': 'channel1_tcomp_slope_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [{'label': 'V/°C', 'factor': 10.0, 'offset': 10000.0}] },
-            { 'address': 102,  'name': 'channel2_tcomp_slope_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [{'label': 'V/°C', 'factor': 10.0, 'offset': 10000.0}] },
-            { 'address': 103,  'name': 'channel3_tcomp_slope_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': 'V/°C', 'factor': 10.0, 'offset': 10000.0}] },
+            { 'address': 100,  'name': 'channel0_tcomp_slope_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [{'label': 'V/°C', 'offset': -10000.0}] },
+            { 'address': 101,  'name': 'channel1_tcomp_slope_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [{'label': 'V/°C', 'offset': -10000.0}] },
+            { 'address': 102,  'name': 'channel2_tcomp_slope_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [{'label': 'V/°C', 'offset': -10000.0}] },
+            { 'address': 103,  'name': 'channel3_tcomp_slope_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': 'V/°C', 'offset': -10000.0}] },
 
             # Temperature compensation offset
             { 'address': 68,  'name': 'channel0_tcomp_offset_write', 'index': 0, 'range': (0, 500), 'units': [{'label': '°C', 'factor': 10.0}] },
@@ -122,7 +122,7 @@ profile_dict = {
             # Misc
             { 'address': 44,  'name': 'rc_enable', 'read_only': True },
             { 'address': 80,  'name': 'ramp_speed_write', 'range': (0, 3) },
-            { 'address': 116, 'name': 'ramp_speed_read', 'read_only': True }
+            { 'address': 116, 'name': 'ramp_speed_read', 'read_only': True, 'poll': True }
             ]
 }
 
