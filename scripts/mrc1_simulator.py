@@ -45,7 +45,7 @@ class MesytecDevice:
 
 class MHV4(MesytecDevice):
    def __init__(self, bus, port):
-      MesytecDevice.__init__(self, bus, port, 17)
+      MesytecDevice.__init__(self, bus, port, 27)
 
       # max voltage (1 = 400V, 0 = 100V)
       self.params[45] = random.choice([0, 1])
