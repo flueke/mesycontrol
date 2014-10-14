@@ -475,6 +475,14 @@ class Device(QtCore.QObject):
     def set_polling_enabled(self, on_off):
         self.model.set_polling_enabled(on_off)
 
+    def __getitem__(self, key):
+        if isinstance(key, (str, unicode, QtCore.QString)):
+            return self.get_parameter_by_name(str(key))
+        try:
+            return self.get_parameter(int(key))
+        except ValueError:
+            raise TypeError("Device indexes must be strings or integers, not %s", type(key).__name__)
+
     model   = pyqtProperty(object, get_model, set_model, notify=model_set)
     config  = pyqtProperty(object, get_config, set_config, notify=config_set)
     profile = pyqtProperty(object, get_profile, set_profile)
@@ -778,3 +786,25 @@ class MRC(QtCore.QObject):
     devices     = pyqtProperty(list, get_devices)
     name        = pyqtProperty(str, get_name, set_name, notify=name_changed)
     polling     = pyqtProperty(bool,   should_poll, set_polling_enabled, notify=polling_changed)
+
+class BoundParameter(object):
+    def __init__(self, param_profile, raw_value):
+        self.profile = param_profile
+        self.value   = raw_value
+
+    def get_raw_value(self):
+        return self.value
+
+    def get_value(self, unit_label_or_name):
+        return self.profile.get_unit(unit_label_or_name).unit_value(self.value)
+
+    def get_label(self, unit_label_or_name):
+        return self.profile.get_unit(unit_label_or_name).label
+
+    def get_value_label_pair(self, unit_label_or_name):
+        return (self.get_value(unit_label_or_name), self.get_label(unit_label_or_name))
+
+    def get_index(self):
+        return self.profile.index
+
+    index = property(get_index)

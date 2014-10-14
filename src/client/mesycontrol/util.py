@@ -424,3 +424,33 @@ def block_signals(o):
     o.blockSignals(True)
     yield
     o.blockSignals(was_blocked)
+
+#class ExpanderWidget(QtGui.QWidget):
+#    def __init__(self, parent=None):
+#        super(ExpanderWidget, self).__init__(parent)
+#        self.button = QtGui.QPushButton(">")
+#        self.button.clicked.connect(self._on_button_clicked)
+#
+#        self.stacked_widget = QtGui.QStackedWidget()
+#        layout = QtGui.QVBoxLayout()
+#        layout.addWidget(self.button, 0, Qt.AlignTop)
+#        #layout.addWidget(self.button)
+#        layout.addWidget(self.stacked_widget)
+#        self.setLayout(layout)
+#
+#        self.expanded = True
+#
+#    def _on_button_clicked(self):
+#        if self.expanded:
+#            self.expanded = False
+#            self.stacked_widget.hide()
+#        else:
+#            self.expanded = True
+#            self.stacked_widget.show()
+#
+#        self.updateGeometry()
+#
+#    def set_expanded(self, expanded):
+#        if self.expanded != expanded:
+#            self._on_button_clicked()
+#

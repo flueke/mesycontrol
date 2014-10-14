@@ -119,20 +119,6 @@ class ParameterProfile(object):
     def __lt__(self, o):
         return self.address < o.address
 
-    #def __eq__(self, o):
-    #    return (self.address == o.address
-    #            and self.name == o.name
-    #            and self.poll == o.poll
-    #            and self.read_only == o.read_only
-    #            and self.critical == o.critical
-    #            and self.safe_value == o.safe_value
-    #            and self.do_not_store == o.do_not_store
-    #            and self.value_range == o.value_range
-    #            and self.unit == o.unit)
-
-    #def __ne__(self, o):
-    #    return not (self == o)
-
     def __str__(self):
         if self.is_named():
             return "ParameterProfile(address=%d, name=%s)" % (self.address, self.name)
@@ -187,6 +173,10 @@ class DeviceProfile(object):
     def __getitem__(self, key):
         if isinstance(key, (str, unicode, QtCore.QString)):
             return self.get_parameter_by_name(str(key))
+
+        if isinstance(key, ParameterProfile):
+            return self.get_parameter_by_address(key.address)
+
         try:
             return self.get_parameter_by_address(int(key))
         except ValueError:

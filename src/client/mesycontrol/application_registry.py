@@ -74,7 +74,7 @@ class ApplicationRegistry(QtCore.QObject):
             self.unregister_mrc_model(mrc_model)
 
     def _load_system_profiles(self):
-        for mod_name in ('device_profile_mhv4', 'device_profile_mhv4_800v', 'device_profile_mscf16'):
+        for mod_name in ('device_profile_mhv4', 'device_profile_mscf16'):
             try:
                 mod = importlib.import_module("mesycontrol." + mod_name)
                 self.log.debug("Loading device profile from %s", mod.__file__)
