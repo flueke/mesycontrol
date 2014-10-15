@@ -436,12 +436,15 @@ def app_except_hook(exc_type, exc_value, exc_trace):
     sys.__excepthook__(exc_type, exc_value, exc_trace)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='mesycontrol GUI command line arguments')
-    parser.add_argument('--logging-config', metavar='FILE')
-    opts = parser.parse_args()
+    if not sys.platform.startswith('win32'):
+        parser = argparse.ArgumentParser(description='mesycontrol GUI command line arguments')
+        parser.add_argument('--logging-config', metavar='FILE')
+        opts = parser.parse_args()
+    else:
+        opts = None
 
     # Logging setup
-    if opts.logging_config is not None:
+    if opts is not None and opts.logging_config is not None:
         logging.config.fileConfig(opts.logging_config)
     else:
         logging.basicConfig(level=logging.DEBUG,
