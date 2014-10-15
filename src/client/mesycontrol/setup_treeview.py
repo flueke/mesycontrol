@@ -230,6 +230,7 @@ class BusNode(TreeNodeWithModel):
 
 class DeviceNode(TreeNodeWithModel):
     sig_open_device        = pyqtSignal(object)
+    sig_open_new_device_tableview   = pyqtSignal(object)
     sig_save_device_config = pyqtSignal(object)
     sig_load_device_config = pyqtSignal(object)
     sig_apply_config       = pyqtSignal(object)
@@ -338,6 +339,7 @@ class DeviceNode(TreeNodeWithModel):
         ret = QtGui.QMenu()
         if self.ref.is_connected():
             ret.addAction("Open").triggered.connect(self._slt_open_device)
+            ret.addAction("Open new device table").triggered.connect(self._slt_open_new_device_tableview)
             ret.addAction("Toggle RC").triggered.connect(self._slt_toggle_rc)
             ret.addAction("Refresh Memory").triggered.connect(self._slt_refresh_memory)
             if self.ref.config is not None:
@@ -364,8 +366,12 @@ class DeviceNode(TreeNodeWithModel):
     def _slt_apply_config(self):
         self.sig_apply_config.emit(self.ref)
 
+    def _slt_open_new_device_tableview(self):
+        self.sig_open_new_device_tableview.emit(self.ref)
+
 class SetupTreeModel(QtCore.QAbstractItemModel):
     sig_open_device        = pyqtSignal(object)
+    sig_open_new_device_tableview = pyqtSignal(object)
     sig_remove_mrc         = pyqtSignal(object)
     sig_save_device_config = pyqtSignal(object)
     sig_load_device_config = pyqtSignal(object)
@@ -411,6 +417,7 @@ class SetupTreeModel(QtCore.QAbstractItemModel):
 
         device_node = DeviceNode(device, self, bus_node)
         device_node.sig_open_device.connect(self.sig_open_device)
+        device_node.sig_open_new_device_tableview.connect(self.sig_open_new_device_tableview)
         device_node.sig_save_device_config.connect(self.sig_save_device_config)
         device_node.sig_load_device_config.connect(self.sig_load_device_config)
         device_node.sig_apply_config.connect(self.sig_apply_config)
@@ -483,6 +490,7 @@ class SetupTreeModel(QtCore.QAbstractItemModel):
 
 class SetupTreeView(QtGui.QTreeView):
     sig_open_device = pyqtSignal(object)
+    sig_open_new_device_tableview = pyqtSignal(object)
     sig_remove_mrc  = pyqtSignal(object)
 
     def __init__(self, model=None, parent=None):
@@ -506,6 +514,7 @@ class SetupTreeView(QtGui.QTreeView):
 
         model.rowsInserted.connect(self._slt_rows_inserted)
         model.sig_open_device.connect(self.sig_open_device)
+        model.sig_open_new_device_tableview.connect(self.sig_open_new_device_tableview)
         model.sig_remove_mrc.connect(self.sig_remove_mrc)
         model.sig_save_device_config.connect(self._slt_save_device_config)
         model.sig_load_device_config.connect(self._slt_load_device_config)

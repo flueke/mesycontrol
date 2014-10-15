@@ -16,6 +16,7 @@ from PyQt4.QtCore import pyqtSlot
 from PyQt4.Qt import Qt
 from mesycontrol import application_registry
 from mesycontrol import device_view
+from mesycontrol import device_tableview
 from mesycontrol import config
 from mesycontrol import config_xml
 from mesycontrol import log_view
@@ -57,6 +58,7 @@ class MainWindow(QtGui.QMainWindow):
         # Setup Tree Dock Widget
         self.setup_tree_view = setup_treeview.SetupTreeView(parent=self)
         self.setup_tree_view.sig_open_device.connect(self._slt_open_device_window)
+        self.setup_tree_view.sig_open_new_device_tableview.connect(self._slt_open_new_device_tableview)
         self.setup_tree_view.sig_remove_mrc.connect(self._slt_remove_mrc_from_setup)
         application_registry.instance.mrc_added.connect(self.setup_tree_view.model().add_mrc)
         application_registry.instance.mrc_removed.connect(self.setup_tree_view.model().remove_mrc)
@@ -359,6 +361,15 @@ class MainWindow(QtGui.QMainWindow):
         self.menu_Window.addAction(action)
         return subwin
 
+    def _get_subwindow_by_name(self, name):
+        try:
+            return filter(lambda win: win.objectName() == name, self.mdiArea.subWindowList())[0]
+        except IndexError:
+            return None
+
+    def _has_named_subwindow(self, name):
+        return self._get_subwindow_by_name(name) is not None
+
     def _slt_open_device_window(self, device):
         subwin = None
         try:
@@ -374,6 +385,21 @@ class MainWindow(QtGui.QMainWindow):
 
             self._device_windows[device] = subwin
 
+        subwin.show()
+        subwin.widget().show()
+        self.mdiArea.setActiveSubWindow(subwin)
+
+    def _slt_open_new_device_tableview(self, device):
+        widget = device_tableview.DeviceTableView(
+                device_tableview.DeviceTableModel(device))
+
+        subwin_name     = str(device)
+        counter         = 1
+        while self._has_named_subwindow(subwin_name):
+            subwin_name = "%s <%d>" % (str(device), counter)
+            counter    += 1
+
+        subwin = self._add_subwindow(widget, subwin_name, subwin_name)
         subwin.show()
         subwin.widget().show()
         self.mdiArea.setActiveSubWindow(subwin)
@@ -404,10 +430,11 @@ class MainWindow(QtGui.QMainWindow):
         self.mdiArea.setActiveSubWindow(subwin)
 
     def eventFilter(self, watched_object, event):
-        if event.type() == QtCore.QEvent.Close and hasattr(watched_object, 'device'):
-            # A device window is about to be closed
-            self.log.debug("Device Window for %s is closing", watched_object.device)
-            del self._device_windows[watched_object.device]
+        if event.type() == QtCore.QEvent.Close:
+            if hasattr(watched_object, 'device'):
+                # A device window is about to be closed
+                self.log.debug("Device Window for %s is closing", watched_object.device)
+                del self._device_windows[watched_object.device]
             for action in self.menu_Window.actions():
                 if action.data().toString() == watched_object.objectName():
                     self.menu_Window.removeAction(action)
