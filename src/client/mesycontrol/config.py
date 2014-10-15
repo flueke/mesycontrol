@@ -588,6 +588,8 @@ class MRCConnectionConfig(ConfigObject):
 
 def make_device_config(device, fill_parameters):
     device_config         = DeviceConfig()
+    if hasattr(device, 'name'):
+        device_config.name = device.name
     device_config.idc     = device.idc
     device_config.bus     = device.bus
     device_config.address = device.address
