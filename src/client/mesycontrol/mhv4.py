@@ -235,9 +235,21 @@ class ChannelWidget(QtGui.QWidget):
 
     @pyqtSlot(int)
     def on_slider_target_voltage_valueChanged(self, value):
-        self.slider_target_voltage.setToolTip(str(value))
         with util.block_signals(self.spin_target_voltage):
             self.spin_target_voltage.setValue(value)
+
+        slider = self.slider_target_voltage
+        slider.setToolTip("%d V" % value)
+
+        if slider.isVisible():
+            cursor_pos = QtGui.QCursor.pos()
+            global_pos = slider.mapToGlobal(slider.rect().topRight())
+            global_pos.setY(cursor_pos.y())
+
+            tooltip_event = QtGui.QHelpEvent(QtCore.QEvent.ToolTip,
+                    QtCore.QPoint(0, 0), global_pos)
+
+            QtGui.QApplication.sendEvent(slider, tooltip_event)
 
     @pyqtSlot()
     def on_slider_target_voltage_sliderReleased(self):
