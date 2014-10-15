@@ -4,6 +4,8 @@
 
 from device_profile import DeviceProfile
 
+voltage_10 = { 'label': 'V', 'name': 'volt', 'factor': 10.0 }
+
 profile_dict = {
         'name': 'MHV-4-800V',
         'idc': 27,
@@ -31,15 +33,15 @@ profile_dict = {
             { 'address': 49,  'name': 'channel3_polarity_read', 'index': 3, 'read_only': True, 'poll': True },
 
             # Voltage limits
-            { 'address': 18,  'name': 'channel0_voltage_limit_write', 'index': 0, 'range': (0, 8000), 'units': [{'label': 'V', 'factor': 10.0 }] },
-            { 'address': 19,  'name': 'channel1_voltage_limit_write', 'index': 1, 'range': (0, 8000), 'units': [{'label': 'V', 'factor': 10.0 }] },
-            { 'address': 20,  'name': 'channel2_voltage_limit_write', 'index': 2, 'range': (0, 8000), 'units': [{'label': 'V', 'factor': 10.0 }] },
-            { 'address': 21,  'name': 'channel3_voltage_limit_write', 'index': 3, 'range': (0, 8000), 'units': [{'label': 'V', 'factor': 10.0 }] },
+            { 'address': 18,  'name': 'channel0_voltage_limit_write', 'index': 0, 'range': (0, 8000), 'units': [voltage_10] },
+            { 'address': 19,  'name': 'channel1_voltage_limit_write', 'index': 1, 'range': (0, 8000), 'units': [voltage_10] },
+            { 'address': 20,  'name': 'channel2_voltage_limit_write', 'index': 2, 'range': (0, 8000), 'units': [voltage_10] },
+            { 'address': 21,  'name': 'channel3_voltage_limit_write', 'index': 3, 'range': (0, 8000), 'units': [voltage_10] },
 
-            { 'address': 22,  'name': 'channel0_voltage_limit_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 10.0 }] },
-            { 'address': 23,  'name': 'channel1_voltage_limit_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 10.0 }] },
-            { 'address': 24,  'name': 'channel2_voltage_limit_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 10.0 }] },
-            { 'address': 25,  'name': 'channel3_voltage_limit_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 10.0 }] },
+            { 'address': 22,  'name': 'channel0_voltage_limit_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [voltage_10] },
+            { 'address': 23,  'name': 'channel1_voltage_limit_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [voltage_10] },
+            { 'address': 24,  'name': 'channel2_voltage_limit_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [voltage_10] },
+            { 'address': 25,  'name': 'channel3_voltage_limit_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [voltage_10] },
 
             # Current warning limits
             { 'address':  8,  'name': 'channel0_current_limit_write', 'index': 0, 'units': [{'label': 'µA', 'factor': 1000.0}] },
@@ -109,15 +111,15 @@ profile_dict = {
             { 'address': 115,  'name': 'channel3_voltage_prec_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 80.0 }] },
 
             # Voltage
-            { 'address': 0,   'name': 'channel0_voltage_write', 'index': 0, 'range': (0, 8000), 'units': [{'label': 'V', 'factor': 10.0 }] },
-            { 'address': 1,   'name': 'channel1_voltage_write', 'index': 1, 'range': (0, 8000), 'units': [{'label': 'V', 'factor': 10.0 }] },
-            { 'address': 2,   'name': 'channel2_voltage_write', 'index': 2, 'range': (0, 8000), 'units': [{'label': 'V', 'factor': 10.0 }] },
-            { 'address': 3,   'name': 'channel3_voltage_write', 'index': 3, 'range': (0, 8000), 'units': [{'label': 'V', 'factor': 10.0 }] },
+            { 'address': 0,   'name': 'channel0_voltage_write', 'index': 0, 'range': (0, 8000), 'units': [voltage_10] },
+            { 'address': 1,   'name': 'channel1_voltage_write', 'index': 1, 'range': (0, 8000), 'units': [voltage_10] },
+            { 'address': 2,   'name': 'channel2_voltage_write', 'index': 2, 'range': (0, 8000), 'units': [voltage_10] },
+            { 'address': 3,   'name': 'channel3_voltage_write', 'index': 3, 'range': (0, 8000), 'units': [voltage_10] },
 
-            { 'address': 32,  'name': 'channel0_voltage_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 10.0 }] },
-            { 'address': 33,  'name': 'channel1_voltage_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 10.0 }] },
-            { 'address': 34,  'name': 'channel2_voltage_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 10.0 }] },
-            { 'address': 35,  'name': 'channel3_voltage_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 10.0 }] },
+            { 'address': 32,  'name': 'channel0_voltage_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [voltage_10] },
+            { 'address': 33,  'name': 'channel1_voltage_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [voltage_10] },
+            { 'address': 34,  'name': 'channel2_voltage_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [voltage_10] },
+            { 'address': 35,  'name': 'channel3_voltage_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [voltage_10] },
 
             # Misc
             { 'address': 44,  'name': 'rc_enable', 'read_only': True },
