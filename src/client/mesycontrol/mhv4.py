@@ -7,11 +7,14 @@ from PyQt4 import QtGui
 from PyQt4 import uic
 from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import pyqtSlot
+from functools import partial
 import weakref
 
 import application_registry
 import app_model
 import util
+
+# FIXME: tcomp slope calculation has issues!
 
 def get_device_info():
     return (MHV4.idcs, MHV4)
@@ -171,14 +174,26 @@ class MHV4(app_model.Device):
     def get_maximum_voltage(self):
         return 800.0
 
+    def get_tcomp_slope(self, channel, unit_label='raw'):
+        return self.get_parameter_by_name('channel%d_tcomp_slope_read' % channel, unit_label)
+
     def set_tcomp_slope(self, channel, value, unit_label='raw', response_handler=None):
         self.set_parameter_by_name('channel%d_tcomp_slope_write' % channel, value, unit_label, response_handler)
+
+    def get_tcomp_offset(self, channel, unit_label='raw'):
+        return self.get_parameter_by_name('channel%d_tcomp_offset_read' % channel, unit_label)
 
     def set_tcomp_offset(self, channel, value, unit_label='raw', response_handler=None):
         self.set_parameter_by_name('channel%d_tcomp_offset_write' % channel, value, unit_label, response_handler)
 
+    def get_tcomp_source(self, channel):
+        return self.get_parameter_by_name('channel%d_tcomp_source_read' % channel)
+
     def set_tcomp_source(self, channel, value, unit_label='raw', response_handler=None):
         self.set_parameter_by_name('channel%d_tcomp_source_write' % channel, value, unit_label, response_handler)
+
+    def get_ramp_speed(self):
+        return self.get_parameter_by_name('ramp_speed_read')
 
     def set_ramp_speed(self, value, response_handler=None):
         return self.set_parameter_by_name('ramp_speed_write', value, 'raw', response_handler)
@@ -472,13 +487,46 @@ class MHV4Widget(QtGui.QWidget):
                 self.global_settings().combo_target_ramp_speed.currentText())
 
     def apply_settings(self, checked):
-        for i in range(MHV4.num_channels):
-            channel_settings = self.channel_settings[i]()
-            self.device.set_polarity(i, channel_settings.combo_target_polarity.currentIndex())
-            self.device.set_current_limit(i, channel_settings.spin_target_current_limit.value(), 'µA')
-            self.device.set_voltage_limit(i, channel_settings.spin_target_voltage_limit.value(), 'V')
-            self.device.set_tcomp_slope(i, channel_settings.spin_target_tcomp_slope.value(), 'V/°C')
-            self.device.set_tcomp_offset(i, channel_settings.spin_target_tcomp_offset.value(), '°C')
-            self.device.set_tcomp_source(i, channel_settings.combo_target_tcomp_source.currentIndex())
+        def set_if_differs(cur, new, setter):
+            if cur != new:
+                setter(new)
 
-        self.device.set_ramp_speed(self.global_settings().combo_target_ramp_speed.currentIndex())
+        d  = self.device
+
+        set_if_differs(
+                cur=d.get_ramp_speed(),
+                new=self.global_settings().combo_target_ramp_speed.currentIndex(),
+                setter=d.set_ramp_speed)
+
+        for i in range(MHV4.num_channels):
+            cs = self.channel_settings[i]()
+
+            set_if_differs(
+                    cur=d.get_polarity(i),
+                    new=cs.combo_target_polarity.currentIndex(),
+                    setter=partial(d.set_polarity, i))
+
+            set_if_differs(
+                    cur=d.get_current_limit(i, 'µA'),
+                    new=cs.spin_target_current_limit.value(),
+                    setter=partial(d.set_current_limit, i, unit_label='µA'))
+
+            set_if_differs(
+                    cur=d.get_voltage_limit(i, 'V'),
+                    new=cs.spin_target_voltage_limit.value(),
+                    setter=partial(d.set_voltage_limit, i, unit_label='V'))
+
+            set_if_differs(
+                    cur=d.get_tcomp_slope(i, 'V/°C'),
+                    new=cs.spin_target_tcomp_slope.value(),
+                    setter=partial(d.set_tcomp_slope, i, unit_label='V/°C'))
+
+            set_if_differs(
+                    cur=d.get_tcomp_offset(i, '°C'),
+                    new=cs.spin_target_tcomp_offset.value(),
+                    setter=partial(d.set_tcomp_offset, i, unit_label='°C'))
+
+            set_if_differs(
+                    cur=d.get_tcomp_source(i),
+                    new=cs.combo_target_tcomp_source.currentIndex(),
+                    setter=partial(d.set_tcomp_source, i))
