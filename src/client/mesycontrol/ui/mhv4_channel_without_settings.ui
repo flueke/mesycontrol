@@ -67,12 +67,15 @@
          </property>
          <property name="minimumSize">
           <size>
-           <width>80</width>
+           <width>90</width>
            <height>35</height>
           </size>
          </property>
          <property name="smallDecimalPoint">
           <bool>true</bool>
+         </property>
+         <property name="digitCount">
+          <number>6</number>
          </property>
         </widget>
        </item>
@@ -86,12 +89,15 @@
          </property>
          <property name="minimumSize">
           <size>
-           <width>80</width>
+           <width>90</width>
            <height>35</height>
           </size>
          </property>
          <property name="smallDecimalPoint">
           <bool>true</bool>
+         </property>
+         <property name="digitCount">
+          <number>6</number>
          </property>
         </widget>
        </item>
