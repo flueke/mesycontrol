@@ -6,14 +6,17 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>331</width>
-    <height>187</height>
+    <width>329</width>
+    <height>178</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
+   <property name="margin">
+    <number>4</number>
+   </property>
    <item row="0" column="1">
     <widget class="QLabel" name="label_actual">
      <property name="text">
@@ -43,12 +46,6 @@
    </item>
    <item row="1" column="1">
     <widget class="QDoubleSpinBox" name="spin_actual_voltage_limit">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
      <property name="palette">
       <palette>
        <active>
@@ -90,7 +87,7 @@
       <bool>true</bool>
      </property>
      <property name="buttonSymbols">
-      <enum>QAbstractSpinBox::NoButtons</enum>
+      <enum>QAbstractSpinBox::UpDownArrows</enum>
      </property>
      <property name="suffix">
       <string> V</string>
@@ -99,7 +96,7 @@
       <number>1</number>
      </property>
      <property name="maximum">
-      <double>10000.000000000000000</double>
+      <double>9000.000000000000000</double>
      </property>
      <property name="singleStep">
       <double>0.100000000000000</double>
@@ -121,7 +118,7 @@
       <number>1</number>
      </property>
      <property name="maximum">
-      <double>10000.000000000000000</double>
+      <double>9000.000000000000000</double>
      </property>
      <property name="singleStep">
       <double>0.100000000000000</double>
@@ -184,7 +181,7 @@
       <bool>true</bool>
      </property>
      <property name="buttonSymbols">
-      <enum>QAbstractSpinBox::NoButtons</enum>
+      <enum>QAbstractSpinBox::UpDownArrows</enum>
      </property>
      <property name="suffix">
       <string> µA</string>
@@ -193,7 +190,7 @@
       <number>3</number>
      </property>
      <property name="maximum">
-      <double>10000.000000000000000</double>
+      <double>99.000000000000000</double>
      </property>
      <property name="singleStep">
       <double>1.000000000000000</double>
@@ -215,7 +212,7 @@
       <number>3</number>
      </property>
      <property name="maximum">
-      <double>20.000000000000000</double>
+      <double>99.000000000000000</double>
      </property>
      <property name="singleStep">
       <double>0.001000000000000</double>
@@ -343,7 +340,7 @@
       <bool>true</bool>
      </property>
      <property name="buttonSymbols">
-      <enum>QAbstractSpinBox::NoButtons</enum>
+      <enum>QAbstractSpinBox::UpDownArrows</enum>
      </property>
      <property name="suffix">
       <string> V/°C</string>
@@ -352,10 +349,10 @@
       <number>3</number>
      </property>
      <property name="minimum">
-      <double>-100.000000000000000</double>
+      <double>-10.000000000000000</double>
      </property>
      <property name="maximum">
-      <double>100.000000000000000</double>
+      <double>10.000000000000000</double>
      </property>
      <property name="singleStep">
       <double>0.001000000000000</double>
@@ -443,7 +440,7 @@
       <bool>true</bool>
      </property>
      <property name="buttonSymbols">
-      <enum>QAbstractSpinBox::NoButtons</enum>
+      <enum>QAbstractSpinBox::UpDownArrows</enum>
      </property>
      <property name="suffix">
       <string> °C</string>
@@ -455,7 +452,7 @@
       <double>0.000000000000000</double>
      </property>
      <property name="maximum">
-      <double>50.000000000000000</double>
+      <double>99.000000000000000</double>
      </property>
      <property name="singleStep">
       <double>0.100000000000000</double>
@@ -480,7 +477,7 @@
       <double>0.000000000000000</double>
      </property>
      <property name="maximum">
-      <double>500.000000000000000</double>
+      <double>99.000000000000000</double>
      </property>
      <property name="singleStep">
       <double>0.100000000000000</double>
@@ -540,6 +537,9 @@
    </item>
    <item row="6" column="2">
     <widget class="QComboBox" name="combo_target_tcomp_source">
+     <property name="sizeAdjustPolicy">
+      <enum>QComboBox::AdjustToMinimumContentsLength</enum>
+     </property>
      <item>
       <property name="text">
        <string>0</string>
