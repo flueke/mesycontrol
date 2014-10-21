@@ -439,6 +439,7 @@ class MHV4Widget(QtGui.QWidget):
             'mesycontrol/ui/preferences-system.png')), 'Settings')
 
         layout = QtGui.QVBoxLayout() 
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(toolbox)
         self.setLayout(layout)
 
