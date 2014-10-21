@@ -7,6 +7,7 @@ from PyQt4 import QtGui
 from PyQt4 import uic
 from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import pyqtSlot
+from PyQt4.QtCore import Qt
 from functools import partial
 import weakref
 
@@ -199,14 +200,23 @@ class MHV4(app_model.Device):
         return self.set_parameter_by_name('ramp_speed_write', value, 'raw', response_handler)
 
 class ChannelWidget(QtGui.QWidget):
-    target_voltage_changed  = pyqtSignal(float)
-    channel_state_changed   = pyqtSignal(bool)
+    target_voltage_changed          = pyqtSignal(float)
+    target_voltage_limit_changed    = pyqtSignal(float)
+    channel_state_changed           = pyqtSignal(bool)
 
     def __init__(self, mhv4, channel, parent=None):
         super(ChannelWidget, self).__init__(parent)
         uic.loadUi(application_registry.instance.find_data_file('mesycontrol/ui/mhv4_channel_without_settings.ui'), self)
         self.mhv4    = weakref.ref(mhv4)
         self.channel = channel
+
+        self.pb_channelstate.installEventFilter(self)
+        reg = application_registry.instance
+        sz  = QtCore.QSize(20, 20)
+        self.pixmap_positive = QtGui.QPixmap(reg.find_data_file('mesycontrol/ui/list-add.png')).scaled(
+                        sz, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.pixmap_negative = QtGui.QPixmap(reg.find_data_file('mesycontrol/ui/list-remove.png')).scaled(
+                        sz, Qt.KeepAspectRatio, Qt.SmoothTransformation)
 
     def set_voltage(self, voltage):
         self.lcd_voltage.display(voltage)
@@ -222,10 +232,12 @@ class ChannelWidget(QtGui.QWidget):
             self.spin_target_voltage.setValue(voltage)
 
     def set_voltage_limit(self, voltage):
-        self.spin_actual_voltage_limit.setValue(voltage)
+        with util.block_signals(self.spin_target_voltage_limit):
+            self.spin_target_voltage_limit.setValue(voltage)
+
         self.spin_target_voltage.setMaximum(voltage)
         self.slider_target_voltage.setMaximum(voltage)
-        self.slider_target_voltage.setTickInterval(100 if voltage >= 100.0 else 10)
+        self.slider_target_voltage.setTickInterval(100 if voltage > 100.0 else 10)
 
     def set_current(self, current):
         self.lcd_current.display(current)
@@ -236,10 +248,19 @@ class ChannelWidget(QtGui.QWidget):
     def set_channel_state(self, on_off):
         with util.block_signals(self.pb_channelstate):
             self.pb_channelstate.setChecked(on_off)
+            self.pb_channelstate.setText("On" if on_off else "Off")
 
     def set_polarity(self, polarity):
-        text = "positive" if polarity == Polarity.positive else "negative"
-        self.le_actual_polarity.setText(text)
+        if polarity == Polarity.positive:
+            pixmap = self.pixmap_positive
+            tooltip = 'Polarity: positive'
+        else:
+            pixmap = self.pixmap_negative
+            tooltip = 'Polarity: negative'
+
+        self.label_polarity.setPixmap(pixmap)
+        self.label_polarity.setToolTip(tooltip)
+        self.label_polarity.setStatusTip(tooltip)
 
     def set_temperature(self, temp):
         if temp is not None:
@@ -279,9 +300,32 @@ class ChannelWidget(QtGui.QWidget):
     def on_spin_target_voltage_editingFinished(self):
         self.target_voltage_changed.emit(self.spin_target_voltage.value())
 
+    @pyqtSlot()
+    def on_spin_target_voltage_limit_editingFinished(self):
+        self.target_voltage_limit_changed.emit(self.spin_target_voltage_limit.value())
+
     @pyqtSlot(bool)
     def on_pb_channelstate_toggled(self, value):
-        self.channel_state_changed.emit(self.pb_channelstate.isChecked())
+        c = self.pb_channelstate.isChecked()
+        self.channel_state_changed.emit(c)
+
+    def eventFilter(self, watched_object, event):
+        if watched_object == self.pb_channelstate:
+            t = event.type()
+            c = self.pb_channelstate.isChecked()
+
+            if t == QtCore.QEvent.Enter:
+                if c:
+                    self.pb_channelstate.setText("Turn off")
+                else:
+                    self.pb_channelstate.setText("Turn on")
+            elif t == QtCore.QEvent.Leave:
+                if c:
+                    self.pb_channelstate.setText("On")
+                else:
+                    self.pb_channelstate.setText("Off")
+
+        return False
 
 class ChannelSettingsWidget(QtGui.QWidget):
     def __init__(self, mhv4, channel, labels_on=True, parent=None):
@@ -346,6 +390,7 @@ class MHV4Widget(QtGui.QWidget):
             channel_layout.addWidget(groupbox)
 
             channel_widget.target_voltage_changed.connect(self.set_target_voltage)
+            channel_widget.target_voltage_limit_changed.connect(self.set_voltage_limit)
             channel_widget.channel_state_changed.connect(self.set_channel_state)
 
             self.channels.append(weakref.ref(channel_widget))
@@ -462,6 +507,7 @@ class MHV4Widget(QtGui.QWidget):
         self.channels[channel]().set_channel_state(value)
 
     def polarity_changed(self, channel, value):
+        self.channels[channel]().set_polarity(value)
         self.channel_settings[channel]().set_polarity(value)
 
     def temperature_changed(self, bp):
