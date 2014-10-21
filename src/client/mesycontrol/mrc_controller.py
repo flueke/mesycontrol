@@ -303,10 +303,11 @@ class DeviceController(QtCore.QObject):
             known     = self.model.memory.viewkeys()
             statics.difference_update(known)
 
-            self.log.info("reading static parameters: %s", statics)
+            if len(statics):
+                self.log.info("reading %d static parameters", len(statics))
 
-            for addr in statics:
-                self.read_parameter(addr)
+                for addr in statics:
+                    self.read_parameter(addr)
         except TypeError: # reduce with empty sequence
             pass
 
@@ -317,10 +318,11 @@ class DeviceController(QtCore.QObject):
             # Poll volatile parameters
             volatiles = reduce(lambda x, y: x.union(y), self.volatile_subscriptions.values())
 
-            self.log.info("reading volatile parameters: %s", volatiles)
+            if len(volatiles):
+                self.log.info("reading %d volatile parameters", len(volatiles))
 
-            for addr in volatiles:
-                self.read_parameter(addr)
+                for addr in volatiles:
+                    self.read_parameter(addr)
         except TypeError: # reduce with empty sequence
             pass
 
