@@ -1,12 +1,14 @@
 from PyQt4 import QtCore
 from PyQt4 import QtGui
+from PyQt4 import uic
 from PyQt4.QtCore import pyqtProperty
-from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import QModelIndex
 from PyQt4.QtCore import Qt
 import weakref
 
 import app_model
+import application_registry
+import command
 import mrc_command
 import util
 
@@ -206,12 +208,15 @@ class DeviceTableSortFilterProxyModel(QtGui.QSortFilterProxyModel):
     """
     def __init__(self, parent=None):
         super(DeviceTableSortFilterProxyModel, self).__init__(parent)
-        self._filter_unknown   = False
-        self._filter_read_only = False
+        self._filter_unknown    = True
+        self._filter_readonly   = False
+
+        self.setFilterKeyColumn(column_index('name'))
 
     def set_filter_unknown(self, on_off):
-        """If enabled any unknown parameter addresses are hidden. `Unknown'
-        means that the devices DeviceProfile does not contain the address.
+        """If enabled any unknown parameter addresses are filtered out.
+        `Unknown' means that the devices DeviceProfile does not contain the
+        address.
         """
         self._filter_unknown = on_off
         self.invalidateFilter()
@@ -219,25 +224,36 @@ class DeviceTableSortFilterProxyModel(QtGui.QSortFilterProxyModel):
     def get_filter_unknown(self):
         return self._filter_unknown
 
-    def set_filter_read_only(self, on_off):
-        self._filter_read_only = on_off
+    def set_filter_readonly(self, on_off):
+        self._filter_readonly = on_off
         self.invalidateFilter()
 
-    def get_filter_read_only(self):
-        return self._filter_read_only
+    def get_filter_readonly(self):
+        return self._filter_readonly
 
-    def filterAcceptsColumn(self, src_column, src_parent):
-        # XXX: leftoff
-        return super(DeviceTableSortFilterProxyModel, self).filterAcceptsColumn(src_column, src_parent)
+    #def filterAcceptsColumn(self, src_column, src_parent):
+    #    return super(DeviceTableSortFilterProxyModel, self).filterAcceptsColumn(src_column, src_parent)
 
     def filterAcceptsRow(self, src_row, src_parent):
+        device  = self.sourceModel().device
+        profile = device.profile[src_row]
+
+        if self.filter_unknown and profile is None:
+            return False
+
+        if self.filter_readonly and profile is not None and profile.read_only:
+            return False
+
         return super(DeviceTableSortFilterProxyModel, self).filterAcceptsRow(src_row, src_parent)
+
+    filter_unknown  = pyqtProperty(bool, get_filter_unknown, set_filter_unknown)
+    filter_readonly = pyqtProperty(bool, get_filter_readonly, set_filter_readonly)
 
 class DeviceTableView(QtGui.QTableView):
     def __init__(self, model, parent=None):
         super(DeviceTableView, self).__init__(parent)
         self.table_model = model
-        self.sort_model  = QtGui.QSortFilterProxyModel(self)
+        self.sort_model  = DeviceTableSortFilterProxyModel(self)
         self.sort_model.setSourceModel(model)
         self.sort_model.setDynamicSortFilter(True)
         self.setModel(self.sort_model)
@@ -251,25 +267,68 @@ class DeviceTableView(QtGui.QTableView):
         self.setSortingEnabled(True)
         self.resizeColumnsToContents()
         self.resizeRowsToContents()
-        self.doubleClicked.connect(self._on_item_doubleclicked)
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.customContextMenuRequested.connect(self._slt_context_menu_requested)
         self.setMouseTracking(True)
         self.setItemDelegate(DeviceTableItemDelegate())
 
-    def _on_item_doubleclicked(self, idx):
-        idx = self.sort_model.mapToSource(idx)
-        print "click on", idx.row(), idx.column(), idx.internalPointer()
-        if self.model().flags(idx) & Qt.ItemIsEditable:
-            print 'editable'
+    def contextMenuEvent(self, event):
+        selection_model = self.selectionModel()
 
-    def _slt_context_menu_requested(self, pos):
-        idx = self.sort_model.mapToSource(self.indexAt(pos))
+        menu = QtGui.QMenu()
+        if selection_model.hasSelection():
+            menu.addAction("Refresh selected").triggered.connect(self._slt_refresh_selected)
 
-        #if idx.isValid():
-        #    node = self.table_model.get_node(idx.row())
-        #    print node
-        #    menu = node.context_menu(idx.column())
-        #    print menu
-        #    if menu is not None:
-        #        menu.exec_(self.mapToGlobal(pos))
+        menu.addAction("Refresh visible").triggered.connect(self._slt_refresh_visible)
+
+        menu.exec_(event.globalPos())
+
+    def _slt_refresh_selected(self):
+        selection   = self.selectionModel().selection()
+        indexes     = self.sort_model.mapSelectionToSource(selection).indexes()
+        addresses   = set((idx.row() for idx in indexes))
+
+        seq_cmd     = command.SequentialCommandGroup()
+
+        for addr in addresses:
+            seq_cmd.add(mrc_command.ReadParameter(self.table_model.device, addr))
+
+        seq_cmd.start()
+
+    def _slt_refresh_visible(self):
+        f = lambda a: self.sort_model.filterAcceptsRow(a, QtCore.QModelIndex())
+        addresses = filter(f, xrange(256))
+
+        seq_cmd     = command.SequentialCommandGroup()
+
+        for addr in addresses:
+            seq_cmd.add(mrc_command.ReadParameter(self.table_model.device, addr))
+
+        seq_cmd.start()
+
+class DeviceTableWidget(QtGui.QWidget):
+    def __init__(self, device, parent=None):
+        super(DeviceTableWidget, self).__init__(parent)
+
+        settings   = uic.loadUi(application_registry.instance.find_data_file(
+            'mesycontrol/ui/device_tableview_settings.ui'))
+        view       = DeviceTableView(DeviceTableModel(device))
+        sort_model = view.sort_model
+
+        menu   = QtGui.QMenu('Filter options', self)
+        action = menu.addAction("Hide unknown")
+        action.setCheckable(True)
+        action.setChecked(sort_model.filter_unknown)
+        action.triggered.connect(sort_model.set_filter_unknown)
+
+        action = menu.addAction("Hide read-only")
+        action.setCheckable(True)
+        action.setChecked(sort_model.filter_readonly)
+        action.triggered.connect(sort_model.set_filter_readonly)
+
+        settings.pb_settings.setMenu(menu)
+
+        settings.le_filter.textChanged.connect(sort_model.setFilterWildcard)
+
+        layout = QtGui.QVBoxLayout()
+        layout.addWidget(settings)
+        layout.addWidget(view)
+        self.setLayout(layout)
