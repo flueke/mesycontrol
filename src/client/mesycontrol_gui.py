@@ -349,10 +349,12 @@ class MainWindow(QtGui.QMainWindow):
         except KeyError:
             pass
 
-    def _add_subwindow(self, widget, title, name):
+    def _add_subwindow(self, widget, title, name, install_event_filter=True):
         subwin = self.mdiArea.addSubWindow(widget)
         subwin.setWindowTitle(title)
         subwin.setObjectName(name)
+        if install_event_filter:
+            subwin.installEventFilter(self)
         restore_subwindow_state(subwin, application_registry.instance.make_qsettings())
         subwin.show()
 
@@ -381,7 +383,6 @@ class MainWindow(QtGui.QMainWindow):
 
             subwin = self._add_subwindow(widget, str(device), str(device))
             subwin.device = device
-            subwin.installEventFilter(self)
 
             self._device_windows[device] = subwin
 
@@ -390,15 +391,13 @@ class MainWindow(QtGui.QMainWindow):
         self.mdiArea.setActiveSubWindow(subwin)
 
     def _slt_open_new_device_tableview(self, device):
-        widget = device_tableview.DeviceTableView(
-                device_tableview.DeviceTableModel(device))
-
-        subwin_name     = str(device)
-        counter         = 1
+        counter     = 0
+        subwin_name = "%s table view" % (str(device))
         while self._has_named_subwindow(subwin_name):
-            subwin_name = "%s <%d>" % (str(device), counter)
             counter    += 1
+            subwin_name = "%s table view <%d>" % (str(device), counter)
 
+        widget = device_tableview.DeviceTableWidget(device)
         subwin = self._add_subwindow(widget, subwin_name, subwin_name)
         subwin.show()
         subwin.widget().show()
