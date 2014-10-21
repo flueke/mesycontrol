@@ -265,10 +265,11 @@ class DeviceTableView(QtGui.QTableView):
         self.horizontalHeader().setMovable(True)
         self.sortByColumn(0, Qt.AscendingOrder)
         self.setSortingEnabled(True)
+        self.setItemDelegate(DeviceTableItemDelegate())
+        self.setMouseTracking(True)
+        self.setWordWrap(False)
         self.resizeColumnsToContents()
         self.resizeRowsToContents()
-        self.setMouseTracking(True)
-        self.setItemDelegate(DeviceTableItemDelegate())
 
     def contextMenuEvent(self, event):
         selection_model = self.selectionModel()
@@ -323,6 +324,12 @@ class DeviceTableWidget(QtGui.QWidget):
         action.setCheckable(True)
         action.setChecked(sort_model.filter_readonly)
         action.triggered.connect(sort_model.set_filter_readonly)
+
+        menu.addSeparator()
+
+        action = menu.addAction("Resize table cells")
+        action.triggered.connect(view.resizeColumnsToContents)
+        action.triggered.connect(view.resizeRowsToContents)
 
         settings.pb_settings.setMenu(menu)
 
