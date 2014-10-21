@@ -170,6 +170,10 @@ class DeviceProfile(object):
     def get_parameter_by_name(self, name):
         return self.name_parameter_map.get(name, None)
 
+    def has_parameter(self, param):
+        return (param in self.address_parameter_map or
+                param in self.name_parameter_map)
+
     def __getitem__(self, key):
         if isinstance(key, (str, unicode, QtCore.QString)):
             return self.get_parameter_by_name(str(key))
