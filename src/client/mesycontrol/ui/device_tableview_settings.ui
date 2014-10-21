@@ -39,9 +39,6 @@
       </item>
       <item>
        <widget class="QLabel" name="label">
-        <property name="toolTip">
-         <string>test0r</string>
-        </property>
         <property name="text">
          <string>F&amp;ilter:</string>
         </property>
@@ -53,7 +50,7 @@
       <item>
        <widget class="QLineEdit" name="le_filter">
         <property name="toolTip">
-         <string>test</string>
+         <string>Filter string supporting wildcards (*, ?)</string>
         </property>
        </widget>
       </item>
