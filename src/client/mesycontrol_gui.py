@@ -490,7 +490,7 @@ if __name__ == "__main__":
 
     # Qt setup
     QtCore.QLocale.setDefault(QtCore.QLocale.c())
-    QtGui.QApplication.setDesktopSettingsAware(False)
+    QtGui.QApplication.setDesktopSettingsAware(True)
     app = QtGui.QApplication(sys.argv)
 
     # Let the interpreter run every 500 ms to be able to react to signals
