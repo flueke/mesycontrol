@@ -50,7 +50,7 @@
       <item>
        <widget class="QLineEdit" name="le_filter">
         <property name="toolTip">
-         <string>Filter string supporting wildcards (*, ?)</string>
+         <string>Filter string supporting wildcards (*, ?, [])</string>
         </property>
        </widget>
       </item>
