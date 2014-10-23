@@ -79,7 +79,8 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
 
     def _on_read_command_stopped(self):
         read_cmd = self.sender()
-        del self._pending_read_commands[read_cmd.address]
+        if read_cmd.address in self._pending_read_commands:
+            del self._pending_read_commands[read_cmd.address]
 
     device = pyqtProperty(app_model.Device, get_device, set_device)
 
@@ -210,6 +211,8 @@ class DeviceTableSortFilterProxyModel(QtGui.QSortFilterProxyModel):
         super(DeviceTableSortFilterProxyModel, self).__init__(parent)
         self._filter_unknown    = True
         self._filter_readonly   = False
+        self._filter_volatile   = False
+        self._filter_static     = False
 
         self.setFilterKeyColumn(column_index('name'))
 
@@ -231,8 +234,19 @@ class DeviceTableSortFilterProxyModel(QtGui.QSortFilterProxyModel):
     def get_filter_readonly(self):
         return self._filter_readonly
 
-    #def filterAcceptsColumn(self, src_column, src_parent):
-    #    return super(DeviceTableSortFilterProxyModel, self).filterAcceptsColumn(src_column, src_parent)
+    def set_filter_volatile(self, on_off):
+        self._filter_volatile = on_off
+        self.invalidateFilter()
+
+    def get_filter_volatile(self):
+        return self._filter_volatile
+
+    def set_filter_static(self, on_off):
+        self._filter_static = on_off
+        self.invalidateFilter()
+
+    def get_filter_static(self):
+        return self._filter_static
 
     def filterAcceptsRow(self, src_row, src_parent):
         device  = self.sourceModel().device
@@ -244,10 +258,18 @@ class DeviceTableSortFilterProxyModel(QtGui.QSortFilterProxyModel):
         if self.filter_readonly and profile is not None and profile.read_only:
             return False
 
+        if self.filter_volatile and profile is not None and profile.poll:
+            return False
+
+        if self.filter_static and profile is not None and not profile.poll:
+            return False
+
         return super(DeviceTableSortFilterProxyModel, self).filterAcceptsRow(src_row, src_parent)
 
     filter_unknown  = pyqtProperty(bool, get_filter_unknown, set_filter_unknown)
     filter_readonly = pyqtProperty(bool, get_filter_readonly, set_filter_readonly)
+    filter_volatile = pyqtProperty(bool, get_filter_volatile, set_filter_volatile)
+    filter_static   = pyqtProperty(bool, get_filter_static, set_filter_static)
 
 class DeviceTableView(QtGui.QTableView):
     def __init__(self, model, parent=None):
@@ -324,6 +346,16 @@ class DeviceTableWidget(QtGui.QWidget):
         action.setCheckable(True)
         action.setChecked(sort_model.filter_readonly)
         action.triggered.connect(sort_model.set_filter_readonly)
+
+        action = menu.addAction("Hide volatile")
+        action.setCheckable(True)
+        action.setChecked(sort_model.filter_volatile)
+        action.triggered.connect(sort_model.set_filter_volatile)
+
+        action = menu.addAction("Hide static")
+        action.setCheckable(True)
+        action.setChecked(sort_model.filter_static)
+        action.triggered.connect(sort_model.set_filter_static)
 
         menu.addSeparator()
 
