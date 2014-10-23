@@ -3,10 +3,17 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 from nose.tools import assert_raises, assert_dict_equal
+import sys
+
+from mesycontrol import application_registry
 from mesycontrol import config
 from mesycontrol import config_xml
 
 def test_device_config_xml():
+    if application_registry.instance is None:
+        application_registry.instance = application_registry.ApplicationRegistry(
+                sys.executable if getattr(sys, 'frozen', False) else __file__)
+
     cfg = config.DeviceConfig()
     cfg.name        = 'foobar'
     cfg.description = 'lorem ipsum'
@@ -42,6 +49,10 @@ def test_device_config_xml():
         assert param_cfg.alias   == str(i*2)
 
 def test_mrc_config_xml():
+    if application_registry.instance is None:
+        application_registry.instance = application_registry.ApplicationRegistry(
+                sys.executable if getattr(sys, 'frozen', False) else __file__)
+
     mrc_cfg             = config.MRCConfig()
     mrc_cfg.name        = 'foobar'
     mrc_cfg.description = 'lorem ipsum'
@@ -87,6 +98,10 @@ def test_mrc_config_xml():
         assert dev_cfg.rc == True
 
 def test_setup_config_xml():
+    if application_registry.instance is None:
+        application_registry.instance = application_registry.ApplicationRegistry(
+                sys.executable if getattr(sys, 'frozen', False) else __file__)
+
     setup = config.Setup()
     setup.name = 'foobar setup'
     setup.description = 'lorem setup'
