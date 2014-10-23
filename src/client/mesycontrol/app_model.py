@@ -10,6 +10,7 @@ import logging
 import weakref
 
 import config
+import device_profile
 import hw_model
 import util
 
@@ -478,10 +479,14 @@ class Device(QtCore.QObject):
     def __getitem__(self, key):
         if isinstance(key, (str, unicode, QtCore.QString)):
             return self.get_parameter_by_name(str(key))
-        try:
-            return self.get_parameter(int(key))
-        except ValueError:
-            raise TypeError("Device indexes must be strings or integers, not %s", type(key).__name__)
+
+        if isinstance(key, device_profile.ParameterProfile):
+            return self.get_parameter(key.address)
+
+        return self.get_parameter(int(key))
+
+    def make_bound_parameter(self, address_or_name):
+        return BoundParameter(self, self.profile[address_or_name], self[address_or_name])
 
     model   = pyqtProperty(object, get_model, set_model, notify=model_set)
     config  = pyqtProperty(object, get_config, set_config, notify=config_set)
@@ -787,7 +792,7 @@ class MRC(QtCore.QObject):
     name        = pyqtProperty(str, get_name, set_name, notify=name_changed)
     polling     = pyqtProperty(bool,   should_poll, set_polling_enabled, notify=polling_changed)
 
-class BoundParameter(object):
+class BoundParameter1(object):
     def __init__(self, param_profile, raw_value):
         self.profile = param_profile
         self.value   = raw_value
@@ -808,3 +813,40 @@ class BoundParameter(object):
         return self.profile.index
 
     index = property(get_index)
+
+class BoundParameter(object):
+    __slots__ = ['_device', 'address', 'value']
+
+    def __init__(self, device, address_or_name, value):
+        self._device = weakref.ref(device)
+        self.address = (address_or_name if isinstance(address_or_name, int)
+                else self.device.profile[address_or_name].address)
+        self.value   = value
+
+    def get_device(self):
+        """Returns the app_model.Device instance this parameter is bound to."""
+        return self._device() if self._device is not None else None
+
+    def get_profile(self):
+        """Returns the device_profile.ParameterProfile instance describing the
+        parameter."""
+        return self.device.profile[self.address]
+
+    def get_index(self):
+        return self.profile.index
+
+    def get_raw_value(self):
+        return self.value
+
+    def get_value(self, unit_label_or_name):
+        return self.profile.get_unit(unit_label_or_name).unit_value(self.value)
+
+    def get_label(self, unit_label_or_name):
+        return self.profile.get_unit(unit_label_or_name).label
+
+    def get_value_label_pair(self, unit_label_or_name):
+        return (self.get_value(unit_label_or_name), self.get_label(unit_label_or_name))
+
+    device  = property(get_device)
+    profile = property(get_profile)
+    index   = property(get_index)
