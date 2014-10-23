@@ -792,28 +792,6 @@ class MRC(QtCore.QObject):
     name        = pyqtProperty(str, get_name, set_name, notify=name_changed)
     polling     = pyqtProperty(bool,   should_poll, set_polling_enabled, notify=polling_changed)
 
-class BoundParameter1(object):
-    def __init__(self, param_profile, raw_value):
-        self.profile = param_profile
-        self.value   = raw_value
-
-    def get_raw_value(self):
-        return self.value
-
-    def get_value(self, unit_label_or_name):
-        return self.profile.get_unit(unit_label_or_name).unit_value(self.value)
-
-    def get_label(self, unit_label_or_name):
-        return self.profile.get_unit(unit_label_or_name).label
-
-    def get_value_label_pair(self, unit_label_or_name):
-        return (self.get_value(unit_label_or_name), self.get_label(unit_label_or_name))
-
-    def get_index(self):
-        return self.profile.index
-
-    index = property(get_index)
-
 class BoundParameter(object):
     __slots__ = ['_device', 'address', 'value']
 
