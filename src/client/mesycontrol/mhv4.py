@@ -9,6 +9,7 @@ from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import pyqtSlot
 from PyQt4.QtCore import Qt
 from functools import partial
+import math
 import weakref
 
 import application_registry
@@ -219,8 +220,10 @@ class ChannelWidget(QtGui.QWidget):
         self.pixmap_negative = QtGui.QPixmap(reg.find_data_file('mesycontrol/ui/list-remove.png')).scaled(
                         sz, Qt.KeepAspectRatio, Qt.SmoothTransformation)
 
-        self._last_temperature  = None
-        self._last_tcomp_source = None
+        self._last_temperature      = None
+        self._last_tcomp_source     = None
+        self._last_current          = None
+        self._last_current_limit    = None
 
     def set_voltage(self, voltage):
         self.lcd_voltage.display(float(voltage))
@@ -230,7 +233,6 @@ class ChannelWidget(QtGui.QWidget):
             self.set_voltage_limit(voltage)
 
         with util.block_signals(self.slider_target_voltage):
-            print "slider_target_voltage.setValue()", voltage
             self.slider_target_voltage.setValue(voltage)
 
         with util.block_signals(self.spin_target_voltage):
@@ -238,13 +240,34 @@ class ChannelWidget(QtGui.QWidget):
 
     def set_voltage_limit(self, voltage):
         self.spin_target_voltage.setMaximum(voltage)
-        print "slider_target_voltage.setMaximum()", voltage
         self.slider_target_voltage.setMaximum(voltage)
         self.slider_target_voltage.setTickInterval(100 if voltage > 100.0 else 10)
         self.label_upper_voltage_limit.setText("%.1f V" % voltage)
 
     def set_current(self, current):
-        self.lcd_current.display(float(current))
+        self._last_current = current
+        self._update_current_display()
+
+    def set_current_limit(self, current):
+        self._last_current_limit = current
+        self._update_current_display()
+
+    def _update_current_display(self):
+        if self._last_current is None:
+            return
+
+        self.lcd_current.display(float(self._last_current))
+
+        if (self._last_current_limit is not None
+                and math.fabs(self._last_current) >= self._last_current_limit):
+            self.lcd_current.setStyleSheet('QLCDNumber { color: red; }')
+        else:
+            self.lcd_current.setStyleSheet('QLCDNumber { color: black; }')
+
+        if self._last_current_limit is not None:
+            text = QtCore.QString.fromUtf8("Limit: %.3f µA" % self._last_current_limit)
+            self.lcd_current.setToolTip(text)
+            self.lcd_current.setStatusTip(text)
 
     def set_channel_state(self, on_off):
         with util.block_signals(self.pb_channelstate):
@@ -517,6 +540,7 @@ class MHV4Widget(QtGui.QWidget):
 
     def current_limit_changed(self, channel, value):
         unit_value = self.device.profile['channel0_current_limit_read'].get_unit('µA').unit_value(value)
+        self.channels[channel]().set_current_limit(unit_value)
         self.channel_settings[channel]().set_current_limit(unit_value)
 
     def channel_state_changed(self, channel, value):
