@@ -84,45 +84,45 @@ class MHV4(app_model.Device):
 
         if p['channel0_voltage_write'] <= param <= p['channel3_voltage_write']:
             self.target_voltage_changed.emit(param.index, new_value)
-            self.target_voltage_changed[object].emit(app_model.BoundParameter(p[param], new_value))
+            self.target_voltage_changed[object].emit(self.make_bound_parameter(param))
 
         elif p['channel0_voltage_read'] <= param <= p['channel3_voltage_read']:
             self.actual_voltage_changed.emit(param.index, new_value)
-            self.actual_voltage_changed[object].emit(app_model.BoundParameter(p[param], new_value))
+            self.actual_voltage_changed[object].emit(self.make_bound_parameter(param))
 
         elif p['channel0_enable_read'] <= param <= p['channel3_enable_read']:
             self.channel_state_changed.emit(param.index, new_value)
 
         elif p['channel0_current_limit_read'] <= param <= p['channel3_current_limit_read']:
             self.current_limit_changed.emit(param.index, new_value)
-            self.current_limit_changed[object].emit(app_model.BoundParameter(p[param], new_value))
+            self.current_limit_changed[object].emit(self.make_bound_parameter(param))
 
         elif p['channel0_voltage_limit_read'] <= param <= p['channel3_voltage_limit_read']:
             self.voltage_limit_changed.emit(param.index, new_value)
-            self.voltage_limit_changed[object].emit(app_model.BoundParameter(p[param], new_value))
+            self.voltage_limit_changed[object].emit(self.make_bound_parameter(param))
 
         elif p['channel0_polarity_read'] <= param <= p['channel3_polarity_read']:
             self.polarity_changed.emit(param.index, new_value)
 
         elif p['channel0_current_read'] <= param <= p['channel3_current_read']:
             self.actual_current_changed.emit(param.index, new_value)
-            self.actual_current_changed[object].emit(app_model.BoundParameter(p[param], new_value))
+            self.actual_current_changed[object].emit(self.make_bound_parameter(param))
 
         elif p['channel0_temp_read'] <= param <= p['channel3_temp_read']:
             self.temperature_changed.emit(param.index, new_value)
-            self.temperature_changed[object].emit(app_model.BoundParameter(p[param], new_value))
+            self.temperature_changed[object].emit(self.make_bound_parameter(param))
 
         elif p['channel0_tcomp_slope_read'] <= param <= p['channel3_tcomp_slope_read']:
             self.tcomp_slope_changed.emit(param.index, new_value)
-            self.tcomp_slope_changed[object].emit(app_model.BoundParameter(p[param], new_value))
+            self.tcomp_slope_changed[object].emit(self.make_bound_parameter(param))
 
         elif p['channel0_tcomp_offset_read'] <= param <= p['channel3_tcomp_offset_read']:
             self.tcomp_offset_changed.emit(param.index, new_value)
-            self.tcomp_offset_changed[object].emit(app_model.BoundParameter(p[param], new_value))
+            self.tcomp_offset_changed[object].emit(self.make_bound_parameter(param))
 
         elif p['channel0_tcomp_source_read'] <= param <= p['channel3_tcomp_source_read']:
             self.tcomp_source_changed.emit(param.index, new_value)
-            self.tcomp_source_changed[object].emit(app_model.BoundParameter(p[param], new_value))
+            self.tcomp_source_changed[object].emit(self.make_bound_parameter(param))
 
         elif p['ramp_speed_read'] == param:
             self.ramp_speed_changed.emit(new_value)
