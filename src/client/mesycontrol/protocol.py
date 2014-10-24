@@ -5,7 +5,7 @@
 import struct
 
 def deserialize_scanbus_response(type_info, data):
-  ret = Message(type_info['code'])
+  ret = ScanbusResponse(type_info['code'])
   values = struct.unpack_from('!' + type_info['format'], data, 1)
   ret.bus = values[0]
   ret.bus_data = []
@@ -294,6 +294,8 @@ class ErrorInfo:
     return ErrorInfo.by_name.keys()
 
 class Message(object):
+  __slots__ = '_type_code', '_error_code', '_bus', '_dev', '_par', '_value', '_bool'
+
   def __init__(self, type_code, **kwargs):
     self._type_code = MessageInfo.get_message_info(type_code)['code']
     self._error_code = None
@@ -354,12 +356,17 @@ class Message(object):
   def set_value(self, value):
     self._value = int(value)
 
+  def get_bool(self): return self._bool
+  def set_bool(self, value):
+    self._bool = bool(value)
+
   type_code  = property(get_type_code)
   bus        = property(get_bus, set_bus)
   dev        = property(get_dev, set_dev)
   par        = property(get_par, set_par)
   val        = property(get_value, set_value)
   error_code = property(get_error_code, set_error_code)
+  bool_value = property(get_bool, set_bool)
 
   def serialize(self):
     type_info = self.get_type_info()
@@ -409,6 +416,12 @@ class Message(object):
 
     return ret;
 
+class ScanbusResponse(Message):
+  __slots__ = 'bus_data'
+
+  def __init__(self, type_code, **kwargs):
+    super(ScanbusResponse, self).__init__(type_code, **kwargs)
+
 if __name__ == "__main__":
   msg = Message('request_read', bus=1, dev=2, par=3)
 
@@ -420,6 +433,9 @@ if __name__ == "__main__":
   assert msg.dev == msg_deserialized.dev
   assert msg.par == msg_deserialized.par
   print msg_deserialized
+
+  msg = ScanbusResponse('response_scanbus', bus=1, bus_data=[(27,1) for i in range(16)])
+  print msg
 
   try:
     msg = Message('request_read', bus=3, dev=2, par=3)
@@ -438,13 +454,6 @@ if __name__ == "__main__":
   try:
     msg = Message('request_read', bus=1, dev=2, par=256)
   except MessageError:
-    pass
-  else:
-    assert False
-
-  try:
-    msg = Message('request_set', bus=1, dev=2, par=3, val=65536)
-  except MessageError, e:
     pass
   else:
     assert False
