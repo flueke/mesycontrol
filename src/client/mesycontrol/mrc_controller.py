@@ -29,6 +29,10 @@ class MRCController(QtCore.QObject):
         self.connection = mrc_connection
         self.model      = mrc_model
 
+        # Mappings of subscriber_object to (DeviceController, address) pairs.
+        self.static_subscriptions   = weakref.WeakKeyDictionary()
+        self.volatile_subscriptions = weakref.WeakKeyDictionary()
+
         self.connection.connecting.connect(self._on_connecting)
         self.connection.connected.connect(self._on_connected)
         self.connection.disconnected.connect(self._on_disconnected)
@@ -41,6 +45,9 @@ class MRCController(QtCore.QObject):
         self.connection.request_canceled.connect(self.request_canceled)
         self.connection.request_completed.connect(self.request_completed)
         self.connection.write_queue_size_changed.connect(self._on_request_queue_size_changed)
+
+        timer = QtCore.QTimer(self, timeout=self._maybe_fetch_subscriptions)
+        timer.start(500)
 
     def get_model(self):
         return self._model() if self._model is not None else None
@@ -192,8 +199,61 @@ class MRCController(QtCore.QObject):
         if changed:
             self.polling_changed.emit(self.polling)
 
+    def add_static_parameter_subscription(self, subscriber, device_controller, address):
+        if subscriber not in self.static_subscriptions:
+            self.static_subscriptions[subscriber] = set()
+
+        self.static_subscriptions[subscriber].add((device_controller, address))
+
+    def add_volatile_parameter_subscription(self, subscriber, device_controller, address):
+        if subscriber not in self.volatile_subscriptions:
+            self.volatile_subscriptions[subscriber] = set()
+
+        self.volatile_subscriptions[subscriber].add((device_controller, address))
+
+    def del_static_parameter_subscription(self, subscriber, device_controller, address):
+        self.static_subscriptions[subscriber].remove((device_controller, address))
+
+    def del_volatile_parameter_subscription(self, subscriber, device_controller, address):
+        self.volatile_subscriptions[subscriber].remove((device_controller, address))
+
     model   = pyqtProperty(hw_model.MRCModel, get_model, set_model)
     polling = pyqtProperty(bool, should_poll, set_polling_enabled, notify=polling_changed)
+
+    def _maybe_fetch_subscriptions(self):
+        if not self.is_connected():
+            return
+
+        if self.get_request_queue_size() > 0:
+            return
+
+        if len(self.static_subscriptions):
+            # Read unknown static parameters
+            statics = reduce(lambda x, y: x.union(y), self.static_subscriptions.values())
+
+            def filter_unknown(subscription_tuple):
+                device_controller, address = subscription_tuple
+                return address not in device_controller.model.memory
+
+            statics = filter(filter_unknown, statics)
+
+            if len(statics):
+                self.log.info("reading %d static parameters", len(statics))
+                self.log.debug("statics=%s", statics)
+
+                for device_controller, address in statics:
+                    # Pass reading to the device controller so that the device
+                    # local queue size is updated.
+                    device_controller.read_parameter(address)
+
+        if self.should_poll() and len(self.volatile_subscriptions):
+            volatiles = reduce(lambda x, y: x.union(y), self.volatile_subscriptions.values())
+            self.log.info("reading %d volatile parameters", len(volatiles))
+            self.log.debug("volatiles=%s", volatiles)
+
+            for device_controller, address in volatiles:
+                if device_controller.should_poll():
+                    device_controller.read_parameter(address)
 
 class DeviceController(QtCore.QObject):
     write_access_changed       = pyqtSignal(bool)
@@ -211,11 +271,7 @@ class DeviceController(QtCore.QObject):
         self._mrc_controller        = weakref.ref(mrc_controller)
         self.model                  = device_model
         self._request_ids           = set()
-        self.static_subscriptions   = weakref.WeakKeyDictionary()
-        self.volatile_subscriptions = weakref.WeakKeyDictionary()
         self._poll_flag             = True
-        timer = QtCore.QTimer(self, timeout=self._maybe_fetch_subscriptions)
-        timer.start(500)
 
         mrc_controller.write_access_changed.connect(self.write_access_changed)
         mrc_controller.silence_changed.connect(self.silence_changed)
@@ -290,42 +346,6 @@ class DeviceController(QtCore.QObject):
             self.log.debug("removed canceled request %d from local queue. new queue size=%d", 
                     request_id, self.get_request_queue_size())
 
-    def _maybe_fetch_subscriptions(self):
-        if not self.is_connected():
-            return
-
-        if self.mrc_controller.get_request_queue_size() > 0:
-            return
-
-        try:
-            # Read unknown static parameters
-            statics   = reduce(lambda x, y: x.union(y), self.static_subscriptions.values())
-            known     = self.model.memory.viewkeys()
-            statics.difference_update(known)
-
-            if len(statics):
-                self.log.info("reading %d static parameters", len(statics))
-
-                for addr in statics:
-                    self.read_parameter(addr)
-        except TypeError: # reduce with empty sequence
-            pass
-
-        if not self.should_poll():
-            return
-
-        try:
-            # Poll volatile parameters
-            volatiles = reduce(lambda x, y: x.union(y), self.volatile_subscriptions.values())
-
-            if len(volatiles):
-                self.log.info("reading %d volatile parameters", len(volatiles))
-
-                for addr in volatiles:
-                    self.read_parameter(addr)
-        except TypeError: # reduce with empty sequence
-            pass
-
     def get_request_queue_size(self):
         return len(self._request_ids)
 
@@ -348,22 +368,16 @@ class DeviceController(QtCore.QObject):
         return self.mrc_controller.is_silenced()
 
     def add_static_parameter_subscription(self, subscriber, address):
-        if subscriber not in self.static_subscriptions:
-            self.static_subscriptions[subscriber] = set()
-
-        self.static_subscriptions[subscriber].add(address)
+        self.mrc_controller.add_static_parameter_subscription(subscriber, self, address)
 
     def add_volatile_parameter_subscription(self, subscriber, address):
-        if subscriber not in self.volatile_subscriptions:
-            self.volatile_subscriptions[subscriber] = set()
-
-        self.volatile_subscriptions[subscriber].add(address)
+        self.mrc_controller.add_volatile_parameter_subscription(subscriber, self, address)
 
     def del_static_parameter_subscription(self, subscriber, address):
-        self.static_subscriptions[subscriber].remove(address)
+        self.mrc_controller.del_static_parameter_subscription(subscriber, self, address)
 
     def del_volatile_parameter_subscription(self, subscriber, address):
-        self.volatile_subscriptions[subscriber].remove(address)
+        self.mrc_controller.del_volatile_parameter_subscription(subscriber, self, address)
 
     def should_poll(self):
         return self.mrc_controller.should_poll() and self._poll_flag
@@ -372,12 +386,12 @@ class DeviceController(QtCore.QObject):
         old_state = self.polling
         self._poll_flag = bool(on_off)
 
-        # Manually initiate polling if needed
-        if self.should_poll() and self.mrc_controller.get_request_queue_size() == 0:
-            self._on_request_queue_empty()
-
         if old_state != self.polling:
             self.polling_changed.emit(self.polling)
+
+            # Manually initiate polling if needed
+            if self.polling:
+                self._maybe_fetch_subscriptions()
 
     def _on_mrc_polling_changed(self, on_off):
         self.polling_changed.emit(self.polling)
@@ -386,3 +400,9 @@ class DeviceController(QtCore.QObject):
     mrc_controller  = pyqtProperty(MRCController, get_mrc_controller)
     model           = pyqtProperty(hw_model.DeviceModel, get_model, set_model)
     polling         = pyqtProperty(bool, should_poll, set_polling_enabled)
+
+# Refactoring of parameter subscription from DeviceController into MRCController:
+# * move poll timer from DeviceC to MRCC
+# * make MRCC keep track of subscribers and their subscriptions
+# * make DeviceC pass subscription requests down the MRCC
+# * if MRCC decides to poll it must honor its own and the devices poll flag
