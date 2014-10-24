@@ -18,13 +18,13 @@ class QProcessWrapper(QProcess):
     def __init__(self, parent=None):
         super(QProcessWrapper, self).__init__(parent)
 
-    def setupChildProcess(self):
-        """Called by Qt in the childs context just before the program is
-        executed.
-        Moves the child into its own process group to avoid receiving signals
-        from the parent process.
-        """
-        os.setpgrp()
+    #def setupChildProcess(self):
+    #    """Called by Qt in the childs context just before the program is
+    #    executed.
+    #    Moves the child into its own process group to avoid receiving signals
+    #    from the parent process.
+    #    """
+    #    os.setpgrp()
 
 class ServerProcess(QtCore.QObject):
     exit_codes = {
@@ -69,7 +69,7 @@ class ServerProcess(QtCore.QObject):
         self.mrc_port        = ServerProcess.default_mrc_port
         self.verbosity       = ServerProcess.default_verbosity
 
-        self.process = QProcess(self)
+        self.process = QProcess()
         self.process.setProcessChannelMode(QtCore.QProcess.MergedChannels)
         self.process.started.connect(self._slt_started)
         self.process.error.connect(self._slt_error)
@@ -118,10 +118,13 @@ class ServerProcess(QtCore.QObject):
     def stop(self, kill=False):
         if not self.is_running():
             return False
+
         if kill:
             self.process.kill()
         else:
             self.process.terminate()
+
+        return True
 
     def is_running(self):
         return self.process.state() == QtCore.QProcess.Running
