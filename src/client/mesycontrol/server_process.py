@@ -172,8 +172,9 @@ class ServerProcess(QtCore.QObject):
 
     def _slt_stdout_ready(self):
         data = str(self.process.readAllStandardOutput())
-        self.log.debug(data)
-        self.sig_stdout.emit(data)
+        for line in data.splitlines():
+            self.log.debug(line)
+            self.sig_stdout.emit(line)
 
 class ProcessPool(QtCore.QObject):
     default_base_port = 23000
