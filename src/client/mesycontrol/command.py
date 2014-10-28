@@ -181,7 +181,7 @@ class SequentialCommandGroup(CommandGroup):
         else:
             self._current = cmd
             cmd.stopped.connect(partial(self._child_stopped, cmd=cmd, idx=idx, cmd_iter=cmd_iter))
-            self.log.debug("Starting subcommand %d/%d: %s", idx, len(self), cmd)
+            self.log.debug("Starting subcommand %d/%d: %s", idx+1, len(self), cmd)
             try:
                 cmd.start()
             except Exception as e:
