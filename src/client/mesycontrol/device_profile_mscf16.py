@@ -72,10 +72,10 @@ profile_dict = {
             { 'address': 52, 'name': 'coincidence_time', 'range': (0, 255) },
             { 'address': 53, 'name': 'threshold_offset', 'range': (0, 200) },
             { 'address': 54, 'name': 'shaper_offset'   , 'range': (0, 200) },
-            { 'address': 55, 'name': 'sumdis_threshold' },  # MSCF-16-LN (special models only)
-            { 'address': 56, 'name': 'pz_display_range', 'range': (1, 255) },  # MSCF-16-LN
-            { 'address': 57, 'name': 'ecl_trigger_delay' }, # MSCF-16-F
-            { 'address': 58, 'name': 'tf_int_time', 'range': (0, 3) },       # MSCF-16-F
+            #{ 'address': 55, 'name': 'sumdis_threshold' },  # MSCF-16-LN (special models only)
+            #{ 'address': 56, 'name': 'pz_display_range', 'range': (1, 255) },  # MSCF-16-LN
+            #{ 'address': 57, 'name': 'ecl_trigger_delay' }, # MSCF-16-F
+            #{ 'address': 58, 'name': 'tf_int_time', 'range': (0, 3) },       # MSCF-16-F
             { 'address': 99, 'name': 'copy_function', 'range': (1, 3), 'do_not_store': True },           # MSCF-16-LN
             { 'address':100, 'name': 'auto_pz', 'poll': True, 'do_not_store': True },   # MSCF-16-LN
             ]

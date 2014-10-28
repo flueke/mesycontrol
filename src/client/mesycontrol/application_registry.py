@@ -87,7 +87,7 @@ class ApplicationRegistry(QtCore.QObject):
                 self.log.error("Error loading device profile from %s: %s", mod_name, str(e))
 
     def _load_device_classes(self):
-        for mod_name in ('mhv4',):
+        for mod_name in ('mhv4', 'mscf16'):
             try:
                 mod = importlib.import_module('mesycontrol.' + mod_name)
                 self.log.debug("Loading device class from %s", mod.__file__)
