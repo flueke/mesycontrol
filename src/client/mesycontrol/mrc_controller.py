@@ -389,10 +389,6 @@ class DeviceController(QtCore.QObject):
         if old_state != self.polling:
             self.polling_changed.emit(self.polling)
 
-            # Manually initiate polling if needed
-            if self.polling:
-                self._maybe_fetch_subscriptions()
-
     def _on_mrc_polling_changed(self, on_off):
         self.polling_changed.emit(self.polling)
 
@@ -400,9 +396,3 @@ class DeviceController(QtCore.QObject):
     mrc_controller  = pyqtProperty(MRCController, get_mrc_controller)
     model           = pyqtProperty(hw_model.DeviceModel, get_model, set_model)
     polling         = pyqtProperty(bool, should_poll, set_polling_enabled)
-
-# Refactoring of parameter subscription from DeviceController into MRCController:
-# * move poll timer from DeviceC to MRCC
-# * make MRCC keep track of subscribers and their subscriptions
-# * make DeviceC pass subscription requests down the MRCC
-# * if MRCC decides to poll it must honor its own and the devices poll flag
