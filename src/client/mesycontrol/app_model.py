@@ -73,7 +73,9 @@ class Device(QtCore.QObject):
     #: numeric parameter address, parameter name, ParameterProfile instance.
     #: The last two versions are only emitted if the parameter present in the
     #: devices profile and has a name.
-    parameter_changed               = pyqtSignal([int, int, int], [str, int, int], [object, int, int])
+    #: The last overload will emit a BoundParameter instance containing the new
+    #: value of the parameter.
+    parameter_changed               = pyqtSignal([int, int, int], [str, int, int], [object, int, int], [object])
 
     #: Like parameter_changed but applies to mirror memory.
     mirror_parameter_changed        = pyqtSignal([int, int, int], [str, int, int], [object, int, int])
@@ -189,7 +191,10 @@ class Device(QtCore.QObject):
 
                 self.config.add_parameter(address, new_value)
 
+
+
         self.parameter_changed[int, int, int].emit(address, old_value, new_value)
+        self.parameter_changed[object].emit(self.make_bound_parameter(address))
 
         if param_profile is not None:
             if param_profile.is_named():
@@ -486,7 +491,7 @@ class Device(QtCore.QObject):
         return self.get_parameter(int(key))
 
     def make_bound_parameter(self, address_or_name):
-        return BoundParameter(self, self.profile[address_or_name], self[address_or_name])
+        return BoundParameter(self, address_or_name, self[address_or_name])
 
     model   = pyqtProperty(object, get_model, set_model, notify=model_set)
     config  = pyqtProperty(object, get_config, set_config, notify=config_set)
@@ -824,6 +829,9 @@ class BoundParameter(object):
 
     def get_value_label_pair(self, unit_label_or_name):
         return (self.get_value(unit_label_or_name), self.get_label(unit_label_or_name))
+
+    #def __str__(self):
+    #    return "BoundParameter(d=%s, a=%d, v=%d)" % (self.device, self.address, self.value)
 
     device  = property(get_device)
     profile = property(get_profile)
