@@ -16,8 +16,6 @@ import application_registry
 import app_model
 import util
 
-# FIXME: tcomp slope calculation has issues!
-
 def get_device_info():
     return (MHV4.idcs, MHV4)
 
