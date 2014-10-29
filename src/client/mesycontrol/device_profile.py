@@ -113,6 +113,9 @@ class ParameterProfile(object):
     def get_unit(self, label_or_name):
         return filter(lambda u: u.label == label_or_name or u.name == label_or_name, self.units)[0]
 
+    def has_index(self):
+        return self.index is not None
+
     def __eq__(self, o):
         return self.address == o.address
 
