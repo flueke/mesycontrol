@@ -815,7 +815,15 @@ class BoundParameter(object):
         parameter."""
         return self.device.profile[self.address]
 
+    def get_name(self):
+        """Returns the parameter profiles name."""
+        return self.profile.name
+
+    def has_index(self):
+        return self.profile.has_index()
+
     def get_index(self):
+        """Returns the parameter profiles index."""
         return self.profile.index
 
     def get_raw_value(self):
@@ -835,4 +843,5 @@ class BoundParameter(object):
 
     device  = property(get_device)
     profile = property(get_profile)
+    name    = property(get_name)
     index   = property(get_index)
