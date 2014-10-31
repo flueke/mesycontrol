@@ -50,25 +50,15 @@ class MRCCommand(Command):
 class SetParameter(MRCCommand):
     def __init__(self, device, address, value, parent=None):
         super(SetParameter, self).__init__(device, parent)
+        self.log     = util.make_logging_source_adapter(__name__, self)
         self.device  = device
-        self.address = address
+        profile      = device.profile[address]
+        self.address = profile.address if profile is not None else address
         self.value   = value
-        self.log = util.make_logging_source_adapter(__name__, self)
 
     def _start(self):
         self.log.debug("%s started", str(self))
-        self.device.set_parameter(address=self.address, value=self.value, response_handler=self._handle_set_response)
-
-    def _handle_set_response(self, request, response):
-        self._response = response
-        if response.is_error():
-            self._stopped(True)
-        else:
-            self.device.read_parameter(self.address, self._handle_read_response)
-
-    def _handle_read_response(self, request, response):
-        self._response = response
-        self._stopped(True)
+        self.device.set_parameter(address=self.address, value=self.value, response_handler=self._handle_response)
 
     def _get_result(self):
         res = super(SetParameter, self)._get_result()
@@ -80,9 +70,10 @@ class SetParameter(MRCCommand):
 class ReadParameter(MRCCommand):
     def __init__(self, device, address, parent=None):
         super(ReadParameter, self).__init__(device, parent)
-        self.device  = device
-        self.address = address
         self.log     = util.make_logging_source_adapter(__name__, self)
+        self.device  = device
+        profile      = device.profile[address]
+        self.address = profile.address if profile is not None else address
 
     def _start(self):
         self.device.read_parameter(self.address, self._handle_response)
