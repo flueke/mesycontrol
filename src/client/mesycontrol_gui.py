@@ -58,7 +58,7 @@ class MainWindow(QtGui.QMainWindow):
         # Setup Tree Dock Widget
         self.setup_tree_view = setup_treeview.SetupTreeView(parent=self)
         self.setup_tree_view.sig_open_device.connect(self._slt_open_device_window)
-        self.setup_tree_view.sig_open_new_device_tableview.connect(self._slt_open_new_device_tableview)
+        self.setup_tree_view.sig_open_table_view.connect(self._slt_open_table_view)
         self.setup_tree_view.sig_remove_mrc.connect(self._slt_remove_mrc_from_setup)
         application_registry.instance.mrc_added.connect(self.setup_tree_view.model().add_mrc)
         application_registry.instance.mrc_removed.connect(self.setup_tree_view.model().remove_mrc)
@@ -390,7 +390,7 @@ class MainWindow(QtGui.QMainWindow):
         subwin.widget().show()
         self.mdiArea.setActiveSubWindow(subwin)
 
-    def _slt_open_new_device_tableview(self, device):
+    def _slt_open_table_view(self, device):
         counter     = 0
         subwin_name = "%s table view" % (str(device))
         while self._has_named_subwindow(subwin_name):

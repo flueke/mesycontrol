@@ -65,6 +65,9 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         self.endResetModel()
 
     def get_value(self, address):
+        if self.device is None:
+            return None
+
         if self.device.has_parameter(address):
             return self.device.get_parameter(address)
 
@@ -124,11 +127,21 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         row             = idx.row()
         col             = idx.column()
         column_name     = column_names[col]
-        param_config    = self.device.config.get_parameter(row) if self.device.config.contains_parameter(row) else None
-        param_profile   = self.device.profile.get_parameter_by_address(row)
+        param_config    = None
+        param_profile   = None
+
+        if (self.device is not None
+                and self.device.config is not None
+                and self.device.config.contains_parameter(row)):
+            param_config = self.device.config.get_parameter(row)
+
+        if (self.device is not None
+                and self.device.profile is not None):
+            param_profile = self.device.profile.get_parameter_by_address(row)
 
         if (role == Qt.BackgroundRole
                 and column_name in ('value', 'set_value')
+                and self.device is not None
                 and self.device.has_parameter(row)
                 and param_config is not None
                 and self.get_value(row) != param_config.value):
@@ -166,6 +179,9 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
 
     def setData(self, idx, value, role = Qt.EditRole):
         if role != Qt.EditRole:
+            return False
+
+        if self.device is None:
             return False
 
         row             = idx.row()

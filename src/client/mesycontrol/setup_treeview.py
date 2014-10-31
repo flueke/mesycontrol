@@ -18,8 +18,8 @@ import config_xml
 import mrc_command
 import util
 
-column_names  = ('name', 'rc', 'idc', 'queue_size') #, 'polling') # 'silent_mode', 'write_access')
-column_titles = ('Name', 'RC', 'IDC', 'Queue Size') #, 'Polling') # 'Silent Mode', 'Write Access')
+column_names  = ('name', 'rc', 'idc', 'queue_size', 'polling') # 'silent_mode', 'write_access')
+column_titles = ('Name', 'RC', 'IDC', 'Queue Size', 'Polling') # 'Silent Mode', 'Write Access')
 
 def column_index(col_name):
     try:
@@ -33,12 +33,32 @@ def column_name(col_idx):
     except IndexError:
         return None
 
-class SetupTreeRCComboBoxItemDelegate(QtGui.QStyledItemDelegate):
+class AutoPopupComboBox(QtGui.QComboBox):
+    """QComboBox subclass which automatically shows its popup on receiving a
+    non-spontaneous showEvent."""
+
     def __init__(self, parent=None):
-        super(SetupTreeRCComboBoxItemDelegate, self).__init__(parent)
+        super(AutoPopupComboBox, self).__init__(parent)
+        self._ignore_next_hide = False
+
+    def showEvent(self, event):
+        if not event.spontaneous():
+            self._ignore_next_hide = True
+            self.showPopup()
+
+    def hidePopup(self):
+        if self._ignore_next_hide:
+            self._ignore_next_hide = False
+        else:
+            super(AutoPopupComboBox, self).hidePopup()
+
+class RcStatusItemDelegate(QtGui.QStyledItemDelegate):
+    def __init__(self, parent=None):
+        super(RcStatusItemDelegate, self).__init__(parent)
 
     def createEditor(self, parent, options, idx):
         combo = QtGui.QComboBox(parent)
+        combo = AutoPopupComboBox(parent)
         combo.addItem("on",  True)
         combo.addItem("off", False)
 
@@ -47,6 +67,7 @@ class SetupTreeRCComboBoxItemDelegate(QtGui.QStyledItemDelegate):
         def on_combo_activated(index):
             self.commitData.emit(combo)
             self.closeEditor.emit(combo, QtGui.QAbstractItemDelegate.NoHint)
+
         combo.activated.connect(on_combo_activated)
 
         return combo
@@ -69,6 +90,8 @@ class TreeNodeWithModel(util.TreeNode):
 
     def get_model(self):
         return self._model()
+
+    model = property(get_model)
 
 class MRCNode(TreeNodeWithModel):
     sig_remove_mrc = pyqtSignal(object)
@@ -229,11 +252,13 @@ class BusNode(TreeNodeWithModel):
         self.ref.scanbus(self.bus)
 
 class DeviceNode(TreeNodeWithModel):
-    sig_open_device        = pyqtSignal(object)
-    sig_open_new_device_tableview   = pyqtSignal(object)
-    sig_save_device_config = pyqtSignal(object)
-    sig_load_device_config = pyqtSignal(object)
-    sig_apply_config       = pyqtSignal(object)
+    sig_open_device         = pyqtSignal(object)
+    sig_open_table_view     = pyqtSignal(object)
+    sig_save_device_config  = pyqtSignal(object)
+    sig_load_device_config  = pyqtSignal(object)
+    sig_apply_config        = pyqtSignal(object)
+    sig_rename              = pyqtSignal()
+
 
     def __init__(self, device, model, parent):
         super(DeviceNode, self).__init__(device, model, parent)
@@ -300,7 +325,7 @@ class DeviceNode(TreeNodeWithModel):
                 if role in (Qt.DisplayRole,):
                     return "on" if device.rc else "off"
                 elif role in (Qt.StatusTipRole, Qt.ToolTipRole):
-                    return "RC Status (double click to change)"
+                    return "RC Status"
                 elif role == Qt.EditRole:
                     return device.rc
             elif column_name == 'idc':
@@ -339,8 +364,10 @@ class DeviceNode(TreeNodeWithModel):
         ret = QtGui.QMenu()
         if self.ref.is_connected():
             ret.addAction("Open").triggered.connect(self._slt_open_device)
-            ret.addAction("Open new device table").triggered.connect(self._slt_open_new_device_tableview)
+            ret.addAction("Open table view").triggered.connect(self._slt_open_new_device_tableview)
             ret.addAction("Toggle RC").triggered.connect(self._slt_toggle_rc)
+            ret.addAction("Toggle Polling").triggered.connect(self._slt_toggle_polling)
+            ret.addAction("Rename").triggered.connect(self.sig_rename)
             ret.addAction("Refresh Memory").triggered.connect(self._slt_refresh_memory)
             if self.ref.config is not None:
                 ret.addAction("Apply config").triggered.connect(self._slt_apply_config)
@@ -367,15 +394,19 @@ class DeviceNode(TreeNodeWithModel):
         self.sig_apply_config.emit(self.ref)
 
     def _slt_open_new_device_tableview(self):
-        self.sig_open_new_device_tableview.emit(self.ref)
+        self.sig_open_table_view.emit(self.ref)
+
+    def _slt_toggle_polling(self):
+        self.ref.polling = not self.ref.polling
 
 class SetupTreeModel(QtCore.QAbstractItemModel):
-    sig_open_device        = pyqtSignal(object)
-    sig_open_new_device_tableview = pyqtSignal(object)
-    sig_remove_mrc         = pyqtSignal(object)
-    sig_save_device_config = pyqtSignal(object)
-    sig_load_device_config = pyqtSignal(object)
-    sig_apply_config       = pyqtSignal(object)
+    sig_open_device         = pyqtSignal(object)
+    sig_open_table_view     = pyqtSignal(object)
+    sig_remove_mrc          = pyqtSignal(object)
+    sig_save_device_config  = pyqtSignal(object)
+    sig_load_device_config  = pyqtSignal(object)
+    sig_apply_config        = pyqtSignal(object)
+    sig_rename_device       = pyqtSignal(object)
 
     def __init__(self, parent=None):
         super(SetupTreeModel, self).__init__(parent)
@@ -417,10 +448,11 @@ class SetupTreeModel(QtCore.QAbstractItemModel):
 
         device_node = DeviceNode(device, self, bus_node)
         device_node.sig_open_device.connect(self.sig_open_device)
-        device_node.sig_open_new_device_tableview.connect(self.sig_open_new_device_tableview)
+        device_node.sig_open_table_view.connect(self.sig_open_table_view)
         device_node.sig_save_device_config.connect(self.sig_save_device_config)
         device_node.sig_load_device_config.connect(self.sig_load_device_config)
         device_node.sig_apply_config.connect(self.sig_apply_config)
+        device_node.sig_rename.connect(self._slt_rename_device)
 
         self.beginInsertRows(bus_idx, len(bus_node.children), len(bus_node.children))
         bus_node.children.append(device_node)
@@ -488,9 +520,12 @@ class SetupTreeModel(QtCore.QAbstractItemModel):
             return ret
         return super(SetupTreeModel, self).setData(idx, value, role)
 
+    def _slt_rename_device(self):
+        self.sig_rename_device.emit(self.sender().ref)
+
 class SetupTreeView(QtGui.QTreeView):
     sig_open_device = pyqtSignal(object)
-    sig_open_new_device_tableview = pyqtSignal(object)
+    sig_open_table_view = pyqtSignal(object)
     sig_remove_mrc  = pyqtSignal(object)
 
     def __init__(self, model=None, parent=None):
@@ -503,22 +538,25 @@ class SetupTreeView(QtGui.QTreeView):
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._slt_context_menu_requested)
         self.setMouseTracking(True)
-        self.setItemDelegateForColumn(column_index('rc'), SetupTreeRCComboBoxItemDelegate())
+        self.setItemDelegateForColumn(column_index('rc'), RcStatusItemDelegate())
+        self.setEditTriggers(QtGui.QAbstractItemView.EditKeyPressed)
+        self.doubleClicked.connect(self._on_item_double_clicked)
 
     def setModel(self, model):
         if self.model() is not None:
-            self.model().disconnect(self)
+            self.model().disconnect(self) # FIXME: this does not work
             self.model().setParent(None)
 
         super(SetupTreeView, self).setModel(model)
 
         model.rowsInserted.connect(self._slt_rows_inserted)
         model.sig_open_device.connect(self.sig_open_device)
-        model.sig_open_new_device_tableview.connect(self.sig_open_new_device_tableview)
+        model.sig_open_table_view.connect(self.sig_open_table_view)
         model.sig_remove_mrc.connect(self.sig_remove_mrc)
         model.sig_save_device_config.connect(self._slt_save_device_config)
         model.sig_load_device_config.connect(self._slt_load_device_config)
         model.sig_apply_config.connect(self._slt_apply_device_config)
+        model.sig_rename_device.connect(self._slt_rename_device)
 
     def _slt_rows_inserted(self, parent_idx, start, end):
         self.expandAll()
@@ -684,6 +722,20 @@ class SetupTreeView(QtGui.QTreeView):
             QtGui.QMessageBox.critical(self, "Error", "Error applying device config:  %s" % (e,))
             raise
 
+    def _on_item_double_clicked(self, idx):
+        node = idx.internalPointer()
+        if isinstance(node, DeviceNode):
+            col_name = column_name(idx.column())
+
+            if col_name == 'rc':
+                self.edit(idx)
+            elif col_name == 'name':
+                self.sig_open_device.emit(node.ref)
+
+    def _slt_rename_device(self, device):
+        device_node = self.model().root.find_node_by_ref(device)
+        device_idx  = self.model().createIndex(device_node.row, column_index('name'), device_node)
+        self.edit(device_idx)
 
 class SetupTreeWidget(QtGui.QWidget):
     def __init__(self, model=None, parent=None):

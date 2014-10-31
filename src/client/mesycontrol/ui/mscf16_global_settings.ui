@@ -6,73 +6,17 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>466</width>
-    <height>240</height>
+    <width>449</width>
+    <height>288</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QGridLayout" name="gridLayout_2">
+  <layout class="QGridLayout" name="gridLayout_3">
    <property name="margin">
-    <number>0</number>
+    <number>4</number>
    </property>
-   <item row="0" column="1">
-    <widget class="QGroupBox" name="">
-     <property name="title">
-      <string>Monitor &amp;&amp; Auto PZ</string>
-     </property>
-     <layout class="QFormLayout" name="formLayout_2">
-      <property name="margin">
-       <number>1</number>
-      </property>
-      <item row="0" column="0">
-       <widget class="QLabel" name="label_6">
-        <property name="text">
-         <string>Monitor Channel</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QComboBox" name="combo_monitor_channel">
-        <property name="maxVisibleItems">
-         <number>100</number>
-        </property>
-        <property name="frame">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label_13">
-        <property name="text">
-         <string>Auto PZ</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QComboBox" name="combo_auto_pz"/>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="label_11">
-        <property name="text">
-         <string>Current auto PZ chan:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QLabel" name="label_15">
-        <property name="text">
-         <string>-</string>
-        </property>
-        <property name="textInteractionFlags">
-         <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
    <item row="0" column="0" rowspan="3">
     <widget class="QGroupBox" name="">
      <property name="title">
@@ -239,7 +183,7 @@
       <item row="7" column="0">
        <widget class="QLabel" name="label_8">
         <property name="text">
-         <string>Coinc. time</string>
+         <string>Coincidence time</string>
         </property>
        </widget>
       </item>
@@ -253,30 +197,72 @@
      </layout>
     </widget>
    </item>
-   <item row="1" column="1">
-    <widget class="QGroupBox" name="lolout1">
+   <item row="0" column="1">
+    <widget class="QGroupBox" name="">
      <property name="title">
-      <string>Copy</string>
+      <string>Auto PZ</string>
+     </property>
+     <layout class="QFormLayout" name="formLayout_2">
+      <property name="fieldGrowthPolicy">
+       <enum>QFormLayout::ExpandingFieldsGrow</enum>
+      </property>
+      <property name="margin">
+       <number>1</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_13">
+        <property name="text">
+         <string>Auto PZ</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QComboBox" name="combo_auto_pz"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_11">
+        <property name="text">
+         <string>Current channel:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLabel" name="label_current_auto_pz_channel">
+        <property name="text">
+         <string>-</string>
+        </property>
+        <property name="textInteractionFlags">
+         <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="QGroupBox" name="gb_copy">
+     <property name="title">
+      <string>Copy Function</string>
      </property>
      <layout class="QGridLayout" name="gridLayout">
       <item row="2" column="0">
        <widget class="QPushButton" name="pb_copy_common2single">
         <property name="text">
-         <string>Copy RC Common -&gt; Single</string>
+         <string>RC Common → Single</string>
         </property>
        </widget>
       </item>
       <item row="1" column="0">
        <widget class="QPushButton" name="pb_copy_rc2panel">
         <property name="text">
-         <string>Copy RC -&gt; Panel</string>
+         <string>RC → Panel</string>
         </property>
        </widget>
       </item>
       <item row="0" column="0">
        <widget class="QPushButton" name="pb_copy_panel2rc">
         <property name="text">
-         <string>Copy Panel -&gt; RC</string>
+         <string>Panel → RC</string>
         </property>
        </widget>
       </item>
@@ -306,7 +292,7 @@
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_14">
+       <widget class="QLabel" name="label_version">
         <property name="text">
          <string>unknown</string>
         </property>
@@ -317,6 +303,50 @@
       </item>
      </layout>
     </widget>
+   </item>
+   <item row="3" column="0">
+    <widget class="QGroupBox" name="groupBox">
+     <property name="title">
+      <string>Channel Settings</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_2">
+      <property name="margin">
+       <number>1</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QComboBox" name="combo_channel"/>
+      </item>
+      <item row="0" column="1">
+       <spacer name="horizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>1</width>
+          <height>1</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item row="1" column="0" colspan="2">
+       <widget class="QStackedWidget" name="stacked_channels"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="3" column="1">
+    <spacer name="horizontalSpacer_2">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>195</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
    </item>
   </layout>
   <zorder>spin_blr_threshold</zorder>
@@ -349,6 +379,8 @@
   <zorder>pb_copy_common2single</zorder>
   <zorder>pb_copy_panel2rc</zorder>
   <zorder></zorder>
+  <zorder>groupBox</zorder>
+  <zorder>horizontalSpacer_2</zorder>
  </widget>
  <tabstops>
   <tabstop>rb_single_channel_on</tabstop>
@@ -361,12 +393,28 @@
   <tabstop>spin_threshold_offset</tabstop>
   <tabstop>spin_shaper_offset</tabstop>
   <tabstop>spin_coincidence_time</tabstop>
-  <tabstop>combo_monitor_channel</tabstop>
   <tabstop>combo_auto_pz</tabstop>
   <tabstop>pb_copy_panel2rc</tabstop>
   <tabstop>pb_copy_rc2panel</tabstop>
   <tabstop>pb_copy_common2single</tabstop>
  </tabstops>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>combo_channel</sender>
+   <signal>currentIndexChanged(int)</signal>
+   <receiver>stacked_channels</receiver>
+   <slot>setCurrentIndex(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>42</x>
+     <y>263</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>119</x>
+     <y>305</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

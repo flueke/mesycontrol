@@ -191,8 +191,6 @@ class Device(QtCore.QObject):
 
                 self.config.add_parameter(address, new_value)
 
-
-
         self.parameter_changed[int, int, int].emit(address, old_value, new_value)
         self.parameter_changed[object].emit(self.make_bound_parameter(address))
 
