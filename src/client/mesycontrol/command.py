@@ -23,9 +23,9 @@ class Command(QtCore.QObject):
     stopped          = pyqtSignal()
 
     #: Used to signal that this commands progress has changed. Values are:
-    #: (current, total). This is completely optional and has to be emitted by
+    #: (current, total) and (current). This is completely optional and has to be emitted by
     #: subclasses.
-    progress_changed = pyqtSignal(int, int)
+    progress_changed = pyqtSignal([int, int], [int])
 
     def __init__(self, parent=None):
         super(Command, self).__init__(parent)
@@ -205,7 +205,8 @@ class SequentialCommandGroup(CommandGroup):
         if self.is_stopping() or (cmd.has_failed() and not self.continue_on_error):
             self._stopped(all(cmd.is_complete() for cmd in self._commands))
         else:
-            self.progress_changed.emit(idx+1, len(self))
+            self.progress_changed[int, int].emit(idx+1, len(self))
+            self.progress_changed[int].emit(idx+1)
             self._start_next(cmd_iter)
 
     def get_first_failed(self):
@@ -231,7 +232,8 @@ class ParallelCommandGroup(CommandGroup):
 
     def _child_stopped(self, cmd):
         self._num_stopped += 1
-        self.progress_changed.emit(self._num_stopped, len(self))
+        self.progress_changed[int, int].emit(self._num_stopped, len(self))
+        self.progress_changed[int].emit(self._num_stopped)
 
         if self._num_stopped == len(self):
             self._stopped(all(cmd.is_complete() for cmd in self._commands))
