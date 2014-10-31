@@ -321,10 +321,6 @@ class Device(QtCore.QObject):
         return self.model.controller.set_rc(on_off, response_handler)
 
     @model_required
-    def read_parameter(self, address, response_handler=None):
-        return self.model.controller.read_parameter(address, response_handler)
-
-    @model_required
     def has_parameter(self, address):
         return self.model.has_parameter(address)
 
@@ -348,6 +344,15 @@ class Device(QtCore.QObject):
         return self._get_parameter(
                 self.profile.get_parameter_by_name(param_name),
                 unit_label)
+
+
+    # ===== read parameter =====
+    @model_required
+    def read_parameter(self, address, response_handler=None):
+        profile = self.profile[address]
+        if profile is not None:
+            address = profile.address
+        return self.model.controller.read_parameter(address, response_handler)
 
     # ===== set parameter =====
     @model_required
@@ -379,6 +384,7 @@ class Device(QtCore.QObject):
                 self.profile.get_parameter_by_name(param_name),
                 value, unit_label, response_handler)
 
+    # ===== config =====
     @config_required
     def get_config_parameter(self, address):
         return self.config.get_parameter(address)
