@@ -94,7 +94,8 @@ class TreeNodeWithModel(util.TreeNode):
     model = property(get_model)
 
 class MRCNode(TreeNodeWithModel):
-    sig_remove_mrc = pyqtSignal(object)
+    sig_remove_mrc  = pyqtSignal(object)
+    sig_rename      = pyqtSignal()
 
     def __init__(self, mrc, model, parent):
         super(MRCNode, self).__init__(mrc, model, parent)
@@ -192,6 +193,8 @@ class MRCNode(TreeNodeWithModel):
         ret = QtGui.QMenu()
         if self.ref.is_connected():
             ret.addAction("Scanbus").triggered.connect(self._slt_scanbus)
+            ret.addAction("Toggle Polling").triggered.connect(self._slt_toggle_polling)
+            ret.addAction("Rename").triggered.connect(self.sig_rename)
             ret.addAction("Disconnect").triggered.connect(self._slt_disconnect)
         else:
             ret.addAction("Connect").triggered.connect(self._slt_connect)
@@ -210,6 +213,9 @@ class MRCNode(TreeNodeWithModel):
 
     def _slt_remove_mrc(self):
         self.sig_remove_mrc.emit(self.ref)
+
+    def _slt_toggle_polling(self):
+        self.ref.polling = not self.ref.polling
 
 class BusNode(TreeNodeWithModel):
     sig_apply_config = pyqtSignal(object)
@@ -258,7 +264,6 @@ class DeviceNode(TreeNodeWithModel):
     sig_load_device_config  = pyqtSignal(object)
     sig_apply_config        = pyqtSignal(object)
     sig_rename              = pyqtSignal()
-
 
     def __init__(self, device, model, parent):
         super(DeviceNode, self).__init__(device, model, parent)
@@ -406,7 +411,7 @@ class SetupTreeModel(QtCore.QAbstractItemModel):
     sig_save_device_config  = pyqtSignal(object)
     sig_load_device_config  = pyqtSignal(object)
     sig_apply_config        = pyqtSignal(object)
-    sig_rename_device       = pyqtSignal(object)
+    sig_rename_item         = pyqtSignal(object)
 
     def __init__(self, parent=None):
         super(SetupTreeModel, self).__init__(parent)
@@ -428,6 +433,7 @@ class SetupTreeModel(QtCore.QAbstractItemModel):
         mrc_node = MRCNode(mrc, self, self.root)
         mrc.device_added.connect(partial(self._on_device_added, mrc_node=mrc_node))
         mrc_node.sig_remove_mrc.connect(self.sig_remove_mrc)
+        mrc_node.sig_rename.connect(self._slt_rename_item)
 
         self.beginInsertRows(QModelIndex(), len(self.root.children), len(self.root.children))
         self.root.children.append(mrc_node)
@@ -452,7 +458,7 @@ class SetupTreeModel(QtCore.QAbstractItemModel):
         device_node.sig_save_device_config.connect(self.sig_save_device_config)
         device_node.sig_load_device_config.connect(self.sig_load_device_config)
         device_node.sig_apply_config.connect(self.sig_apply_config)
-        device_node.sig_rename.connect(self._slt_rename_device)
+        device_node.sig_rename.connect(self._slt_rename_item)
 
         self.beginInsertRows(bus_idx, len(bus_node.children), len(bus_node.children))
         bus_node.children.append(device_node)
@@ -520,8 +526,8 @@ class SetupTreeModel(QtCore.QAbstractItemModel):
             return ret
         return super(SetupTreeModel, self).setData(idx, value, role)
 
-    def _slt_rename_device(self):
-        self.sig_rename_device.emit(self.sender().ref)
+    def _slt_rename_item(self):
+        self.sig_rename_item.emit(self.sender().ref)
 
 class SetupTreeView(QtGui.QTreeView):
     sig_open_device = pyqtSignal(object)
@@ -556,7 +562,7 @@ class SetupTreeView(QtGui.QTreeView):
         model.sig_save_device_config.connect(self._slt_save_device_config)
         model.sig_load_device_config.connect(self._slt_load_device_config)
         model.sig_apply_config.connect(self._slt_apply_device_config)
-        model.sig_rename_device.connect(self._slt_rename_device)
+        model.sig_rename_item.connect(self._slt_rename_item)
 
     def _slt_rows_inserted(self, parent_idx, start, end):
         self.expandAll()
@@ -732,10 +738,10 @@ class SetupTreeView(QtGui.QTreeView):
             elif col_name == 'name':
                 self.sig_open_device.emit(node.ref)
 
-    def _slt_rename_device(self, device):
-        device_node = self.model().root.find_node_by_ref(device)
-        device_idx  = self.model().createIndex(device_node.row, column_index('name'), device_node)
-        self.edit(device_idx)
+    def _slt_rename_item(self, node_ref):
+        node = self.model().root.find_node_by_ref(node_ref)
+        idx  = self.model().createIndex(node.row, column_index('name'), node)
+        self.edit(idx)
 
 class SetupTreeWidget(QtGui.QWidget):
     def __init__(self, model=None, parent=None):
