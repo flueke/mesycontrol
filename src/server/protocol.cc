@@ -384,6 +384,17 @@ MessagePtr MessageFactory::make_scanbus_response(boost::uint8_t bus, const Messa
   return ret;
 }
 
+MessagePtr MessageFactory::make_read_request(boost::uint8_t bus, boost::uint8_t dev,
+    boost::uint8_t par, bool mirror)
+{
+  MessagePtr ret(boost::make_shared<Message>());
+  ret->type = mirror ? message_type::request_mirror_read : message_type::request_read;
+  ret->bus  = bus;
+  ret->dev  = dev;
+  ret->par  = par;
+  return ret;
+}
+
 MessagePtr MessageFactory::make_read_response(boost::uint8_t bus, boost::uint8_t dev,
     boost::uint8_t par, boost::int32_t val, bool mirror)
 {

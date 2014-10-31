@@ -36,6 +36,10 @@ class TCPConnectionManager: private boost::noncopyable
   private:
     void handle_mrc1_response(const TCPConnectionPtr &connection,
         const MessagePtr &request, const MessagePtr &response);
+
+    void handle_read_after_set(
+        const MessagePtr &request, const MessagePtr &response);
+
     void set_write_connection(const TCPConnectionPtr &connection);
 
     /// The managed connections.

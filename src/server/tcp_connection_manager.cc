@@ -56,6 +56,20 @@ void TCPConnectionManager::dispatch_request(const TCPConnectionPtr &connection, 
       m_mrc1_queue.queue_request(request,
           boost::bind(&TCPConnectionManager::handle_mrc1_response,
             this, connection, _1, _2));
+
+      if (request->type == message_type::request_set ||
+          request->type == message_type::request_mirror_set) {
+        /* Create an artificial read request on parameter set to notify clients
+         * about the updated memory value. */
+
+        MessagePtr read_request(MessageFactory::make_read_request(
+              request->bus, request->dev, request->par,
+              request->type == message_type::request_mirror_set));
+
+        m_mrc1_queue.queue_request(read_request,
+            boost::bind(&TCPConnectionManager::handle_read_after_set,
+              this, _1, _2));
+      }
     }
   } else {
     MessagePtr response;
@@ -139,6 +153,18 @@ void TCPConnectionManager::handle_mrc1_response(const TCPConnectionPtr &connecti
         MessageFactory::make_parameter_set_notification(
           response->bus, response->dev, response->par, response->val,
           response->type == message_type::response_mirror_set));
+  }
+}
+
+void TCPConnectionManager::handle_read_after_set(
+    const MessagePtr &request, const MessagePtr &response)
+{
+  if (response->type == message_type::response_read ||
+      response->type == message_type::response_mirror_read) {
+
+    send_to_all(MessageFactory::make_parameter_set_notification(
+          response->bus, response->dev, response->par, response->val,
+          response->type == message_type::response_mirror_read));
   }
 }
 
