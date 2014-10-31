@@ -6,14 +6,17 @@ from PyQt4 import QtGui
 from PyQt4 import uic
 from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import pyqtSlot
+from functools import partial
 import weakref
 
 import application_registry
 import app_model
+import command
+import mrc_command
 import util
 
 # TODO: * refresh variables on copy operation
-#       * refresh pz value on auto pz finish
+#       * handle config values after auto pz (update config?)
 
 def get_device_info():
     return (MSCF16.idcs, MSCF16)
@@ -36,7 +39,7 @@ def group_channel_range(group_num):
     """Returns the range of channel indexes in the given channel group.
     group_num is the 0-based index of the channel group.
     """
-    return range(group_num * MSCF16.num_groups, (group_num+1) * MSCF16.num_groups)
+    return xrange(group_num * MSCF16.num_groups, (group_num+1) * MSCF16.num_groups)
 
 class MSCF16(app_model.Device):
     idcs         = (20, )
@@ -65,7 +68,7 @@ class MSCF16(app_model.Device):
                 device_profile=device_profile, parent=parent)
 
         self.log = util.make_logging_source_adapter(__name__, self)
-
+        self._auto_pz_channel = 0
         self.parameter_changed[object].connect(self._on_parameter_changed)
 
     def propagate_state(self):
@@ -126,6 +129,24 @@ class MSCF16(app_model.Device):
             self.copy_function_changed.emit(bp.value)
 
         elif bp.name == 'auto_pz':
+            # Refresh the channels PZ value once auto pz is done
+            if 0 < self._auto_pz_channel <= MSCF16.num_channels:
+                self.log.debug("Refreshing pz value for channel %d" % self._auto_pz_channel)
+
+                param_name = 'pz_value_channel%d' % (self._auto_pz_channel-1)
+                read_cmd   = mrc_command.ReadParameter(self, param_name)
+
+                # Update the config with the newly found pz value
+                def on_read_command_stopped():
+                    if not read_cmd.has_failed() and self.has_config():
+                        self.log.debug("Updating config pz value")
+                        self.config.set_parameter_value(read_cmd.address, read_cmd.get_result())
+                    read_cmd.stopped.disconnect()
+
+                read_cmd.stopped.connect(on_read_command_stopped)
+                read_cmd.start()
+
+            self._auto_pz_channel = bp.value
             self.auto_pz_channel_changed.emit(bp.value)
 
     def set_gain(self, group, value, response_handler=None):
@@ -184,6 +205,24 @@ class MSCF16(app_model.Device):
 
     def perform_copy_function(self, value, response_handler=None):
         return self.set_parameter('copy_function', value, response_handler=response_handler)
+
+    def get_copy_panel2rc_command(self):
+        ret = command.SequentialCommandGroup()
+        ret.add(command.Callable(partial(self.mrc.set_polling_enabled, False)))
+        ret.add(mrc_command.SetParameter(self, 'copy_function', CopyFunction.panel2rc))
+        for param_profile in self.profile.parameters:
+            ret.add(mrc_command.ReadParameter(self, param_profile.address))
+        ret.add(command.Callable(partial(self.mrc.set_polling_enabled, self.mrc.polling)))
+        return ret
+
+    def get_copy_common2single_command(self):
+        ret = command.SequentialCommandGroup()
+        ret.add(command.Callable(partial(self.mrc.set_polling_enabled, False)))
+        ret.add(mrc_command.SetParameter(self, 'copy_function', CopyFunction.common2single))
+        for param_profile in self.profile.parameters:
+            ret.add(mrc_command.ReadParameter(self, param_profile.address))
+        ret.add(command.Callable(partial(self.mrc.set_polling_enabled, self.mrc.polling)))
+        return ret
 
 class ChannelSettingsWidget(QtGui.QWidget):
     threshold_changed       = pyqtSignal(int)
@@ -256,9 +295,14 @@ class MSCF16Widget(QtGui.QWidget):
         self.common_settings = weakref.ref(common_settings)
 
         for i in range(MSCF16.num_channels):
+            group_num  = i / MSCF16.num_groups
+            chan_first = group_channel_range(group_num)[0] + 1
+            chan_last  = group_channel_range(group_num)[-1] + 1
+
             channel_settings = ChannelSettingsWidget(
                     "Channel %d" % (i+1),
-                    "Group %d" % (i / MSCF16.num_groups + 1))
+                    "Group %d (Channels %d-%d)" % (group_num + 1, chan_first, chan_last))
+
             channel_settings.threshold_changed.connect(self.on_channel_threshold_changed)
             channel_settings.pz_value_changed.connect(self.on_channel_pz_value_changed)
             channel_settings.gain_changed.connect(self.on_channel_gain_changed)
@@ -266,11 +310,13 @@ class MSCF16Widget(QtGui.QWidget):
             self.stacked_channels.addWidget(channel_settings)
             self.channel_settings.append(weakref.ref(channel_settings))
 
-        self.combo_auto_pz.addItem("Off", 0)
+        self.combo_auto_pz.addItem("Stop", 0)
         self.combo_auto_pz.addItem("All", 17)
         for i in range(MSCF16.num_channels):
             self.combo_auto_pz.addItem("Channel %d" % (i+1), i+1)
         self.combo_auto_pz.setMaxVisibleItems(MSCF16.num_channels+2)
+
+        self.auto_pz_progress.hide()
 
         self.device.gain_changed.connect(self.on_device_gain_changed)
         self.device.threshold_changed.connect(self.on_device_threshold_changed)
@@ -284,9 +330,7 @@ class MSCF16Widget(QtGui.QWidget):
         self.device.threshold_offset_changed.connect(self.on_device_threshold_offset_changed)
         self.device.shaper_offset_changed.connect(self.on_device_shaper_offset_changed)
         self.device.coincidence_time_changed.connect(self.on_device_coincidence_time_changed)
-        #self.device.monitor_channel_changed.connect(self.on_device_monitor_channel_changed)
         self.device.auto_pz_channel_changed.connect(self.on_device_auto_pz_channel_changed)
-        #self.device.copy_function_changed.connect(self.on_device_copy_function_changed)
         self.device.version_changed.connect(self.on_device_version_changed)
 
         self.device.propagate_state()
@@ -333,7 +377,19 @@ class MSCF16Widget(QtGui.QWidget):
 
     @pyqtSlot()
     def on_pb_copy_panel2rc_clicked(self):
-        self.device.perform_copy_function(CopyFunction.panel2rc)
+        cmd = self.device.get_copy_panel2rc_command()
+        self.copy_panel2rc_progress.setMaximum(len(cmd))
+        self.copy_panel2rc_progress.setValue(0)
+        cmd.progress_changed[int].connect(self.copy_panel2rc_progress.setValue)
+
+        def on_command_stopped():
+            cmd.progress_changed[int].disconnect()
+            cmd.stopped.disconnect()
+            self.copy_panel2rc_stack.setCurrentIndex(0)
+
+        cmd.stopped.connect(on_command_stopped)
+        self.copy_panel2rc_stack.setCurrentIndex(1)
+        cmd.start()
 
     @pyqtSlot()
     def on_pb_copy_rc2panel_clicked(self):
@@ -341,7 +397,19 @@ class MSCF16Widget(QtGui.QWidget):
 
     @pyqtSlot()
     def on_pb_copy_common2single_clicked(self):
-        self.device.perform_copy_function(CopyFunction.common2single)
+        cmd = self.device.get_copy_common2single_command()
+        self.copy_common2single_progress.setMaximum(len(cmd))
+        self.copy_common2single_progress.setValue(0)
+        cmd.progress_changed[int].connect(self.copy_common2single_progress.setValue)
+
+        def on_command_stopped():
+            cmd.progress_changed[int].disconnect()
+            cmd.stopped.disconnect()
+            self.copy_common2single_stack.setCurrentIndex(0)
+
+        cmd.stopped.connect(on_command_stopped)
+        self.copy_common2single_stack.setCurrentIndex(1)
+        cmd.start()
 
     @pyqtSlot(int)
     def on_stacked_channels_currentChanged(self, idx):
@@ -351,7 +419,7 @@ class MSCF16Widget(QtGui.QWidget):
         else:
             self.device.set_monitor_channel(0)
 
-    # ========== Slots receiving device changes and populating the GUI ==========
+    # ========== Channel settings ==========
 
     def on_channel_threshold_changed(self, value):
         sender = weakref.ref(self.sender())
@@ -382,6 +450,8 @@ class MSCF16Widget(QtGui.QWidget):
         else:
             group = self.channel_settings.index(sender) / MSCF16.num_groups
             self.device.set_shaping_time(group, value)
+
+    # ========== Slots receiving device changes and populating the GUI ==========
 
     def on_device_gain_changed(self, bp):
         if bp.has_index():
@@ -448,6 +518,7 @@ class MSCF16Widget(QtGui.QWidget):
             self.spin_coincidence_time.setValue(value)
 
     def on_device_auto_pz_channel_changed(self, value):
+        self.auto_pz_progress.setVisible(value != 0)
         text = '-' if value == 0 else str(value)
         self.label_current_auto_pz_channel.setText(text)
 

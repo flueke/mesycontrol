@@ -63,7 +63,7 @@ profile_dict = {
             # Misc
             { 'address': 44, 'name': 'multiplicity_hi', 'range': (0, 8) },
             { 'address': 45, 'name': 'multiplicity_lo', 'range': (0, 8) },
-            { 'address': 46, 'name': 'monitor_channel', 'range': (1, 16) },
+            { 'address': 46, 'name': 'monitor_channel', 'range': (1, 16), 'do_not_store': True },
             { 'address': 47, 'name': 'single_channel_mode', 'range': (0, 1) },
             { 'address': 48, 'name': 'rc_enable', 'read_only': True },
             { 'address': 49, 'name': 'version',   'read_only': True },
