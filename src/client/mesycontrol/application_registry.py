@@ -15,6 +15,12 @@ import mrc_connection
 import mrc_controller
 import util
 
+# Refactoring the singleton away:
+# - In the main python program create a registry ('context' would be a better name) instance.
+# - Pass this instance down into the application code.
+# - Pass the few factories used in the code directly to the clients as this
+#   makes it easy to mock the factories.
+
 instance = None
 
 def init(main_file):
