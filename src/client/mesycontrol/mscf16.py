@@ -15,9 +15,6 @@ import command
 import mrc_command
 import util
 
-# TODO: * refresh variables on copy operation
-#       * handle config values after auto pz (update config?)
-
 def get_device_info():
     return (MSCF16.idcs, MSCF16)
 
@@ -207,22 +204,31 @@ class MSCF16(app_model.Device):
         return self.set_parameter('copy_function', value, response_handler=response_handler)
 
     def get_copy_panel2rc_command(self):
+        return self._get_copy_command(CopyFunction.panel2rc)
+
+    def get_copy_common2single_command(self):
+        return self._get_copy_command(CopyFunction.common2single)
+
+    def _get_copy_command(self, copy_operation):
         ret = command.SequentialCommandGroup()
         ret.add(command.Callable(partial(self.mrc.set_polling_enabled, False)))
-        ret.add(mrc_command.SetParameter(self, 'copy_function', CopyFunction.panel2rc))
+        ret.add(mrc_command.SetParameter(self, 'copy_function', copy_operation))
+
         for param_profile in self.profile.parameters:
-            ret.add(mrc_command.ReadParameter(self, param_profile.address))
+            cmd = mrc_command.ReadParameter(self, param_profile.address)
+            cmd.stopped.connect(self._on_read_after_copy_command_stopped)
+            ret.add(cmd)
+
         ret.add(command.Callable(partial(self.mrc.set_polling_enabled, self.mrc.polling)))
         return ret
 
-    def get_copy_common2single_command(self):
-        ret = command.SequentialCommandGroup()
-        ret.add(command.Callable(partial(self.mrc.set_polling_enabled, False)))
-        ret.add(mrc_command.SetParameter(self, 'copy_function', CopyFunction.common2single))
-        for param_profile in self.profile.parameters:
-            ret.add(mrc_command.ReadParameter(self, param_profile.address))
-        ret.add(command.Callable(partial(self.mrc.set_polling_enabled, self.mrc.polling)))
-        return ret
+    def _on_read_after_copy_command_stopped(self):
+        cmd = self.sender()
+        cmd.stopped.disconnect(self._on_read_after_copy_command_stopped)
+
+        if not cmd.has_failed() and self.has_config():
+            self.config.set_parameter_value(cmd.address, cmd.get_result())
+
 
 class ChannelSettingsWidget(QtGui.QWidget):
     threshold_changed       = pyqtSignal(int)
@@ -383,7 +389,7 @@ class MSCF16Widget(QtGui.QWidget):
         cmd.progress_changed[int].connect(self.copy_panel2rc_progress.setValue)
 
         def on_command_stopped():
-            cmd.progress_changed[int].disconnect()
+            cmd.progress_changed[int].disconnect(self.copy_panel2rc_progress.setValue)
             cmd.stopped.disconnect()
             self.copy_panel2rc_stack.setCurrentIndex(0)
 
@@ -403,7 +409,7 @@ class MSCF16Widget(QtGui.QWidget):
         cmd.progress_changed[int].connect(self.copy_common2single_progress.setValue)
 
         def on_command_stopped():
-            cmd.progress_changed[int].disconnect()
+            cmd.progress_changed[int].disconnect(self.copy_common2single_progress.setValue)
             cmd.stopped.disconnect()
             self.copy_common2single_stack.setCurrentIndex(0)
 
