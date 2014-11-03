@@ -5,6 +5,7 @@
 from PyQt4 import QtCore
 from PyQt4 import QtGui
 from PyQt4 import uic
+from PyQt4.QtCore import pyqtProperty
 from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import pyqtSlot
 from PyQt4.QtCore import Qt
@@ -15,6 +16,10 @@ import weakref
 import application_registry
 import app_model
 import util
+
+# TODO: improve modified state for ChannelSettingsWidget and
+# GlobalSettingsWidget: compare spinbox value to old value and set modified
+# state accordingly
 
 def get_device_info():
     return (MHV4.idcs, MHV4)
@@ -366,43 +371,143 @@ class ChannelWidget(QtGui.QWidget):
         return False
 
 class ChannelSettingsWidget(QtGui.QWidget):
+    apply_settings      = pyqtSignal()
+    modified_changed    = pyqtSignal(bool)
+
     def __init__(self, mhv4, channel, labels_on=True, parent=None):
         super(ChannelSettingsWidget, self).__init__(parent)
 
-        uic.loadUi(application_registry.instance.find_data_file('mesycontrol/ui/mhv4_channel_settings.ui'), self)
         self.mhv4    = weakref.ref(mhv4)
         self.channel = channel
+        uic.loadUi(application_registry.instance.find_data_file('mesycontrol/ui/mhv4_channel_settings.ui'), self)
 
         if not labels_on:
             for label in self.findChildren(QtGui.QLabel, QtCore.QRegExp("label_\\d+")):
                 label.hide()
 
         self.spin_target_voltage_limit.setMaximum(mhv4.get_maximum_voltage())
+        self.pb_apply.clicked.connect(self.apply_settings)
+        self.pb_discard.clicked.connect(self.discard)
+
+        self.spin_target_voltage_limit.valueChanged.connect(partial(self.set_modified, True))
+        self.spin_target_current_limit.valueChanged.connect(partial(self.set_modified, True))
+        self.combo_target_polarity.currentIndexChanged.connect(partial(self.set_modified, True))
+        self.spin_target_tcomp_slope.valueChanged.connect(partial(self.set_modified, True))
+        self.spin_target_tcomp_offset.valueChanged.connect(partial(self.set_modified, True))
+        self.combo_target_tcomp_source.currentIndexChanged.connect(partial(self.set_modified, True))
+        self._modified = False
+
+    def set_modified(self, is_modified):
+        if self.modified != is_modified:
+            self._modified = is_modified
+            self.modified_changed.emit(is_modified)
+
+    def is_modified(self):
+        return self._modified
 
     def set_voltage_limit(self, value):
         self.spin_actual_voltage_limit.setValue(value)
-        self.spin_target_voltage_limit.setValue(value)
+        with util.block_signals(self.spin_target_voltage_limit):
+            self.spin_target_voltage_limit.setValue(value)
 
     def set_current_limit(self, value):
         self.spin_actual_current_limit.setValue(value)
-        self.spin_target_current_limit.setValue(value)
+        with util.block_signals(self.spin_target_current_limit):
+            self.spin_target_current_limit.setValue(value)
 
     def set_polarity(self, value):
         text = "positive" if value == Polarity.positive else "negative"
         self.le_actual_polarity.setText(text)
-        self.combo_target_polarity.setCurrentIndex(value)
+        with util.block_signals(self.combo_target_polarity):
+            self.combo_target_polarity.setCurrentIndex(value)
 
     def set_tcomp_slope(self, value):
         self.spin_actual_tcomp_slope.setValue(value)
-        self.spin_target_tcomp_slope.setValue(value)
+        with util.block_signals(self.spin_target_tcomp_slope):
+            self.spin_target_tcomp_slope.setValue(value)
 
     def set_tcomp_offset(self, value):
         self.spin_actual_tcomp_offset.setValue(value)
-        self.spin_target_tcomp_offset.setValue(value)
+        with util.block_signals(self.spin_target_tcomp_offset):
+            self.spin_target_tcomp_offset.setValue(value)
 
     def set_tcomp_source(self, value):
         self.le_actual_tcomp_source.setText(MHV4.tcomp_sources[value])
-        self.combo_target_tcomp_source.setCurrentIndex(value)
+        with util.block_signals(self.combo_target_tcomp_source):
+            self.combo_target_tcomp_source.setCurrentIndex(value)
+
+    def get_voltage_limit(self):
+        return self.spin_target_voltage_limit.value()
+
+    def get_current_limit(self):
+        return self.spin_target_current_limit.value()
+
+    def get_polarity(self):
+        return self.combo_target_polarity.currentIndex()
+
+    def get_tcomp_slope(self):
+        return self.spin_target_tcomp_slope.value()
+
+    def get_tcomp_offset(self):
+        return self.spin_target_tcomp_offset.value()
+
+    def get_tcomp_source(self):
+        return self.combo_target_tcomp_source.currentIndex()
+
+    def discard(self):
+        self.spin_target_voltage_limit.setValue(self.spin_actual_voltage_limit.value())
+        self.spin_target_current_limit.setValue(self.spin_actual_current_limit.value())
+        self.combo_target_polarity.setCurrentIndex(self.mhv4().get_polarity(self.channel))
+        self.spin_target_tcomp_slope.setValue(self.spin_actual_tcomp_slope.value())
+        self.spin_target_tcomp_offset.setValue(self.spin_actual_tcomp_offset.value())
+        self.combo_target_tcomp_source.setCurrentIndex(self.mhv4().get_tcomp_source(self.channel))
+        self.modified = False
+
+    modified = pyqtProperty(bool, is_modified, set_modified, notify=modified_changed)
+
+class GlobalSettingsWidget(QtGui.QWidget):
+    apply_settings      = pyqtSignal()
+    modified_changed    = pyqtSignal(bool)
+
+    def __init__(self, mhv4, parent=None):
+        super(GlobalSettingsWidget, self).__init__(parent)
+
+        uic.loadUi(application_registry.instance.find_data_file('mesycontrol/ui/mhv4_global_settings.ui'), self)
+        self.mhv4 = weakref.ref(mhv4)
+        self.pb_apply.clicked.connect(self.apply_settings)
+        self.pb_discard.clicked.connect(self.discard)
+
+        self.combo_target_ramp_speed.currentIndexChanged.connect(partial(self.set_modified, True))
+
+        self._modified = False
+
+    def set_modified(self, is_modified):
+        if self.modified != is_modified:
+            self._modified = is_modified
+            self.modified_changed.emit(is_modified)
+
+    def is_modified(self):
+        return self._modified
+
+    def set_ramp_speed(self, value):
+        with util.block_signals(self.combo_target_ramp_speed):
+            self.combo_target_ramp_speed.setCurrentIndex(value)
+        self.le_actual_ramp_speed.setText(self.combo_target_ramp_speed.currentText())
+
+    def get_ramp_speed(self):
+        return self.combo_target_ramp_speed.currentIndex()
+
+    def discard(self):
+        self.combo_target_ramp_speed.setCurrentIndex(self.mhv4().get_ramp_speed())
+        self.modified = False
+
+    modified = pyqtProperty(bool, is_modified, set_modified, notify=modified_changed)
+
+def set_if_differs(cur, new, setter):
+    if cur != new:
+        setter(new)
+        return True
+    return False
 
 class MHV4Widget(QtGui.QWidget):
     def __init__(self, device, parent=None):
@@ -433,38 +538,22 @@ class MHV4Widget(QtGui.QWidget):
             self.channels.append(weakref.ref(channel_widget))
 
         # Channel settings
-        channel_settings_layout = QtGui.QHBoxLayout()
-        channel_settings_layout.setContentsMargins(4, 4, 4, 4)
+        channel_settings_tabs = QtGui.QTabWidget()
+        self.channel_settings_tabs = weakref.ref(channel_settings_tabs)
 
         for i in range(MHV4.num_channels):
-            groupbox        = QtGui.QGroupBox("Channel %d" % (i+1), self)
-            settings_widget = ChannelSettingsWidget(device, i, i == 0)
-            groupbox_layout = QtGui.QHBoxLayout(groupbox)
-            groupbox_layout.setContentsMargins(4, 4, 4, 4)
-            groupbox_layout.addWidget(settings_widget)
-            channel_settings_layout.addWidget(groupbox)
-            
+            settings_widget = ChannelSettingsWidget(device, i)
+            settings_widget.apply_settings.connect(self.apply_channel_settings)
+            settings_widget.modified_changed.connect(self._on_channel_settings_modified)
+            channel_settings_tabs.addTab(settings_widget, "Channel %d" % (i+1))
             self.channel_settings.append(weakref.ref(settings_widget))
 
         # Global settings
-        global_settings_widget = uic.loadUi(application_registry.instance.find_data_file(
-            'mesycontrol/ui/mhv4_global_settings.ui'))
+        global_settings_widget = GlobalSettingsWidget(device)
+        global_settings_widget.apply_settings.connect(self.apply_global_settings)
+        global_settings_widget.modified_changed.connect(self._on_global_settings_modified)
         self.global_settings = weakref.ref(global_settings_widget)
-
-        # Settings apply button
-        pb_apply_settings = QtGui.QPushButton("Apply", clicked=self.apply_settings)
-        apply_button_layout = QtGui.QHBoxLayout()
-        apply_button_layout.addStretch(1)
-        apply_button_layout.addWidget(pb_apply_settings)
-        apply_button_layout.addStretch(1)
-
-        settings_layout = QtGui.QVBoxLayout()
-        settings_layout.setContentsMargins(4, 4, 4, 4)
-        settings_layout.addItem(channel_settings_layout)
-        settings_layout.addWidget(global_settings_widget)
-        settings_layout.addItem(apply_button_layout)
-        container_widget = QtGui.QWidget()
-        container_widget.setLayout(settings_layout)
+        channel_settings_tabs.addTab(global_settings_widget, "Global")
 
         channels_widget = QtGui.QWidget()
         channels_widget.setLayout(channel_layout)
@@ -472,7 +561,7 @@ class MHV4Widget(QtGui.QWidget):
         toolbox = QtGui.QToolBox()
         toolbox.addItem(channels_widget, QtGui.QIcon(application_registry.instance.find_data_file(
             'mesycontrol/ui/applications-utilities.png')), 'Channel Control')
-        toolbox.addItem(container_widget, QtGui.QIcon(application_registry.instance.find_data_file(
+        toolbox.addItem(channel_settings_tabs, QtGui.QIcon(application_registry.instance.find_data_file(
             'mesycontrol/ui/preferences-system.png')), 'Settings')
 
         layout = QtGui.QVBoxLayout() 
@@ -567,56 +656,75 @@ class MHV4Widget(QtGui.QWidget):
         self.channel_settings[bp.index]().set_tcomp_source(bp.value)
 
     def ramp_speed_changed(self, value):
-        self.global_settings().combo_target_ramp_speed.setCurrentIndex(value)
-        self.global_settings().le_actual_ramp_speed.setText(
-                self.global_settings().combo_target_ramp_speed.currentText())
+        self.global_settings().set_ramp_speed(value)
 
-    def apply_settings(self, checked):
-        def set_if_differs(cur, new, setter):
-            if cur != new:
-                setter(new)
-                return True
-            return False
+    def _on_channel_settings_modified(self, is_modified):
+        csw = self.sender()
+        c   = csw.channel
 
-        d  = self.device
+        text = "Channel %d" % c
+        if is_modified:
+            text += "*"
+
+        idx = self.channel_settings_tabs().indexOf(csw)
+        self.channel_settings_tabs().setTabText(idx, text)
+
+    def _on_global_settings_modified(self, is_modified):
+        gsw = self.sender()
+        text = "Global Settings"
+        if is_modified:
+            text += "*"
+
+        idx = self.channel_settings_tabs().indexOf(gsw)
+        self.channel_settings_tabs().setTabText(idx, text)
+
+    def apply_channel_settings(self):
+        csw = self.sender()
+        d   = self.device
+        c   = csw.channel
+
+        changed = set_if_differs(
+                cur=d.get_polarity(c),
+                new=csw.get_polarity(),
+                setter=partial(d.set_polarity, c))
+
+        if changed:
+            self.channels[c]().set_target_voltage(0)
+
+        set_if_differs(
+                cur=d.get_current_limit(c, 'µA'),
+                new=csw.get_current_limit(),
+                setter=partial(d.set_current_limit, c, unit_label='µA'))
+
+        set_if_differs(
+                cur=d.get_voltage_limit(c, 'V'),
+                new=csw.get_voltage_limit(),
+                setter=partial(d.set_voltage_limit, c, unit_label='V'))
+
+        set_if_differs(
+                cur=d.get_tcomp_slope(c, 'V/°C'),
+                new=csw.get_tcomp_slope(),
+                setter=partial(d.set_tcomp_slope, c, unit_label='V/°C'))
+
+        set_if_differs(
+                cur=d.get_tcomp_offset(c, '°C'),
+                new=csw.get_tcomp_offset(),
+                setter=partial(d.set_tcomp_offset, c, unit_label='°C'))
+
+        set_if_differs(
+                cur=d.get_tcomp_source(c),
+                new=csw.get_tcomp_source(),
+                setter=partial(d.set_tcomp_source, c))
+
+        csw.modified = False
+
+    def apply_global_settings(self):
+        gsw = self.sender()
+        d   = self.device
 
         set_if_differs(
                 cur=d.get_ramp_speed(),
-                new=self.global_settings().combo_target_ramp_speed.currentIndex(),
+                new=gsw.get_ramp_speed(),
                 setter=d.set_ramp_speed)
 
-        for i in range(MHV4.num_channels):
-            cs = self.channel_settings[i]()
-
-            changed = set_if_differs(
-                    cur=d.get_polarity(i),
-                    new=cs.combo_target_polarity.currentIndex(),
-                    setter=partial(d.set_polarity, i))
-
-            if changed:
-                self.channels[i]().set_target_voltage(.0)
-
-            set_if_differs(
-                    cur=d.get_current_limit(i, 'µA'),
-                    new=cs.spin_target_current_limit.value(),
-                    setter=partial(d.set_current_limit, i, unit_label='µA'))
-
-            set_if_differs(
-                    cur=d.get_voltage_limit(i, 'V'),
-                    new=cs.spin_target_voltage_limit.value(),
-                    setter=partial(d.set_voltage_limit, i, unit_label='V'))
-
-            set_if_differs(
-                    cur=d.get_tcomp_slope(i, 'V/°C'),
-                    new=cs.spin_target_tcomp_slope.value(),
-                    setter=partial(d.set_tcomp_slope, i, unit_label='V/°C'))
-
-            set_if_differs(
-                    cur=d.get_tcomp_offset(i, '°C'),
-                    new=cs.spin_target_tcomp_offset.value(),
-                    setter=partial(d.set_tcomp_offset, i, unit_label='°C'))
-
-            set_if_differs(
-                    cur=d.get_tcomp_source(i),
-                    new=cs.combo_target_tcomp_source.currentIndex(),
-                    setter=partial(d.set_tcomp_source, i))
+        gsw.modified = False
