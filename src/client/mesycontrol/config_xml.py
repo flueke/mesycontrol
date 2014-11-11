@@ -6,7 +6,6 @@ from xml.dom import minidom
 from xml.etree import ElementTree
 from xml.etree.ElementTree import TreeBuilder
 
-import application_registry
 import config
 
 class CommentTreeBuilder(TreeBuilder):
@@ -54,7 +53,7 @@ def parse_setup(element):
 
     return ret
 
-def setup_to_etree(setup):
+def setup_to_etree(setup, context):
     tb = CommentTreeBuilder()
     tb.start("mesycontrol", {})
 
@@ -65,7 +64,7 @@ def setup_to_etree(setup):
         _device_config_to_etree(obj, tb)
 
     for obj in setup.get_mrc_configs():
-        _mrc_config_to_etree(obj, tb)
+        _mrc_config_to_etree(obj, tb, context)
 
     tb.end("mesycontrol")
 
@@ -76,9 +75,9 @@ def device_config_to_etree(device_config):
     _device_config_to_etree(device_config, tb)
     return ElementTree.ElementTree(tb.close())
 
-def mrc_config_to_etree(mrc_config):
+def mrc_config_to_etree(mrc_config, context):
     tb = CommentTreeBuilder()
-    _mrc_config_to_etree(mrc_config, tb)
+    _mrc_config_to_etree(mrc_config, tb, context)
     return ElementTree.ElementTree(tb.close())
 
 def write_device_config_to_file(device_config, f):
@@ -127,9 +126,7 @@ def parse_device_config(config_node):
 
     return device_config
 
-def _device_config_to_etree(cfg, tb):
-    device_profile = application_registry.instance.get_device_profile_by_idc(cfg.idc)
-
+def _device_config_to_etree(cfg, profile, tb):
     tb.start('device_config', {})
 
     _add_tag(tb, 'idc', cfg.idc)
@@ -161,11 +158,10 @@ def _device_config_to_etree(cfg, tb):
         if p.alias is not None:
             attrs['alias'] = str(p.alias)
 
-        param_profile = device_profile.get_parameter_by_address(p.address)
+        param_profile = profile.get_parameter_by_address(p.address)
 
         if param_profile is not None and param_profile.is_named():
             tb.comment(param_profile.name)
-            #attrs['name'] = param_profile.name
 
         tb.start("parameter_config", attrs)
         tb.end("parameter_config")
@@ -192,7 +188,7 @@ def parse_mrc_config(config_node):
 
     return ret
 
-def _mrc_config_to_etree(cfg, tb):
+def _mrc_config_to_etree(cfg, tb, context):
     tb.start('mrc_config', {})
 
     if cfg.name is not None:
@@ -205,7 +201,8 @@ def _mrc_config_to_etree(cfg, tb):
         _connection_config_to_etree(cfg.get_connection_config(), tb)
 
     for dev_cfg in cfg.get_device_configs():
-        _device_config_to_etree(dev_cfg, tb)
+        dev_profile = context.get_device_profile_by_idc(dev_cfg.idc)
+        _device_config_to_etree(dev_cfg, dev_profile, tb)
 
     tb.end('mrc_config')
 
@@ -241,8 +238,8 @@ def parse_connection_config(connection_node):
 
     return connection_config
 
-def write_setup_to_file(setup, f):
-    tree = setup_to_etree(setup)
+def write_setup_to_file(setup, f, context):
+    tree = setup_to_etree(setup, context)
     f.write(xml_tree_to_string(tree))
 
 def xml_tree_to_string(tree):

@@ -1,17 +1,7 @@
-* Track config sources. Ask about unsaved changes.
-* Improve Command:
-  - get first/all failed subcommand(s) from CommandGroups
-  - add __str__ to Commands
+Plotting:
+python-guiqwt
+pyqtgraph
 
-* How to handle the RC setting? For MHV4 enabling/disabling RC can be dangerous.
-  -> User can easily change it
-  -> Also store it in the DeviceConfig (or in MRCConfig?)
-
-* Server:
-  - exception safety
-  - timeouts
-  - add max connections feature
-  - add rc_changed notification (bus, dev, rc_new)
   - scanbus(3) shuts down the mrc connection cause of a timeout. fix this!
     the command 'sc 3' results in only one line of output: 'ERROR!' no other
     output is generated.
@@ -19,17 +9,6 @@
 * Scripting:
   - Standalone vs. running inside the GUI
   - Wrapper documentation
-
-STARTED - DeviceDescription: add conversion to human readable units (<unit label="mA" factor="1000.0")
-DONE - DeviceDescription: add value range to parameters (min, max). Make sure input in SI units is rounded correctly
-  - DeviceDescription: add version detection (MSFC-16)
-  - DeviceDescription: add a flag to mark system descriptions
-  - DeviceDescription: add a way to copy a description
-  - DeviceDescription: refactor to DeviceProfile or something like that to
-    avoid confusion with the textual description that's in the DeviceConfig
-DONE  - DeviceConfigXML: use attributes instead of nested tags for simple stuff (makes the XML file shorter)
-  - DeviceConfigXML: add DTD (used for verification)
-
 
 * GUI plan:
 class SomeTreeWidget:

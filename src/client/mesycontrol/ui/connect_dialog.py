@@ -4,16 +4,14 @@
 
 from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import pyqtSlot
-from mesycontrol import application_registry
 from mesycontrol import config
 from mesycontrol import util
 
 class ConnectDialog(QtGui.QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, context, parent=None):
         super(ConnectDialog, self).__init__(parent)
 
-        #uic.loadUi(resource_stream('mesycontrol.ui', 'connect_dialog.ui'), self)
-        uic.loadUi(application_registry.instance.find_data_file('mesycontrol/ui/connect_dialog.ui'), self)
+        uic.loadUi(context.find_data_file('mesycontrol/ui/connect_dialog.ui'), self)
         self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(False)
         self.combo_serial_port.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+'), None))
         self.le_tcp_host.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+'), None))

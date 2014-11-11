@@ -13,7 +13,6 @@ from functools import partial
 import math
 import weakref
 
-import application_registry
 import app_model
 import util
 
@@ -209,18 +208,17 @@ class ChannelWidget(QtGui.QWidget):
     target_voltage_changed          = pyqtSignal(float)
     channel_state_changed           = pyqtSignal(bool)
 
-    def __init__(self, mhv4, channel, parent=None):
+    def __init__(self, mhv4, channel, context, parent=None):
         super(ChannelWidget, self).__init__(parent)
-        uic.loadUi(application_registry.instance.find_data_file('mesycontrol/ui/mhv4_channel_without_settings.ui'), self)
+        uic.loadUi(context.find_data_file('mesycontrol/ui/mhv4_channel_without_settings.ui'), self)
         self.mhv4    = weakref.ref(mhv4)
         self.channel = channel
 
         self.pb_channelstate.installEventFilter(self)
-        reg = application_registry.instance
         sz  = self.label_polarity.minimumSize()
-        self.pixmap_positive = QtGui.QPixmap(reg.find_data_file('mesycontrol/ui/list-add.png')).scaled(
+        self.pixmap_positive = QtGui.QPixmap(context.find_data_file('mesycontrol/ui/list-add.png')).scaled(
                         sz, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        self.pixmap_negative = QtGui.QPixmap(reg.find_data_file('mesycontrol/ui/list-remove.png')).scaled(
+        self.pixmap_negative = QtGui.QPixmap(context.find_data_file('mesycontrol/ui/list-remove.png')).scaled(
                         sz, Qt.KeepAspectRatio, Qt.SmoothTransformation)
 
         self._last_temperature      = None
@@ -374,12 +372,12 @@ class ChannelSettingsWidget(QtGui.QWidget):
     apply_settings      = pyqtSignal()
     modified_changed    = pyqtSignal(bool)
 
-    def __init__(self, mhv4, channel, labels_on=True, parent=None):
+    def __init__(self, mhv4, channel, context, labels_on=True, parent=None):
         super(ChannelSettingsWidget, self).__init__(parent)
 
         self.mhv4    = weakref.ref(mhv4)
         self.channel = channel
-        uic.loadUi(application_registry.instance.find_data_file('mesycontrol/ui/mhv4_channel_settings.ui'), self)
+        uic.loadUi(context.find_data_file('mesycontrol/ui/mhv4_channel_settings.ui'), self)
 
         if not labels_on:
             for label in self.findChildren(QtGui.QLabel, QtCore.QRegExp("label_\\d+")):
@@ -469,10 +467,10 @@ class GlobalSettingsWidget(QtGui.QWidget):
     apply_settings      = pyqtSignal()
     modified_changed    = pyqtSignal(bool)
 
-    def __init__(self, mhv4, parent=None):
+    def __init__(self, mhv4, context, parent=None):
         super(GlobalSettingsWidget, self).__init__(parent)
 
-        uic.loadUi(application_registry.instance.find_data_file('mesycontrol/ui/mhv4_global_settings.ui'), self)
+        uic.loadUi(context.find_data_file('mesycontrol/ui/mhv4_global_settings.ui'), self)
         self.mhv4 = weakref.ref(mhv4)
         self.pb_apply.clicked.connect(self.apply_settings)
         self.pb_discard.clicked.connect(self.discard)
@@ -510,10 +508,10 @@ def set_if_differs(cur, new, setter):
     return False
 
 class MHV4Widget(QtGui.QWidget):
-    def __init__(self, device, parent=None):
+    def __init__(self, device, context, parent=None):
         super(MHV4Widget, self).__init__(parent)
-
-        self.device = device
+        self.context = context
+        self.device  = device
         self.device.add_default_parameter_subscription(self)
 
         self.channels = list()
@@ -526,7 +524,7 @@ class MHV4Widget(QtGui.QWidget):
 
         for i in range(MHV4.num_channels):
             groupbox        = QtGui.QGroupBox("Channel %d" % (i+1), self)
-            channel_widget  = ChannelWidget(device, i)
+            channel_widget  = ChannelWidget(device, i, self.context)
             groupbox_layout = QtGui.QHBoxLayout(groupbox)
             groupbox_layout.setContentsMargins(4, 4, 4, 4)
             groupbox_layout.addWidget(channel_widget)
@@ -542,14 +540,14 @@ class MHV4Widget(QtGui.QWidget):
         self.channel_settings_tabs = weakref.ref(channel_settings_tabs)
 
         for i in range(MHV4.num_channels):
-            settings_widget = ChannelSettingsWidget(device, i)
+            settings_widget = ChannelSettingsWidget(device, i, self.context)
             settings_widget.apply_settings.connect(self.apply_channel_settings)
             settings_widget.modified_changed.connect(self._on_channel_settings_modified)
             channel_settings_tabs.addTab(settings_widget, "Channel %d" % (i+1))
             self.channel_settings.append(weakref.ref(settings_widget))
 
         # Global settings
-        global_settings_widget = GlobalSettingsWidget(device)
+        global_settings_widget = GlobalSettingsWidget(device, self.context)
         global_settings_widget.apply_settings.connect(self.apply_global_settings)
         global_settings_widget.modified_changed.connect(self._on_global_settings_modified)
         self.global_settings = weakref.ref(global_settings_widget)
@@ -559,9 +557,9 @@ class MHV4Widget(QtGui.QWidget):
         channels_widget.setLayout(channel_layout)
 
         toolbox = QtGui.QToolBox()
-        toolbox.addItem(channels_widget, QtGui.QIcon(application_registry.instance.find_data_file(
+        toolbox.addItem(channels_widget, QtGui.QIcon(self.context.find_data_file(
             'mesycontrol/ui/applications-utilities.png')), 'Channel Control')
-        toolbox.addItem(channel_settings_tabs, QtGui.QIcon(application_registry.instance.find_data_file(
+        toolbox.addItem(channel_settings_tabs, QtGui.QIcon(self.context.find_data_file(
             'mesycontrol/ui/preferences-system.png')), 'Settings')
 
         layout = QtGui.QVBoxLayout() 

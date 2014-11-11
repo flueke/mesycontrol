@@ -219,42 +219,6 @@ def parse_connection_url(url):
 
     raise URLParseError("Invalid protocol '%s'" % proto)
 
-
-# FIXME: this needs a rework to use object id()s instead of weakrefs. Reason:
-# weakrefs make pickling the resulting log records impossible so they can't be
-# sent over the network
-#class SourceFilter(object):
-#    """Logging filter using the log records 'source' attribute and a set of
-#    allowed sources to make the filtering decision.
-#
-#    To make use of this filter create a LoggerAdapter with the 'source' keyword set:
-#    self.log = logging.LoggerAdapter(logging.getLogger(__name__), dict(source=weakref.ref(self)))
-#
-#    Then add the objects you're interested in to the filter using add_source().
-#    make_logging_source_adapter() provides a shortcut for creating the LoggerAdapter.
-#
-#    """
-#    def __init__(self):
-#        self.accepted_sources = weakref.WeakSet()
-#
-#    def add_source(self, source):
-#        self.accepted_sources.add(source)
-#
-#    def remove_source(self, source):
-#        self.accepted_sources.remove(source)
-#
-#    def add_qobject_tree(self, root_obj):
-#        self.add_source(root_obj)
-#        for c in root_obj.children():
-#            self.add_qobject_tree(c)
-#
-#    def filter(self, record):
-#        ret = (hasattr(record, 'source')
-#                and record.source is not None
-#                and record.source() is not None
-#                and record.source() in self.accepted_sources)
-#        return ret
-
 def make_logging_source_adapter(module_name, object_instance):
     logger_name = "%s.%s" % (module_name, object_instance.__class__.__name__)
 
@@ -297,28 +261,53 @@ def list_serial_ports_windows():
         except EnvironmentError:
             break
 
+class CallbackHandler(logging.Handler):
+    """Logging handler passing log_records to callbacks."""
+    def __init__(self):
+        super(CallbackHandler, self).__init__()
+        self._callbacks = list()
 
-class CallbackLoggingHandler(logging.Handler):
-    def __init__(self, callback):
-        super(CallbackLoggingHandler, self).__init__()
-        self.callback = callback
+    def add_callback(self, callback):
+        self._callbacks.append(callback)
+
+    def remove_callback(self, callback):
+        self._callbacks.remove(callback)
+
+    def get_callbacks(self):
+        return list(self._callbacks)
+
+    def __len__(self):
+        return len(self._callbacks)
 
     def emit(self, log_record):
         try:
             self.acquire()
-            self.callback(log_record)
+            for callback in self._callbacks:
+                try:
+                    callback(log_record)
+                except:
+                    pass
         finally:
             self.release()
 
-class QtLogEmitter(QObject):
+class QtLoggingBridge(QObject):
     log_record = pyqtSignal(object)
 
     def __init__(self, parent=None):
-        super(QtLogEmitter, self).__init__(parent)
-        self._handler = CallbackLoggingHandler(self.log_record.emit)
+        super(QtLoggingBridge, self).__init__(parent)
 
-    def get_handler(self):
-        return self._handler
+    def __call__(self, record):
+        self.log_record.emit(record)
+
+#class QtLogEmitter(QObject):
+#    log_record = pyqtSignal(object)
+#
+#    def __init__(self, parent=None):
+#        super(QtLogEmitter, self).__init__(parent)
+#        self._handler = CallbackLoggingHandler(self.log_record.emit)
+#
+#    def get_handler(self):
+#        return self._handler
 
 # source: http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python/377028#377028
 def which(program):
@@ -425,32 +414,26 @@ def block_signals(o):
     yield
     o.blockSignals(was_blocked)
 
-#class ExpanderWidget(QtGui.QWidget):
-#    def __init__(self, parent=None):
-#        super(ExpanderWidget, self).__init__(parent)
-#        self.button = QtGui.QPushButton(">")
-#        self.button.clicked.connect(self._on_button_clicked)
-#
-#        self.stacked_widget = QtGui.QStackedWidget()
-#        layout = QtGui.QVBoxLayout()
-#        layout.addWidget(self.button, 0, Qt.AlignTop)
-#        #layout.addWidget(self.button)
-#        layout.addWidget(self.stacked_widget)
-#        self.setLayout(layout)
-#
-#        self.expanded = True
-#
-#    def _on_button_clicked(self):
-#        if self.expanded:
-#            self.expanded = False
-#            self.stacked_widget.hide()
-#        else:
-#            self.expanded = True
-#            self.stacked_widget.show()
-#
-#        self.updateGeometry()
-#
-#    def set_expanded(self, expanded):
-#        if self.expanded != expanded:
-#            self._on_button_clicked()
-#
+class ExceptionHookRegistry(object):
+    """Exception handler registry for use with sys.excepthook.
+    Contains a list of handler objects which will get called in the order they
+    where registered when an exception occurs.
+    """
+    def __init__(self):
+        self._handlers = list()
+
+    def register_handler(self, handler):
+        self._handlers.append(handler)
+
+    def unregister_handler(self, handler):
+        self._handlers.remove(handler)
+
+    def get_handlers(self):
+        return list(self._handlers)
+
+    def __len__(self):
+        return len(self._handlers)
+
+    def __call__(self, exc_type, exc_value, exc_trace):
+        for handler in self._handlers:
+            handler(exc_type, exc_value, exc_trace)

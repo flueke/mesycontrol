@@ -9,7 +9,6 @@ from PyQt4.QtCore import pyqtSlot
 from functools import partial
 import weakref
 
-import application_registry
 import app_model
 import command
 import mrc_command
@@ -236,11 +235,10 @@ class ChannelSettingsWidget(QtGui.QWidget):
     gain_changed            = pyqtSignal(int)
     shaping_time_changed    = pyqtSignal(int)
 
-    def __init__(self, channel_name, group_name, parent=None):
+    def __init__(self, channel_name, group_name, load_ui_file, parent=None):
         super(ChannelSettingsWidget, self).__init__(parent)
 
-        uic.loadUi(application_registry.instance.find_data_file(
-            'mesycontrol/ui/mscf16_channel_settings.ui'), self)
+        uic.loadUi(load_ui_file('mesycontrol/ui/mscf16_channel_settings.ui'), self)
 
         self.gb_channel.setTitle(channel_name)
         self.gb_group.setTitle(group_name)
@@ -278,19 +276,20 @@ class ChannelSettingsWidget(QtGui.QWidget):
             self.spin_shaping_time.setValue(value)
 
 class MSCF16Widget(QtGui.QWidget):
-    def __init__(self, device, parent=None):
+    def __init__(self, device, context, parent=None):
         super(MSCF16Widget, self).__init__(parent)
-        self.device = device
+        self.context = context
+        self.device  = device
         self.device.add_default_parameter_subscription(self)
 
-        uic.loadUi(application_registry.instance.find_data_file(
+        uic.loadUi(self.context.find_data_file(
             'mesycontrol/ui/mscf16_global_settings.ui'), self)
 
         self.combo_channel.addItem("Common")
         self.combo_channel.addItems(["Channel %d" % (i+1) for i in range(MSCF16.num_channels)])
         self.combo_channel.setMaxVisibleItems(MSCF16.num_channels+1)
 
-        common_settings = ChannelSettingsWidget("Common", "Common Group")
+        common_settings = ChannelSettingsWidget("Common", "Common Group", self.context.find_data_file)
         common_settings.threshold_changed.connect(self.on_channel_threshold_changed)
         common_settings.pz_value_changed.connect(self.on_channel_pz_value_changed)
         common_settings.gain_changed.connect(self.on_channel_gain_changed)
@@ -307,7 +306,8 @@ class MSCF16Widget(QtGui.QWidget):
 
             channel_settings = ChannelSettingsWidget(
                     "Channel %d" % (i+1),
-                    "Group %d (Channels %d-%d)" % (group_num + 1, chan_first, chan_last))
+                    "Group %d (Channels %d-%d)" % (group_num + 1, chan_first, chan_last),
+                    self.context.find_data_file)
 
             channel_settings.threshold_changed.connect(self.on_channel_threshold_changed)
             channel_settings.pz_value_changed.connect(self.on_channel_pz_value_changed)

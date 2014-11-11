@@ -8,7 +8,6 @@ from PyQt4.QtCore import pyqtSignal
 from functools import partial
 from functools import wraps
 
-import application_registry
 import command
 import config_loader
 import mrc_command
@@ -661,12 +660,12 @@ class SetupCompleter(command.SequentialCommandGroup):
     """Makes sure all required parameters for all connected devices in this setup are present.
     Uses DeviceConfigCompleter to complete individual device configurations.
     """
-    def __init__(self, setup, parent=None):
+    def __init__(self, setup, context, parent=None):
         super(SetupCompleter, self).__init__(parent)
         self.setup = setup
 
         for mrc_config in setup.mrc_configs:
-            mrc = application_registry.instance.find_mrc_by_config(mrc_config)
+            mrc = context.find_mrc_by_config(mrc_config)
 
             if mrc is None:
                 raise RuntimeError("No MRC found for MRC config: %s" % mrc_config)
@@ -681,7 +680,7 @@ class SetupLoader(command.Command):
             disconnect and remove the mrc from the application
 
         for each mrc_config in setup.mrc_configs:
-            if not application_registry.instance.find_mrc_by_config(mrc_config):
+            if not context.find_mrc_by_config(mrc_config):
                 create MRC and connect and set mrc_config
             else:
                 set mrc_config
@@ -690,26 +689,26 @@ class SetupLoader(command.Command):
             apply config to device
     """
 
-    def __init__(self, setup, parent=None):
+    def __init__(self, setup, context, parent=None):
         super(SetupLoader, self).__init__(parent)
         self.setup = setup
         self.log   = util.make_logging_source_adapter(__name__, self)
+        self.context = context
         self._pending_mrcs = set()
         self._pending_config_loaders = set()
 
     def _start(self):
         self._failed = False
-        registry = application_registry.instance
         # Keep the original setup around to avoid any of the configs being
         # garbage collected.
-        self._old_setup = registry.get('active_setup')
-        registry.register('active_setup', self.setup)
+        self._old_setup = self.context.get_active_setup()
+        self.context.set_active_setup(self.setup)
 
-        mrcs_to_remove = set(registry.get_mrcs())
+        mrcs_to_remove = set(self.context.get_mrcs())
 
         # Keep MRCs with a config in the new setup
         for mrc_config in self.setup.mrc_configs:
-            mrc = registry.find_mrc_by_config(mrc_config)
+            mrc = self.context.find_mrc_by_config(mrc_config)
             if mrc is not None:
                 mrcs_to_remove.remove(mrc)
 
@@ -717,13 +716,13 @@ class SetupLoader(command.Command):
         for mrc in mrcs_to_remove:
             self.log.info("Removing MRC %s", mrc)
             mrc.disconnect()
-            registry.unregister_mrc(mrc)
+            self.context.unregister_mrc(mrc)
 
         for mrc_config in self.setup.mrc_configs:
-            mrc = registry.find_mrc_by_config(mrc_config)
+            mrc = self.context.find_mrc_by_config(mrc_config)
 
             if mrc is None:
-                mrc = application_registry.instance.make_mrc_connection(
+                mrc = self.context.make_mrc_connection(
                         mrc_config=mrc_config, connect=True)
                 self.log.info("Created MRC %s", mrc)
             else:

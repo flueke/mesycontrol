@@ -7,7 +7,6 @@ from PyQt4.QtCore import Qt
 import weakref
 
 import app_model
-import application_registry
 import command
 import mrc_command
 import util
@@ -344,10 +343,11 @@ class DeviceTableView(QtGui.QTableView):
         seq_cmd.start()
 
 class DeviceTableWidget(QtGui.QWidget):
-    def __init__(self, device, parent=None):
+    def __init__(self, device, context, parent=None):
         super(DeviceTableWidget, self).__init__(parent)
 
-        settings   = uic.loadUi(application_registry.instance.find_data_file(
+        self.context = context
+        settings   = uic.loadUi(context.find_data_file(
             'mesycontrol/ui/device_tableview_settings.ui'))
         view       = DeviceTableView(DeviceTableModel(device))
         sort_model = view.sort_model

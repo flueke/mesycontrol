@@ -2,13 +2,11 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-import contextlib, logging, signal, sys
 from PyQt4 import QtCore
 from PyQt4.QtCore import pyqtProperty
 
 from command import *
 from mrc_command import *
-import application_registry
 import util
 
 class DeviceWrapper(QtCore.QObject):
@@ -70,51 +68,51 @@ class MRCWrapper(QtCore.QObject):
     def __str__(self):
         return str(self._wrapped)
 
-class Context(object):
-    def __init__(self):
-        pass
+class ScriptContext(object):
+    def __init__(self, app_context):
+        self.context = app_context
 
     def make_connection(self, **kwargs):
-        mrc = application_registry.instance.make_mrc_connection(**kwargs)
+        mrc = self.context.make_mrc_connection(**kwargs)
         return MRCWrapper(mrc)
 
-@contextlib.contextmanager
-def get_script_context():
-    try:
-        # Setup logging. Has no effect if logging has already been setup
-        logging.basicConfig(level=logging.NOTSET,
-                format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
-        if logging.getLogger().level == logging.NOTSET:
-            logging.getLogger().handlers[0].setLevel(logging.DEBUG)
-
-        # If a QCoreApplication or QApplication instance exists assume
-        # everything is setup and ready. Otherwise install the custom garbage
-        # collector and setup signal handling.
-        qapp = QtCore.QCoreApplication.instance()
-
-        if qapp is None:
-            qapp = QtCore.QCoreApplication(sys.argv)
-            gc   = util.GarbageCollector()
-
-            # Signal handling
-            def signal_handler(signum, frame):
-                logging.info("Received signal %s. Quitting...",
-                        signal.signum_to_name.get(signum, "%d" % signum))
-                qapp.quit()
-
-            signal.signum_to_name = dict((getattr(signal, n), n)
-                    for n in dir(signal) if n.startswith('SIG') and '_' not in n)
-            signal.signal(signal.SIGINT, signal_handler)
-
-            application_registry.instance = application_registry.ApplicationRegistry(
-                    sys.executable if getattr(sys, 'frozen', False) else __file__)
-
-        yield Context()
-    except CommandInterrupted:
-        pass
-    finally:
-        application_registry.instance.shutdown()
-        try:
-            del gc
-        except NameError:
-            pass
+#@contextlib.contextmanager
+#def get_script_context():
+#    try:
+#        # Setup logging. Has no effect if logging has already been setup
+#        logging.basicConfig(level=logging.NOTSET,
+#                format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
+#        if logging.getLogger().level == logging.NOTSET:
+#            logging.getLogger().handlers[0].setLevel(logging.DEBUG)
+#
+#        # If a QCoreApplication or QApplication instance exists assume
+#        # everything is setup and ready. Otherwise install the custom garbage
+#        # collector and setup signal handling.
+#        qapp = QtCore.QCoreApplication.instance()
+#
+#        if qapp is None:
+#            qapp = QtCore.QCoreApplication(sys.argv)
+#            gc   = util.GarbageCollector()
+#
+#            # Signal handling
+#            def signal_handler(signum, frame):
+#                logging.info("Received signal %s. Quitting...",
+#                        signal.signum_to_name.get(signum, "%d" % signum))
+#                qapp.quit()
+#
+#            signal.signum_to_name = dict((getattr(signal, n), n)
+#                    for n in dir(signal) if n.startswith('SIG') and '_' not in n)
+#            signal.signal(signal.SIGINT, signal_handler)
+#
+#            context = app_context.Context(
+#                    sys.executable if getattr(sys, 'frozen', False) else __file__)
+#
+#        yield ScriptContext(context)
+#    except CommandInterrupted:
+#        pass
+#    finally:
+#        context.shutdown()
+#        try:
+#            del gc
+#        except NameError:
+#            pass

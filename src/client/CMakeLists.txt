@@ -9,7 +9,7 @@ set(PYTHON_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/cxfreeze_init.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol_gui.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol_script_runner.py"
-    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/application_registry.py"
+    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/app_context.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/app_model.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/command.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/config_loader.py"

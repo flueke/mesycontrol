@@ -11,7 +11,6 @@ from PyQt4.QtCore import Qt
 import weakref
 import os
 
-import application_registry
 import config
 import config_loader
 import config_xml
@@ -422,8 +421,8 @@ class SetupTreeModel(QtCore.QAbstractItemModel):
         if col1 is None: col1 = 0
         if col2 is None: col2 = self.columnCount()
 
-        self.log.debug("node_data_changed(node=%s, col1=%s(%d), col2=%s(%d)",
-                node, column_name(col1), col1, column_name(col2), col2)
+        #self.log.debug("node_data_changed(node=%s, col1=%s(%d), col2=%s(%d)",
+        #        node, column_name(col1), col1, column_name(col2), col2)
 
         idx1 = self.createIndex(node.row, col1, node)
         idx2 = self.createIndex(node.row, col2, node)
@@ -534,13 +533,11 @@ class SetupTreeView(QtGui.QTreeView):
     sig_open_table_view = pyqtSignal(object)
     sig_remove_mrc  = pyqtSignal(object)
 
-    def __init__(self, model=None, parent=None):
+    def __init__(self, model, context, parent=None):
         super(SetupTreeView, self).__init__(parent)
         self.log = util.make_logging_source_adapter(__name__, self)
-        if model is None:
-            model = SetupTreeModel(self)
+        self.context = context
         self.setModel(model)
-
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._slt_context_menu_requested)
         self.setMouseTracking(True)
@@ -550,8 +547,14 @@ class SetupTreeView(QtGui.QTreeView):
 
     def setModel(self, model):
         if self.model() is not None:
-            self.model().disconnect(self) # FIXME: this does not work
-            self.model().setParent(None)
+            self.model().rowsInserted.disconnect(self._slt_rows_inserted)
+            self.model().sig_open_device.disconnect(self.sig_open_device)
+            self.model().sig_open_table_view.disconnect(self.sig_open_table_view)
+            self.model().sig_remove_mrc.disconnect(self.sig_remove_mrc)
+            self.model().sig_save_device_config.disconnect(self._slt_save_device_config)
+            self.model().sig_load_device_config.disconnect(self._slt_load_device_config)
+            self.model().sig_apply_config.disconnect(self._slt_apply_device_config)
+            self.model().sig_rename_item.disconnect(self._slt_rename_item)
 
         super(SetupTreeView, self).setModel(model)
 
@@ -582,11 +585,11 @@ class SetupTreeView(QtGui.QTreeView):
     def _slt_save_device_config(self, device):
         self.log.debug("save_device_config triggered for %s", device)
 
-        directory_hint = os.path.dirname(str(application_registry.instance.make_qsettings().value(
-                'Files/last_config_file', QtCore.QString()).toString()))
+        dir_hint = self.context.make_qsettings().value('File/last_config_file', QtCore.QString()).toString()
+        dir_hint = os.path.dirname(str(dir_hint))
 
         filename = QtGui.QFileDialog.getSaveFileName(self, "Save device config as",
-                directory=directory_hint, filter="XML files (*.xml);; *")
+                directory=dir_hint, filter="XML files (*.xml);; *")
 
         if not len(filename):
             return
@@ -642,7 +645,7 @@ class SetupTreeView(QtGui.QTreeView):
                 with open(filename, 'w') as f:
                     config_xml.write_device_config_to_file(device_config, f)
 
-                application_registry.instance.make_qsettings().setValue(
+                self.context.make_qsettings().setValue(
                         'Files/last_config_file', filename)
             except IOError as e:
                 QtGui.QMessageBox.critical(self, "Error", "Writing to %s failed: %s" % (filename, e))
@@ -652,11 +655,11 @@ class SetupTreeView(QtGui.QTreeView):
     def _slt_load_device_config(self, device):
         self.log.debug("load_device_config triggered for %s", device)
 
-        directory_hint = os.path.dirname(str(application_registry.instance.make_qsettings().value(
-                'Files/last_config_file', QtCore.QString()).toString()))
+        dir_hint = self.context.make_qsettings().value('Files/last_config_file', QtCore.QString()).toString()
+        dir_hint = os.path.dirname(str(dir_hint))
 
         filename = QtGui.QFileDialog.getOpenFileName(self, "Load device config from file",
-                directory=directory_hint, filter="XML files (*.xml);; *")
+                directory=dir_hint, filter="XML files (*.xml);; *")
 
         if not len(filename):
             return
@@ -694,7 +697,7 @@ class SetupTreeView(QtGui.QTreeView):
             raise
         else:
             QtGui.QMessageBox.information(self, "Info", "Configuration loaded from %s" % filename)
-            application_registry.instance.make_qsettings().setValue(
+            self.context.make_qsettings().setValue(
                     'Files/last_config_file', filename)
 
     def _slt_apply_device_config(self, device):
@@ -743,11 +746,11 @@ class SetupTreeView(QtGui.QTreeView):
         idx  = self.model().createIndex(node.row, column_index('name'), node)
         self.edit(idx)
 
-class SetupTreeWidget(QtGui.QWidget):
-    def __init__(self, model=None, parent=None):
-        super(SetupTreeWidget, self).__init__(parent)
-        self.setup_tree_view = SetupTreeView(model, self)
-
-        layout = QtGui.QVBoxLayout()
-        layout.addWidget(self.tree_view)
-        self.setLayout(layout)
+#class SetupTreeWidget(QtGui.QWidget):
+#    def __init__(self, model=None, parent=None):
+#        super(SetupTreeWidget, self).__init__(parent)
+#        self.setup_tree_view = SetupTreeView(model, self)
+#
+#        layout = QtGui.QVBoxLayout()
+#        layout.addWidget(self.tree_view)
+#        self.setLayout(layout)

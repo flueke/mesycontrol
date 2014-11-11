@@ -6,8 +6,6 @@ from PyQt4 import QtCore
 from PyQt4.QtCore import QProcess
 from PyQt4.QtCore import pyqtSignal, pyqtProperty
 from functools import partial
-import logging
-import os
 import util
 import weakref
 
@@ -55,11 +53,9 @@ class ServerProcess(QtCore.QObject):
     #: stdout and stderr of the child process
     sig_stdout   = pyqtSignal(str)
 
-    def __init__(self, parent = None):
+    def __init__(self, parent=None):
         super(ServerProcess, self).__init__(parent)
-        import application_registry
 
-        self.binary_path     = application_registry.instance.bin_dir
         self.binary_name     = ServerProcess.default_binary_name
         self.listen_address  = ServerProcess.default_listen_address
         self.listen_port     = ServerProcess.default_listen_port
@@ -105,7 +101,7 @@ class ServerProcess(QtCore.QObject):
         program = util.which(self.binary_name)
 
         if program is None:
-            program = os.path.join(self.binary_path, self.binary_name)
+            raise RuntimeError("Could not find server binary '%s'" % self.binary_name)
 
         self.log.debug("Using server binary '%s'", program)
 
@@ -217,40 +213,37 @@ class ProcessPool(QtCore.QObject):
 
 pool = ProcessPool()
 
-if __name__ == "__main__":
-    import application_registry
-    import sys
-
-    logging.basicConfig(level=logging.DEBUG,
-            format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
-
-    app = QtCore.QCoreApplication(sys.argv)
-    application_registry.instance = application_registry.ApplicationRegistry(
-            sys.executable if getattr(sys, 'frozen', False) else __file__)
-
-    procs = []
-    for i in range(10):
-        print "Starting processes"
-        proc = pool.create_process(
-                options={'mrc_serial_port': '/dev/ttyUSB0', 'mrc_baud_rate': 115200})
-        proc.start()
-        procs.append(proc)
-
-    def stop_all():
-        print "Stopping processes"
-        for proc in procs:
-            proc.stop()
-
-    def stop_all_and_quit():
-        stop_all()
-        QtCore.QTimer.singleShot(5000, app.quit)
-
-    QtCore.QTimer.singleShot(5000, stop_all_and_quit)
-
-    ret = app.exec_()
-
-    for proc in procs:
-        if proc.is_running():
-            print "Process still running!"
-
-    sys.exit(ret)
+#if __name__ == "__main__":
+#    import sys
+#
+#    logging.basicConfig(level=logging.DEBUG,
+#            format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
+#
+#    app = QtCore.QCoreApplication(sys.argv)
+#
+#    procs = []
+#    for i in range(10):
+#        print "Starting processes"
+#        proc = pool.create_process(
+#                options={'mrc_serial_port': '/dev/ttyUSB0', 'mrc_baud_rate': 115200})
+#        proc.start()
+#        procs.append(proc)
+#
+#    def stop_all():
+#        print "Stopping processes"
+#        for proc in procs:
+#            proc.stop()
+#
+#    def stop_all_and_quit():
+#        stop_all()
+#        QtCore.QTimer.singleShot(5000, app.quit)
+#
+#    QtCore.QTimer.singleShot(5000, stop_all_and_quit)
+#
+#    ret = app.exec_()
+#
+#    for proc in procs:
+#        if proc.is_running():
+#            print "Process still running!"
+#
+#    sys.exit(ret)

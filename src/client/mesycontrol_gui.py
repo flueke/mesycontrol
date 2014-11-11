@@ -12,9 +12,10 @@ import sys
 import weakref
 from functools import partial
 from PyQt4 import QtCore, QtGui, uic
+from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import pyqtSlot
 from PyQt4.Qt import Qt
-from mesycontrol import application_registry
+from mesycontrol import app_context
 from mesycontrol import device_view
 from mesycontrol import device_tableview
 from mesycontrol import config
@@ -47,21 +48,23 @@ def restore_subwindow_state(subwin, settings):
         settings.endGroup()
 
 class MainWindow(QtGui.QMainWindow):
-    def __init__(self, parent = None):
+    def __init__(self, context, parent=None):
         super(MainWindow, self).__init__(parent)
         self.log = util.make_logging_source_adapter(__name__, self)
+        self.context = context
         self.font_point_size = QtGui.QApplication.instance().font().pointSize()
 
         QtCore.QCoreApplication.instance().aboutToQuit.connect(self.on_qapp_quit)
-        uic.loadUi(application_registry.instance.find_data_file('mesycontrol/ui/mainwin.ui'), self)
+        uic.loadUi(self.context.find_data_file('mesycontrol/ui/mainwin.ui'), self)
 
         # Setup Tree Dock Widget
-        self.setup_tree_view = setup_treeview.SetupTreeView(parent=self)
+        model = setup_treeview.SetupTreeModel()
+        self.setup_tree_view = setup_treeview.SetupTreeView(model, self.context, self)
         self.setup_tree_view.sig_open_device.connect(self._slt_open_device_window)
         self.setup_tree_view.sig_open_table_view.connect(self._slt_open_table_view)
         self.setup_tree_view.sig_remove_mrc.connect(self._slt_remove_mrc_from_setup)
-        application_registry.instance.mrc_added.connect(self.setup_tree_view.model().add_mrc)
-        application_registry.instance.mrc_removed.connect(self.setup_tree_view.model().remove_mrc)
+        self.context.mrc_added.connect(self.setup_tree_view.model().add_mrc)
+        self.context.mrc_removed.connect(self.setup_tree_view.model().remove_mrc)
 
         dw_setup_tree = QtGui.QDockWidget("Setup", self)
         dw_setup_tree.setObjectName("dw_setup_tree")
@@ -70,12 +73,19 @@ class MainWindow(QtGui.QMainWindow):
         self.addDockWidget(Qt.LeftDockWidgetArea, dw_setup_tree)
 
         # Log View Dock Widget
-        log_emitter = util.QtLogEmitter(parent=self)
-        logging.getLogger().addHandler(log_emitter.get_handler())
+        def find_handler_by_type(logger, handler_type):
+            try:
+                return filter(lambda h: isinstance(h, handler_type), logger.handlers)[0]
+            except IndexError:
+                return None
 
+        logging_bridge = util.QtLoggingBridge()
+        callback_handler = find_handler_by_type(logging.getLogger(), util.CallbackHandler)
+        if callback_handler is not None:
+            callback_handler.add_callback(logging_bridge)
         self.log_view = log_view.LogView(parent=self)
-        log_emitter.log_record.connect(self.log_view.handle_log_record)
-        application_registry.instance.register('exception_logger', self.log_view.handle_exception)
+        logging_bridge.log_record.connect(self.log_view.handle_log_record)
+        sys.excepthook.register_handler(self.log_view.handle_exception)
 
         dw_log_view = QtGui.QDockWidget("Application Log", self)
         dw_log_view.setObjectName("dw_log_view")
@@ -86,13 +96,13 @@ class MainWindow(QtGui.QMainWindow):
         # Mapping of: Device -> Subwindow
         self._device_windows = dict()
 
-        application_registry.instance.device_added.connect(self._on_application_registry_device_added)
-        application_registry.instance.active_setup_changed.connect(self._on_active_setup_changed)
+        self.context.device_added.connect(self._on_context_device_added)
+        self.context.active_setup_changed.connect(self._on_active_setup_changed)
 
         self.restore_settings()
 
     def store_settings(self):
-        settings = application_registry.instance.make_qsettings()
+        settings = self.context.make_qsettings()
 
         settings.beginGroup("MainWindow")
 
@@ -111,7 +121,7 @@ class MainWindow(QtGui.QMainWindow):
             store_subwindow_state(window, settings)
 
     def restore_settings(self):
-        settings = application_registry.instance.make_qsettings()
+        settings = self.context.make_qsettings()
 
         settings.beginGroup("MainWindow")
         try:
@@ -128,28 +138,28 @@ class MainWindow(QtGui.QMainWindow):
     @pyqtSlot()
     def on_qapp_quit(self):
         logging.info("Exiting...")
-        application_registry.instance.shutdown()
+        self.context.shutdown()
 
     @pyqtSlot()
     def on_actionConnect_triggered(self):
-        dialog = ConnectDialog(self)
+        dialog = ConnectDialog(self.context, self)
         result = dialog.exec_()
 
         if result != QtGui.QDialog.Accepted:
             return
 
         connection_config = dialog.connection_config
-        connection        = application_registry.instance.find_connection_by_config(connection_config)
+        connection        = self.context.find_connection_by_config(connection_config)
 
         if connection is not None:
             QtGui.QMessageBox.critical(self, "Connection error", "Connection exists")
             return
 
-        application_registry.instance.make_mrc_connection(config=connection_config, connect=True)
+        self.context.make_mrc_connection(config=connection_config, connect=True)
 
     @pyqtSlot()
     def on_actionLoad_Setup_triggered(self):
-        setup = application_registry.instance.get('active_setup')
+        setup = self.context.get_active_setup()
 
         if setup is not None and setup.modified:
             do_save = QtGui.QMessageBox.question(
@@ -161,7 +171,7 @@ class MainWindow(QtGui.QMainWindow):
             if do_save == QtGui.QMessageBox.Yes:
                 self.on_actionSave_Setup_As_triggered()
 
-        directory_hint = os.path.dirname(str(application_registry.instance.make_qsettings().value(
+        directory_hint = os.path.dirname(str(self.context.make_qsettings().value(
                 'Files/last_setup_file', QtCore.QString()).toString()))
 
         filename = QtGui.QFileDialog.getOpenFileName(self, "Open setup file",
@@ -180,7 +190,7 @@ class MainWindow(QtGui.QMainWindow):
             QtGui.QMessageBox.critical(self, "Error", "No MRC configurations found in %s" % filename)
             return
 
-        setup_loader = config.SetupLoader(setup)
+        setup_loader = config.SetupLoader(setup, self.context)
         pd = QtGui.QProgressDialog(self)
         pd.setMaximum(0)
         pd.setValue(0)
@@ -196,15 +206,15 @@ class MainWindow(QtGui.QMainWindow):
         if setup_loader.has_failed():
             QtGui.QMessageBox.critical(self, "Error", "Setup loading failed")
 
-        application_registry.instance.make_qsettings().setValue(
+        self.context.make_qsettings().setValue(
                 'Files/last_setup_file', filename)
 
     @pyqtSlot()
     def on_actionSave_Setup_As_triggered(self):
-        directory_hint = str(application_registry.instance.make_qsettings().value(
+        directory_hint = str(self.context.make_qsettings().value(
                 'Files/last_setup_file', QtCore.QString()).toString())
 
-        setup = application_registry.instance.get('active_setup')
+        setup = self.context.get_active_setup()
 
         if len(setup.filename):
             directory_hint = setup.filename
@@ -217,15 +227,15 @@ class MainWindow(QtGui.QMainWindow):
         if not len(filename):
             return
 
-        self._save_setup_to_file(application_registry.instance.get('active_setup'),
+        self._save_setup_to_file(self.context.get_active_setup(),
                 filename)
 
-        application_registry.instance.make_qsettings().setValue(
+        self.context.make_qsettings().setValue(
                 'Files/last_setup_file', filename)
 
     @pyqtSlot()
     def on_actionSave_Setup_triggered(self):
-        setup = application_registry.instance.get('active_setup')
+        setup = self.context.get_active_setup()
 
         if not len(setup.filename):
             self.on_actionSave_Setup_As_triggered()
@@ -239,14 +249,12 @@ class MainWindow(QtGui.QMainWindow):
         if not filename.endswith(".xml"):
             filename += ".xml"
 
-        setup = application_registry.instance.get('active_setup')
-
         if setup is None:
             return
 
         # Make sure the device config instances within the setup are complete
         # (all required parameters present).
-        setup_completer = config.SetupCompleter(setup)
+        setup_completer = config.SetupCompleter(setup, self.context)
         pd = QtGui.QProgressDialog(self)
         pd.setMaximum(len(setup_completer))
         pd.setValue(0)
@@ -264,21 +272,21 @@ class MainWindow(QtGui.QMainWindow):
         else:
             try:
                 with open(filename, 'w') as f:
-                    config_xml.write_setup_to_file(setup, f)
+                    config_xml.write_setup_to_file(setup, f, self.context)
                     setup.filename = filename
                     setup.modified = False
-                    application_registry.instance.make_qsettings().setValue(
+                    self.context.make_qsettings().setValue(
                             'Files/last_setup_file', filename)
             except IOError as e:
                 QtGui.QMessageBox.critical(self, "Error", "Writing to %s failed: %s" % (filename, e))
             else:
                 QtGui.QMessageBox.information(self, "Info", "Configuration written to %s" % filename)
-                application_registry.instance.make_qsettings().setValue(
+                self.context.make_qsettings().setValue(
                         'Files/last_setup_file', filename)
 
     @pyqtSlot()
     def on_actionClose_Setup_triggered(self):
-        setup = application_registry.instance.get('active_setup')
+        setup = self.context.get_active_setup()
 
         if setup is not None and setup.modified:
             do_save = QtGui.QMessageBox.question(
@@ -290,10 +298,10 @@ class MainWindow(QtGui.QMainWindow):
             if do_save == QtGui.QMessageBox.Yes:
                 self.on_actionSave_Setup_As_triggered()
 
-        application_registry.instance.register('active_setup', config.Setup())
+        self.context.set_active_setup(config.Setup())
 
-        for mrc in application_registry.instance.get_mrcs():
-            application_registry.instance.unregister_mrc(mrc)
+        for mrc in self.context.get_mrcs():
+            self.context.unregister_mrc(mrc)
 
     @pyqtSlot()
     def on_actionAbout_triggered(self):
@@ -319,7 +327,7 @@ class MainWindow(QtGui.QMainWindow):
         self.font_point_size += delta
         QtGui.QApplication.instance().setStyleSheet("QWidget { font-size: %dpt; }" % self.font_point_size)
 
-    def _on_application_registry_device_added(self, device):
+    def _on_context_device_added(self, device):
         self.log.debug("ApplicationRegistry added a new device: %s", device)
         device.name_changed.connect(partial(self._on_device_name_changed, device_ref=weakref.ref(device)))
 
@@ -331,7 +339,7 @@ class MainWindow(QtGui.QMainWindow):
         self._on_active_setup_modified()
 
     def _on_active_setup_modified(self, is_modified=False):
-        setup = application_registry.instance.get('active_setup')
+        setup = self.context.get_active_setup()
         setup_dock = self.findChild(QtGui.QDockWidget, 'dw_setup_tree')
         title = 'Unsaved Setup [*]'
         if len(setup.filename):
@@ -355,7 +363,7 @@ class MainWindow(QtGui.QMainWindow):
         subwin.setObjectName(name)
         if install_event_filter:
             subwin.installEventFilter(self)
-        restore_subwindow_state(subwin, application_registry.instance.make_qsettings())
+        restore_subwindow_state(subwin, self.context.make_qsettings())
         subwin.show()
 
         action = QtGui.QAction(title, self, triggered=self._menu_window_action_triggered)
@@ -379,7 +387,7 @@ class MainWindow(QtGui.QMainWindow):
             self.log.debug("Found window for Device %s", device)
         except KeyError:
             self.log.debug("Creating window for Device %s", device)
-            widget  = device_view.DeviceView(device, self)
+            widget  = device_view.DeviceView(device, self.context, self)
 
             subwin = self._add_subwindow(widget, str(device), str(device))
             subwin.device = device
@@ -397,7 +405,7 @@ class MainWindow(QtGui.QMainWindow):
             counter    += 1
             subwin_name = "%s table view <%d>" % (str(device), counter)
 
-        widget = device_tableview.DeviceTableWidget(device)
+        widget = device_tableview.DeviceTableWidget(device, self.context)
         subwin = self._add_subwindow(widget, subwin_name, subwin_name)
         subwin.show()
         subwin.widget().show()
@@ -406,14 +414,14 @@ class MainWindow(QtGui.QMainWindow):
     def _slt_remove_mrc_from_setup(self, mrc):
         mrc.disconnect()
 
-        active_setup = application_registry.instance.get('active_setup')
+        active_setup = self.context.get_active_setup()
         active_setup.remove_mrc_config(mrc.config)
 
         for device in mrc.get_devices():
             if device in self._device_windows:
                 self.mdiArea.removeSubWindow(self._device_windows[device])
 
-        application_registry.instance.unregister_mrc(mrc)
+        self.context.unregister_mrc(mrc)
 
     @pyqtSlot()
     def _menu_window_action_triggered(self):
@@ -440,7 +448,7 @@ class MainWindow(QtGui.QMainWindow):
                     break
 
         if event.type() == QtCore.QEvent.Close and isinstance(watched_object, QtGui.QMdiSubWindow):
-            store_subwindow_state(watched_object, application_registry.instance.make_qsettings())
+            store_subwindow_state(watched_object, self.context.make_qsettings())
 
         return False # Do not filter out the event
 
@@ -452,14 +460,6 @@ def signal_handler(signum, frame):
     logging.info("Received signal %s. Quitting...",
             signal.signum_to_name.get(signum, "%d" % signum))
     QtGui.QApplication.quit()
-
-def app_except_hook(exc_type, exc_value, exc_trace):
-    if application_registry.instance is not None:
-        exc_logger = application_registry.instance.get('exception_logger')
-        if exc_logger is not None:
-            exc_logger(exc_type, exc_value, exc_trace)
-
-    sys.__excepthook__(exc_type, exc_value, exc_trace)
 
 if __name__ == "__main__":
     if not sys.platform.startswith('win32'):
@@ -486,7 +486,10 @@ if __name__ == "__main__":
             for n in dir(signal) if n.startswith('SIG') and '_' not in n)
     signal.signal(signal.SIGINT, signal_handler)
 
-    sys.excepthook = app_except_hook
+    # Create an exception hook registry and register the original handler with
+    # it.
+    sys.excepthook = util.ExceptionHookRegistry()
+    sys.excepthook.register_handler(sys.__excepthook__)
 
     # Qt setup
     QtCore.QLocale.setDefault(QtCore.QLocale.c())
@@ -502,10 +505,13 @@ if __name__ == "__main__":
     # Confine garbage collection to the main thread to avoid crashes.
     garbage_collector = util.GarbageCollector()
 
-    application_registry.instance = application_registry.ApplicationRegistry(
-            sys.executable if getattr(sys, 'frozen', False) else __file__)
+    # Application context
+    context = app_context.Context(sys.executable if getattr(sys, 'frozen', False) else __file__)
 
-    mainwin = MainWindow()
+    # Update the environments path to easily find the mesycontrol_server binary.
+    os.environ['PATH'] = context.bin_dir + os.pathsep + os.environ['PATH']
+
+    mainwin = MainWindow(context=context)
     mainwin.show()
     ret = app.exec_()
 

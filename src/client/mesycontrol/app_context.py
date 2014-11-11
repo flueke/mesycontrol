@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from PyQt4 import QtCore
-from PyQt4.QtCore import pyqtSignal
-import importlib
+from qt import QtCore
+from qt import pyqtSignal
+from qt import pyqtProperty
 import os
+import importlib
 
 import app_model
 import config
@@ -15,48 +16,17 @@ import mrc_connection
 import mrc_controller
 import util
 
-# Refactoring the singleton away:
-# - In the main python program create a registry ('context' would be a better name) instance.
-# - Pass this instance down into the application code.
-# - Pass the few factories used in the code directly to the clients as this
-#   makes it easy to mock the factories.
+class Context(QtCore.QObject):
+    mrc_added               = pyqtSignal(object) #: app_model.MRC
+    mrc_removed             = pyqtSignal(object) #: app_model.MRC
+    device_added            = pyqtSignal(object) #: app_model.Device
+    device_removed          = pyqtSignal(object) #: app_model.Device
+    active_setup_changed    = pyqtSignal(object, object) #: old setup, new setup
 
-instance = None
-
-def init(main_file):
-    global instance
-    if instance is not None:
-        raise RuntimeError("ApplicationRegistry already initialized")
-    instance = ApplicationRegistry(main_file)
-    return instance
-
-def find_data_dir(main_file):
-    """Locates the directory used for data files.
-    Recursively follows symlinks until the location of main_file is known.
-    Returns the name of the directory of the location of the main file.
-    """
-    while os.path.islink(main_file):
-        lnk = os.readlink(main_file)
-        if os.path.isabs(lnk):
-            main_file = lnk
-        else:
-            main_file = os.path.abspath(os.path.join(os.path.dirname(main_file), lnk))
-    return os.path.dirname(os.path.abspath(main_file))
-
-class ApplicationRegistry(QtCore.QObject):
-    mrc_model_added   = pyqtSignal(object) #: hw_model.MRCModel
-    mrc_model_removed = pyqtSignal(object) #: hw_model.MRCModel
-
-    mrc_added         = pyqtSignal(object) #: app_model.MRC
-    mrc_removed       = pyqtSignal(object) #: app_model.MRC
-
-    device_added      = pyqtSignal(object) #: app_model.Device
-    device_removed    = pyqtSignal(object) #: app_model.Device
-
-    active_setup_changed = pyqtSignal(object, object) #: old setup, new setup
+    default_device_class    = app_model.Device
 
     def __init__(self, main_file, parent=None):
-        super(ApplicationRegistry, self).__init__(parent)
+        super(Context, self).__init__(parent)
         self.log                    = util.make_logging_source_adapter(__name__, self)
         self.main_file              = main_file
         self.bin_dir                = os.path.abspath(os.path.dirname(main_file))
@@ -66,7 +36,7 @@ class ApplicationRegistry(QtCore.QObject):
         self.device_profiles        = set()
         self.device_classes         = dict()
         self.device_widget_classes  = dict()
-        self._object_registry       = dict()
+        self._active_setup          = None
 
         self._load_system_profiles()
         self._load_device_classes()
@@ -114,7 +84,7 @@ class ApplicationRegistry(QtCore.QObject):
                 self.log.error("Error loading device class from %s: %s", mod_name, str(e))
 
     def get_device_class(self, idc):
-        return self.device_classes.get(idc, app_model.Device)
+        return self.device_classes.get(idc, Context.default_device_class)
 
     def get_device_widget_class(self, idc):
         return self.device_widget_classes.get(idc, None)
@@ -131,9 +101,6 @@ class ApplicationRegistry(QtCore.QObject):
         except IndexError:
             raise RuntimeError("No device description for name %s" % name)
 
-    def get_device_name_by_idc(self, idc):
-        return self.get_device_profile_by_idc(idc).name
-
     def find_data_file(self, filename):
         return os.path.join(self.data_dir, filename)
 
@@ -142,14 +109,12 @@ class ApplicationRegistry(QtCore.QObject):
             return
         mrc_model.setParent(self)
         self.mrc_models.append(mrc_model)
-        self.mrc_model_added.emit(mrc_model)
 
     def unregister_mrc_model(self, mrc_model):
         if mrc_model in self.mrc_models:
             self.mrc_models.remove(mrc_model)
             mrc_model.setParent(None)
             mrc_model.controller.disconnect()
-            self.mrc_model_removed.emit(mrc_model)
 
     def register_mrc(self, mrc):
         if mrc in self.mrcs:
@@ -191,23 +156,6 @@ class ApplicationRegistry(QtCore.QObject):
                     return connection
         return None
 
-    def get(self, key):
-        return self._object_registry.get(key, None)
-
-    def register(self, key, obj):
-        old_object = self._object_registry.get(key, None)
-
-        self._object_registry[key] = obj
-
-        if key == 'active_setup':
-            self.active_setup_changed.emit(old_object, obj)
-
-    def unregister(self, key):
-        del self._object_registry[key]
-
-    def has_key(self, key):
-        return key in self._object_registry
-
     def make_mrc_connection(self, **kwargs):
         try:
             mrc_config = kwargs['mrc_config']
@@ -221,17 +169,17 @@ class ApplicationRegistry(QtCore.QObject):
         model.controller = mrc_controller.MRCController(connection, model)
         self.register_mrc_model(model)
 
-        mrc = app_model.MRC(mrc_model=model, mrc_config=mrc_config)
+        mrc = app_model.MRC(mrc_model=model, mrc_config=mrc_config, context=self)
 
         self.register_mrc(mrc)
 
         # Important step: register the newly created mrc_config. Otherwise it
         # would be garbage collected.
-        active_setup = self.get('active_setup')
+        active_setup = self.get_active_setup()
 
         if active_setup is None:
             active_setup = config.Setup()
-            self.register('active_setup', active_setup)
+            self.set_active_setup(active_setup)
 
         if not active_setup.contains_mrc_config(mrc.config):
             active_setup.add_mrc_config(mrc.config)
@@ -243,3 +191,27 @@ class ApplicationRegistry(QtCore.QObject):
 
     def make_qsettings(self):
         return QtCore.QSettings("mesytec", "mesycontrol")
+
+    def get_active_setup(self):
+        return self._active_setup
+
+    def set_active_setup(self, setup):
+        if self._active_setup != setup:
+            old_setup = self._active_setup
+            self._active_setup = setup
+            self.active_setup_changed.emit(old_setup, setup)
+
+    active_setup = pyqtProperty(object, get_active_setup, set_active_setup, notify=active_setup_changed)
+
+def find_data_dir(main_file):
+    """Locates the directory used for data files.
+    Recursively follows symlinks until the location of main_file is known.
+    Returns the name of the directory of the location of the main file.
+    """
+    while os.path.islink(main_file):
+        lnk = os.readlink(main_file)
+        if os.path.isabs(lnk):
+            main_file = lnk
+        else:
+            main_file = os.path.abspath(os.path.join(os.path.dirname(main_file), lnk))
+    return os.path.dirname(os.path.abspath(main_file))

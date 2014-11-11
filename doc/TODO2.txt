@@ -11,7 +11,7 @@
     How does support for offline editing work with this?
 
     -> Offline editing:
-    The hw_model uses 
+    The hw_model uses ???
 
   - How and where to implement device specific functionality? E.g. MHV4:
     disableAllChannels().

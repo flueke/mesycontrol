@@ -14,16 +14,14 @@ import device_profile
 import hw_model
 import util
 
-def device_factory(device_model=None, device_config=None, parent=None):
+def device_factory(device_model, device_config, context, parent=None):
     if None not in (device_model, device_config) and device_model.idc != device_config.idc:
         raise RuntimeError("device model idc (%d) does not match device config idc (%d)" %
                 (device_model.idc, device_config.idc))
 
-    import application_registry
-
     idc             = device_model.idc if device_model is not None else device_config.idc
-    device_class    = application_registry.instance.get_device_class(idc)
-    device_profile  = application_registry.instance.get_device_profile_by_idc(idc)
+    device_class    = context.get_device_class(idc)
+    device_profile  = context.get_device_profile_by_idc(idc)
 
     if device_profile.idc != idc:
         raise RuntimeError("device profile idc (%d) does not match expected idc (%d)",
@@ -527,10 +525,12 @@ class MRC(QtCore.QObject):
     bus_scanned                 = pyqtSignal(int, object)   #: bus_scanned(bus, data)
     polling_changed             = pyqtSignal(bool)
 
-    def __init__(self, mrc_model=None, mrc_config=None, parent=None):
+    def __init__(self, mrc_model, mrc_config, context, parent=None):
+        """mrc_model or mrc_config may be None but not both."""
         super(MRC, self).__init__(parent)
         self.log      = util.make_logging_source_adapter(__name__, self)
         self.log.debug("Creating MRC(hw_model=%s, config=%s)", mrc_model, mrc_config)
+        self.context  = context
         self._model   = None
         self._config  = None
         self._devices = list()
@@ -759,7 +759,8 @@ class MRC(QtCore.QObject):
         except KeyError:
             self.log.info("%s._on_device_config_added(): Creating Device(config=%s, idc=%d, bus=%d, address=%d)",
                     self, device_config, device_config.idc, device_config.bus, device_config.address)
-            device = device_factory(device_config=device_config, parent=self)
+            device = device_factory(device_model=None, device_config=device_config,
+                    context=self.context, parent=self)
             self._add_device(device)
 
     def _on_device_config_removed(self, device_config):
