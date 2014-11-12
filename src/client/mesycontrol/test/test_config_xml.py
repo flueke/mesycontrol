@@ -2,17 +2,12 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from nose.tools import assert_raises, assert_dict_equal
-import sys
-
-from mesycontrol import application_registry
+from mesycontrol import app_context
 from mesycontrol import config
 from mesycontrol import config_xml
 
 def test_device_config_xml():
-    if application_registry.instance is None:
-        application_registry.instance = application_registry.ApplicationRegistry(
-                sys.executable if getattr(sys, 'frozen', False) else __file__)
+    context = app_context.Context(__file__)
 
     cfg = config.DeviceConfig()
     cfg.name        = 'foobar'
@@ -25,7 +20,7 @@ def test_device_config_xml():
     for i in range(50, 100):
         cfg.add_parameter(i, i*2, str(i*2))
 
-    xml_tree   = config_xml.device_config_to_etree(cfg)
+    xml_tree   = config_xml.device_config_to_etree(cfg, context)
 
     print
     print '==============='
@@ -49,9 +44,7 @@ def test_device_config_xml():
         assert param_cfg.alias   == str(i*2)
 
 def test_mrc_config_xml():
-    if application_registry.instance is None:
-        application_registry.instance = application_registry.ApplicationRegistry(
-                sys.executable if getattr(sys, 'frozen', False) else __file__)
+    context = app_context.Context(__file__)
 
     mrc_cfg             = config.MRCConfig()
     mrc_cfg.name        = 'foobar'
@@ -76,7 +69,7 @@ def test_mrc_config_xml():
 
         mrc_cfg.add_device_config(dev_cfg)
 
-    xml_tree = config_xml.mrc_config_to_etree(mrc_cfg)
+    xml_tree = config_xml.mrc_config_to_etree(mrc_cfg, context)
 
     print
     print '==============='
@@ -98,9 +91,7 @@ def test_mrc_config_xml():
         assert dev_cfg.rc == True
 
 def test_setup_config_xml():
-    if application_registry.instance is None:
-        application_registry.instance = application_registry.ApplicationRegistry(
-                sys.executable if getattr(sys, 'frozen', False) else __file__)
+    context = app_context.Context(__file__)
 
     setup = config.Setup()
     setup.name = 'foobar setup'
@@ -147,7 +138,7 @@ def test_setup_config_xml():
     setup.add_mrc_config(mrc_cfg)
 
     # to xml
-    xml_tree = config_xml.setup_to_etree(setup)
+    xml_tree = config_xml.setup_to_etree(setup, context)
 
     print
     print '==============='

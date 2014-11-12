@@ -7,19 +7,19 @@ import logging
 import signal
 import sys
 
-from mesycontrol import application_registry
-from mesycontrol import app_model
-from mesycontrol import config
-from mesycontrol import hw_model
-from mesycontrol import mrc_connection
-from mesycontrol import mrc_controller
-
 def signal_handler(signum, frame):
     logging.info("Received signal %s. Quitting...",
             signal.signum_to_name.get(signum, "%d" % signum))
     QtGui.QApplication.quit()
 
 def test_app_model_using_local_setup():
+    from mesycontrol import application_registry
+    from mesycontrol import app_model
+    from mesycontrol import config
+    from mesycontrol import hw_model
+    from mesycontrol import mrc_connection
+    from mesycontrol import mrc_controller
+
     logging.basicConfig(level=logging.INFO,
             format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
