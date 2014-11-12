@@ -13,7 +13,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 # there have been changes since the tag has been created.
 include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC GIT_SHA1)
-git_describe(GIT_VERSION)
+git_describe(GIT_VERSION "--always")
 
 # Add the root build directory to the compiler search path.
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
