@@ -60,19 +60,21 @@ def setup_to_etree(setup, context):
     _add_tag(tb, 'name', setup.name)
     _add_tag(tb, 'description', setup.description)
 
-    for obj in setup.get_device_configs():
-        _device_config_to_etree(obj, tb)
+    for dev_cfg in setup.get_device_configs():
+        dev_profile = context.get_device_profile_by_idc(dev_cfg.idc)
+        _device_config_to_etree(dev_cfg, dev_profile, tb)
 
-    for obj in setup.get_mrc_configs():
-        _mrc_config_to_etree(obj, tb, context)
+    for mrc_cfg in setup.get_mrc_configs():
+        _mrc_config_to_etree(mrc_cfg, tb, context)
 
     tb.end("mesycontrol")
 
     return ElementTree.ElementTree(tb.close())
 
-def device_config_to_etree(device_config):
+def device_config_to_etree(device_config, context):
     tb = CommentTreeBuilder()
-    _device_config_to_etree(device_config, tb)
+    dev_profile = context.get_device_profile_by_idc(device_config.idc)
+    _device_config_to_etree(device_config, dev_profile, tb)
     return ElementTree.ElementTree(tb.close())
 
 def mrc_config_to_etree(mrc_config, context):
@@ -80,10 +82,11 @@ def mrc_config_to_etree(mrc_config, context):
     _mrc_config_to_etree(mrc_config, tb, context)
     return ElementTree.ElementTree(tb.close())
 
-def write_device_config_to_file(device_config, f):
+def write_device_config_to_file(device_config, f, context):
     tb = CommentTreeBuilder()
     tb.start("mesycontrol", {})
-    _device_config_to_etree(device_config, tb)
+    dev_profile = context.get_device_profile_by_idc(device_config.idc)
+    _device_config_to_etree(device_config, dev_profile, tb)
     tb.end("mesycontrol")
 
     tree = ElementTree.ElementTree(tb.close())
