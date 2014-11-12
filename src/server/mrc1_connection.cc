@@ -27,6 +27,7 @@ class MRC1Initializer:
 
     void start()
     {
+      m_init_data.push_back("\r");   // get rid of any partial data in the MRC buffer
       m_init_data.push_back("p0\r"); // disable mrc prompt
       m_init_data.push_back("x0\r"); // disable mrc echo
       m_init_data.push_back("\r");   // send invalid request which results in error output
@@ -91,7 +92,7 @@ class MRC1Initializer:
         // init success
         m_completion_handler(boost::system::error_code());
       } else {
-        // signal failure using io_error for now
+        // signal failure using a boost system error_code
         m_completion_handler(boost::system::error_code(errc::io_error, boost::system::system_category())); 
       }
     }
