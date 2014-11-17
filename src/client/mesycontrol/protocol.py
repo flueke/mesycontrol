@@ -33,6 +33,11 @@ def str_scanbus_response(msg):
 
   return ret
 
+def str_status_message(msg):
+    return "%s(status=%s)" % (
+        msg.get_type_name(),
+        MRCStatus.by_code[msg.status]['name'])
+
 def str_error_response(msg):
   return "%s(%s)" % (msg.get_type_name(), ErrorInfo.by_code[msg.error_code]['name'])
 
@@ -133,6 +138,12 @@ class MessageInfo:
         'format_args': ()
         },
 
+      { 'code': 26,
+        'name': 'request_mrc_status',
+        'format': 'B',
+        'format_args': ('status',)
+        },
+
       # Responses
       { 'code': 41,
         'name': 'response_scanbus',
@@ -173,6 +184,13 @@ class MessageInfo:
         'str_func': str_error_response
         },
 
+      { 'code': 52,
+        'name': 'response_mrc_status',
+        'format': 'B',
+        'format_args': ('status',),
+        'str_func': str_status_message
+        },
+
       # Notifications
       { 'code': 60,
         'name': 'notify_write_access',
@@ -198,6 +216,12 @@ class MessageInfo:
         'name': 'notify_can_acquire_write_access',
         'format': '?',
         'format_args': ('bool_value',)
+        },
+      { 'code': 65,
+        'name': 'notify_mrc_status',
+        'format': 'B',
+        'format_args': ('status',),
+        'str_func': str_status_message
         },
       ]
 
@@ -293,8 +317,43 @@ class ErrorInfo:
   def get_error_names():
     return ErrorInfo.by_name.keys()
 
+class MRCStatus:
+  info_list = [
+      { 'code': 0,
+        'name': 'stopped',
+        'description': 'stopped',
+        },
+      { 'code': 1,
+        'name': 'connecting',
+        'description': 'connecting',
+        },
+      { 'code': 2,
+        'name': 'connect_failed',
+        'description': 'connection failed',
+        },
+      { 'code': 3,
+        'name': 'initializing',
+        'description': 'initializing',
+        },
+      { 'code': 4,
+        'name': 'init_failed',
+        'description': 'initialization failed',
+        },
+      { 'code': 5,
+        'name': 'running',
+        'description': 'running',
+        },
+      ]
+
+  by_name = {}
+  by_code = {}
+
+  for info in info_list:
+    by_code[info['code']] = info
+    by_name[info['name']] = info
+
 class Message(object):
-  __slots__ = '_type_code', '_error_code', '_bus', '_dev', '_par', '_value', '_bool'
+  __slots__ = '_type_code', '_error_code', '_bus', '_dev', '_par', '_value', '_bool', '_status'
 
   def __init__(self, type_code, **kwargs):
     self._type_code = MessageInfo.get_message_info(type_code)['code']
@@ -360,6 +419,10 @@ class Message(object):
   def set_bool(self, value):
     self._bool = bool(value)
 
+  def get_status(self): return self._status
+  def set_status(self, status):
+    self._status = int(status)
+
   type_code  = property(get_type_code)
   bus        = property(get_bus, set_bus)
   dev        = property(get_dev, set_dev)
@@ -367,6 +430,7 @@ class Message(object):
   val        = property(get_value, set_value)
   error_code = property(get_error_code, set_error_code)
   bool_value = property(get_bool, set_bool)
+  status     = property(get_status, set_status)
 
   def serialize(self):
     type_info = self.get_type_info()

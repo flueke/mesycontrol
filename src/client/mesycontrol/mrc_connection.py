@@ -181,7 +181,7 @@ class MesycontrolConnection(AbstractConnection):
         self.disconnected.emit(None)
 
     def _slt_socket_error(self, errc, errstr):
-        self.connection_error.emit(ConnectionError(errstr, errc))
+        self.connection_error.emit(ConnectionError(str(errstr), errc))
 
     def matches_config(self, connection_config):
         return (connection_config.is_mesycontrol_connection()
@@ -249,11 +249,11 @@ class LocalMesycontrolConnection(MesycontrolConnection):
     def _slt_server_finished(self, exit_status, exit_code, exit_code_string):
         if exit_code != 0:
             self.connection_error.emit(ConnectionError(
-                exit_code_string, exit_code, exit_status))
+                str(exit_code_string), exit_code, exit_status))
 
     def _slt_server_error(self, process_error, error_string, exit_code, exit_code_string):
         self.connection_error.emit(ConnectionError(
-            exit_code_string, exit_code, error_string, process_error))
+            str(exit_code_string), exit_code, error_string, process_error))
 
     def matches_config(self, connection_config):
         if connection_config.is_serial_connection():

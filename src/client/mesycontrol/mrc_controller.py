@@ -145,6 +145,8 @@ class MRCController(QtCore.QObject):
         self.connection.cancel_all_requests()
 
     def _on_connection_error(self, error_info):
+        print type(error_info)
+        error_info = str(error_info)
         self.log.info("Connection error from %s: %s. Canceling pending requests.",
                 self.connection.get_info(), error_info)
         self.model.set_disconnected(error=error_info)
