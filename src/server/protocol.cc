@@ -48,6 +48,7 @@ const MessageInfoMap &get_message_info_map()
     (message_type::request_in_silent_mode,          MessageInfo(0, "request_in_silent_mode"))
     (message_type::request_set_silent_mode,         MessageInfo(1, "request_set_silent_mode")) // bool
     (message_type::request_force_write_access,      MessageInfo(0, "request_force_write_access"))
+    (message_type::request_mrc_status,              MessageInfo(0, "request_mrc_status"))
 
     (message_type::response_scanbus,                MessageInfo(33, "response_scanbus"))     // bus (idc,bool){16}
     (message_type::response_read,                   MessageInfo( 7, "response_read"))        // bus dev par val
@@ -57,12 +58,14 @@ const MessageInfoMap &get_message_info_map()
 
     (message_type::response_bool,                   MessageInfo(1, "response_bool"))        // bool value
     (message_type::response_error,                  MessageInfo(1, "response_error"))       // error value
+    (message_type::response_mrc_status,             MessageInfo(1, "response_mrc_status"))
 
     (message_type::notify_write_access,             MessageInfo(1, "notify_write_access"))              // bool
     (message_type::notify_silent_mode,              MessageInfo(1, "notify_silent_mode"))               // bool
     (message_type::notify_set,                      MessageInfo(7, "notify_set"))                       // bus dev par val
     (message_type::notify_mirror_set,               MessageInfo(7, "notify_mirror_set"))                // bus dev par val
     (message_type::notify_can_acquire_write_access, MessageInfo(1, "notify_can_acquire_write_access"))  // bool
+    (message_type::notify_mrc_status,               MessageInfo(1, "notify_mrc_status"))
     ;
   return data;
 }
@@ -242,13 +245,6 @@ std::vector<unsigned char> Message::serialize() const
       ret.push_back(dev);
       break;
 
-    case message_type::request_has_write_access:
-    case message_type::request_acquire_write_access:
-    case message_type::request_release_write_access:
-    case message_type::request_in_silent_mode :
-    case message_type::request_force_write_access:
-      break;
-
     case message_type::request_set_silent_mode:
     case message_type::response_bool:
     case message_type::notify_write_access:
@@ -259,6 +255,20 @@ std::vector<unsigned char> Message::serialize() const
 
     case message_type::response_error:
       ret.push_back(error_value);
+      break;
+
+    case message_type::response_mrc_status:
+    case message_type::notify_mrc_status:
+      ret.push_back(status);
+      break;
+
+    /* Mention no-op types here to avoid compiler warnings. */
+    case message_type::request_has_write_access:
+    case message_type::request_acquire_write_access:
+    case message_type::request_release_write_access:
+    case message_type::request_in_silent_mode :
+    case message_type::request_force_write_access:
+    case message_type::request_mrc_status:
       break;
   }
 
@@ -338,11 +348,18 @@ MessagePtr Message::deserialize(const std::vector<unsigned char> &data)
       ret->error_value = static_cast<error_type::ErrorType>(data[1]);
       break;
 
+    case message_type::response_mrc_status:
+    case message_type::notify_mrc_status:
+      ret->status = static_cast<mrc_status::Status>(data[1]);
+      break;
+
+    /* Mention no-op types here to avoid compiler warnings. */
     case message_type::request_in_silent_mode:
     case message_type::request_acquire_write_access:
     case message_type::request_has_write_access:
     case message_type::request_release_write_access:
     case message_type::request_force_write_access:
+    case message_type::request_mrc_status:
       break;
   }
 
@@ -488,6 +505,22 @@ MessagePtr MessageFactory::make_can_acquire_write_access_notification(bool can_a
   MessagePtr ret(boost::make_shared<Message>());
   ret->type        = message_type::notify_silent_mode;
   ret->bool_value  = can_acquire;
+  return ret;
+}
+
+MessagePtr MessageFactory::make_mrc_status_changed_notification(const mrc_status::Status &status)
+{
+  MessagePtr ret(boost::make_shared<Message>());
+  ret->type   = message_type::notify_mrc_status;
+  ret->status = status;
+  return ret;
+}
+
+MessagePtr MessageFactory::make_mrc_status_response(const mrc_status::Status &status)
+{
+  MessagePtr ret(boost::make_shared<Message>());
+  ret->type   = message_type::response_mrc_status;
+  ret->status = status;
   return ret;
 }
 

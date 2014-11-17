@@ -32,6 +32,7 @@ namespace message_type
     request_in_silent_mode = 23,
     request_set_silent_mode = 24,
     request_force_write_access = 25,
+    request_mrc_status = 26,
 
     /* mrc command responses */
     response_scanbus = 41,
@@ -43,15 +44,17 @@ namespace message_type
     /* additional response types */
     response_bool = 50,
     response_error = 51,
+    response_mrc_status = 52,
 
     /* notification types */
     notify_write_access             = 60,
     notify_silent_mode              = 61,
     notify_set                      = 62, 
     notify_mirror_set               = 63,
-    notify_can_acquire_write_access = 64
+    notify_can_acquire_write_access = 64,
+    notify_mrc_status               = 65
   };
-} // namespace MessageType
+} // namespace message_type
 
 namespace error_type
 {
@@ -70,9 +73,10 @@ namespace error_type
     mrc_connect_error           = 9,  // Unable to establish the MRC connection
     permission_denied           = 10, // Write permission denied
     mrc_parse_error             = 11, // Error parsing MRC reply
-    mrc_address_conflict        = 12  // Bus address conflict
+    mrc_address_conflict        = 12, // Bus address conflict
+    request_canceled            = 13  // Request canceled (currently client side only)
   };
-} // namespace ErrorType
+} // namespace error_type
 
 namespace rc_status
 {
@@ -83,6 +87,19 @@ namespace rc_status
     address_conflict = 2
   };
 }
+
+namespace mrc_status
+{
+  enum Status
+  {
+    stopped           = 0,
+    connecting        = 1,
+    connect_failed    = 2,
+    initializing      = 3,
+    init_failed       = 4,
+    running           = 5
+  };
+} // namespace connection_status
 
 struct Message;
 
@@ -99,6 +116,7 @@ struct Message
                                           // values returned by the mrc can be negative (mhv4)
   error_type::ErrorType     error_value;  // error messages only
   bool                      bool_value;   // bool messages only
+  mrc_status::Status        status;       // mrc status messages only
   // Scanbus response - 16 pairs of (device id code, rc status).
   // Device id code=0 means no device is connected
   typedef boost::array<std::pair<boost::uint8_t, boost::uint8_t>, 16> ScanbusData;
@@ -147,6 +165,8 @@ class MessageFactory
     static MessagePtr make_parameter_set_notification(boost::uint8_t bus, boost::uint8_t dev,
         boost::uint8_t par, boost::int32_t value, bool mirror = false);
     static MessagePtr make_can_acquire_write_access_notification(bool can_acquire);
+    static MessagePtr make_mrc_status_changed_notification(const mrc_status::Status &status);
+    static MessagePtr make_mrc_status_response(const mrc_status::Status &status);
 };
 
 } // namespace mesycontrol

@@ -9,7 +9,10 @@ namespace mesycontrol
 TCPConnectionManager::TCPConnectionManager(MRC1RequestQueue &mrc1_queue)
   : m_mrc1_queue(mrc1_queue)
   , m_log(log::keywords::channel="TCPConnectionManager")
-{}
+{
+  m_mrc1_queue.get_mrc1_connection()->register_status_change_callback(
+      boost::bind(&TCPConnectionManager::handle_mrc1_status_change, this, _1));
+}
 
 void TCPConnectionManager::start(TCPConnectionPtr c)
 {
@@ -25,6 +28,9 @@ void TCPConnectionManager::start(TCPConnectionPtr c)
     // Also tell the client if it can acquire write access
     c->send_message(MessageFactory::make_can_acquire_write_access_notification(!m_write_connection));
   }
+
+  c->send_message(MessageFactory::make_mrc_status_changed_notification(
+        m_mrc1_queue.get_mrc1_connection()->get_status()));
 }
 
 void TCPConnectionManager::stop(TCPConnectionPtr c, bool graceful)
@@ -112,6 +118,11 @@ void TCPConnectionManager::dispatch_request(const TCPConnectionPtr &connection, 
         }
         break;
 
+      case message_type::request_mrc_status:
+        response = MessageFactory::make_mrc_status_response(
+            m_mrc1_queue.get_mrc1_connection()->get_status());
+        break;
+
       default:
         /* Error: a response_* or notify_* message was received. */
         response = MessageFactory::make_error_response(error_type::invalid_message_type);
@@ -166,6 +177,11 @@ void TCPConnectionManager::handle_read_after_set(
           response->bus, response->dev, response->par, response->val,
           response->type == message_type::response_mirror_read));
   }
+}
+
+void TCPConnectionManager::handle_mrc1_status_change(const mrc_status::Status &status)
+{
+  send_to_all(MessageFactory::make_mrc_status_changed_notification(status));
 }
 
 void TCPConnectionManager::set_write_connection(const TCPConnectionPtr &connection)

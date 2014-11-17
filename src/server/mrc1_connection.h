@@ -21,21 +21,13 @@ class MRC1Connection:
   private boost::noncopyable
 {
   public:
-    enum Status
-    {
-      stopped,
-      connecting,
-      connect_failed,
-      initializing,
-      init_failed,
-      running,
-    };
-
     /** Default timeout for read/write operations. */
     static const boost::posix_time::time_duration default_io_timeout;
 
     /** Default timeout between reconnect attempts. */
     static const boost::posix_time::time_duration default_reconnect_timeout;
+
+    typedef boost::function<void (const mrc_status::Status &)> StatusChangeCallback;
 
     MRC1Connection(boost::asio::io_service &io_service);
 
@@ -64,14 +56,16 @@ class MRC1Connection:
     bool get_auto_reconnect() const { return m_auto_reconnect; }
     void set_auto_reconnect(bool auto_reconnect) { m_auto_reconnect = auto_reconnect; }
 
-    Status get_status() const { return m_status; }
-    bool is_initializing() const { return m_status == initializing; }
-    bool is_running() const { return m_status == running; }
-    bool is_stopped() const { return m_status == stopped; }
+    mrc_status::Status get_status() const { return m_status; }
+    bool is_initializing() const { return m_status == mrc_status::initializing; }
+    bool is_running() const { return m_status == mrc_status::running; }
+    bool is_stopped() const { return m_status == mrc_status::stopped; }
     bool is_silenced() const { return m_silenced; }
     void set_silenced(bool silenced) { m_silenced = silenced; }
     boost::system::error_code get_last_error() const { return m_last_error; }
     boost::asio::io_service &get_io_service() { return m_io_service; }
+
+    void register_status_change_callback(const StatusChangeCallback &callback);
 
     virtual ~MRC1Connection() {};
 
@@ -131,8 +125,9 @@ class MRC1Connection:
     void handle_start(const boost::system::error_code &ec);
     void handle_io_timeout(const boost::system::error_code &ec);
     void handle_reconnect_timeout(const boost::system::error_code &ec);
-    void stop(const boost::system::error_code &reason, Status new_status = stopped);
+    void stop(const boost::system::error_code &reason, mrc_status::Status new_status = mrc_status::stopped);
     void reconnect_if_enabled();
+    void set_status(const mrc_status::Status &status);
 
     friend class MRC1Initializer;
 
@@ -144,11 +139,12 @@ class MRC1Connection:
     ResponseHandler m_current_response_handler;
     std::string m_write_buffer;
     boost::asio::streambuf m_read_buffer;
-    Status m_status;
+    mrc_status::Status m_status;
     MRC1ReplyParser m_reply_parser;
     boost::system::error_code m_last_error;
     bool m_silenced;
     bool m_auto_reconnect;
+    std::vector<StatusChangeCallback> m_status_change_callbacks;
 
   protected:
     log::Logger m_log;

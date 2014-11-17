@@ -40,6 +40,8 @@ class TCPConnectionManager: private boost::noncopyable
     void handle_read_after_set(
         const MessagePtr &request, const MessagePtr &response);
 
+    void handle_mrc1_status_change(const mrc_status::Status &status);
+
     void set_write_connection(const TCPConnectionPtr &connection);
 
     /// The managed connections.

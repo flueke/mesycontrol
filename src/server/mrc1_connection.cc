@@ -1,6 +1,7 @@
 #include <boost/assign/list_of.hpp>
 #include <boost/bind.hpp>
 #include <boost/enable_shared_from_this.hpp>
+#include <boost/foreach.hpp>
 #include <boost/log/trivial.hpp>
 #include <boost/make_shared.hpp>
 #include "mrc1_connection.h"
@@ -118,7 +119,7 @@ MRC1Connection::MRC1Connection(boost::asio::io_service &io_service):
   m_timeout_timer(io_service),
   m_io_timeout(default_io_timeout),
   m_reconnect_timeout(default_reconnect_timeout),
-  m_status(stopped),
+  m_status(mrc_status::stopped),
   m_silenced(false),
   m_auto_reconnect(true),
   m_log(log::keywords::channel="MRC1Connection")
@@ -130,7 +131,7 @@ void MRC1Connection::start()
   if (!is_stopped())
     return;
 
-  m_status     = connecting;
+  set_status(mrc_status::connecting);
   m_last_error = boost::system::error_code();
   m_current_command.reset();
   m_current_response_handler = 0;
@@ -142,28 +143,28 @@ void MRC1Connection::start()
 void MRC1Connection::handle_start(const boost::system::error_code &ec)
 {
   if (!ec) {
-    m_status = initializing;
+    set_status(mrc_status::initializing);
     BOOST_LOG_SEV(m_log, log::lvl::info) << "Initializing MRC";
     boost::make_shared<MRC1Initializer>(shared_from_this(),
         boost::bind(&MRC1Connection::handle_init, shared_from_this(), _1))
       ->start();
   } else {
-    stop(ec, connect_failed);
+    stop(ec, mrc_status::connect_failed);
     reconnect_if_enabled();
   }
 }
 
 void MRC1Connection::stop()
 {
-  stop(boost::system::error_code(), stopped);
+  stop(boost::system::error_code(), mrc_status::stopped);
 }
 
-void MRC1Connection::stop(const boost::system::error_code &reason, Status new_status)
+void MRC1Connection::stop(const boost::system::error_code &reason, mrc_status::Status new_status)
 {
   stop_impl();
   m_timeout_timer.cancel();
   m_last_error = reason;
-  m_status     = new_status;
+  set_status(new_status);
   BOOST_LOG_SEV(m_log, log::lvl::info) << "stopped";
 }
 
@@ -179,11 +180,11 @@ void MRC1Connection::reconnect_if_enabled()
 void MRC1Connection::handle_init(const boost::system::error_code &ec)
 {
   if (!ec) {
-    m_status = running;
+    set_status(mrc_status::running);
     BOOST_LOG_SEV(m_log, log::lvl::info) << "MRC connection ready";
   } else {
     BOOST_LOG_SEV(m_log, log::lvl::info) << "MRC initialization failed: " << ec.message();
-    stop(ec, init_failed);
+    stop(ec, mrc_status::init_failed);
     reconnect_if_enabled();
   }
 }
@@ -338,9 +339,26 @@ void MRC1Connection::handle_reconnect_timeout(const boost::system::error_code &e
 {
   if (ec != boost::asio::error::operation_aborted &&
       m_timeout_timer.expires_at() <= boost::asio::deadline_timer::traits_type::now()) {
-    m_status = stopped;
+    set_status(mrc_status::stopped);
     start();
   }
+}
+
+void MRC1Connection::set_status(const mrc_status::Status &status)
+{
+  BOOST_LOG_SEV(m_log, log::lvl::info) << "MRC status changed: "
+    << m_status << " -> " << status;
+
+  m_status = status;
+
+  BOOST_FOREACH(StatusChangeCallback callback, m_status_change_callbacks) {
+    callback(m_status);
+  }
+}
+
+void MRC1Connection::register_status_change_callback(const StatusChangeCallback &callback)
+{
+  m_status_change_callbacks.push_back(callback);
 }
 
 const std::vector<unsigned int> MRC1SerialConnection::default_baud_rates =

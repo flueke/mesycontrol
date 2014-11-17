@@ -38,7 +38,7 @@ void MRC1RequestQueue::try_send_mrc1_request()
   }
 
   if (!m_mrc1_connection->is_running()) {
-    if (m_mrc1_connection->get_status() == MRC1Connection::initializing) {
+    if (m_mrc1_connection->get_status() == mrc_status::initializing) {
       BOOST_LOG_SEV(m_log, log::lvl::debug) << "MRC still initializing. Retrying later";
       m_retry_timer.expires_from_now(get_retry_timeout());
       m_retry_timer.async_wait(boost::bind(&MRC1RequestQueue::handle_retry_timer, this, _1));
@@ -48,10 +48,10 @@ void MRC1RequestQueue::try_send_mrc1_request()
     error_type::ErrorType et;
 
     switch (m_mrc1_connection->get_status()) {
-      case MRC1Connection::connect_failed:
+      case mrc_status::connect_failed:
         et = error_type::mrc_connect_error;
         break;
-      case MRC1Connection::init_failed:
+      case mrc_status::init_failed:
         et = error_type::mrc_comm_error;
         break;
       default:
