@@ -276,10 +276,10 @@ class Device(QtCore.QObject):
         self.mrc.set_device_config(self, config)
 
     def get_profile(self):
-        return self._profile() if self._profile is not None else None
+        return self._profile
 
     def set_profile(self, profile):
-        self._profile = weakref.ref(profile) if profile is not None else None
+        self._profile = profile
         self.profile_set.emit(self.profile)
 
     def set_name(self, name):
