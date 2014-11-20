@@ -15,6 +15,7 @@ import hw_model
 import mrc_connection
 import mrc_controller
 import util
+import sys
 
 class Context(QtCore.QObject):
     mrc_added               = pyqtSignal(object) #: app_model.MRC
@@ -28,9 +29,9 @@ class Context(QtCore.QObject):
     def __init__(self, main_file, parent=None):
         super(Context, self).__init__(parent)
         self.log                    = util.make_logging_source_adapter(__name__, self)
-        self.main_file              = main_file
-        self.bin_dir                = os.path.abspath(os.path.dirname(main_file))
-        self.data_dir               = find_data_dir(main_file)
+        self.main_file              = sys.executable if getattr(sys, 'frozen', False) else main_file
+        self.bin_dir                = os.path.abspath(os.path.dirname(self.main_file))
+        self.data_dir               = find_data_dir(self.main_file)
         self.mrc_models             = list()
         self.mrcs                   = list()
         self.device_profiles        = set()
