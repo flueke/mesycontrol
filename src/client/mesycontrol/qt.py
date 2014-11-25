@@ -7,3 +7,4 @@ from PyQt4 import QtGui
 from PyQt4.QtCore import pyqtProperty
 from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import pyqtSlot
+from PyQt4.Qt import Qt
