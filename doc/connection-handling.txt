@@ -1,0 +1,99 @@
+Connection handling
+===================
+
+Layers
+------
+* mesycontrol_server startup (local mesycontrol connections only)
+* mesycontrol_server connectivity to the MRC (serial, tcp)
+* TCP connection to the mesycontrol_server
+* mesycontrol protocol logic layer
+
+Classes
+-------
+* tcp_client.TCPClient
+  - Uses a TCP socket to connect to a server given by a (host, port) pair
+  - Owns and manages a queue of protocol messages to be sent
+  - The message queue also contains an optional response_handler for each
+    outgoing message. 
+  - Messages can be canceled via an ID created at enqueue time
+  - (De)serializes protocol messages
+  - Socket states: Unconnected, HostLookup, Connecting, Connected, Closing
+  - Keeps protocol traffic statistics
+  - Signals:
+    * connecting, connected, disconnected, socket_error
+    * message_sent, message_received, response_received
+    * request_sent, request_canceled, request_completed (same as above but
+      using request ids)
+    * queue_empty, queue_size_changed
+
+* mrc_connection.AbstractConnection, MesycontrolConnection, LocalMesycontrolConnection
+  - an abstraction layer for the different connection methods
+  - same signals as TCPClient with the following protocol specific additions:
+    notification_received, error_received, write_access_changed,
+    silence_changed
+  - MesycontrolConnection uses an internal TCPClient
+  - LocalMesycontrolConnection inherits from MesycontrolConnection and adds a
+    locally running mesycontrol server process.
+
+* hw_model.MRCModel, DeviceModel
+  Read-only model of the mesytec hardware
+
+* mrc_controller.MRCController
+  - Combines connection and hardware model
+  - Contains most of the protocol logic
+  - Updates the MRCs hardware model
+  - Provides hardware specific methods like scanbus, set_rc, read_parameter,
+    set_parameter, etc.
+
+* mrc_controller.DeviceController
+  - "mrc_controller + device_model"
+
+* server_process.ServerProcess
+  - abstraction for a local server process
+
+* server_process.ProcessPool
+  - factory for ServerProcess objects
+  - keeps track of used and unavailable local tcp ports
+
+* app_model.MRC, Device
+  Read-write model of the mesytec hardware.
+  Combines hw_models read side and mrc_controllers write side.
+
+Things to do & problems to solve
+--------------------------------
+* ServerProcess errors need to be propagated to the GUI.
+  - "Failed opening /dev/ttyUSB0: open: Device or resource busy"
+    The above error needs to be handled at the protocol level as the server does
+    not exit but instead tries to reconnect periodically.
+
+    Right now this is handled via an error response to a client request
+    (mrc_connect_error). This response will also trigger the emission of the
+    AbstractConnection.error_received signal.
+
+    The problem with the above is that at the point of the first request the
+    client thinks it is connected and the connection is initialized and
+    working. In fact the first requests after the connection enters the
+    "connected" state are two scanbus requests issued without any
+    response_handler to receive the error response. So the only way for the
+    application to react to this error is to use the error_received signal
+    described above.
+
+    Suggested way to handle this:
+    Make the MRCController react differently to the connection `connected'
+    signal: instead of blindly issuing scanbus requests it should issue a
+    `status' request, wait for the reply and update the models state
+    accordingly. During that time the model should remain in the "connecting"
+    state.
+
+  - Error: Failed starting TCP server component: bind: Address already in use
+    This error causes the server to exit with one of the
+    ServerProcess.exit_code values. This is easily detected and handled in the
+    GUI.
+
+The Plan
+--------
+* add status_request, status_response and notify_status to the protocol.
+* update the server to react to status_requests
+* update the client to handle status_responses
+  - separate server_process, tcp_client and protocol states
+  - 
