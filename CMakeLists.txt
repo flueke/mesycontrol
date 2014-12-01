@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8.3)
 project(mesycontrol)
 
 # Create binaries in the root of the build directory
@@ -35,6 +35,7 @@ set(CPACK_PACKAGE_VERSION "${GIT_VERSION}")
 set(CPACK_PACKAGE_VENDOR "mesytec")
 set(CPACK_PACKAGE_EXECUTABLES "mesycontrol_gui;mesycontrol GUI")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "mesycontrol")
+set(CPACK_OUTPUT_FILE_PREFIX "packages")
 if (WIN32)
     set(CPACK_GENERATOR "ZIP" "NSIS")
     set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL "ON")
