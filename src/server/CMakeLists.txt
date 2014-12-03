@@ -3,6 +3,7 @@ set(Boost_USE_STATIC_LIBS   ON)
 
 if (WIN32) # Use static boost libraries for windows builds.
     set(Boost_USE_STATIC_LIBS ON)
+    add_definitions(-D_WIN32_WINNT=0x0501)
 endif(WIN32)
 
 find_package(Boost 1.54 REQUIRED COMPONENTS chrono program_options system date_time log_setup log regex thread)
