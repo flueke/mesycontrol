@@ -683,6 +683,7 @@ class ShapingPage(QtGui.QGroupBox):
 
             self.pz_inputs.append(spin_pz)
 
+        layout.addWidget(hline(), layout.rowCount(), 0, 1, 6)
 
         self.spin_shaper_offset = make_spinbox(limits=device.profile['shaper_offset'].range.to_tuple())
         self.spin_blr_threshold = make_spinbox(limits=device.profile['blr_threshold'].range.to_tuple())
