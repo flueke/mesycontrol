@@ -27,8 +27,10 @@ executables = [
     Executable(pjoin(CSD, 'mesycontrol_script_runner.py'), base=None)
 ]
 
+version = '0.0' if sys.platform == 'win32' else '@GIT_VERSION@'
+
 setup(name='@CMAKE_PROJECT_NAME@',
-      version = '@GIT_VERSION@',
+      version = version,
       description = 'mesycontrol',
       options = dict(build_exe = build_options),
       executables = executables,
