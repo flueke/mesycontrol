@@ -70,6 +70,9 @@ class Range(object):
 
         return value
 
+    def to_tuple(self):
+        return (self.min_value, self.max_value)
+
 @functools.total_ordering
 class ParameterProfile(object):
     def __init__(self, address):
