@@ -24,6 +24,7 @@ namespace message_type
     request_rc_off = 7,
     request_reset = 8,
     request_copy = 9,
+    request_read_multi = 10,
 
     /* server state related requests */
     request_has_write_access = 20,
@@ -40,6 +41,7 @@ namespace message_type
     response_set = 43,
     response_mirror_read = 44,
     response_mirror_set = 45,
+    response_read_multi = 46,
 
     /* additional response types */
     response_bool = 50,
@@ -74,7 +76,8 @@ namespace error_type
     permission_denied           = 10, // Write permission denied
     mrc_parse_error             = 11, // Error parsing MRC reply
     mrc_address_conflict        = 12, // Bus address conflict
-    request_canceled            = 13  // Request canceled (currently client side only)
+    request_canceled            = 13, // Request canceled (currently client side only)
+    read_out_of_bounds          = 14  // A multi read request exceeds the memory range
   };
 } // namespace error_type
 
@@ -122,8 +125,13 @@ struct Message
   typedef boost::array<std::pair<boost::uint8_t, boost::uint8_t>, 16> ScanbusData;
   ScanbusData bus_data;
 
+  boost::uint8_t              len;     // length of multi read requests
+  std::vector<boost::int32_t> values;    // values of multi read responses
+
   Message()
-    : bus(0), dev(0), par(0), val(0), error_value(error_type::unknown_error), bool_value(false)
+    : bus(0), dev(0), par(0), val(0), error_value(error_type::unknown_error),
+    bool_value(false),
+    length(0)
   {
     std::fill(bus_data.begin(), bus_data.end(),
         std::make_pair(static_cast<boost::uint8_t>(0u), false));
@@ -138,7 +146,7 @@ struct Message
   std::vector<unsigned char> serialize() const;
 
   static MessagePtr deserialize(const std::vector<unsigned char> &data);
-  static size_t get_message_size(message_type::MessageType type);
+  static ssize_t get_message_size(message_type::MessageType type);
 
   std::string get_info_string() const;
 };
@@ -150,12 +158,18 @@ class MessageFactory
 
     static MessagePtr make_read_request(boost::uint8_t bus, boost::uint8_t dev,
         boost::uint8_t par, bool mirror=false);
+
     static MessagePtr make_read_response(boost::uint8_t bus, boost::uint8_t dev,
         boost::uint8_t par, boost::int32_t val, bool mirror = false);
+
     static MessagePtr make_set_response(boost::uint8_t bus, boost::uint8_t dev,
         boost::uint8_t par, boost::int32_t val, bool mirror = false);
+
     static MessagePtr make_read_or_set_response(message_type::MessageType request_type,
         boost::uint8_t bus, boost::uint8_t dev, boost::uint8_t par, boost::int32_t val);
+
+    static MessagePtr make_read_multi_response(boost::uint8_t bus, boost::uint8_t dev,
+        boost::uint8_t start_param, const std::vector<boost::int32_t> &values);
 
     static MessagePtr make_bool_response(bool bool_value);
     static MessagePtr make_error_response(error_type::ErrorType error);

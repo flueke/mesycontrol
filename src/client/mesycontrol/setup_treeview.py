@@ -643,7 +643,7 @@ class SetupTreeView(QtGui.QTreeView):
             try:
                 device_config = config_builder.get_result()
                 with open(filename, 'w') as f:
-                    config_xml.write_device_config_to_file(device_config, f)
+                    config_xml.write_device_config_to_file(device_config, f, self.context)
 
                 self.context.make_qsettings().setValue(
                         'Files/last_config_file', filename)

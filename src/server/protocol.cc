@@ -1,4 +1,5 @@
 #include <boost/assign.hpp>
+#include <boost/foreach.hpp>
 #include <boost/format.hpp>
 #include <boost/make_shared.hpp>
 #include <map>
@@ -23,7 +24,7 @@ struct MessageInfo
     , type_string(type_str)
   {}
 
-  size_t size;              // the message payload size in bytes
+  ssize_t size;             // the message payload size in bytes. -1 for variable message size
   const char *type_string;  // message type as a string
 };
 
@@ -41,6 +42,7 @@ const MessageInfoMap &get_message_info_map()
     (message_type::request_mirror_read,             MessageInfo(3, "request_mirror_read"))  // bus dev par
     (message_type::request_set,                     MessageInfo(7, "request_set"))          // bus dev par val
     (message_type::request_mirror_set,              MessageInfo(7, "request_mirror_set"))   // bus dev par val
+    (message_type::request_read_multi,              MessageInfo(4, "request_read_multi"))   // bus dev par len
 
     (message_type::request_has_write_access,        MessageInfo(0, "request_has_write_access"))
     (message_type::request_acquire_write_access,    MessageInfo(1, "request_acquire_write_access")) // bool
@@ -55,6 +57,7 @@ const MessageInfoMap &get_message_info_map()
     (message_type::response_set,                    MessageInfo( 7, "response_set"))         // bus dev par val
     (message_type::response_mirror_read,            MessageInfo( 7, "response_mirror_read")) // bus dev par val
     (message_type::response_mirror_set,             MessageInfo( 7, "response_mirror_set"))  // bus dev par val
+    (message_type::response_read_multi,             MessageInfo(-1, "response_read_multi"))  // bus dev par values
 
     (message_type::response_bool,                   MessageInfo(1, "response_bool"))        // bool value
     (message_type::response_error,                  MessageInfo(1, "response_error"))       // error value
@@ -97,6 +100,7 @@ const ErrorInfoMap &get_error_info_map()
     (error_type::permission_denied    , "permission_denied")
     (error_type::mrc_parse_error      , "mrc_parse_error")
     (error_type::mrc_address_conflict , "mrc_address_conflict")
+    (error_type::read_out_of_bounds   , "read_out_of_bounds")
     ;
   return data;
 }
@@ -172,6 +176,7 @@ std::string Message::get_mrc1_command_string() const
   unsigned int ibus = static_cast<unsigned int>(bus);
   unsigned int idev = static_cast<unsigned int>(dev);
   unsigned int ipar = static_cast<unsigned int>(par);
+  unsigned int ilen = static_cast<unsigned int>(len);
 
   switch (type) {
     case message_type::request_scanbus:
@@ -192,6 +197,8 @@ std::string Message::get_mrc1_command_string() const
       return boost::str(boost::format("SE %1% %2% %3% %4%") % ibus % idev % ipar % val);
     case message_type::request_mirror_set:
       return boost::str(boost::format("SM %1% %2% %3% %4%") % ibus % idev % ipar % val);
+    case message_type::request_read_multi:
+      return boost::str(boost::format("RB %1% %2% %3% %4%") % ibus % idev % ipar % ilen);
 
     default:
       BOOST_THROW_EXCEPTION(std::runtime_error("not a mrc command request"));
@@ -237,6 +244,20 @@ std::vector<unsigned char> Message::serialize() const
 
       break;
 
+    case message_type::response_read_multi:
+      ret.push_back(bus);
+      ret.push_back(dev);
+      ret.push_back(par);
+
+      BOOST_FOREACH(boost::int32_t value, values) {
+        net_value = htonl(*reinterpret_cast<const boost::uint32_t *>(&value));
+
+        for (size_t i=0; i<sizeof(net_value); ++i)
+          ret.push_back(reinterpret_cast<unsigned char *>(&net_value)[i]);
+      }
+
+      break;
+
     case message_type::request_rc_on:
     case message_type::request_rc_off:
     case message_type::request_reset:
@@ -269,6 +290,7 @@ std::vector<unsigned char> Message::serialize() const
     case message_type::request_in_silent_mode :
     case message_type::request_force_write_access:
     case message_type::request_mrc_status:
+    case message_type::request_read_multi:
       break;
   }
 
@@ -289,7 +311,9 @@ MessagePtr Message::deserialize(const std::vector<unsigned char> &data)
 
   message_type::MessageType type = static_cast<message_type::MessageType>(data[0]);
 
-  if (data.size() != get_message_size(type)) {
+  ssize_t expected_size = get_message_size(type);
+
+  if (expected_size > 0 && data.size() != static_cast<size_t>(expected_size)) {
     BOOST_THROW_EXCEPTION(std::runtime_error("wrong message size"));
   }
 
@@ -328,6 +352,13 @@ MessagePtr Message::deserialize(const std::vector<unsigned char> &data)
 
       break;
 
+    case message_type::request_read_multi:
+      ret->bus = data[1];
+      ret->dev = data[2];
+      ret->par = data[3];
+      ret->len = data[4];
+      break;
+
     case message_type::request_rc_on:
     case message_type::request_rc_off:
     case message_type::request_reset:
@@ -360,6 +391,7 @@ MessagePtr Message::deserialize(const std::vector<unsigned char> &data)
     case message_type::request_release_write_access:
     case message_type::request_force_write_access:
     case message_type::request_mrc_status:
+    case message_type::response_read_multi:
       break;
   }
 
@@ -375,9 +407,10 @@ MessagePtr Message::deserialize(const std::vector<unsigned char> &data)
 }
 
 
-size_t Message::get_message_size(message_type::MessageType type)
+ssize_t Message::get_message_size(message_type::MessageType type)
 {
-  return get_message_info(type).size + 1; // add one byte for the type field
+  ssize_t ret = get_message_info(type).size;
+  return ret < 0 ? ret : ret + 1; // add one byte for the type field
 }
 
 std::string Message::get_info_string() const
@@ -453,6 +486,18 @@ MessagePtr MessageFactory::make_read_or_set_response(message_type::MessageType r
   ret->dev = dev;
   ret->par = par;
   ret->val = val;
+  return ret;
+}
+
+MessagePtr MessageFactory::make_read_multi_response(boost::uint8_t bus, boost::uint8_t dev,
+    boost::uint8_t start_param, const std::vector<boost::int32_t> &values)
+{
+  MessagePtr ret(boost::make_shared<Message>());
+  ret->type   = message_type::response_read_multi;
+  ret->bus    = bus;
+  ret->dev    = dev;
+  ret->par    = start_param;
+  ret->values = values;
   return ret;
 }
 

@@ -101,6 +101,12 @@ class MessageInfo:
         'format_args': ('bus', 'dev')
         },
 
+      { 'code': 10,
+        'name': 'request_read_multi',
+        'format': 'BBBB',
+        'format_args': ('bus', 'dev', 'par', 'n_params')
+        },
+
 
       { 'code': 20,
         'name': 'request_has_write_access',
@@ -353,11 +359,12 @@ class MRCStatus:
     by_name[info['name']] = info
 
 class Message(object):
-  __slots__ = '_type_code', '_error_code', '_bus', '_dev', '_par', '_value', '_bool', '_status'
+  __slots__ = '_type_code', '_error_code', '_bus', '_dev', '_par', '_value', '_bool', '_status', '_n_params'
 
   def __init__(self, type_code, **kwargs):
     self._type_code = MessageInfo.get_message_info(type_code)['code']
     self._error_code = None
+    self._n_params = 0
 
     for k,v in kwargs.iteritems():
       setattr(self, k, v)
@@ -422,6 +429,10 @@ class Message(object):
   def get_status(self): return self._status
   def set_status(self, status):
     self._status = int(status)
+
+  def get_n_params(self): return self._n_params
+  def set_n_params(self, value):
+    self._n_params = int(value)
 
   type_code  = property(get_type_code)
   bus        = property(get_bus, set_bus)
