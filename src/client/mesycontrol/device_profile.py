@@ -120,9 +120,13 @@ class ParameterProfile(object):
         return self.index is not None
 
     def __eq__(self, o):
+        if isinstance(o, int):
+            return self.address == o
         return self.address == o.address
 
     def __lt__(self, o):
+        if isinstance(o, int):
+            return self.address < o
         return self.address < o.address
 
     def __str__(self):
