@@ -76,8 +76,42 @@ profile_dict = {
             { 'address': 56, 'name': 'pz_display_range', 'range': (1, 255) },  # MSCF-16-LN
             { 'address': 57, 'name': 'ecl_delay_enable' }, # MSCF-16-F (ab version 5.0)
             { 'address': 58, 'name': 'tf_int_time', 'range': (0, 3) },       # MSCF-16-F
+
+            #{ 'address': 59, 'name': 'pz_mean', 'read_only': True },
+            #{ 'address': 60, 'name': 'auto_pz', 'poll': True, 'do_not_store': True },   # MSCF-16-LN
+            #{ 'address': 61, 'name': 'copy_function', 'range': (1, 3), 'do_not_store': True },           # MSCF-16-LN
+            #{ 'address': 62, 'name': 'trigger_rate', 'read_only': True },
+            #{ 'address': 63, 'name': 'multiplicity_trigger_rate', 'read_only': True },
+
+            #{ 'address': 78, 'name': 'histogrammer_status', 'read_only': True },
+            #{ 'address': 79, 'name': 'histogram_clear', 'do_not_store': True },
+            #{ 'address': 80, 'name': 'histogram0', 'read_only': True,  'index':  0 },
+            #{ 'address': 81, 'name': 'histogram1', 'read_only': True,  'index':  1 },
+            #{ 'address': 82, 'name': 'histogram2', 'read_only': True,  'index':  2 },
+            #{ 'address': 83, 'name': 'histogram3', 'read_only': True,  'index':  3 },
+            #{ 'address': 84, 'name': 'histogram4', 'read_only': True,  'index':  4 },
+            #{ 'address': 85, 'name': 'histogram5', 'read_only': True,  'index':  5 },
+            #{ 'address': 86, 'name': 'histogram6', 'read_only': True,  'index':  6 },
+            #{ 'address': 87, 'name': 'histogram7', 'read_only': True,  'index':  7 },
+            #{ 'address': 88, 'name': 'histogram8', 'read_only': True,  'index':  8 },
+            #{ 'address': 89, 'name': 'histogram9', 'read_only': True,  'index':  9 },
+            #{ 'address': 90, 'name': 'histogram10', 'read_only': True, 'index': 10 },
+            #{ 'address': 91, 'name': 'histogram11', 'read_only': True, 'index': 11 },
+            #{ 'address': 92, 'name': 'histogram12', 'read_only': True, 'index': 12 },
+            #{ 'address': 93, 'name': 'histogram13', 'read_only': True, 'index': 13 },
+            #{ 'address': 94, 'name': 'histogram14', 'read_only': True, 'index': 14 },
+            #{ 'address': 95, 'name': 'histogram15', 'read_only': True, 'index': 15 },
+
+
+
+            # XXX: copy_function will be moved to address 61 in a newer firmware
             { 'address': 99, 'name': 'copy_function', 'range': (1, 3), 'do_not_store': True },           # MSCF-16-LN
+            # XXX: auto_pz will be moved to address 60 in a newer firmware
             { 'address':100, 'name': 'auto_pz', 'poll': True, 'do_not_store': True },   # MSCF-16-LN
+
+            { 'address': 253, 'name': 'hardware_version',       'read_only': True },
+            { 'address': 254, 'name': 'fpga_version',           'read_only': True },
+            { 'address': 255, 'name': 'cpu_software_version',   'read_only': True },
             ]
 }
 
