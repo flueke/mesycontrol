@@ -125,6 +125,8 @@ class MRC1:
             self.setParameter(bus=args[0], port=args[1], param=args[2], value=args[3])
          elif cmd == "re":
             self.readParameter(bus=args[0], port=args[1], param=args[2])
+         elif cmd == "rb":
+            self.readMulti(bus=args[0], port=args[1], param=args[2], length=args[3])
          elif cmd in ["on", "off"]:
             self.rcOnOff(bus=args[0], port=args[1], cmd=cmd)
          elif cmd == "x0":
@@ -170,6 +172,16 @@ class MRC1:
       if self.echo_enabled:
          self.write_line("RE %d %d %d" % (bus, port, param))
       self.write_line("RE %d %d %d %d" % (bus, port, param, value))
+
+   def readMulti(self, bus, port, param, length):
+      if self.echo_enabled:
+         self.write_line("RB %d %d %d %d" % (bus, port, param, length))
+
+      if param + length > 255:
+         raise RuntimeError("read multi request exceeds memory range")
+
+      for i in range(length):
+         self.write_line("%d" % (self.busses[bus][port].readParameter(param+i)))
 
    def setParameter(self, bus, port, param, value):
       self.busses[bus][port].setParameter(param, value)
