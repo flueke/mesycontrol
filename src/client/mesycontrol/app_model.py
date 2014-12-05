@@ -820,9 +820,12 @@ class BoundParameter(object):
         parameter."""
         return self.device.profile[self.address]
 
+    def has_profile(self):
+        return self.get_profile() is not None
+
     def get_name(self):
         """Returns the parameter profiles name."""
-        return self.profile.name
+        return self.profile.name if self.has_profile() else None
 
     def has_index(self):
         return self.profile.has_index()
