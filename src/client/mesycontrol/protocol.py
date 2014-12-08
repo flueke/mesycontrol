@@ -38,6 +38,20 @@ def str_status_message(msg):
         msg.get_type_name(),
         MRCStatus.by_code[msg.status]['name'])
 
+def deserialize_read_multi_response(type_info, data):
+  ret      = ReadMultiResponse(type_info['code'])
+  ret.bus, ret.dev, ret.par = struct.unpack_from('!BBB', data, 1) # bus, dev, par
+  n_params = int(len(data[4:]) / 4)
+  unpacked = struct.unpack_from('!%di' % n_params, data, 4)
+  par      = ret.par
+  for value in unpacked:
+    ret.values[par] = value
+    par += 1
+  return ret
+
+def str_read_multi_response(msg):
+  return "%s(bus=%d,dev=%d,values=%s)" % (msg.get_type_name(), msg.bus, msg.dev, msg.values)
+
 def str_error_response(msg):
   return "%s(%s)" % (msg.get_type_name(), ErrorInfo.by_code[msg.error_code]['name'])
 
@@ -178,6 +192,12 @@ class MessageInfo:
         'format': 'BBBi',
         'format_args': ('bus', 'dev', 'par', 'val')
         },
+      { 'code': 46,
+        'name': 'response_read_multi',
+        'deserializer': deserialize_read_multi_response,
+        'str_func': str_read_multi_response
+        },
+
       { 'code': 50,
         'name': 'response_bool',
         'format': '?',
@@ -309,7 +329,11 @@ class ErrorInfo:
       { 'code': 13,
         'name': 'request_canceled',
         'description': 'The request was canceled.',
-        }
+        },
+      { 'code': 14,
+        'name': 'read_out_of_bounds',
+        'description': 'The multi-read request exceeds the devices memory range.',
+        },
       ]
 
   by_name = {}
@@ -359,7 +383,8 @@ class MRCStatus:
     by_name[info['name']] = info
 
 class Message(object):
-  __slots__ = '_type_code', '_error_code', '_bus', '_dev', '_par', '_value', '_bool', '_status', '_n_params'
+  __slots__ = '_type_code', '_error_code', '_bus', '_dev', '_par', '_value', '_bool',\
+      '_status', '_n_params'
 
   def __init__(self, type_code, **kwargs):
     self._type_code = MessageInfo.get_message_info(type_code)['code']
@@ -442,6 +467,7 @@ class Message(object):
   error_code = property(get_error_code, set_error_code)
   bool_value = property(get_bool, set_bool)
   status     = property(get_status, set_status)
+  n_params   = property(get_n_params, set_n_params)
 
   def serialize(self):
     type_info = self.get_type_info()
@@ -496,6 +522,14 @@ class ScanbusResponse(Message):
 
   def __init__(self, type_code, **kwargs):
     super(ScanbusResponse, self).__init__(type_code, **kwargs)
+    self.bus_data = list()
+
+class ReadMultiResponse(Message):
+  __slots__ = 'values'
+
+  def __init__(self, type_code, **kwargs):
+    super(ReadMultiResponse, self).__init__(type_code, **kwargs)
+    self.values = dict()
 
 if __name__ == "__main__":
   msg = Message('request_read', bus=1, dev=2, par=3)
