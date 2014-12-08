@@ -14,6 +14,7 @@ namespace message_type
 {
   enum MessageType
   {
+    notset = 0,
     /* mrc command requests */
     request_scanbus = 1,
     request_read = 2,
@@ -111,27 +112,30 @@ typedef boost::shared_ptr<Message> MessagePtr;
 /* Very ugly "all-in-one" message structure. */
 struct Message
 {
-  message_type::MessageType type;
-  boost::uint8_t            bus;          // bus number [0..1]
-  boost::uint8_t            dev;          // device number [0..15]
-  boost::uint8_t            par;          // parameter address [0..255]
-  boost::int32_t            val;          // value usually in the range [0..65535]
-                                          // values returned by the mrc can be negative (mhv4)
-  error_type::ErrorType     error_value;  // error messages only
-  bool                      bool_value;   // bool messages only
-  mrc_status::Status        status;       // mrc status messages only
   // Scanbus response - 16 pairs of (device id code, rc status).
   // Device id code=0 means no device is connected
   typedef boost::array<std::pair<boost::uint8_t, boost::uint8_t>, 16> ScanbusData;
-  ScanbusData bus_data;
 
-  boost::uint8_t              len;     // length of multi read requests
-  std::vector<boost::int32_t> values;    // values of multi read responses
+  message_type::MessageType   type;
+  boost::uint8_t              bus;          // bus number [0..1]
+  boost::uint8_t              dev;          // device number [0..15]
+  boost::uint8_t              par;          // parameter address [0..255]
+  boost::int32_t              val;          // value usually in the range [0..65535]
+                                            // values returned by the mrc can be negative (mhv4)
+  error_type::ErrorType       error_value;  // error messages only
+  bool                        bool_value;   // bool messages only
+  mrc_status::Status          status;       // mrc status messages only
+  ScanbusData                 bus_data;     // scanbus response data
+  boost::uint8_t              len;          // length of multi read requests
+  std::vector<boost::int32_t> values;       // values of multi read responses
 
   Message()
-    : bus(0), dev(0), par(0), val(0), error_value(error_type::unknown_error),
+    : type(message_type::notset),
+    bus(0), dev(0), par(0), val(0),
+    error_value(error_type::unknown_error),
     bool_value(false),
-    length(0)
+    status(mrc_status::stopped),
+    len(0)
   {
     std::fill(bus_data.begin(), bus_data.end(),
         std::make_pair(static_cast<boost::uint8_t>(0u), false));
@@ -169,7 +173,7 @@ class MessageFactory
         boost::uint8_t bus, boost::uint8_t dev, boost::uint8_t par, boost::int32_t val);
 
     static MessagePtr make_read_multi_response(boost::uint8_t bus, boost::uint8_t dev,
-        boost::uint8_t start_param, const std::vector<boost::int32_t> &values);
+        boost::uint8_t start_param, const std::vector<boost::int32_t> &values = std::vector<boost::int32_t>());
 
     static MessagePtr make_bool_response(bool bool_value);
     static MessagePtr make_error_response(error_type::ErrorType error);

@@ -19,13 +19,17 @@ namespace
 
 struct MessageInfo
 {
-  MessageInfo(size_t sz, const char *type_str)
+  MessageInfo(size_t sz, const char *type_str, bool is_mrc_cmd=false, bool is_mrc_write_cmd=false)
     : size(sz)
     , type_string(type_str)
+    , is_mrc_command(is_mrc_cmd)
+    , is_mrc_write_command(is_mrc_write_cmd)
   {}
 
   ssize_t size;             // the message payload size in bytes. -1 for variable message size
   const char *type_string;  // message type as a string
+  bool is_mrc_command;
+  bool is_mrc_write_command;
 };
 
 typedef std::map<message_type::MessageType, MessageInfo> MessageInfoMap;
@@ -33,16 +37,16 @@ typedef std::map<message_type::MessageType, MessageInfo> MessageInfoMap;
 const MessageInfoMap &get_message_info_map()
 {
   static MessageInfoMap data = boost::assign::map_list_of
-    (message_type::request_scanbus,                 MessageInfo(1, "request_scanbus"))      // bus
-    (message_type::request_rc_on,                   MessageInfo(2, "request_rc_on"))        // bus dev
-    (message_type::request_rc_off,                  MessageInfo(2, "request_rc_off"))       // bus dev
-    (message_type::request_reset,                   MessageInfo(2, "request_reset"))        // bus dev
-    (message_type::request_copy,                    MessageInfo(2, "request_copy"))         // bus dev
-    (message_type::request_read,                    MessageInfo(3, "request_read"))         // bus dev par
-    (message_type::request_mirror_read,             MessageInfo(3, "request_mirror_read"))  // bus dev par
-    (message_type::request_set,                     MessageInfo(7, "request_set"))          // bus dev par val
-    (message_type::request_mirror_set,              MessageInfo(7, "request_mirror_set"))   // bus dev par val
-    (message_type::request_read_multi,              MessageInfo(4, "request_read_multi"))   // bus dev par len
+    (message_type::request_scanbus,                 MessageInfo(1, "request_scanbus", true))      // bus
+    (message_type::request_rc_on,                   MessageInfo(2, "request_rc_on", true, true))        // bus dev
+    (message_type::request_rc_off,                  MessageInfo(2, "request_rc_off", true, true))       // bus dev
+    (message_type::request_reset,                   MessageInfo(2, "request_reset", true, true))        // bus dev
+    (message_type::request_copy,                    MessageInfo(2, "request_copy", true, true))         // bus dev
+    (message_type::request_read,                    MessageInfo(3, "request_read", true))         // bus dev par
+    (message_type::request_mirror_read,             MessageInfo(3, "request_mirror_read", true))  // bus dev par
+    (message_type::request_set,                     MessageInfo(7, "request_set", true, true))          // bus dev par val
+    (message_type::request_mirror_set,              MessageInfo(7, "request_mirror_set", true, true))   // bus dev par val
+    (message_type::request_read_multi,              MessageInfo(4, "request_read_multi", true))   // bus dev par len
 
     (message_type::request_has_write_access,        MessageInfo(0, "request_has_write_access"))
     (message_type::request_acquire_write_access,    MessageInfo(1, "request_acquire_write_access")) // bool
@@ -118,14 +122,17 @@ const char *get_error_info(error_type::ErrorType type)
 
 bool Message::operator==(const Message &o) const
 {
-  return type == o.type &&
-    bus == o.bus &&
-    dev == o.dev &&
-    par == o.par &&
-    val == o.val &&
-    error_value == o.error_value &&
-    bool_value == o.bool_value &&
-    bus_data == o.bus_data;
+  return type == o.type
+    && bus == o.bus
+    && dev == o.dev
+    && par == o.par
+    && val == o.val
+    && error_value == o.error_value
+    && bool_value == o.bool_value
+    && status == o.status
+    && bus_data == o.bus_data
+    && len == o.len
+    && values == o.values;
 }
 
 bool Message::operator==(const MessagePtr &o) const
@@ -135,6 +142,9 @@ bool Message::operator==(const MessagePtr &o) const
 
 bool Message::is_mrc1_command() const
 {
+  return get_message_info(type).is_mrc_command;
+
+#if 0
   switch (type) {
     case message_type::request_scanbus:
     case message_type::request_rc_on:
@@ -145,15 +155,19 @@ bool Message::is_mrc1_command() const
     case message_type::request_set:
     case message_type::request_mirror_read:
     case message_type::request_mirror_set:
+    case message_type::request_read_multi:
       return true;
     default:
       break;
   }
   return false;
+#endif
 }
 
 bool Message::is_mrc1_write_command() const
 {
+  return get_message_info(type).is_mrc_write_command;
+#if 0
   switch (type) {
     case message_type::request_rc_on:
     case message_type::request_rc_off:
@@ -166,6 +180,7 @@ bool Message::is_mrc1_write_command() const
       break;
   }
   return false;
+#endif
 }
 
 std::string Message::get_mrc1_command_string() const
@@ -284,6 +299,7 @@ std::vector<unsigned char> Message::serialize() const
       break;
 
     /* Mention no-op types here to avoid compiler warnings. */
+    case message_type::notset:
     case message_type::request_has_write_access:
     case message_type::request_acquire_write_access:
     case message_type::request_release_write_access:
@@ -385,6 +401,7 @@ MessagePtr Message::deserialize(const std::vector<unsigned char> &data)
       break;
 
     /* Mention no-op types here to avoid compiler warnings. */
+    case message_type::notset:
     case message_type::request_in_silent_mode:
     case message_type::request_acquire_write_access:
     case message_type::request_has_write_access:

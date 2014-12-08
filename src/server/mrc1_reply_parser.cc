@@ -25,6 +25,8 @@ void MRC1ReplyParser::set_current_request(const MessagePtr &request)
   m_request = request;
   m_response.reset();
   m_error_lines_to_consume = 0;
+  m_scanbus_address_conflict = false;
+  m_multi_read_lines_left = 0;
 }
 
 /** Returns an error response message if the given line matches any of the MRC
@@ -75,6 +77,9 @@ bool MRC1ReplyParser::parse_line(const std::string &reply_line)
     case message_type::request_scanbus:
       return parse_scanbus(reply_line);
 
+    case message_type::request_read_multi:
+      return parse_read_multi(reply_line);
+
     default:
       BOOST_LOG_SEV(m_log, log::lvl::error)
         << "message type " << m_request->type << " not handled by reply parser!";
@@ -91,7 +96,6 @@ bool MRC1ReplyParser::parse_read_or_set(const std::string &reply_line)
 
   m_response = get_error_response(reply_line);
   if (m_response) {
-    //m_error_lines_to_consume = 1; // Consume one more line of input
     return true;
   }
 
@@ -185,6 +189,35 @@ bool MRC1ReplyParser::parse_other(const std::string &reply_line)
 
   m_response = MessageFactory::make_bool_response(true);
   return true;
+}
+
+bool MRC1ReplyParser::parse_read_multi(const std::string &reply_line)
+{
+  static const boost::regex re_number("^(\\d+)$");
+
+  // error check for each line
+  if ((m_response = get_error_response(reply_line)))
+    return true;
+
+  // init
+  if (m_multi_read_lines_left == 0) {
+    m_multi_read_lines_left = m_request->len;
+    m_response = MessageFactory::make_read_multi_response(
+        m_request->bus, m_request->dev, m_request->par);
+  }
+
+  boost::smatch matches;
+
+  if (!regex_match(reply_line, matches, re_number)) {
+    BOOST_LOG_SEV(m_log, log::lvl::error)
+      << "error parsing read_multi response: non-numeric response line: " << reply_line;
+    m_response = MessageFactory::make_error_response(error_type::mrc_parse_error);
+    return true;
+  }
+
+  m_response->values.push_back(boost::lexical_cast<boost::int32_t>(matches[1]));
+  --m_multi_read_lines_left;
+  return m_multi_read_lines_left == 0;
 }
 
 MessagePtr MRC1ReplyParser::get_response_message() const

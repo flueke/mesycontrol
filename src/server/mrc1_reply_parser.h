@@ -25,12 +25,14 @@ class MRC1ReplyParser
     bool parse_read_or_set(const std::string &reply_line);
     bool parse_scanbus(const std::string &reply_line);
     bool parse_other(const std::string &reply_line);
+    bool parse_read_multi(const std::string &reply_line);
 
     MessagePtr m_request;
     MessagePtr m_response;
 
     size_t m_error_lines_to_consume;
     bool m_scanbus_address_conflict;
+    size_t m_multi_read_lines_left;
 
     log::Logger m_log;
 };
