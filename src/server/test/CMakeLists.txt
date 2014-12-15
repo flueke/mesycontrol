@@ -15,6 +15,16 @@ if (Boost_UNIT_TEST_FRAMEWORK_FOUND)
   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
   add_executable(${TEST_TARGET} ${TEST_SRCS})
   target_link_libraries(${TEST_TARGET} ${Boost_LIBRARIES})
+  if(WIN32)
+      # Statically link against the GCC and C++ libraries to avoid
+      # depending on DLLs installed with MinGW.
+      set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
+      # Link against the DLLs needed by boost::asio
+      set(WINDOWS_LIBS ws2_32 wsock32)
+      target_link_libraries(${MESYCONTROL_SERVER_TARGET} ${WINDOWS_LIBS})
+  else(WIN32)
+      target_link_libraries(${MESYCONTROL_SERVER_TARGET} rt)
+  endif(WIN32)
 else (Boost_UNIT_TEST_FRAMEWORK_FOUND)
   message("Boost unit test framework not found. Not building unit tests")
 endif (Boost_UNIT_TEST_FRAMEWORK_FOUND)
