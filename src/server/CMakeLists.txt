@@ -6,7 +6,8 @@ if (WIN32) # Use static boost libraries for windows builds.
     add_definitions(-D_WIN32_WINNT=0x0501)
 endif(WIN32)
 
-find_package(Boost 1.54 REQUIRED COMPONENTS chrono program_options system date_time log_setup log regex thread)
+find_package(Boost 1.54 REQUIRED COMPONENTS chrono program_options system date_time log_setup log regex thread
+  OPTIONAL_COMPONENTS unit_test_framework)
 find_package(Threads REQUIRED)
 
 include_directories(${Boost_INCLUDE_DIRS})
@@ -44,5 +45,7 @@ else(WIN32)
 endif(WIN32)
 
 install(TARGETS ${MESYCONTROL_SERVER_TARGET} RUNTIME DESTINATION bin)
+
+add_subdirectory(test)
 
 # vim:tw=0
