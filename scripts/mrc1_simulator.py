@@ -131,12 +131,16 @@ class MRC1:
             self.rcOnOff(bus=args[0], port=args[1], cmd=cmd)
          elif cmd == "x0":
             self.echo_enabled = False
+            print "echo disabled"
          elif cmd == "x1":
             self.echo_enabled = True
+            print "echo enabled"
          elif cmd == "p0":
             self.prompt_enabled = False
+            print "prompt disabled"
          elif cmd == "p1":
             self.prompt_enabled = True
+            print "prompt enabled"
          else:
             raise RuntimeError("unhandled command '%s'" % cmd)
          self.output_prompt()
@@ -177,7 +181,7 @@ class MRC1:
       if self.echo_enabled:
          self.write_line("RB %d %d %d %d" % (bus, port, param, length))
 
-      if param + length > 255:
+      if param + length > 256:
          raise RuntimeError("read multi request exceeds memory range")
 
       for i in range(length):
