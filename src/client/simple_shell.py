@@ -115,10 +115,22 @@ class SimpleShell(cmd.Cmd):
             self.print("No such device (bus=%d, dev=%d)" % (bus, dev))
 
     def do_rb(self, line):
-        raise NotImplementedError()
+        try:
+            args = shlex.split(line)
+            bus, dev, par, length = [int(v) for v in args[:4]]
+        except ValueError:
+            self.print("Invalid arguments")
+            return False
+
+        try:
+            device = self.mrc.get_device(bus, dev)
+            result = mrc_command.ReadMulti(device, par, length)()
+            self.print("rb %d %d %d %d -> %s" % (bus, dev, par, length, result))
+        except KeyError:
+            self.print("No such device (bus=%d, dev=%d)" % (bus, dev))
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO,
+    logging.basicConfig(level=logging.DEBUG,
             format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
     app     = qt.QtCore.QCoreApplication(sys.argv)
     context = app_context.Context(sys.executable if getattr(sys, 'frozen', False) else __file__)

@@ -352,6 +352,14 @@ class Device(QtCore.QObject):
             address = profile.address
         return self.model.controller.read_parameter(address, response_handler)
 
+
+    @model_required
+    def read_multi(self, address, length, response_handler=None):
+        profile = self.profile[address]
+        if profile is not None:
+            address = profile.address
+        return self.model.controller.read_multi(address, length, response_handler)
+
     # ===== set parameter =====
     @model_required
     def _set_parameter(self, profile, value, unit_label, response_handler):

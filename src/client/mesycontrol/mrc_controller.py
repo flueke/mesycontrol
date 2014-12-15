@@ -119,6 +119,10 @@ class MRCController(QtCore.QObject):
         m = protocol.Message('request_read', bus=bus, dev=device, par=address)
         return self._queue_request(m, response_handler)
 
+    def read_multi(self, bus, device, address, length, response_handler=None):
+        m = protocol.Message('request_read_multi', bus=bus, dev=device, par=address, n_params=length)
+        return self._queue_request(m, response_handler)
+
     def set_parameter(self, bus, device, address, value, response_handler=None):
         m = protocol.Message('request_set', bus=bus, dev=device, par=address, val=value)
         return self._queue_request(m, response_handler)
@@ -304,6 +308,10 @@ class DeviceController(QtCore.QObject):
     def read_parameter(self, address, response_handler=None):
         return self._add_request_id(self.mrc_controller.read_parameter(
             self.model.bus, self.model.address, address, response_handler))
+
+    def read_multi(self, address, length, response_handler=None):
+        return self._add_request_id(self.mrc_controller.read_multi(
+            self.model.bus, self.model.address, address, length, response_handler))
 
     def set_parameter(self, address, value, response_handler=None):
         return self._add_request_id(self.mrc_controller.set_parameter(

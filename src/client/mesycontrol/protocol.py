@@ -117,7 +117,7 @@ class MessageInfo:
 
       { 'code': 10,
         'name': 'request_read_multi',
-        'format': 'BBBB',
+        'format': 'BBBH',
         'format_args': ('bus', 'dev', 'par', 'n_params')
         },
 
@@ -457,7 +457,10 @@ class Message(object):
 
   def get_n_params(self): return self._n_params
   def set_n_params(self, value):
-    self._n_params = int(value)
+    value = int(value)
+    if not (0 < value <= 256):
+      raise MessageError("n_params out of range", value)
+    self._n_params = value
 
   type_code  = property(get_type_code)
   bus        = property(get_bus, set_bus)

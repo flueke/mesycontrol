@@ -85,6 +85,23 @@ class ReadParameter(MRCCommand):
     def __str__(self):
         return "ReadParameter(addr=%d)" % (self.address)
 
+class ReadMulti(MRCCommand):
+    def __init__(self, device, address, length, parent=None):
+        super(ReadMulti, self).__init__(device, parent)
+        self.device  = device
+        self.address = address
+        self.length  = length
+
+    def _start(self):
+        self.device.read_multi(self.address, self.length, self._handle_response)
+
+    def _get_result(self):
+        res = super(ReadMulti, self)._get_result()
+        return res.values if res is not None else None
+
+    def __str__(self):
+        return "ReadMulti(addr=%d, length=%d)" % (self.address, self.length)
+
 class Scanbus(MRCCommand):
     def __init__(self, mrc, bus, parent=None):
         super(Scanbus, self).__init__(mrc, parent)
