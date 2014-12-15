@@ -46,7 +46,7 @@ const MessageInfoMap &get_message_info_map()
     (message_type::request_mirror_read,             MessageInfo(3, "request_mirror_read", true))  // bus dev par
     (message_type::request_set,                     MessageInfo(7, "request_set", true, true))          // bus dev par val
     (message_type::request_mirror_set,              MessageInfo(7, "request_mirror_set", true, true))   // bus dev par val
-    (message_type::request_read_multi,              MessageInfo(4, "request_read_multi", true))   // bus dev par len
+    (message_type::request_read_multi,              MessageInfo(5, "request_read_multi", true))   // bus dev par len
 
     (message_type::request_has_write_access,        MessageInfo(0, "request_has_write_access"))
     (message_type::request_acquire_write_access,    MessageInfo(1, "request_acquire_write_access")) // bool
@@ -118,7 +118,31 @@ const char *get_error_info(error_type::ErrorType type)
   BOOST_THROW_EXCEPTION(std::runtime_error("Unhandled error type"));
 }
 
+typedef std::map<mrc_status::Status, std::string> MRCStatusMap;
+
+const MRCStatusMap &get_mrc_status_map()
+{
+  static MRCStatusMap data = boost::assign::map_list_of
+    (mrc_status::stopped,         "stopped")
+    (mrc_status::connecting,      "connecting")
+    (mrc_status::connect_failed,  "connect_failed")
+    (mrc_status::initializing,    "initializing")
+    (mrc_status::init_failed,     "init_failed")
+    (mrc_status::running,         "running")
+    ;
+  return data;
+}
+
 } // anon namespace
+
+std::string to_string(const mrc_status::Status &status)
+{
+  const MRCStatusMap &map(get_mrc_status_map());
+  MRCStatusMap::const_iterator it = map.find(status);
+  if (it != map.end())
+    return it->second;
+  BOOST_THROW_EXCEPTION(std::runtime_error("Unhandled mrc_status"));
+}
 
 bool Message::operator==(const Message &o) const
 {
@@ -372,7 +396,15 @@ MessagePtr Message::deserialize(const std::vector<unsigned char> &data)
       ret->bus = data[1];
       ret->dev = data[2];
       ret->par = data[3];
-      ret->len = data[4];
+
+      for (size_t i=0; i<sizeof(ret->len); ++i)
+        reinterpret_cast<unsigned char *>(&ret->len)[i] = data[i+4];
+
+      ret->len = ntohs(*reinterpret_cast<const boost::uint16_t *>(&ret->len));
+
+      if (0 >= ret->len || ret->len > 256)
+        BOOST_THROW_EXCEPTION(std::runtime_error("read_multi length out of range"));
+
       break;
 
     case message_type::request_rc_on:

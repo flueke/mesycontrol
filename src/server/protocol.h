@@ -103,7 +103,10 @@ namespace mrc_status
     init_failed       = 4,
     running           = 5
   };
+
 } // namespace connection_status
+
+std::string to_string(const mrc_status::Status &status);
 
 struct Message;
 
@@ -126,7 +129,7 @@ struct Message
   bool                        bool_value;   // bool messages only
   mrc_status::Status          status;       // mrc status messages only
   ScanbusData                 bus_data;     // scanbus response data
-  boost::uint8_t              len;          // length of multi read requests
+  boost::uint16_t             len;          // length of multi read requests
   std::vector<boost::int32_t> values;       // values of multi read responses
 
   Message()

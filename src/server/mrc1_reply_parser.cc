@@ -27,6 +27,8 @@ void MRC1ReplyParser::set_current_request(const MessagePtr &request)
   m_error_lines_to_consume = 0;
   m_scanbus_address_conflict = false;
   m_multi_read_lines_left = 0;
+
+  BOOST_LOG_SEV(m_log, log::lvl::trace) << "set_current_request: new request is " << m_request;
 }
 
 /** Returns an error response message if the given line matches any of the MRC
@@ -78,6 +80,7 @@ bool MRC1ReplyParser::parse_line(const std::string &reply_line)
       return parse_scanbus(reply_line);
 
     case message_type::request_read_multi:
+      assert(m_request->len);
       return parse_read_multi(reply_line);
 
     default:
@@ -193,17 +196,29 @@ bool MRC1ReplyParser::parse_other(const std::string &reply_line)
 
 bool MRC1ReplyParser::parse_read_multi(const std::string &reply_line)
 {
-  static const boost::regex re_number("^(\\d+)$");
+  static const boost::regex re_number("^(-?\\d+)$");
+
+  assert(m_request);
 
   // error check for each line
-  if ((m_response = get_error_response(reply_line)))
+  MessagePtr error_response(get_error_response(reply_line));
+  if (error_response) {
+    m_response = error_response;
     return true;
+  }
 
   // init
   if (m_multi_read_lines_left == 0) {
+    BOOST_LOG_SEV(m_log, log::lvl::trace) << "parse_read_multi: request length = "
+      << static_cast<boost::int32_t>(m_request->len);
+
     m_multi_read_lines_left = m_request->len;
     m_response = MessageFactory::make_read_multi_response(
         m_request->bus, m_request->dev, m_request->par);
+
+  } else {
+    BOOST_LOG_SEV(m_log, log::lvl::trace) << "parse_read_multi: "
+      << m_multi_read_lines_left << " lines left to read";
   }
 
   boost::smatch matches;
@@ -212,12 +227,14 @@ bool MRC1ReplyParser::parse_read_multi(const std::string &reply_line)
     BOOST_LOG_SEV(m_log, log::lvl::error)
       << "error parsing read_multi response: non-numeric response line: " << reply_line;
     m_response = MessageFactory::make_error_response(error_type::mrc_parse_error);
-    return true;
+    m_error_lines_to_consume = m_multi_read_lines_left - 1;
+    return false;
   }
 
-  m_response->values.push_back(boost::lexical_cast<boost::int32_t>(matches[1]));
-  --m_multi_read_lines_left;
-  return m_multi_read_lines_left == 0;
+  boost::int32_t value(boost::lexical_cast<boost::int32_t>(matches[1]));
+  BOOST_LOG_SEV(m_log, log::lvl::trace) << "parse_read_multi: got value " << value;
+  m_response->values.push_back(value);
+  return --m_multi_read_lines_left == 0;
 }
 
 MessagePtr MRC1ReplyParser::get_response_message() const

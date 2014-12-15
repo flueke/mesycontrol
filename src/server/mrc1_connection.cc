@@ -1,13 +1,34 @@
+#include <boost/algorithm/string.hpp>
 #include <boost/assign/list_of.hpp>
 #include <boost/bind.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/foreach.hpp>
+#include <boost/format.hpp>
 #include <boost/log/trivial.hpp>
 #include <boost/make_shared.hpp>
 #include "mrc1_connection.h"
 
 namespace asio = boost::asio;
 namespace errc = boost::system::errc;
+
+namespace
+{
+  // source: http://stackoverflow.com/a/2417770
+  struct character_escaper
+  {
+    template<typename FindResultT>
+      std::string operator()(const FindResultT& Match) const
+      {
+        std::string s;
+        for (typename FindResultT::const_iterator i = Match.begin();
+            i != Match.end();
+            i++) {
+          s += str(boost::format("\\x%02x") % static_cast<int>(*i));
+        }
+        return s;
+      }
+  };
+}
 
 namespace mesycontrol
 {
@@ -93,6 +114,9 @@ class MRC1Initializer:
         // init success
         m_completion_handler(boost::system::error_code());
       } else {
+        std::string last_line_escaped(last_line);
+        boost::find_format_all(last_line_escaped, boost::token_finder(!boost::is_print()), character_escaper());
+        BOOST_LOG_SEV(m_log, log::lvl::error) << "init failed, last mrc output: " << last_line_escaped;
         // signal failure using a boost system error_code
         m_completion_handler(boost::system::error_code(errc::io_error, boost::system::system_category())); 
       }
@@ -347,7 +371,7 @@ void MRC1Connection::handle_reconnect_timeout(const boost::system::error_code &e
 void MRC1Connection::set_status(const mrc_status::Status &status)
 {
   BOOST_LOG_SEV(m_log, log::lvl::info) << "MRC status changed: "
-    << m_status << " -> " << status;
+    << to_string(m_status) << " -> " << to_string(status);
 
   m_status = status;
 
