@@ -6,6 +6,7 @@ from PyQt4 import QtCore
 from PyQt4.QtCore import QProcess
 from PyQt4.QtCore import pyqtSignal, pyqtProperty
 from functools import partial
+import sys
 import util
 import weakref
 
@@ -57,6 +58,8 @@ class ServerProcess(QtCore.QObject):
         super(ServerProcess, self).__init__(parent)
 
         self.binary_name     = ServerProcess.default_binary_name
+        if sys.platform.startswith('win32'):
+            self.binary_name += '.exe'
         self.listen_address  = ServerProcess.default_listen_address
         self.listen_port     = ServerProcess.default_listen_port
         self.mrc_serial_port = None
