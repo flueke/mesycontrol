@@ -11,7 +11,9 @@
 from __future__ import print_function
 import cmd
 import logging
+import os
 import shlex
+import signal
 import sys
 
 from mesycontrol import app_context
@@ -40,14 +42,6 @@ class SimpleShell(cmd.Cmd):
 
     def print(self, *args, **kwargs):
         print(file=self.stdout, *args, **kwargs)
-
-    def preloop(self):
-        self.print("Connecting to %s..." % self.mrc)
-        self.mrc.connect()
-        if mrc.is_connected():
-            self.print("Connected to %s" % self.mrc)
-        else:
-            raise RuntimeError("Could not connect to %s" % self.mrc)
 
     # ===== Commands =====
     def do_sc(self, line):
@@ -129,14 +123,34 @@ class SimpleShell(cmd.Cmd):
         except KeyError:
             self.print("No such device (bus=%d, dev=%d)" % (bus, dev))
 
+def signal_handler(signum, frame):
+    logging.info("Received signal %s. Quitting...",
+            signal.signum_to_name.get(signum, "%d" % signum))
+    qt.QtCore.QCoreApplication.quit()
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,
             format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
+
+    signal.signum_to_name = dict((getattr(signal, n), n)
+            for n in dir(signal) if n.startswith('SIG') and '_' not in n)
+    signal.signal(signal.SIGINT, signal_handler)
+
     app     = qt.QtCore.QCoreApplication(sys.argv)
     context = app_context.Context(sys.executable if getattr(sys, 'frozen', False) else __file__)
+    # Update the environments path to easily find the mesycontrol_server binary.
+    os.environ['PATH'] = context.bin_dir + os.pathsep + os.environ['PATH']
+
     try:
         mrc_url = sys.argv[1]
         mrc = script.MRCWrapper(context.make_mrc_connection(url=mrc_url))
+        print("Connecting to %s..." % mrc)
+        mrc.connect()
+        if mrc.is_connected():
+            print("Connected to %s" % mrc)
+        else:
+            raise RuntimeError("Could not connect to %s" % mrc)
+
         ss = SimpleShell(script.MRCWrapper(mrc))
         ss.cmdloop("mesycontrol simple shell")
 
