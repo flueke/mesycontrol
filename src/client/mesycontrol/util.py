@@ -311,20 +311,29 @@ class QtLoggingBridge(QObject):
 
 # source: http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python/377028#377028
 def which(program):
+    log = logging.getLogger("%s.%s" % (__name__, "which"))
+
     def is_exe(fpath):
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
+    log.debug("searching for '%s'", program)
+
     fpath, fname = os.path.split(program)
     if fpath:
+        log.debug("checking %s", program)
         if is_exe(program):
+            log.debug("found %s", program)
             return program
-    else:
-        for path in os.environ["PATH"].split(os.pathsep):
-            path = path.strip('"')
-            exe_file = os.path.join(path, program)
-            if is_exe(exe_file):
-                return exe_file
 
+    for path in os.environ["PATH"].split(os.pathsep):
+        path = path.strip('"')
+        log.debug("checking %s" % path)
+        exe_file = os.path.join(path, program)
+        if is_exe(exe_file):
+            log.debug("found %s", exe_file)
+            return exe_file
+
+    log.debug("could not find binary for %s", program)
     return None
 
 class AnyValue(object):
