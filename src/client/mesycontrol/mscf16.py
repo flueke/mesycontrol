@@ -7,9 +7,7 @@ from qt import pyqtSlot
 from qt import Qt
 from qt import QtCore
 from qt import QtGui
-from qt import uic
 from functools import partial
-import weakref
 
 import app_model
 import command
@@ -28,7 +26,7 @@ def get_device_info():
     return (MSCF16.idcs, MSCF16)
 
 def get_widget_info():
-    return (MSCF16.idcs, MSCF16Widget2)
+    return (MSCF16.idcs, MSCF16Widget)
 
 class CopyFunction(object):
     panel2rc        = 1
@@ -270,310 +268,6 @@ class MSCF16(app_model.Device):
     def get_total_gain(self, group):
         return self['gain_group%d' % group] * self.get_gain_adjust(group) * MSCF16.gain_factor
 
-
-class ChannelSettingsWidget(QtGui.QWidget):
-    threshold_changed       = pyqtSignal(int)
-    pz_value_changed        = pyqtSignal(int)
-    gain_changed            = pyqtSignal(int)
-    shaping_time_changed    = pyqtSignal(int)
-
-    def __init__(self, channel_name, group_name, load_ui_file, parent=None):
-        super(ChannelSettingsWidget, self).__init__(parent)
-
-        uic.loadUi(load_ui_file('mesycontrol/ui/mscf16_channel_settings.ui'), self)
-
-        self.gb_channel.setTitle(channel_name)
-        self.gb_group.setTitle(group_name)
-
-    @pyqtSlot(int)
-    def on_spin_threshold_valueChanged(self, value):
-        self.threshold_changed.emit(value)
-
-    @pyqtSlot(int)
-    def on_spin_pz_value_valueChanged(self, value):
-        self.pz_value_changed.emit(value)
-
-    @pyqtSlot(int)
-    def on_spin_gain_valueChanged(self, value):
-        self.gain_changed.emit(value)
-
-    @pyqtSlot(int)
-    def on_spin_shaping_time_valueChanged(self, value):
-        self.shaping_time_changed.emit(value)
-
-    def set_threshold(self, value):
-        with util.block_signals(self.spin_threshold):
-            self.spin_threshold.setValue(value)
-
-    def set_pz_value(self, value):
-        with util.block_signals(self.spin_pz_value):
-            self.spin_pz_value.setValue(value)
-
-    def set_gain(self, value):
-        with util.block_signals(self.spin_gain):
-            self.spin_gain.setValue(value)
-
-    def set_shaping_time(self, value):
-        with util.block_signals(self.spin_shaping_time):
-            self.spin_shaping_time.setValue(value)
-
-class MSCF16Widget(QtGui.QWidget):
-    def __init__(self, device, context, parent=None):
-        super(MSCF16Widget, self).__init__(parent)
-        self.context = context
-        self.device  = device
-        self.device.add_default_parameter_subscription(self)
-
-        uic.loadUi(self.context.find_data_file(
-            'mesycontrol/ui/mscf16_global_settings.ui'), self)
-
-        self.combo_channel.addItem("Common")
-        self.combo_channel.addItems(["Channel %d" % (i+1) for i in range(MSCF16.num_channels)])
-        self.combo_channel.setMaxVisibleItems(MSCF16.num_channels+1)
-
-        common_settings = ChannelSettingsWidget("Common", "Common Group", self.context.find_data_file)
-        common_settings.threshold_changed.connect(self.on_channel_threshold_changed)
-        common_settings.pz_value_changed.connect(self.on_channel_pz_value_changed)
-        common_settings.gain_changed.connect(self.on_channel_gain_changed)
-        common_settings.shaping_time_changed.connect(self.on_channel_shaping_time_changed)
-
-        self.channel_settings = list()
-        self.stacked_channels.addWidget(common_settings)
-        self.common_settings = weakref.ref(common_settings)
-
-        for i in range(MSCF16.num_channels):
-            group_num  = i / MSCF16.num_groups
-            chan_first = group_channel_range(group_num)[0] + 1
-            chan_last  = group_channel_range(group_num)[-1] + 1
-
-            channel_settings = ChannelSettingsWidget(
-                    "Channel %d" % (i+1),
-                    "Group %d (Channels %d-%d)" % (group_num + 1, chan_first, chan_last),
-                    self.context.find_data_file)
-
-            channel_settings.threshold_changed.connect(self.on_channel_threshold_changed)
-            channel_settings.pz_value_changed.connect(self.on_channel_pz_value_changed)
-            channel_settings.gain_changed.connect(self.on_channel_gain_changed)
-            channel_settings.shaping_time_changed.connect(self.on_channel_shaping_time_changed)
-            self.stacked_channels.addWidget(channel_settings)
-            self.channel_settings.append(weakref.ref(channel_settings))
-
-        self.combo_auto_pz.addItem("Stop", 0)
-        self.combo_auto_pz.addItem("All", 17)
-        for i in range(MSCF16.num_channels):
-            self.combo_auto_pz.addItem("Channel %d" % (i+1), i+1)
-        self.combo_auto_pz.setMaxVisibleItems(MSCF16.num_channels+2)
-
-        self.auto_pz_progress.hide()
-
-        self.device.gain_changed.connect(self.on_device_gain_changed)
-        self.device.threshold_changed.connect(self.on_device_threshold_changed)
-        self.device.pz_value_changed.connect(self.on_device_pz_value_changed)
-        self.device.shaping_time_changed.connect(self.on_device_shaping_time_changed)
-        self.device.single_channel_mode_changed.connect(self.on_device_single_channel_mode_changed)
-        self.device.blr_changed.connect(self.on_device_blr_changed)
-        self.device.blr_threshold_changed.connect(self.on_device_blr_threshold_changed)
-        self.device.multiplicity_high_changed.connect(self.on_device_multiplicity_high_changed)
-        self.device.multiplicity_low_changed.connect(self.on_device_multiplicity_low_changed)
-        self.device.threshold_offset_changed.connect(self.on_device_threshold_offset_changed)
-        self.device.shaper_offset_changed.connect(self.on_device_shaper_offset_changed)
-        self.device.coincidence_time_changed.connect(self.on_device_coincidence_time_changed)
-        self.device.auto_pz_channel_changed.connect(self.on_device_auto_pz_channel_changed)
-        self.device.version_changed.connect(self.on_device_version_changed)
-
-        self.device.propagate_state()
-
-
-    # ========== Auto connections with internal widgets ==========
-
-    @pyqtSlot(bool)
-    def on_rb_single_channel_on_toggled(self, on):
-        self.device.set_single_channel_mode(on)
-
-    @pyqtSlot(bool)
-    def on_rb_blr_on_toggled(self, on):
-        self.device.set_blr(on)
-    
-    @pyqtSlot(int)
-    def on_spin_blr_threshold_valueChanged(self, value):
-        self.device.set_blr_threshold(value)
-
-    @pyqtSlot(int)
-    def on_spin_multiplicity_high_valueChanged (self, value):
-        self.device.set_multiplicity_high(value)
-
-    @pyqtSlot(int)
-    def on_spin_multiplicity_low_valueChanged(self, value):
-        self.device.set_multiplicity_low(value)
-
-    @pyqtSlot(int)
-    def on_spin_threshold_offset_valueChanged(self, value):
-        self.device.set_threshold_offset(value)
-
-    @pyqtSlot(int)
-    def on_spin_shaper_offset_valueChanged(self, value):
-        self.device.set_shaper_offset(value)
-
-    @pyqtSlot(int)
-    def on_spin_coincidence_time_valueChanged(self, value):
-        self.device.set_coincidence_time(value)
-
-    @pyqtSlot(int)
-    def on_combo_auto_pz_activated(self, idx):
-        value, ok = self.combo_auto_pz.itemData(idx).toInt()
-        self.device.set_auto_pz_channel(value)
-
-    @pyqtSlot()
-    def on_pb_copy_panel2rc_clicked(self):
-        cmd = self.device.get_copy_panel2rc_command()
-        self.copy_panel2rc_progress.setMaximum(len(cmd))
-        self.copy_panel2rc_progress.setValue(0)
-        cmd.progress_changed[int].connect(self.copy_panel2rc_progress.setValue)
-
-        def on_command_stopped():
-            cmd.progress_changed[int].disconnect(self.copy_panel2rc_progress.setValue)
-            cmd.stopped.disconnect()
-            self.copy_panel2rc_stack.setCurrentIndex(0)
-
-        cmd.stopped.connect(on_command_stopped)
-        self.copy_panel2rc_stack.setCurrentIndex(1)
-        cmd.start()
-
-    @pyqtSlot()
-    def on_pb_copy_rc2panel_clicked(self):
-        self.device.perform_copy_function(CopyFunction.rc2panel)
-
-    @pyqtSlot()
-    def on_pb_copy_common2single_clicked(self):
-        cmd = self.device.get_copy_common2single_command()
-        self.copy_common2single_progress.setMaximum(len(cmd))
-        self.copy_common2single_progress.setValue(0)
-        cmd.progress_changed[int].connect(self.copy_common2single_progress.setValue)
-
-        def on_command_stopped():
-            cmd.progress_changed[int].disconnect(self.copy_common2single_progress.setValue)
-            cmd.stopped.disconnect()
-            self.copy_common2single_stack.setCurrentIndex(0)
-
-        cmd.stopped.connect(on_command_stopped)
-        self.copy_common2single_stack.setCurrentIndex(1)
-        cmd.start()
-
-    @pyqtSlot(int)
-    def on_stacked_channels_currentChanged(self, idx):
-        widget = weakref.ref(self.stacked_channels.currentWidget())
-        if widget in self.channel_settings:
-            self.device.set_monitor_channel(self.channel_settings.index(widget)+1)
-        else:
-            self.device.set_monitor_channel(0)
-
-    # ========== Channel settings ==========
-
-    def on_channel_threshold_changed(self, value):
-        sender = weakref.ref(self.sender())
-        if sender == self.common_settings:
-            self.device.set_common_threshold(value)
-        else:
-            self.device.set_threshold(self.channel_settings.index(sender), value)
-
-    def on_channel_pz_value_changed(self, value):
-        sender = weakref.ref(self.sender())
-        if sender == self.common_settings:
-            self.device.set_common_pz_value(value)
-        else:
-            self.device.set_pz_value(self.channel_settings.index(sender), value)
-
-    def on_channel_gain_changed(self, value):
-        sender = weakref.ref(self.sender())
-        if sender == self.common_settings:
-            self.device.set_common_gain(value)
-        else:
-            group = self.channel_settings.index(sender) / MSCF16.num_groups
-            self.device.set_gain(group, value)
-
-    def on_channel_shaping_time_changed(self, value):
-        sender = weakref.ref(self.sender())
-        if sender == self.common_settings:
-            self.device.set_common_shaping_time(value)
-        else:
-            group = self.channel_settings.index(sender) / MSCF16.num_groups
-            self.device.set_shaping_time(group, value)
-
-    # ========== Slots receiving device changes and populating the GUI ==========
-
-    def on_device_gain_changed(self, bp):
-        if bp.has_index():
-            for i in group_channel_range(bp.index):
-                self.channel_settings[i]().set_gain(bp.value)
-        else:
-            self.common_settings().set_gain(bp.value)
-
-    def on_device_threshold_changed(self, bp):
-        if bp.has_index():
-            self.channel_settings[bp.index]().set_threshold(bp.value)
-        else:
-            self.common_settings().set_threshold(bp.value)
-
-    def on_device_pz_value_changed(self, bp):
-        if bp.has_index():
-            self.channel_settings[bp.index]().set_pz_value(bp.value)
-        else:
-            self.common_settings().set_pz_value(bp.value)
-
-    def on_device_shaping_time_changed(self, bp):
-        if bp.has_index():
-            for i in group_channel_range(bp.index):
-                self.channel_settings[i]().set_shaping_time(bp.value)
-            else:
-                self.common_settings().set_shaping_time(bp.value)
-
-    def on_device_single_channel_mode_changed(self, on):
-        with util.block_signals(self.rb_single_channel_on):
-            self.rb_single_channel_on.setChecked(on)
-
-        with util.block_signals(self.rb_single_channel_off):
-            self.rb_single_channel_off.setChecked(not on)
-
-    def on_device_blr_changed(self, on):
-        with util.block_signals(self.rb_blr_on):
-            self.rb_blr_on.setChecked(on)
-
-        with util.block_signals(self.rb_blr_off):
-            self.rb_blr_off.setChecked(not on)
-
-    def on_device_blr_threshold_changed(self, value):
-        with util.block_signals(self.spin_blr_threshold):
-            self.spin_blr_threshold.setValue(value)
-
-    def on_device_multiplicity_high_changed(self, value):
-        with util.block_signals(self.spin_multiplicity_high):
-            self.spin_multiplicity_high.setValue(value)
-
-    def on_device_multiplicity_low_changed(self, value):
-        with util.block_signals(self.spin_multiplicity_low):
-            self.spin_multiplicity_low.setValue(value)
-
-    def on_device_threshold_offset_changed(self, value):
-        with util.block_signals(self.spin_threshold_offset):
-            self.spin_threshold_offset.setValue(value)
-
-    def on_device_shaper_offset_changed(self, value):
-        with util.block_signals(self.spin_shaper_offset):
-            self.spin_shaper_offset.setValue(value)
-
-    def on_device_coincidence_time_changed(self, value):
-        with util.block_signals(self.spin_coincidence_time):
-            self.spin_coincidence_time.setValue(value)
-
-    def on_device_auto_pz_channel_changed(self, value):
-        self.auto_pz_progress.setVisible(value != 0)
-        text = '-' if value == 0 else str(value)
-        self.label_current_auto_pz_channel.setText(text)
-
-    def on_device_version_changed(self, value):
-        text = "%d.%d" % version_to_major_minor(value)
-        self.label_version.setText(text)
-
 def make_title_label(title):
     title_font = QtGui.QFont()
     title_font.setBold(True)
@@ -605,6 +299,8 @@ def make_spinbox(min_value=None, max_value=None, limits=None, parent=None):
         ret.setMaximum(limits[1])
     return ret
 
+dynamic_label_style = "QLabel { background-color: lightgrey; }"
+
 class GainPage(QtGui.QGroupBox):
     def __init__(self, device, parent=None):
         super(GainPage, self).__init__("Gain", parent)
@@ -620,27 +316,31 @@ class GainPage(QtGui.QGroupBox):
 
         layout = QtGui.QGridLayout(self)
 
-        layout.addWidget(QtGui.QLabel("Common"), 0, 0)
+        layout.addWidget(QtGui.QLabel("Common"), 0, 0, 1, 1, Qt.AlignRight)
         self.gain_common = make_spinbox(limits=gain_min_max)
         self.gain_common.valueChanged[int].connect(self._on_gain_input_value_changed)
         layout.addWidget(self.gain_common, 0, 1)
 
-        layout.addWidget(make_title_label("RC Gain"), 1, 0, 1, 3, Qt.AlignCenter)
+        layout.addWidget(make_title_label("Group"),   1, 0, 1, 1, Qt.AlignRight)
+        layout.addWidget(make_title_label("RC Gain"), 1, 1, 1, 1, Qt.AlignCenter)
+        layout.addWidget(make_title_label("Total"),   1, 2, 1, 1, Qt.AlignCenter)
 
         offset = layout.rowCount()
 
         for i in range(MSCF16.num_groups):
             group_range = group_channel_range(i)
-            descr_label = QtGui.QLabel("Ch. %d-%d" % (group_range[0], group_range[-1]))
-            gain_spin   = make_spinbox(limits=gain_min_max)
-            gain_label  = QtGui.QLabel("1.0") # XXX
+            descr_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1]))
 
+            gain_spin   = make_spinbox(limits=gain_min_max)
             gain_spin.valueChanged[int].connect(self._on_gain_input_value_changed)
+
+            gain_label  = QtGui.QLabel("1.0") # XXX
+            gain_label.setStyleSheet(dynamic_label_style)
 
             self.gain_inputs.append(gain_spin)
             self.gain_labels.append(gain_label)
 
-            layout.addWidget(descr_label, i+offset, 0)
+            layout.addWidget(descr_label, i+offset, 0, 1, 1, Qt.AlignRight)
             layout.addWidget(gain_spin,   i+offset, 1)
             layout.addWidget(gain_label,  i+offset, 2)
 
@@ -652,13 +352,13 @@ class GainPage(QtGui.QGroupBox):
 
         for i in range(MSCF16.num_groups):
             group_range = group_channel_range(i)
-            descr_label = QtGui.QLabel("Ch. %d-%d" % (group_range[0], group_range[-1]))
+            descr_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1]))
             gain_spin   = make_spinbox(limits=MSCF16.gain_adjust_limits)
             gain_spin.valueChanged[int].connect(self._on_hw_gain_input_value_changed)
 
             self.hw_gain_inputs.append(gain_spin)
 
-            layout.addWidget(descr_label, i+offset, 0)
+            layout.addWidget(descr_label, i+offset, 0, 1, 1, Qt.AlignRight)
             layout.addWidget(gain_spin,   i+offset, 1)
 
     @pyqtSlot(int)
@@ -747,14 +447,16 @@ class ShapingPage(QtGui.QGroupBox):
         self.pb_auto_pz_all.setMaximumSize(ShapingPage.auto_pz_button_size)
         self.pb_auto_pz_all.clicked.connect(self._on_auto_pz_button_clicked)
 
-        layout.addWidget(QtGui.QLabel("Common"),    0, 0)
+        layout.addWidget(QtGui.QLabel("Common"),    0, 0, 1, 1, Qt.AlignRight)
         layout.addWidget(self.spin_sht_common,      0, 1)
-        layout.addWidget(QtGui.QLabel("Common"),    0, 3)
+        layout.addWidget(QtGui.QLabel("Common"),    0, 3, 1, 1, Qt.AlignRight)
         layout.addWidget(self.spin_pz_common,       0, 4)
         layout.addWidget(self.pb_auto_pz_all,       0, 5)
 
-        layout.addWidget(make_title_label("Sht."),  1, 1)
-        layout.addWidget(make_title_label("PZ"),    1, 4)
+        layout.addWidget(make_title_label("Group"),   1, 0, 1, 1, Qt.AlignRight)
+        layout.addWidget(make_title_label("Sht."),    1, 1)
+        layout.addWidget(make_title_label("Channel"), 1, 3)
+        layout.addWidget(make_title_label("PZ"),      1, 4)
 
         for chan in range(MSCF16.num_channels):
             group = int(chan / MSCF16.num_groups)
@@ -762,29 +464,31 @@ class ShapingPage(QtGui.QGroupBox):
             row   = layout.rowCount()
 
             if chan % MSCF16.num_groups == 0:
-                descr_label = QtGui.QLabel("Ch. %d-%d" % (group_range[0], group_range[-1]))
+                descr_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1]))
                 spin_sht    = make_spinbox(limits=shaping_time_limits)
                 label_sht   = QtGui.QLabel(QtCore.QString.fromUtf8("42.0 µs")) # XXX
+                label_sht.setStyleSheet(dynamic_label_style)
 
-                layout.addWidget(descr_label,   row, 0)
+                layout.addWidget(descr_label,   row, 0, 1, 1, Qt.AlignRight)
                 layout.addWidget(spin_sht,      row, 1)
                 layout.addWidget(label_sht,     row, 2)
 
                 self.sht_inputs.append(spin_sht)
                 spin_sht.valueChanged[int].connect(self._on_shaping_time_value_changed)
 
-            label_chan  = QtGui.QLabel("Ch. %d" % chan)
+            label_chan  = QtGui.QLabel("%d" % chan)
             spin_pz     = AutoPZSpin(limits=pz_value_limits)
             spin_pz.spin.valueChanged[int].connect(self._on_pz_value_changed)
             self.pz_inputs.append(spin_pz.spin)
             self.pz_stacks.append(spin_pz)
 
             button_pz   = QtGui.QPushButton("A")
+            button_pz.setToolTip("Start auto PZ for channel %d" % chan)
             button_pz.setMaximumSize(ShapingPage.auto_pz_button_size)
             button_pz.clicked.connect(self._on_auto_pz_button_clicked)
             self.pz_buttons.append(button_pz)
 
-            layout.addWidget(label_chan,    row, 3)
+            layout.addWidget(label_chan,    row, 3, 1, 1, Qt.AlignRight)
             layout.addWidget(spin_pz,       row, 4)
             layout.addWidget(button_pz,     row, 5)
 
@@ -905,18 +609,20 @@ class TimingPage(QtGui.QGroupBox):
         self.threshold_common.valueChanged[int].connect(self._on_threshold_changed)
 
         layout = QtGui.QGridLayout(self)
-        layout.addWidget(QtGui.QLabel("Common"), 0, 0)
+        layout.addWidget(QtGui.QLabel("Common"), 0, 0, 1, 1, Qt.AlignRight)
         layout.addWidget(self.threshold_common, 0, 1)
 
+        layout.addWidget(make_title_label("Channel"),   1, 0, 1, 1, Qt.AlignRight)
         layout.addWidget(make_title_label("Threshold"), 1, 1)
 
         for chan in range(MSCF16.num_channels):
             offset  = 2
-            descr_label     = QtGui.QLabel("Ch. %d" % chan)
+            descr_label     = QtGui.QLabel("%d" % chan)
             spin_threshold  = QtGui.QSpinBox()
             label_threshold = QtGui.QLabel("?")
+            label_threshold.setStyleSheet(dynamic_label_style)
 
-            layout.addWidget(descr_label,       chan+offset, 0)
+            layout.addWidget(descr_label,       chan+offset, 0, 1, 1, Qt.AlignRight)
             layout.addWidget(spin_threshold,    chan+offset, 1)
             layout.addWidget(label_threshold,   chan+offset, 2)
 
@@ -993,6 +699,7 @@ class MiscPage(QtGui.QWidget):
         self.device.multiplicity_low_changed.connect(self._on_device_multiplicity_low_changed)
         self.device.multiplicity_high_changed.connect(self._on_device_multiplicity_high_changed)
         self.device.monitor_channel_changed.connect(self._on_device_monitor_channel_changed)
+        self.device.version_changed.connect(self._on_device_version_changed)
 
         layout = QtGui.QVBoxLayout(self)
         layout.setContentsMargins(*[0 for i in range(4)])
@@ -1052,9 +759,19 @@ class MiscPage(QtGui.QWidget):
         copy_layout.addWidget(self.pb_copy_rc2panel)
         copy_layout.addWidget(self.stack_copy_common2single)
 
+        # Version display
+        version_box = QtGui.QGroupBox("Version")
+        version_layout = QtGui.QFormLayout(version_box)
+
+        self.version_labels = dict()
+        for k in ("Software", "Hardware", "FPGA"):
+            self.version_labels[k] = label = QtGui.QLabel()
+            version_layout.addRow(k+":", label)
+
         layout.addWidget(trigger_box)
         layout.addWidget(monitor_box)
         layout.addWidget(copy_box)
+        layout.addWidget(version_box)
 
     @pyqtSlot(int)
     def _coincidence_time_changed(self, value):
@@ -1124,9 +841,13 @@ class MiscPage(QtGui.QWidget):
         with util.block_signals(self.combo_monitor):
             self.combo_monitor.setCurrentIndex(value)
 
-class MSCF16Widget2(QtGui.QWidget):
+    def _on_device_version_changed(self, value):
+        text = "%d.%d" % (version_to_major_minor(value))
+        self.version_labels["Software"].setText(text)
+
+class MSCF16Widget(QtGui.QWidget):
     def __init__(self, device, context, parent=None):
-        super(MSCF16Widget2, self).__init__(parent)
+        super(MSCF16Widget, self).__init__(parent)
         self.context = context
         self.device  = device
         self.device.add_default_parameter_subscription(self)
@@ -1139,7 +860,8 @@ class MSCF16Widget2(QtGui.QWidget):
         pages = [self.gain_page, self.shaping_page, self.timing_page, self.misc_page]
 
         layout = QtGui.QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(*(4 for i in range(4)))
+        layout.setSpacing(4)
 
         for page in pages:
             vbox = QtGui.QVBoxLayout()
@@ -1151,18 +873,29 @@ class MSCF16Widget2(QtGui.QWidget):
 
 if __name__ == "__main__":
     import mock
+    import signal
     import sys
     import device_profile_mscf16
 
     QtGui.QApplication.setDesktopSettingsAware(False)
     app = QtGui.QApplication(sys.argv)
+    app.setStyle(QtGui.QStyleFactory.create("Plastique"))
+
+    def signal_handler(signum, frame):
+        app.quit()
+
+    signal.signal(signal.SIGINT, signal_handler)
+
+    timer = QtCore.QTimer()
+    timer.timeout.connect(lambda: None)
+    timer.start(500)
 
     context = mock.Mock()
     device  = mock.Mock()
     device.profile = device_profile_mscf16.get_device_profile()
     device.get_total_gain = mock.MagicMock(return_value=2)
 
-    w = MSCF16Widget2(device, context)
+    w = MSCF16Widget(device, context)
     w.show()
 
     sys.exit(app.exec_())
