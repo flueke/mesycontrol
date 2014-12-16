@@ -12,7 +12,6 @@ import sys
 import weakref
 from functools import partial
 from PyQt4 import QtCore, QtGui, uic
-from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import pyqtSlot
 from PyQt4.Qt import Qt
 from mesycontrol import app_context
@@ -473,7 +472,7 @@ if __name__ == "__main__":
     if opts is not None and opts.logging_config is not None:
         logging.config.fileConfig(opts.logging_config)
     else:
-        logging.basicConfig(level=logging.DEBUG,
+        logging.basicConfig(level=logging.INFO,
                 format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
         logging.getLogger("PyQt4.uic").setLevel(logging.INFO)
@@ -493,8 +492,9 @@ if __name__ == "__main__":
 
     # Qt setup
     QtCore.QLocale.setDefault(QtCore.QLocale.c())
-    QtGui.QApplication.setDesktopSettingsAware(True)
+    QtGui.QApplication.setDesktopSettingsAware(False)
     app = QtGui.QApplication(sys.argv)
+    app.setStyle(QtGui.QStyleFactory.create("Plastique"))
 
     # Let the interpreter run every 500 ms to be able to react to signals
     # arriving from the OS.
