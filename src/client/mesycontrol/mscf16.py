@@ -265,8 +265,20 @@ class MSCF16(app_model.Device):
         self._gain_adjusts[group] = value
         self.gain_adjust_changed.emit(group, value)
 
+    def get_gain_adjusts(self):
+        return list(self._gain_adjusts)
+
+    def set_gain_adjusts(self, values):
+        for i in range(MSCF16.num_groups):
+            self.set_gain_adjust(i, values[i])
+
+    gain_adjusts = property(get_gain_adjusts, set_gain_adjusts)
+
     def get_total_gain(self, group):
         return self['gain_group%d' % group] * self.get_gain_adjust(group) * MSCF16.gain_factor
+
+    def get_extensions(self):
+        return [('gain_adjusts', self.gain_adjusts)]
 
 def make_title_label(title):
     title_font = QtGui.QFont()
@@ -354,6 +366,7 @@ class GainPage(QtGui.QGroupBox):
             group_range = group_channel_range(i)
             descr_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1]))
             gain_spin   = make_spinbox(limits=MSCF16.gain_adjust_limits)
+            gain_spin.setValue(device.get_gain_adjust(i))
             gain_spin.valueChanged[int].connect(self._on_hw_gain_input_value_changed)
 
             self.hw_gain_inputs.append(gain_spin)
