@@ -18,6 +18,8 @@ TCPConnection::TCPConnection(boost::asio::io_service &io_service, TCPConnectionM
   , m_write_in_progress(false)
   , m_log(log::keywords::channel="TCPConnection")
   , m_stopping(false)
+  , m_read_size(0)
+  , m_write_size(0)
 {
 }
 

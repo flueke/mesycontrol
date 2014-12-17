@@ -22,7 +22,7 @@ namespace
         std::string s;
         for (typename FindResultT::const_iterator i = Match.begin();
             i != Match.end();
-            i++) {
+            ++i) {
           s += str(boost::format("\\x%02x") % static_cast<int>(*i));
         }
         return s;

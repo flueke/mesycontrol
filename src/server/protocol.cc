@@ -494,22 +494,6 @@ MessagePtr MessageFactory::make_read_request(boost::uint8_t bus, boost::uint8_t 
   return ret;
 }
 
-MessagePtr MessageFactory::make_read_response(boost::uint8_t bus, boost::uint8_t dev,
-    boost::uint8_t par, boost::int32_t val, bool mirror)
-{
-  return make_read_or_set_response(
-      mirror ? message_type::request_mirror_read : message_type::request_read,
-      bus, dev, par, val);
-}
-
-MessagePtr MessageFactory::make_set_response(boost::uint8_t bus, boost::uint8_t dev,
-    boost::uint8_t par, boost::int32_t val, bool mirror)
-{
-  return make_read_or_set_response(
-      mirror ? message_type::request_mirror_set : message_type::request_mirror_read,
-      bus, dev, par, val);
-}
-
 MessagePtr MessageFactory::make_read_or_set_response(message_type::MessageType request_type,
     boost::uint8_t bus, boost::uint8_t dev, boost::uint8_t par, boost::int32_t val)
 {
