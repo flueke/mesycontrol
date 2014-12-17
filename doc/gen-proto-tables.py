@@ -66,7 +66,9 @@ if __name__ == '__main__':
     responses  = filter(lambda info: info['name'].startswith('response'), MessageInfo.info_list)
 
     for response in responses:
-        size = struct.calcsize(response['format'])
+        size = 'variable'
+        if 'format' in response:
+            size = struct.calcsize(response['format'])
         fmt  = str()
         if 'format_args' in response:
             fmt  = string.join([ "<%s>" % arg for arg in response['format_args'] ])
