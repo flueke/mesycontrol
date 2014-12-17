@@ -7,10 +7,12 @@ from command import CommandException
 from command import SequentialCommandGroup
 from mrc_command import ReadParameter
 from mrc_command import SetParameter
+import util
 
 class ConfigLoader(SequentialCommandGroup):
     def __init__(self, device, device_config, parent=None):
         super(ConfigLoader, self).__init__(parent)
+        self.log         = util.make_logging_source_adapter(__name__, self)
         self.device      = device
         self.config      = device_config
         self._prepare()
@@ -20,6 +22,8 @@ class ConfigLoader(SequentialCommandGroup):
 
         def assign_config():
             if self.device.config is not self.config:
+                self.config.bus     = self.device.bus
+                self.config.address = self.device.address
                 self.device.assign_config(self.config)
 
         self.add(Callable(assign_config))
@@ -49,15 +53,20 @@ class ConfigLoader(SequentialCommandGroup):
                 self.add(SetParameter(self.device, param_profile.address,
                     self.config.get_parameter_value(param_profile.address)))
 
+        def load_extensions():
+            for name, value in self.config.get_extensions().iteritems():
+                self.log.debug("Loading device extension '%s'->'%s'", name, value)
+                setattr(self.device, name, value)
+
         def set_rc():
             if self.config.rc is not None:
                 self.device.rc = self.config.rc
 
-        self.add(Callable(set_rc))
-
         def enable_polling():
             self.device.mrc.polling = old_polling_state
 
+        self.add(Callable(load_extensions))
+        self.add(Callable(set_rc))
         self.add(Callable(enable_polling))
 
 class ConfigVerifier(SequentialCommandGroup):
