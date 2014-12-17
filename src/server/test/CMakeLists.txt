@@ -13,8 +13,9 @@ if (Boost_UNIT_TEST_FRAMEWORK_FOUND)
     test_mrc1_reply_parser.cc
     )
   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
-  add_executable(${TEST_TARGET} ${TEST_SRCS})
+  add_executable(${TEST_TARGET} EXCLUDE_FROM_ALL ${TEST_SRCS} )
   target_link_libraries(${TEST_TARGET} ${Boost_LIBRARIES})
+
   if(WIN32)
       # Statically link against the GCC and C++ libraries to avoid
       # depending on DLLs installed with MinGW.
@@ -25,6 +26,7 @@ if (Boost_UNIT_TEST_FRAMEWORK_FOUND)
   else(WIN32)
       target_link_libraries(${TEST_TARGET} rt)
   endif(WIN32)
+
 else (Boost_UNIT_TEST_FRAMEWORK_FOUND)
   message("Boost unit test framework not found. Not building unit tests")
 endif (Boost_UNIT_TEST_FRAMEWORK_FOUND)
