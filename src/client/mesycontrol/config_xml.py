@@ -127,6 +127,11 @@ def parse_device_config(config_node):
         param_config = config.ParameterConfig(**attribs)
         device_config.add_parameter_config(param_config)
 
+    for ext_node in config_node.iter('extension'):
+        name  = ext_node.attrib['name']
+        value = xml2value(ext_node.find('value'))
+        device_config.set_extension(name, value)
+
     return device_config
 
 def _device_config_to_etree(cfg, profile, tb):
@@ -168,6 +173,11 @@ def _device_config_to_etree(cfg, profile, tb):
 
         tb.start("parameter_config", attrs)
         tb.end("parameter_config")
+
+    for name, value in cfg.get_extensions():
+        tb.start("extension", {'name': name})
+        value2xml(tb, value)
+        tb.end("extension")
 
     tb.end("device_config")
 
@@ -334,6 +344,67 @@ def _device_description_to_etree(desc, tb):
     tb.end("device_description")
 
 def _add_tag(tb, tag, text, attrs = {}):
-    tb.start(tag, {})
+    tb.start(tag, attrs)
     tb.data(str(text))
     tb.end(tag)
+
+def value2xml(tb, value):
+    if isinstance(value, str):
+        _add_tag(tb, "value", value, {'type': 'str'})
+    elif isinstance(value, int):
+        _add_tag(tb, "value", value, {'type': 'int'})
+    elif isinstance(value, float):
+        _add_tag(tb, "value", value, {'type': 'float'})
+    elif isinstance(value, list):
+        list2xml(tb, value)
+    elif isinstance(value, dict):
+        dict2xml(tb, value)
+    else:
+        raise TypeError("value2xml: unhandled value type '%s'" % type(value).__name__)
+    return tb
+
+def list2xml(tb, l):
+    tb.start("value", {'type': 'list'})
+    for value in l:
+        value2xml(tb, value)
+    tb.end("value")
+    return tb
+
+def dict2xml(tb, d):
+    tb.start("value", {'type': 'dict'})
+    for k in sorted(d.keys()):
+        v = d[k]
+        tb.start("key", {'name': k})
+        value2xml(tb, v)
+        tb.end("key")
+    tb.end("value")
+    return tb
+
+def xml2value(node):
+    t = node.attrib['type']
+    if t == 'str':
+        return str(node.text)
+    elif t == 'int':
+        return int(node.text)
+    elif t == 'float':
+        return float(node.text)
+    elif t == 'list':
+        return xml2list(node)
+    elif t == 'dict':
+        return xml2dict(node)
+    else:
+        raise TypeError("xml2value: unhandled value type '%s'" % t)
+
+def xml2list(node):
+    ret = list()
+    for n in node.iterfind('value'):
+        ret.append(xml2value(n))
+    return ret
+
+def xml2dict(node):
+    ret = dict()
+    for n in node.iterfind('key'):
+        k = n.attrib['name']
+        v = xml2value(n.find('value'))
+        ret[k] = v
+    return ret

@@ -5,6 +5,8 @@
 from mesycontrol import app_context
 from mesycontrol import config
 from mesycontrol import config_xml
+from nose.tools import assert_raises
+import xml.etree.ElementTree as ET
 
 def test_device_config_xml():
     context = app_context.Context(__file__)
@@ -166,3 +168,57 @@ def test_setup_config_xml():
         assert dev_cfg.bus == i
         assert dev_cfg.address == 7
         assert dev_cfg.rc == True
+
+def test_value2xml_simple_types():
+    tb = ET.TreeBuilder()
+    tb.start("test", {})
+    config_xml.value2xml(tb, 42)
+    config_xml.value2xml(tb, 42.0)
+    config_xml.value2xml(tb, "42.0")
+    tb.end("test")
+    assert ET.tostring(tb.close()) == '<test><value type="int">42</value><value type="float">42.0</value><value type="str">42.0</value></test>'
+
+def test_value2xml_list():
+    tb = ET.TreeBuilder()
+    tb.start("test", {})
+    config_xml.value2xml(tb, [1, '2', 3.0])
+    tb.end("test")
+    assert ET.tostring(tb.close()) == '<test><value type="list"><value type="int">1</value><value type="str">2</value><value type="float">3.0</value></value></test>'
+
+def test_value2xml_dict():
+    tb = ET.TreeBuilder()
+    tb.start("test", {})
+    config_xml.value2xml(tb, {'key1': 3.14, 'key2': "foobar", 'key3': 0})
+    tb.end("test")
+    assert ET.tostring(tb.close()) == '<test><value type="dict"><key name="key1"><value type="float">3.14</value></key><key name="key2"><value type="str">foobar</value></key><key name="key3"><value type="int">0</value></key></value></test>'
+
+def test_value2xml_nested():
+    tb = ET.TreeBuilder()
+    tb.start("test", {})
+    config_xml.value2xml(tb,
+            ['item1', {'i2k1': 'foo', 'i2k2': 0x42, 'i2k3': ['holy', 'moly']}, 'item3'])
+    tb.end("test")
+    assert ET.tostring(tb.close()) == '<test><value type="list"><value type="str">item1</value><value type="dict"><key name="i2k1"><value type="str">foo</value></key><key name="i2k2"><value type="int">66</value></key><key name="i2k3"><value type="list"><value type="str">holy</value><value type="str">moly</value></value></key></value><value type="str">item3</value></value></test>'
+
+def test_value2xml_type_error():
+    class MyClass(object):
+        pass
+
+    tb = ET.TreeBuilder()
+    tb.start("test", {})
+    assert_raises(TypeError, config_xml.value2xml, tb, MyClass())
+    tb.end("test")
+
+def test_xml2value():
+    def do_test(value):
+        tb = ET.TreeBuilder()
+        config_xml.value2xml(tb, value)
+        xml_value = config_xml.xml2value(tb.close())
+        assert value == xml_value
+
+    do_test(42)
+    do_test(42.0)
+    do_test("42.0")
+    do_test([1, 2, 3])
+    do_test({'key1': 3.14, 'key2': "foobar", 'key3': 0})
+    do_test(['item1', {'i2k1': 'foo', 'i2k2': 0x42, 'i2k3': ['holy', 'moly']}, 'item3'])
