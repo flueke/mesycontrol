@@ -16,8 +16,8 @@ namespace mesycontrol
 MRC1ReplyParser::MRC1ReplyParser()
   : m_error_lines_to_consume(0)
   , m_scanbus_address_conflict(false)
-  , m_log(log::keywords::channel="MRC1ReplyParser")
   , m_multi_read_lines_left(0)
+  , m_log(log::keywords::channel="MRC1ReplyParser")
 {
 }
 
