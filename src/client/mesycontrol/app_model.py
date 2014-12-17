@@ -212,7 +212,7 @@ class Device(QtCore.QObject):
         use assign_config().
         """
         if self.config is not None:
-            self.log.debug("Device.config is not None: %s, parent=%s", self.config, self.config.parent())
+            self.log.debug("set_config: Device.config is not None: %s, parent=%s", self.config, self.config.parent())
             self.config.name_changed.disconnect(self.name_changed)
             self.config.description_changed.disconnect(self.description_changed)
             self.config.idc_changed.disconnect(self.config_idc_changed)
@@ -502,6 +502,13 @@ class Device(QtCore.QObject):
 
     def make_bound_parameter(self, address_or_name):
         return BoundParameter(self, address_or_name, self[address_or_name])
+
+    def get_extensions(self):
+        """Returns a list of the devices extended parameter (name, value) pairs.
+        Subclasses can override this to make the config system store and load
+        these additional parameters.
+        """
+        return list()
 
     model   = pyqtProperty(object, get_model, set_model, notify=model_set)
     config  = pyqtProperty(object, get_config, set_config, notify=config_set)

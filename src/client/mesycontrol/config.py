@@ -31,12 +31,14 @@ class ConfigObject(QtCore.QObject):
     modified_changed    = pyqtSignal(bool)
     name_changed        = pyqtSignal(object)
     description_changed = pyqtSignal(object)
+    extensions_changed  = pyqtSignal(object)
 
     def __init__(self, parent=None):
         super(ConfigObject, self).__init__(parent)
         self._name          = None
         self._description   = None
         self._modified      = False
+        self._extensions    = dict()
 
     def get_name(self):
         return self._name if self._name is not None else str()
@@ -58,6 +60,17 @@ class ConfigObject(QtCore.QObject):
         self._modified = bool(m)
         self._set_modified(m)
         self.modified_changed.emit(self.is_modified())
+
+    @modifies
+    def set_extension(self, name, value):
+        self._extensions[name] = value
+        self.extensions_changed.emit(self.get_extensions())
+
+    def get_extension(self, name):
+        return self._extensions[name]
+
+    def get_extensions(self):
+        return dict(self._extensions)
 
     def is_modified(self):
         return self._modified
@@ -245,8 +258,8 @@ class DeviceConfig(ConfigObject):
         self.parameter_alias_changed[ParameterConfig].emit(self.get_parameter(address))
 
     def __str__(self):
-        return "DeviceConfig(name=%s, idc=%d, bus=%d, address=%d, %d parameters" % (
-                self.name, self.idc, self.bus, self.address, len(self._parameters))
+        return "DeviceConfig(name=%s, idc=%d, bus=%d, address=%d, %d parameters, %d extensions" % (
+                self.name, self.idc, self.bus, self.address, len(self._parameters), len(self.get_extensions()))
 
     def _set_modified(self, m):
         if not m:
@@ -268,9 +281,11 @@ class MRCConfig(ConfigObject):
         super(MRCConfig, self).__init__(parent)
         self._connection_config = None
         self._device_configs = list()
+        self.log = util.make_logging_source_adapter(__name__, self)
 
     @modifies
     def add_device_config(self, device_config):
+        self.log.debug("Adding device config %s", device_config)
         if self.has_device_config(device_config.bus, device_config.address):
             raise RuntimeError("DeviceConfig exists (bus=%d, address=%d)" %
                     (device_config.bus, device_config.address))
@@ -282,6 +297,7 @@ class MRCConfig(ConfigObject):
 
     @modifies
     def remove_device_config(self, device_config):
+        self.log.debug("Removing device config %s", device_config)
         self._device_configs.remove(device_config)
         device_config.setParent(None)
         device_config.modified_changed.disconnect(self._on_child_modified)
@@ -599,6 +615,10 @@ def make_device_config(device, fill_parameters):
             address = profile.address
             value   = device.get_parameter(address)
             device_config.set_parameter_value(address, value)
+
+    if hasattr(device, 'get_extensions'):
+        for name, value in device.get_extensions():
+            device_config.set_extension(name, value)
 
     return device_config
 
