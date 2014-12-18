@@ -16,7 +16,6 @@ import util
 
 # TODO for the version 2 widget:
 # - gain calculation
-# - store gain jumper values in the config; restore on load
 # - shaping time calculation
 # - threshold calculation
 # - version display
@@ -280,6 +279,30 @@ class MSCF16(app_model.Device):
     def get_extensions(self):
         return [('gain_adjusts', self.gain_adjusts)]
 
+    # ===== Feature detection =====
+    # FIXME: These methods will throw if a required memory value is not yet known.
+
+    # Memory value of unsupported features
+    unsupported_mem_value = 18
+
+    def has_feature(self, param_name):
+        return self[param_name] != MSCF16.unsupported_mem_value
+
+    def has_version(self):
+        return self.has_feature('version')
+
+    def has_hardware_version(self):
+        return self.has_feature('hardware_version')
+
+    def has_fgpa_version(self):
+        return self.has_feature('fpga_version')
+
+    def has_cpu_software_version(self):
+        return self.has_feature('cpu_software_version')
+
+    def has_detailed_versions(self):
+        return all(self.has_hardware_version(), self.has_fgpa_version(), self.has_cpu_software_version())
+
 def make_title_label(title):
     title_font = QtGui.QFont()
     title_font.setBold(True)
@@ -346,7 +369,7 @@ class GainPage(QtGui.QGroupBox):
             gain_spin   = make_spinbox(limits=gain_min_max)
             gain_spin.valueChanged[int].connect(self._on_gain_input_value_changed)
 
-            gain_label  = QtGui.QLabel("1.0") # XXX
+            gain_label  = QtGui.QLabel("N/A")
             gain_label.setStyleSheet(dynamic_label_style)
 
             self.gain_inputs.append(gain_spin)
@@ -354,7 +377,7 @@ class GainPage(QtGui.QGroupBox):
 
             layout.addWidget(descr_label, i+offset, 0, 1, 1, Qt.AlignRight)
             layout.addWidget(gain_spin,   i+offset, 1)
-            layout.addWidget(gain_label,  i+offset, 2)
+            layout.addWidget(gain_label,  i+offset, 2, 1, 1, Qt.AlignCenter)
 
         layout.addWidget(hline(), layout.rowCount(), 0, 1, 3) # hline separator
 
@@ -393,11 +416,17 @@ class GainPage(QtGui.QGroupBox):
         spin = self.gain_common if not bp.has_index() else self.gain_inputs[bp.index]
         with util.block_signals(spin):
             spin.setValue(bp.value)
+        self._update_gain_labels()
 
     def _on_device_gain_adjust_changed(self, group, value):
         spin = self.hw_gain_inputs[group]
         with util.block_signals(spin):
             spin.setValue(value)
+        self._update_gain_labels()
+
+    def _update_gain_labels(self):
+        for i, label in enumerate(self.gain_labels):
+            label.setText(str(self.device.get_total_gain(i)))
 
 class AutoPZSpin(QtGui.QStackedWidget):
     def __init__(self, limits=None, parent=None):
@@ -697,22 +726,30 @@ class TimingPage(QtGui.QGroupBox):
             self.spin_threshold_offset.setValue(value)
 
     def _on_device_ecl_enable_changed(self, on_off):
-        with util.block_signals(self.check_ecl_delay):
-            self.check_ecl_delay.setEnabled(on_off)
+        if not self.device.has_feature('ecl_delay_enable'):
+            self.check_ecl_delay.setEnabled(False)
+            self.check_ecl_delay.setToolTip("N/A")
+        else:
+            with util.block_signals(self.check_ecl_delay):
+                self.check_ecl_delay.setChecked(on_off)
 
     def _on_device_tf_int_time_changed(self, value):
+        if not self.device.has_feature('tf_int_time'):
+            self.spin_tf_int_time.setEnabled(False)
+            self.spin_tf_int_time.setToolTip("N/A")
         with util.block_signals(self.spin_tf_int_time):
             self.spin_tf_int_time.setValue(value)
 
 class MiscPage(QtGui.QWidget):
     def __init__(self, device, parent=None):
         super(MiscPage, self).__init__(parent)
+        self.log    = util.make_logging_source_adapter(__name__, self)
         self.device = device
         self.device.coincidence_time_changed.connect(self._on_device_coincidence_time_changed)
         self.device.multiplicity_low_changed.connect(self._on_device_multiplicity_low_changed)
         self.device.multiplicity_high_changed.connect(self._on_device_multiplicity_high_changed)
         self.device.monitor_channel_changed.connect(self._on_device_monitor_channel_changed)
-        self.device.version_changed.connect(self._on_device_version_changed)
+        self.device.parameter_changed[object].connect(self._on_device_parameter_changed)
 
         layout = QtGui.QVBoxLayout(self)
         layout.setContentsMargins(*[0 for i in range(4)])
@@ -779,6 +816,7 @@ class MiscPage(QtGui.QWidget):
         self.version_labels = dict()
         for k in ("Software", "Hardware", "FPGA"):
             self.version_labels[k] = label = QtGui.QLabel()
+            label.setStyleSheet(dynamic_label_style)
             version_layout.addRow(k+":", label)
 
         layout.addWidget(trigger_box)
@@ -854,9 +892,22 @@ class MiscPage(QtGui.QWidget):
         with util.block_signals(self.combo_monitor):
             self.combo_monitor.setCurrentIndex(value)
 
-    def _on_device_version_changed(self, value):
-        text = "%d.%d" % (version_to_major_minor(value))
-        self.version_labels["Software"].setText(text)
+    def _on_device_parameter_changed(self, bp):
+        self.log.debug("parameter_changed: %s", bp)
+        def update_version_label(label, value):
+            text = "%d.%d" % (version_to_major_minor(value))
+            label.setText(text)
+
+        if bp.name == 'hardware_version' and self.device.has_hardware_version():
+            update_version_label(self.version_labels['Hardware'], bp.value)
+        elif bp.name == 'fpga_version' and self.device.has_fgpa_version():
+            update_version_label(self.version_labels['FPGA'], bp.value)
+        elif bp.name == 'cpu_software_version' and self.device.has_cpu_software_version():
+            update_version_label(self.version_labels['Software'], bp.value)
+        elif bp.name == 'version' and self.device.has_version():
+            update_version_label(self.version_labels['Software'], bp.value)
+            self.version_labels['FPGA'].setText('N/A')
+            self.version_labels['Hardware'].setText('N/A')
 
 class MSCF16Widget(QtGui.QWidget):
     def __init__(self, device, context, parent=None):

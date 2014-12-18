@@ -861,8 +861,9 @@ class BoundParameter(object):
     def get_value_label_pair(self, unit_label_or_name):
         return (self.get_value(unit_label_or_name), self.get_label(unit_label_or_name))
 
-    #def __str__(self):
-    #    return "BoundParameter(d=%s, a=%d, v=%d)" % (self.device, self.address, self.value)
+    def __str__(self):
+        param_str = "%d (%s)" % (self.address, self.name) if self.name is not None else str(self.address)
+        return "BoundParameter(d=%s, a=%s, v=%d)" % (self.device.name, param_str, self.value)
 
     device  = property(get_device)
     profile = property(get_profile)
