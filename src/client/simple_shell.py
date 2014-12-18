@@ -123,6 +123,9 @@ class SimpleShell(cmd.Cmd):
         except KeyError:
             self.print("No such device (bus=%d, dev=%d)" % (bus, dev))
 
+    def do_quit(self, line):
+        return True
+
 def signal_handler(signum, frame):
     logging.info("Received signal %s. Quitting...",
             signal.signum_to_name.get(signum, "%d" % signum))
