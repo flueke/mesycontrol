@@ -170,16 +170,64 @@ class RefreshMemory(Command):
     def __init__(self, device, parent=None):
         super(RefreshMemory, self).__init__(parent)
         self.device = device
+        self._request_ids = []
 
     def _start(self):
-        for i in range(256):
-            self.device.read_parameter(i, self._handle_response)
+        self._request_ids = []
+        for i in range(len(self)):
+            rid = self.device.read_parameter(i, self._handle_response)
+            self._request_ids.append(rid)
+
+    def _stop(self):
+        for rid in self._request_ids:
+            try:
+                self.device.cancel_request(rid)
+            except RuntimeError:
+                pass
 
     def _handle_response(self, request, response):
+        self.progress_changed[int, int].emit(request.par+1, len(self))
+        self.progress_changed[int].emit(request.par+1)
         if response.is_error():
             self._stopped(False)
         elif response.par == 255:
             self._stopped(True)
+
+    def __len__(self):
+        return 256
+
+class Reset(Command):
+    def __init__(self, device, do_refresh=True, parent=None):
+        super(Reset, self).__init__(parent)
+        self.device  = device
+        self.refresh = None
+        if do_refresh:
+            self.refresh = RefreshMemory(device)
+            self.refresh.progress_changed[int, int].connect(self.progress_changed[int, int])
+            self.refresh.progress_changed[int].connect(self.progress_changed[int])
+            self.refresh.stopped.connect(self._on_refresh_stopped)
+
+    def _start(self):
+        self.device.reset_memory(self._handle_reset_response)
+
+    def _stop(self):
+        if self.refresh is not None and self.refresh.is_running():
+            self.refresh.stop()
+
+    def _handle_reset_response(self, request, response):
+        if response.is_error():
+            self._stopped(False)
+        elif self.refresh is not None:
+            self.refresh.start()
+        else:
+            self._stopped(True)
+
+    def _on_refresh_stopped(self):
+        self._stopped(self.refresh.is_ok())
+
+    def __len__(self):
+        return len(self.refresh)
+
 
 class FetchMissingParameters(Command):
     def __init__(self, device, mirror=False, parent=None):
