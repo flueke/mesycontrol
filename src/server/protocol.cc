@@ -167,44 +167,11 @@ bool Message::operator==(const MessagePtr &o) const
 bool Message::is_mrc1_command() const
 {
   return get_message_info(type).is_mrc_command;
-
-#if 0
-  switch (type) {
-    case message_type::request_scanbus:
-    case message_type::request_rc_on:
-    case message_type::request_rc_off:
-    case message_type::request_reset:
-    case message_type::request_copy:
-    case message_type::request_read:
-    case message_type::request_set:
-    case message_type::request_mirror_read:
-    case message_type::request_mirror_set:
-    case message_type::request_read_multi:
-      return true;
-    default:
-      break;
-  }
-  return false;
-#endif
 }
 
 bool Message::is_mrc1_write_command() const
 {
   return get_message_info(type).is_mrc_write_command;
-#if 0
-  switch (type) {
-    case message_type::request_rc_on:
-    case message_type::request_rc_off:
-    case message_type::request_reset:
-    case message_type::request_copy:
-    case message_type::request_set:
-    case message_type::request_mirror_set:
-      return true;
-    default:
-      break;
-  }
-  return false;
-#endif
 }
 
 std::string Message::get_mrc1_command_string() const
