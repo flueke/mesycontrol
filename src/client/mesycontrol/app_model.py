@@ -417,6 +417,10 @@ class Device(QtCore.QObject):
         """Cancels all pending requests."""
         self.model.controller.cancel_all_requests()
 
+    @model_required
+    def cancel_request(self, request_id):
+        return self.model.controller.cancel_request(request_id)
+
     def has_write_access(self):
         if not self.has_model():
             return False
@@ -437,7 +441,11 @@ class Device(QtCore.QObject):
 
     @model_required
     def set_silenced(self, on_off, response_handler=None):
-        return self.model.controller.set_silenced(on_off)
+        return self.model.controller.set_silenced(on_off, response_handler)
+
+    @model_required
+    def reset_memory(self, response_handler=None):
+        return self.model.controller.reset(response_handler=response_handler)
 
     def is_connected(self):
         if not self.has_model():
