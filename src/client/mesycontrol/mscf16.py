@@ -15,11 +15,20 @@ import mrc_command
 import util
 
 # TODO for the version 2 widget:
-# - gain calculation
+# - gain calculation for charge based MSCF
 # - shaping time calculation
 # - threshold calculation
-# - version display
 # - disable version specific inputs
+
+# MSCF16 naming system:
+# <module_name> <shaping_times> [<timing_filter_integration>] <input_type> <input_connector> <discriminator> <cfd_delay>
+# module_name: MSCF-16_LN, MSCF-16_F
+# shaping_times: SH1, SH2, SH4, SH8
+# timing_filter_integration: 5, 70
+# input_type: V, C,
+# input_connector: L, D
+# discriminator: _CFD, LE
+# cfd_delay: 30, 60, 120, 200
 
 def get_device_info():
     return (MSCF16.idcs, MSCF16)
@@ -49,7 +58,7 @@ class MSCF16(app_model.Device):
     num_channels        = 16        # number of channels
     num_groups          =  4        # number of channel groups
     gain_factor         = 1.22      # gain step factor
-    gain_adjust_limits  = (1, 1000) # limits of the hardware gain jumpers
+    gain_adjust_limits  = (1, 100) # limits of the hardware gain jumper inputs
 
     gain_changed                    = pyqtSignal(object)
     threshold_changed               = pyqtSignal(object)
@@ -89,6 +98,7 @@ class MSCF16(app_model.Device):
         for param_profile in self.profile.parameters:
             if self.has_parameter(param_profile.address):
                 self._on_parameter_changed(self.make_bound_parameter(param_profile.address))
+                self.parameter_changed[object].emit(self.make_bound_parameter(param_profile.address))
 
     def _on_parameter_changed(self, bp):
         p = self.profile
@@ -274,7 +284,8 @@ class MSCF16(app_model.Device):
     gain_adjusts = property(get_gain_adjusts, set_gain_adjusts)
 
     def get_total_gain(self, group):
-        return self['gain_group%d' % group] * self.get_gain_adjust(group) * MSCF16.gain_factor
+        #return self['gain_group%d' % group] * self.get_gain_adjust(group) * MSCF16.gain_factor
+        return MSCF16.gain_factor ** self['gain_group%d' % group] * self.get_gain_adjust(group)
 
     def get_extensions(self):
         return [('gain_adjusts', self.gain_adjusts)]
@@ -416,17 +427,17 @@ class GainPage(QtGui.QGroupBox):
         spin = self.gain_common if not bp.has_index() else self.gain_inputs[bp.index]
         with util.block_signals(spin):
             spin.setValue(bp.value)
-        self._update_gain_labels()
+        if bp.has_index():
+            self._update_gain_label(bp.index)
 
     def _on_device_gain_adjust_changed(self, group, value):
         spin = self.hw_gain_inputs[group]
         with util.block_signals(spin):
             spin.setValue(value)
-        self._update_gain_labels()
+        self._update_gain_label(group)
 
-    def _update_gain_labels(self):
-        for i, label in enumerate(self.gain_labels):
-            label.setText(str(self.device.get_total_gain(i)))
+    def _update_gain_label(self, group):
+        self.gain_labels[group].setText("%.1f" % self.device.get_total_gain(group))
 
 class AutoPZSpin(QtGui.QStackedWidget):
     def __init__(self, limits=None, parent=None):
@@ -630,10 +641,12 @@ class ShapingPage(QtGui.QGroupBox):
                 pz_stack.showSpin()
                 self.pz_buttons[i].setText("A")
                 self.pz_buttons[i].setIcon(QtGui.QIcon())
+                self.pz_buttons[i].setToolTip("Start auto PZ for channel %d" % i)
             elif i == value-1:
                 pz_stack.showProgress()
                 self.pz_buttons[i].setText("")
                 self.pz_buttons[i].setIcon(self.stop_icon)
+                self.pz_buttons[i].setToolTip("Stop auto PZ")
 
 class TimingPage(QtGui.QGroupBox):
     def __init__(self, device, parent=None):
@@ -644,7 +657,8 @@ class TimingPage(QtGui.QGroupBox):
         self.device.ecl_delay_enable_changed.connect(self._on_device_ecl_enable_changed)
         self.device.tf_int_time_changed.connect(self._on_device_tf_int_time_changed)
 
-        self.threshold_common = QtGui.QSpinBox()
+        #self.threshold_common = QtGui.QSpinBox()
+        self.threshold_common = make_spinbox(limits=device.profile['threshold_common'].range.to_tuple())
         self.threshold_inputs = list()
         self.threshold_labels = list()
 
@@ -661,7 +675,8 @@ class TimingPage(QtGui.QGroupBox):
             offset  = 2
             descr_label     = QtGui.QLabel("%d" % chan)
             spin_threshold  = QtGui.QSpinBox()
-            label_threshold = QtGui.QLabel("?")
+            spin_threshold  = make_spinbox(limits=device.profile['threshold_common'].range.to_tuple())
+            label_threshold = QtGui.QLabel()
             label_threshold.setStyleSheet(dynamic_label_style)
 
             layout.addWidget(descr_label,       chan+offset, 0, 1, 1, Qt.AlignRight)
@@ -720,6 +735,9 @@ class TimingPage(QtGui.QGroupBox):
         spin = self.threshold_common if not bp.has_index() else self.threshold_inputs[bp.index]
         with util.block_signals(spin):
             spin.setValue(bp.value)
+        if bp.has_index():
+            l = self.threshold_labels[bp.index]
+            l.setText("%.1f%%" % self.device.get_parameter_by_name("threshold_channel%d" % bp.index, 'percent'))
 
     def _on_device_threshold_offset_changed(self, value):
         with util.block_signals(self.spin_threshold_offset):
@@ -729,16 +747,15 @@ class TimingPage(QtGui.QGroupBox):
         if not self.device.has_feature('ecl_delay_enable'):
             self.check_ecl_delay.setEnabled(False)
             self.check_ecl_delay.setToolTip("N/A")
-        else:
-            with util.block_signals(self.check_ecl_delay):
-                self.check_ecl_delay.setChecked(on_off)
+        with util.block_signals(self.check_ecl_delay):
+            self.check_ecl_delay.setChecked(on_off if self.device.has_feature('ecl_delay_enable') else True)
 
     def _on_device_tf_int_time_changed(self, value):
         if not self.device.has_feature('tf_int_time'):
             self.spin_tf_int_time.setEnabled(False)
             self.spin_tf_int_time.setToolTip("N/A")
         with util.block_signals(self.spin_tf_int_time):
-            self.spin_tf_int_time.setValue(value)
+            self.spin_tf_int_time.setValue(value if self.device.has_feature('tf_int_time') else 0)
 
 class MiscPage(QtGui.QWidget):
     def __init__(self, device, parent=None):
@@ -766,9 +783,13 @@ class MiscPage(QtGui.QWidget):
         self.spin_multiplicity_low.valueChanged[int].connect(self._mult_lo_changed)
         self.spin_multiplicity_high.valueChanged[int].connect(self._mult_hi_changed)
 
+        self.label_coincidence_time = QtGui.QLabel()
+        self.label_coincidence_time.setStyleSheet(dynamic_label_style)
+
         row = 0
         trigger_layout.addWidget(QtGui.QLabel("Coinc. time"), row, 0)
         trigger_layout.addWidget(self.spin_coincidence_time,  row, 1)
+        trigger_layout.addWidget(self.label_coincidence_time, row, 2)
 
         row += 1
         trigger_layout.addWidget(QtGui.QLabel("Mult-low"),   row, 0)
@@ -879,6 +900,8 @@ class MiscPage(QtGui.QWidget):
     def _on_device_coincidence_time_changed(self, value):
         with util.block_signals(self.spin_coincidence_time):
             self.spin_coincidence_time.setValue(value)
+        self.label_coincidence_time.setText(
+                "%.1f ns" % self.device.get_parameter_by_name('coincidence_time', 'nanoseconds'))
 
     def _on_device_multiplicity_low_changed(self, value):
         with util.block_signals(self.spin_multiplicity_low):

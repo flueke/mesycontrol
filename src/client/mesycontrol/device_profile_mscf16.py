@@ -4,6 +4,8 @@
 
 from device_profile import DeviceProfile
 
+threshold_percent = { 'label': '%', 'name': 'percent', 'factor': 8.533333333333333 }
+
 profile_dict = {
         'name': 'MSCF-16',
         'idc': 20,
@@ -16,23 +18,23 @@ profile_dict = {
             { 'address': 4, 'name': 'gain_common', 'range': (0, 15)},
 
             # Threshold
-            { 'address':  5, 'name': 'threshold_channel0' , 'index': 0,  'range': (0, 255) },
-            { 'address':  6, 'name': 'threshold_channel1' , 'index': 1,  'range': (0, 255) },
-            { 'address':  7, 'name': 'threshold_channel2' , 'index': 2,  'range': (0, 255) },
-            { 'address':  8, 'name': 'threshold_channel3' , 'index': 3,  'range': (0, 255) },
-            { 'address':  9, 'name': 'threshold_channel4' , 'index': 4,  'range': (0, 255) },
-            { 'address': 10, 'name': 'threshold_channel5' , 'index': 5,  'range': (0, 255) },
-            { 'address': 11, 'name': 'threshold_channel6' , 'index': 6,  'range': (0, 255) },
-            { 'address': 12, 'name': 'threshold_channel7' , 'index': 7,  'range': (0, 255) },
-            { 'address': 13, 'name': 'threshold_channel8' , 'index': 8,  'range': (0, 255) },
-            { 'address': 14, 'name': 'threshold_channel9',  'index': 9,  'range': (0, 255) },
-            { 'address': 15, 'name': 'threshold_channel10', 'index': 10, 'range': (0, 255) },
-            { 'address': 16, 'name': 'threshold_channel11', 'index': 11, 'range': (0, 255) },
-            { 'address': 17, 'name': 'threshold_channel12', 'index': 12, 'range': (0, 255) },
-            { 'address': 18, 'name': 'threshold_channel13', 'index': 13, 'range': (0, 255) },
-            { 'address': 19, 'name': 'threshold_channel14', 'index': 14, 'range': (0, 255) },
-            { 'address': 20, 'name': 'threshold_channel15', 'index': 15, 'range': (0, 255) },
-            { 'address': 21, 'name': 'threshold_common'   , 'range': (0, 255) },
+            { 'address':  5, 'name': 'threshold_channel0' , 'index': 0,  'range': (0, 255), 'units': [threshold_percent] },
+            { 'address':  6, 'name': 'threshold_channel1' , 'index': 1,  'range': (0, 255), 'units': [threshold_percent] },
+            { 'address':  7, 'name': 'threshold_channel2' , 'index': 2,  'range': (0, 255), 'units': [threshold_percent] },
+            { 'address':  8, 'name': 'threshold_channel3' , 'index': 3,  'range': (0, 255), 'units': [threshold_percent] },
+            { 'address':  9, 'name': 'threshold_channel4' , 'index': 4,  'range': (0, 255), 'units': [threshold_percent] },
+            { 'address': 10, 'name': 'threshold_channel5' , 'index': 5,  'range': (0, 255), 'units': [threshold_percent] },
+            { 'address': 11, 'name': 'threshold_channel6' , 'index': 6,  'range': (0, 255), 'units': [threshold_percent] },
+            { 'address': 12, 'name': 'threshold_channel7' , 'index': 7,  'range': (0, 255), 'units': [threshold_percent] },
+            { 'address': 13, 'name': 'threshold_channel8' , 'index': 8,  'range': (0, 255), 'units': [threshold_percent] },
+            { 'address': 14, 'name': 'threshold_channel9',  'index': 9,  'range': (0, 255), 'units': [threshold_percent] },
+            { 'address': 15, 'name': 'threshold_channel10', 'index': 10, 'range': (0, 255), 'units': [threshold_percent] },
+            { 'address': 16, 'name': 'threshold_channel11', 'index': 11, 'range': (0, 255), 'units': [threshold_percent] },
+            { 'address': 17, 'name': 'threshold_channel12', 'index': 12, 'range': (0, 255), 'units': [threshold_percent] },
+            { 'address': 18, 'name': 'threshold_channel13', 'index': 13, 'range': (0, 255), 'units': [threshold_percent] },
+            { 'address': 19, 'name': 'threshold_channel14', 'index': 14, 'range': (0, 255), 'units': [threshold_percent] },
+            { 'address': 20, 'name': 'threshold_channel15', 'index': 15, 'range': (0, 255), 'units': [threshold_percent] },
+            { 'address': 21, 'name': 'threshold_common'   ,              'range': (0, 255), 'units': [threshold_percent] },
 
             # PZ value
             { 'address': 22, 'name': 'pz_value_channel0' , 'index': 0,  'range': (0, 255) },
@@ -69,7 +71,8 @@ profile_dict = {
             { 'address': 49, 'name': 'version',   'read_only': True },
             { 'address': 50, 'name': 'blr_threshold', 'range': (0, 255) },
             { 'address': 51, 'name': 'blr_enable', 'range': (0, 1) },
-            { 'address': 52, 'name': 'coincidence_time', 'range': (0, 255) },
+            { 'address': 52, 'name': 'coincidence_time', 'range': (0, 255),
+                    'units': [{'label': 'ns', 'name': 'nanoseconds', 'factor': 1.4222222222222223, 'offset': 20}] },
             { 'address': 53, 'name': 'threshold_offset', 'range': (0, 200) },
             { 'address': 54, 'name': 'shaper_offset'   , 'range': (0, 200) },
             { 'address': 55, 'name': 'sumdis_threshold' },                      # MSCF-16-LN (special models only)
