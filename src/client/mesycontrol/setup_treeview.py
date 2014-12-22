@@ -11,6 +11,7 @@ from PyQt4.QtCore import Qt
 import weakref
 import os
 
+from command import CommandProgressDialog
 import config
 import config_loader
 import config_xml
@@ -373,6 +374,7 @@ class DeviceNode(TreeNodeWithModel):
             ret.addAction("Toggle Polling").triggered.connect(self._slt_toggle_polling)
             ret.addAction("Rename").triggered.connect(self.sig_rename)
             ret.addAction("Refresh Memory").triggered.connect(self._slt_refresh_memory)
+            ret.addAction("Reset").triggered.connect(self._slt_reset_device)
             if self.ref.config is not None:
                 ret.addAction("Apply config").triggered.connect(self._slt_apply_config)
             ret.addAction("Save config to file").triggered.connect(self._slt_save_device_config)
@@ -386,7 +388,10 @@ class DeviceNode(TreeNodeWithModel):
         self.ref.set_rc(not self.ref.rc)
 
     def _slt_refresh_memory(self):
-        mrc_command.RefreshMemory(self.ref).start()
+        CommandProgressDialog(mrc_command.RefreshMemory(self.ref), labelText="Refreshing Memory").exec_()
+
+    def _slt_reset_device(self):
+        CommandProgressDialog(mrc_command.Reset(self.ref), labelText="Resetting Device").exec_()
 
     def _slt_save_device_config(self):
         self.sig_save_device_config.emit(self.ref)
@@ -707,26 +712,15 @@ class SetupTreeView(QtGui.QTreeView):
             return
 
         try:
-            loader = config_loader.ConfigLoader(device, device.config)
-            pd = QtGui.QProgressDialog(self)
-            pd.setMaximum(len(loader))
-            pd.setValue(0)
-            loader.progress_changed.connect(pd.setValue)
-            loader.stopped.connect(pd.accept)
-            QtCore.QTimer.singleShot(0, loader.start)
-            self.log.debug("Starting ConfigLoader for %s", device)
+            pd = CommandProgressDialog(config_loader.ConfigLoader(device, device.config),
+                    labelText="Applying device config")
             pd.exec_()
 
-            if pd.wasCanceled():
-                self.log.debug("canceling ConfigLoader for %s as requested", device)
-                loader.stop()
-                return
-
-            if loader.has_failed():
-                self.log.error("ConfigLoader for %s failed: %s", device, loader.get_exception())
+            if pd.command.has_failed():
+                self.log.error("ConfigLoader for %s failed: %s", device, pd.command.get_exception())
                 QtGui.QMessageBox.critical(self, "Error", "Error loading device config: %s" %
-                        loader.get_exception())
-                return
+                        pd.command.get_exception())
+
         except Exception as e:
             QtGui.QMessageBox.critical(self, "Error", "Error applying device config:  %s" % (e,))
             raise
