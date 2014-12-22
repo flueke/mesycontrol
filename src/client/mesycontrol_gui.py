@@ -17,6 +17,7 @@ from PyQt4.Qt import Qt
 from mesycontrol import app_context
 from mesycontrol import device_view
 from mesycontrol import device_tableview
+from mesycontrol import command
 from mesycontrol import config
 from mesycontrol import config_xml
 from mesycontrol import log_view
@@ -253,20 +254,11 @@ class MainWindow(QtGui.QMainWindow):
 
         # Make sure the device config instances within the setup are complete
         # (all required parameters present).
-        setup_completer = config.SetupCompleter(setup, self.context)
-        pd = QtGui.QProgressDialog(self)
-        pd.setMaximum(len(setup_completer))
-        pd.setValue(0)
-
-        setup_completer.progress_changed.connect(pd.setValue)
-        setup_completer.stopped.connect(pd.accept)
-        QtCore.QTimer.singleShot(0, setup_completer.start)
+        pd = command.CommandProgressDialog(config.SetupCompleter(setup, self.context),
+                labelText="Saving setup")
         pd.exec_()
 
-        if pd.wasCanceled():
-            setup_completer.stop()
-
-        if setup_completer.has_failed():
+        if pd.command.has_failed():
             QtGui.QMessageBox.critical(self, "Error", "Setup building failed")
         else:
             try:
@@ -472,11 +464,11 @@ if __name__ == "__main__":
     if opts is not None and opts.logging_config is not None:
         logging.config.fileConfig(opts.logging_config)
     else:
-        logging.basicConfig(level=logging.INFO,
+        logging.basicConfig(level=logging.DEBUG,
                 format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
         logging.getLogger("PyQt4.uic").setLevel(logging.INFO)
-        #logging.getLogger("mesycontrol.tcp_client").setLevel(logging.DEBUG)
+        logging.getLogger("mesycontrol.tcp_client").setLevel(logging.INFO)
 
     logging.info("Starting up...")
 
