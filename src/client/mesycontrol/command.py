@@ -3,6 +3,8 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 from PyQt4 import QtCore
+from PyQt4 import QtGui
+from PyQt4.Qt import Qt
 from PyQt4.QtCore import pyqtSignal
 from functools import partial
 import sys
@@ -116,7 +118,7 @@ class Command(QtCore.QObject):
     def __len__(self): return 1
     def _start(self): raise NotImplementedError()
     def _stop(self): raise NotImplementedError()
-    def _has_failed(self): raise NotImplementedError()
+    def _has_failed(self): return False
     def _get_result(self): raise NotImplementedError()
 
 class CommandGroup(Command):
@@ -278,3 +280,15 @@ class Callable(Command):
 
     def __str__(self):
         return "Callable(%s)" % self._callable
+
+class CommandProgressDialog(QtGui.QProgressDialog):
+    def __init__(self, command, labelText="", cancelButtonText="Cancel", parent=None, flags=Qt.WindowFlags(0)):
+        super(CommandProgressDialog, self).__init__(labelText, cancelButtonText, 0, len(command), parent, flags)
+        self.command = command
+        command.progress_changed.connect(self.setValue)
+        command.stopped.connect(self.accept)
+        self.canceled.connect(command.stop)
+
+    def exec_(self):
+        QtCore.QTimer.singleShot(0, self.command.start)
+        return super(CommandProgressDialog, self).exec_()
