@@ -285,7 +285,7 @@ class CommandProgressDialog(QtGui.QProgressDialog):
     def __init__(self, command, labelText="", cancelButtonText="Cancel", parent=None, flags=Qt.WindowFlags(0)):
         super(CommandProgressDialog, self).__init__(labelText, cancelButtonText, 0, len(command), parent, flags)
         self.command = command
-        command.progress_changed.connect(self.setValue)
+        command.progress_changed[int].connect(self.setValue)
         command.stopped.connect(self.accept)
         self.canceled.connect(command.stop)
 
