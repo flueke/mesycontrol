@@ -14,13 +14,15 @@ import command
 import mrc_command
 import util
 
+from app_model import modifies_extensions
 from util import make_title_label, hline, make_spinbox
 
 # TODO for the version 2 widget:
 # - gain calculation for charge based MSCF
 # - shaping time calculation
-# - threshold calculation
 # - disable version specific inputs
+# - handle single channel / common mode setting: user selectable or enable
+#   single channel mode on startup or both
 
 # MSCF16 naming system:
 # <module_name> <shaping_times> [<timing_filter_integration>] <input_type> <input_connector> <discriminator> <cfd_delay>
@@ -31,6 +33,17 @@ from util import make_title_label, hline, make_spinbox
 # input_connector: L, D
 # discriminator: CFD, LE
 # cfd_delay: 30, 60, 120, 200
+
+class MSCF16ModuleInfo(object):
+    def __init__(self, name='F', shaping_time=1, input_type='V',
+            input_connector='L', discriminator='CFD', cfd_delay=30):
+        self.name               = name
+        self.shaping_time       = shaping_time
+
+        self.input_type         = input_type
+        self.input_connector    = input_connector
+        self.discriminator      = discriminator
+        self.cfd_delay          = cfd_delay
 
 def get_device_info():
     return (MSCF16.idcs, MSCF16)
@@ -61,6 +74,7 @@ class MSCF16(app_model.Device):
     num_groups          =  4        # number of channel groups
     gain_factor         = 1.22      # gain step factor
     gain_adjust_limits  = (1, 100)  # limits of the hardware gain jumper inputs
+    base_shaping_time   = 0.125     # us
 
     gain_changed                    = pyqtSignal(object)
     threshold_changed               = pyqtSignal(object)
@@ -82,6 +96,7 @@ class MSCF16(app_model.Device):
     tf_int_time_changed             = pyqtSignal(int)
 
     gain_adjust_changed             = pyqtSignal(int, int)  # group, gain adjust
+    module_info_changed             = pyqtSignal(object)
 
     def __init__(self, device_model=None, device_config=None, device_profile=None, parent=None):
         super(MSCF16, self).__init__(device_model=device_model, device_config=device_config,
@@ -91,6 +106,7 @@ class MSCF16(app_model.Device):
         self._auto_pz_channel = 0
         self._gain_adjusts    = [1 for i in range(MSCF16.num_groups)]
         self.parameter_changed[object].connect(self._on_parameter_changed)
+        self.module_info      = MSCF16ModuleInfo()
 
     def propagate_state(self):
         """Propagate the current state using the signals defined in this class."""
@@ -272,6 +288,7 @@ class MSCF16(app_model.Device):
     def get_gain_adjust(self, group):
         return self._gain_adjusts[group]
 
+    @modifies_extensions
     def set_gain_adjust(self, group, value):
         self._gain_adjusts[group] = value
         self.gain_adjust_changed.emit(group, value)
@@ -283,13 +300,29 @@ class MSCF16(app_model.Device):
         for i in range(MSCF16.num_groups):
             self.set_gain_adjust(i, values[i])
 
+    @modifies_extensions
+    def set_module_info(self, modinfo):
+        self._module_info = modinfo
+        self.module_info_changed.emit(self.module_info)
+
+    def get_module_info(self):
+        return self._module_info
+
     gain_adjusts = property(get_gain_adjusts, set_gain_adjusts)
+    module_info  = property(get_module_info, set_module_info)
 
     def get_total_gain(self, group):
         return MSCF16.gain_factor ** self['gain_group%d' % group] * self.get_gain_adjust(group)
 
     def get_extensions(self):
-        return [('gain_adjusts', self.gain_adjusts)]
+        return [('gain_adjusts',    self.gain_adjusts),
+                ('module_name',     self.module_info.name),
+                ('shaping_time',    self.module_info.shaping_time),
+                ('input_type',      self.module_info.input_type),
+                ('input_connector', self.module_info.input_connector),
+                ('discriminator',   self.module_info.discriminator),
+                ('cfd_delay',       self.module_info.cfd_delay)
+                ]
 
     # ===== Feature detection =====
     # FIXME: These methods will throw if a required memory value is not yet known.
@@ -489,7 +522,8 @@ class ShapingPage(QtGui.QGroupBox):
             if chan % MSCF16.num_groups == 0:
                 descr_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1]))
                 spin_sht    = make_spinbox(limits=shaping_time_limits)
-                label_sht   = QtGui.QLabel(QtCore.QString.fromUtf8("42.0 µs")) # XXX
+                #label_sht   = QtGui.QLabel(QtCore.QString.fromUtf8("42.0 µs")) # XXX
+                label_sht   = QtGui.QLabel("N/A")
                 label_sht.setStyleSheet(dynamic_label_style)
 
                 layout.addWidget(descr_label,   row, 0, 1, 1, Qt.AlignRight)

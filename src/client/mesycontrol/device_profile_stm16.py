@@ -4,7 +4,6 @@
 
 from device_profile import DeviceProfile
 
-#threshold_percent = { 'label': '%', 'name': 'percent', 'factor': 6.4 }
 threshold_percent = { 'label': '%', 'name': 'percent', 'factor': 256/40.0 }
 
 profile_dict = {

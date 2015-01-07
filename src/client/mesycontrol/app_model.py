@@ -50,6 +50,16 @@ def config_required(f):
         return f(self, *args, **kwargs)
     return wrapper
 
+def modifies_extensions(f):
+    @wraps(f)
+    def wrapper(self, *args, **kwargs):
+        ret = f(self, *args, **kwargs)
+        for name, value in self.get_extensions():
+            print "setting extension", name, "to", value
+            self.config.set_extension(name, value)
+        return ret
+    return wrapper
+
 class Device(QtCore.QObject):
     config_set                      = pyqtSignal(object)    #: a new config object has been set (config.DeviceConfig)
     model_set                       = pyqtSignal(object)    #: a new model object has been set (hw_model.DeviceModel)
@@ -89,6 +99,7 @@ class Device(QtCore.QObject):
     config_parameter_removed        = pyqtSignal([int], [config.ParameterConfig])           #: address, ParameterConfig
     config_parameter_value_changed  = pyqtSignal([int, object], [config.ParameterConfig])   #: address, value
     config_parameter_alias_changed  = pyqtSignal([int, object], [config.ParameterConfig])   #: address, alias
+    config_modified_changed         = pyqtSignal(bool)
 
     # controller related
     write_access_changed            = pyqtSignal(bool)
@@ -238,6 +249,8 @@ class Device(QtCore.QObject):
             self.config.parameter_alias_changed[config.ParameterConfig].disconnect(
                     self.config_parameter_alias_changed[config.ParameterConfig])
 
+            self.config.modified_changed.disconnect(self.config_modified_changed)
+
         self._config = weakref.ref(cfg) if cfg is not None else None
 
         if self.config is not None:
@@ -265,6 +278,8 @@ class Device(QtCore.QObject):
                     self.config_parameter_alias_changed[int, object])
             self.config.parameter_alias_changed[config.ParameterConfig].connect(
                     self.config_parameter_alias_changed[config.ParameterConfig])
+
+            self.config.modified_changed.connect(self.config_modified_changed)
 
         self.config_set.emit(self.config)
 

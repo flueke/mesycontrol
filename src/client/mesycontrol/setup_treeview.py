@@ -18,8 +18,8 @@ import config_xml
 import mrc_command
 import util
 
-column_names  = ('name', 'rc', 'idc', 'queue_size', 'polling') # 'silent_mode', 'write_access')
-column_titles = ('Name', 'RC', 'IDC', 'Queue Size', 'Polling') # 'Silent Mode', 'Write Access')
+column_names  = ('name', 'rc', 'idc', 'queue_size', 'polling', 'modified') # 'silent_mode', 'write_access')
+column_titles = ('Name', 'RC', 'IDC', 'Queue Size', 'Polling', 'Modified') # 'Silent Mode', 'Write Access')
 
 def column_index(col_name):
     try:
@@ -289,6 +289,9 @@ class DeviceNode(TreeNodeWithModel):
         device.polling_changed.connect(partial(model.node_data_changed, node=self,
             col1=column_index('polling'), col2=column_index('polling')))
 
+        device.config_modified_changed.connect(partial(model.node_data_changed, node=self,
+            col1=column_index('modified'), col2=column_index('modified')))
+
         device.config_set.connect(partial(model.node_data_changed, node=self))
         device.model_set.connect(partial(model.node_data_changed, node=self))
 
@@ -343,6 +346,9 @@ class DeviceNode(TreeNodeWithModel):
                 return device.has_write_access()
             elif column_name == 'polling':
                 return device.should_poll()
+            elif column_name == 'modified':
+                return device.config.modified if device.has_config() else "-"
+
         return None
 
     def set_data(self, column, value, role):

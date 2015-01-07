@@ -4,7 +4,6 @@
 
 from device_profile import DeviceProfile
 
-#threshold_percent = { 'label': '%', 'name': 'percent', 'factor': 8.533333333333333 }
 threshold_percent = { 'label': '%', 'name': 'percent', 'factor': 256/30.0 }
 
 profile_dict = {
@@ -73,7 +72,7 @@ profile_dict = {
             { 'address': 50, 'name': 'blr_threshold', 'range': (0, 255) },
             { 'address': 51, 'name': 'blr_enable', 'range': (0, 1) },
             { 'address': 52, 'name': 'coincidence_time', 'range': (0, 255),
-                    'units': [{'label': 'ns', 'name': 'nanoseconds', 'factor': 1.4222222222222223, 'offset': 20}] },
+                    'units': [{'label': 'ns', 'name': 'nanoseconds', 'factor': 255/180.0, 'offset': 20}] },
             { 'address': 53, 'name': 'threshold_offset', 'range': (0, 200) },
             { 'address': 54, 'name': 'shaper_offset'   , 'range': (0, 200) },
             { 'address': 55, 'name': 'sumdis_threshold' },                      # MSCF-16-LN (special models only)
