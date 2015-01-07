@@ -146,6 +146,13 @@ if __name__ == "__main__":
 
     try:
         mrc_url = sys.argv[1]
+    except IndexError:
+        basename = os.path.basename(sys.argv[0])
+        print("Usage:   %s <mrc-url>" % basename)
+        print("Example: %s /dev/ttyUSB0" % basename)
+        sys.exit(1)
+
+    try:
         mrc = script.MRCWrapper(context.make_mrc_connection(url=mrc_url))
         print("Connecting to %s..." % mrc)
         mrc.connect()
