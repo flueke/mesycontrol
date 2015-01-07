@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
-from PyQt4 import QtCore
+from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import QObject, QTimer, pyqtProperty, pyqtSignal
 from PyQt4.QtCore import Qt
 import contextlib
@@ -446,3 +446,34 @@ class ExceptionHookRegistry(object):
     def __call__(self, exc_type, exc_value, exc_trace):
         for handler in self._handlers:
             handler(exc_type, exc_value, exc_trace)
+
+def make_title_label(title):
+    title_font = QtGui.QFont()
+    title_font.setBold(True)
+    label = QtGui.QLabel(title)
+    label.setFont(title_font)
+    label.setAlignment(Qt.AlignCenter)
+    return label
+
+def hline(parent=None):
+    ret = QtGui.QFrame(parent)
+    ret.setFrameShape(QtGui.QFrame.HLine)
+    ret.setFrameShadow(QtGui.QFrame.Sunken)
+    return ret
+
+def vline(parent=None):
+    ret = QtGui.QFrame(parent)
+    ret.setFrameShape(QtGui.QFrame.VLine)
+    ret.setFrameShadow(QtGui.QFrame.Sunken)
+    return ret
+
+def make_spinbox(min_value=None, max_value=None, limits=None, parent=None):
+    ret = QtGui.QSpinBox(parent)
+    if min_value is not None:
+        ret.setMinimum(min_value)
+    if max_value is not None:
+        ret.setMaximum(max_value)
+    if limits is not None:
+        ret.setMinimum(limits[0])
+        ret.setMaximum(limits[1])
+    return ret

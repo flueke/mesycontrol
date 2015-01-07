@@ -14,6 +14,8 @@ import command
 import mrc_command
 import util
 
+from util import make_title_label, hline, make_spinbox
+
 # TODO for the version 2 widget:
 # - gain calculation for charge based MSCF
 # - shaping time calculation
@@ -27,7 +29,7 @@ import util
 # timing_filter_integration: 5, 70
 # input_type: V, C,
 # input_connector: L, D
-# discriminator: _CFD, LE
+# discriminator: CFD, LE
 # cfd_delay: 30, 60, 120, 200
 
 def get_device_info():
@@ -58,7 +60,7 @@ class MSCF16(app_model.Device):
     num_channels        = 16        # number of channels
     num_groups          =  4        # number of channel groups
     gain_factor         = 1.22      # gain step factor
-    gain_adjust_limits  = (1, 100) # limits of the hardware gain jumper inputs
+    gain_adjust_limits  = (1, 100)  # limits of the hardware gain jumper inputs
 
     gain_changed                    = pyqtSignal(object)
     threshold_changed               = pyqtSignal(object)
@@ -284,7 +286,6 @@ class MSCF16(app_model.Device):
     gain_adjusts = property(get_gain_adjusts, set_gain_adjusts)
 
     def get_total_gain(self, group):
-        #return self['gain_group%d' % group] * self.get_gain_adjust(group) * MSCF16.gain_factor
         return MSCF16.gain_factor ** self['gain_group%d' % group] * self.get_gain_adjust(group)
 
     def get_extensions(self):
@@ -313,37 +314,6 @@ class MSCF16(app_model.Device):
 
     def has_detailed_versions(self):
         return all(self.has_hardware_version(), self.has_fgpa_version(), self.has_cpu_software_version())
-
-def make_title_label(title):
-    title_font = QtGui.QFont()
-    title_font.setBold(True)
-    label = QtGui.QLabel(title)
-    label.setFont(title_font)
-    label.setAlignment(Qt.AlignCenter)
-    return label
-
-def hline(parent=None):
-    ret = QtGui.QFrame(parent)
-    ret.setFrameShape(QtGui.QFrame.HLine)
-    ret.setFrameShadow(QtGui.QFrame.Sunken)
-    return ret
-
-def vline(parent=None):
-    ret = QtGui.QFrame(parent)
-    ret.setFrameShape(QtGui.QFrame.VLine)
-    ret.setFrameShadow(QtGui.QFrame.Sunken)
-    return ret
-
-def make_spinbox(min_value=None, max_value=None, limits=None, parent=None):
-    ret = QtGui.QSpinBox(parent)
-    if min_value is not None:
-        ret.setMinimum(min_value)
-    if max_value is not None:
-        ret.setMaximum(max_value)
-    if limits is not None:
-        ret.setMinimum(limits[0])
-        ret.setMaximum(limits[1])
-    return ret
 
 dynamic_label_style = "QLabel { background-color: lightgrey; }"
 
@@ -657,7 +627,6 @@ class TimingPage(QtGui.QGroupBox):
         self.device.ecl_delay_enable_changed.connect(self._on_device_ecl_enable_changed)
         self.device.tf_int_time_changed.connect(self._on_device_tf_int_time_changed)
 
-        #self.threshold_common = QtGui.QSpinBox()
         self.threshold_common = make_spinbox(limits=device.profile['threshold_common'].range.to_tuple())
         self.threshold_inputs = list()
         self.threshold_labels = list()
