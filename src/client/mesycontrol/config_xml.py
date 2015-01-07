@@ -174,7 +174,7 @@ def _device_config_to_etree(cfg, profile, tb):
         tb.start("parameter_config", attrs)
         tb.end("parameter_config")
 
-    for name, value in cfg.get_extensions():
+    for name, value in cfg.get_extensions().iteritems():
         tb.start("extension", {'name': name})
         value2xml(tb, value)
         tb.end("extension")
