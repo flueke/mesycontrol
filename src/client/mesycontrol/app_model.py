@@ -55,7 +55,6 @@ def modifies_extensions(f):
     def wrapper(self, *args, **kwargs):
         ret = f(self, *args, **kwargs)
         for name, value in self.get_extensions():
-            print "setting extension", name, "to", value
             self.config.set_extension(name, value)
         return ret
     return wrapper
@@ -340,8 +339,10 @@ class Device(QtCore.QObject):
     # ===== get parameter =====
     @model_required
     def _get_parameter(self, profile, unit_label):
-        unit = profile.get_unit(unit_label)
-        return unit.unit_value(self.model.get_parameter(profile.address))
+        if unit_label != 'raw':
+            unit = profile.get_unit(unit_label)
+            return unit.unit_value(self.model.get_parameter(profile.address))
+        return self.model.get_parameter(profile.address)
 
     @model_required
     def get_parameter(self, address, unit_label='raw'):

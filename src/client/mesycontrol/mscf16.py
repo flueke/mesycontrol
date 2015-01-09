@@ -19,10 +19,10 @@ from util import make_title_label, hline, make_spinbox
 
 # TODO for the version 2 widget:
 # - gain calculation for charge based MSCF
-# - shaping time calculation
 # - disable version specific inputs
 # - handle single channel / common mode setting: user selectable or enable
 #   single channel mode on startup or both
+# - add buttons to apply the common mode setting to each channel/group
 
 # MSCF16 naming system:
 # <module_name> <shaping_times> [<timing_filter_integration>] <input_type> <input_connector> <discriminator> <cfd_delay>
@@ -35,11 +35,17 @@ from util import make_title_label, hline, make_spinbox
 # cfd_delay: 30, 60, 120, 200
 
 class MSCF16ModuleInfo(object):
+    shaping_times_us = {
+            1: [0.125, 0.25, 0.5, 1.0],
+            2: [0.25,  0.5,  1.0, 2.0],
+            4: [0.5,   1.0,  2.0, 4.0],
+            8: [1.0,   2.0,  4.0, 8.0]
+            }
+
     def __init__(self, name='F', shaping_time=1, input_type='V',
             input_connector='L', discriminator='CFD', cfd_delay=30):
         self.name               = name
         self.shaping_time       = shaping_time
-
         self.input_type         = input_type
         self.input_connector    = input_connector
         self.discriminator      = discriminator
@@ -74,7 +80,6 @@ class MSCF16(app_model.Device):
     num_groups          =  4        # number of channel groups
     gain_factor         = 1.22      # gain step factor
     gain_adjust_limits  = (1, 100)  # limits of the hardware gain jumper inputs
-    base_shaping_time   = 0.125     # us
 
     gain_changed                    = pyqtSignal(object)
     threshold_changed               = pyqtSignal(object)
@@ -213,6 +218,14 @@ class MSCF16(app_model.Device):
 
     def set_shaping_time(self, group, value, response_handler=None):
         return self.set_parameter('shaping_time_group%d' % group, value, response_handler=response_handler)
+
+    def get_shaping_time(self, group):
+        return self.get_parameter_by_name('shaping_time_group%d' % group)
+
+    def get_effective_shaping_time(self, group):
+        sht   = self.get_shaping_time(group)
+        times = self.module_info.shaping_times_us[self.module_info.shaping_time]
+        return times[sht]
 
     def set_common_shaping_time(self, value, response_handler=None):
         return self.set_parameter('shaping_time_common', value, response_handler=response_handler)
@@ -477,9 +490,11 @@ class ShapingPage(QtGui.QGroupBox):
         self.device.blr_threshold_changed.connect(self._on_device_blr_threshold_changed)
         self.device.blr_changed.connect(self._on_device_blr_changed)
         self.device.auto_pz_channel_changed.connect(self._on_device_auto_pz_channel_changed)
+        self.device.module_info_changed.connect(self._on_device_module_info_changed)
 
         self.stop_icon  = QtGui.QIcon(context.find_data_file('mesycontrol/ui/process-stop.png'))
         self.sht_inputs = list()
+        self.sht_labels = list()
         self.pz_inputs  = list()
         self.pz_buttons = list()
         self.pz_stacks  = list()
@@ -531,6 +546,7 @@ class ShapingPage(QtGui.QGroupBox):
                 layout.addWidget(label_sht,     row, 2)
 
                 self.sht_inputs.append(spin_sht)
+                self.sht_labels.append(label_sht)
                 spin_sht.valueChanged[int].connect(self._on_shaping_time_value_changed)
 
             label_chan  = QtGui.QLabel("%d" % chan)
@@ -622,6 +638,9 @@ class ShapingPage(QtGui.QGroupBox):
         with util.block_signals(spin):
             spin.setValue(bp.value)
 
+        if bp.has_index():
+            self._update_sht_label(bp.index)
+
     def _on_device_pz_value_changed(self, bp):
         spin = self.spin_pz_common if not bp.has_index() else self.pz_inputs[bp.index]
         with util.block_signals(spin):
@@ -651,6 +670,16 @@ class ShapingPage(QtGui.QGroupBox):
                 self.pz_buttons[i].setText("")
                 self.pz_buttons[i].setIcon(self.stop_icon)
                 self.pz_buttons[i].setToolTip("Stop auto PZ")
+
+    def _on_device_module_info_changed(self, mod_info):
+        for i in range(MSCF16.num_groups):
+            self._update_sht_label(i)
+
+    def _update_sht_label(self, group):
+        text  = "%.2f µs" % self.device.get_effective_shaping_time(group)
+        label = self.sht_labels[group]
+        label.setText(QtCore.QString.fromUtf8(text))
+
 
 class TimingPage(QtGui.QGroupBox):
     def __init__(self, device, parent=None):
@@ -806,6 +835,7 @@ class MiscPage(QtGui.QWidget):
         monitor_box = QtGui.QGroupBox("Monitor Channel")
         monitor_layout = QtGui.QGridLayout(monitor_box)
         self.combo_monitor  = QtGui.QComboBox()
+        self.combo_monitor.addItem("Off")
         self.combo_monitor.addItems(["Channel %d" % i for i in range(MSCF16.num_channels)])
         self.combo_monitor.setMaxVisibleItems(MSCF16.num_channels+1)
         self.combo_monitor.currentIndexChanged[int].connect(self._monitor_channel_selected)
