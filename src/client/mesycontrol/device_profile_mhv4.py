@@ -4,7 +4,8 @@
 
 from device_profile import DeviceProfile
 
-voltage_10 = { 'label': 'V', 'name': 'volt', 'factor': 10.0 }
+voltage_10  = { 'label': 'V',    'name': 'volt', 'factor': 10.0 }
+tcomp_slope = { 'label': 'V/°C', 'name': 'volt_per_deg', 'factor': 1000.0, 'offset': -10.0 }
 
 profile_dict = {
         'name': 'MHV-4-800V',
@@ -67,15 +68,15 @@ profile_dict = {
             { 'address': 29,  'name': 'channel3_temp_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
 
             # Temperature compensation slope
-            { 'address': 64,  'name': 'channel0_tcomp_slope_write', 'index': 0, 'range': (0, 19999), 'units': [{'label': 'V/°C', 'offset': -10000.0}] },
-            { 'address': 65,  'name': 'channel1_tcomp_slope_write', 'index': 1, 'range': (0, 19999), 'units': [{'label': 'V/°C', 'offset': -10000.0}] },
-            { 'address': 66,  'name': 'channel2_tcomp_slope_write', 'index': 2, 'range': (0, 19999), 'units': [{'label': 'V/°C', 'offset': -10000.0}] },
-            { 'address': 67,  'name': 'channel3_tcomp_slope_write', 'index': 3, 'range': (0, 19999), 'units': [{'label': 'V/°C', 'offset': -10000.0}] },
+            { 'address': 64,  'name': 'channel0_tcomp_slope_write', 'index': 0, 'range': (0, 19999), 'units': [tcomp_slope] },
+            { 'address': 65,  'name': 'channel1_tcomp_slope_write', 'index': 1, 'range': (0, 19999), 'units': [tcomp_slope] },
+            { 'address': 66,  'name': 'channel2_tcomp_slope_write', 'index': 2, 'range': (0, 19999), 'units': [tcomp_slope] },
+            { 'address': 67,  'name': 'channel3_tcomp_slope_write', 'index': 3, 'range': (0, 19999), 'units': [tcomp_slope] },
 
-            { 'address': 100,  'name': 'channel0_tcomp_slope_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [{'label': 'V/°C', 'offset': -10000.0}] },
-            { 'address': 101,  'name': 'channel1_tcomp_slope_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [{'label': 'V/°C', 'offset': -10000.0}] },
-            { 'address': 102,  'name': 'channel2_tcomp_slope_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [{'label': 'V/°C', 'offset': -10000.0}] },
-            { 'address': 103,  'name': 'channel3_tcomp_slope_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': 'V/°C', 'offset': -10000.0}] },
+            { 'address': 100,  'name': 'channel0_tcomp_slope_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [tcomp_slope] },
+            { 'address': 101,  'name': 'channel1_tcomp_slope_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [tcomp_slope] },
+            { 'address': 102,  'name': 'channel2_tcomp_slope_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [tcomp_slope] },
+            { 'address': 103,  'name': 'channel3_tcomp_slope_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [tcomp_slope] },
 
             # Temperature compensation offset
             { 'address': 68,  'name': 'channel0_tcomp_offset_write', 'index': 0, 'range': (0, 500), 'units': [{'label': '°C', 'factor': 10.0}] },

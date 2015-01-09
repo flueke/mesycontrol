@@ -660,7 +660,7 @@ class MHV4Widget(QtGui.QWidget):
         csw = self.sender()
         c   = csw.channel
 
-        text = "Channel %d" % c
+        text = "Channel %d" % (c+1)
         if is_modified:
             text += "*"
 
