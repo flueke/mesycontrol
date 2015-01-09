@@ -56,11 +56,12 @@ class STM16(app_model.Device):
                 self.parameter_changed[object].emit(bp)
 
     def _on_parameter_changed(self, bp):
-        if re.match(r"gain_group\d+", bp.name):
-            self.gain_changed.emit(bp)
+        if bp.name is not None:
+            if re.match(r"gain_group\d+", bp.name):
+                self.gain_changed.emit(bp)
 
-        elif re.match(r"threshold_channel\d+", bp.name):
-            self.threshold_changed.emit(bp)
+            elif re.match(r"threshold_channel\d+", bp.name):
+                self.threshold_changed.emit(bp)
 
     def set_gain(self, group, value, response_handler=None):
         return self.set_parameter('gain_group%d' % group, value, response_handler=response_handler)
