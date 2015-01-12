@@ -22,13 +22,12 @@ from util import make_title_label, hline, make_spinbox
 # - disable version specific inputs
 # - handle single channel / common mode setting: user selectable or enable
 #   single channel mode on startup or both
-# - add buttons to apply the common mode setting to each channel/group
 
 # MSCF16 naming system:
 # <module_name> <shaping_times> [<timing_filter_integration>] <input_type> <input_connector> <discriminator> <cfd_delay>
 # module_name: MSCF-16_LN, MSCF-16_F
 # shaping_times: SH1, SH2, SH4, SH8
-# timing_filter_integration: 5, 70
+# timing_filter_integration: 5, 70 (old and probably not needed)
 # input_type: V, C,
 # input_connector: L, D
 # discriminator: CFD, LE
@@ -363,8 +362,23 @@ class MSCF16(app_model.Device):
 
 dynamic_label_style = "QLabel { background-color: lightgrey; }"
 
+def make_apply_common_button_layout(input_spinbox, tooltip, on_clicked, context):
+    button = QtGui.QPushButton(clicked=on_clicked)
+    button.setIcon(QtGui.QIcon(context.find_data_file('mesycontrol/ui/arrow-bottom-2x.png')))
+    button.setMaximumHeight(input_spinbox.sizeHint().height())
+    button.setMaximumWidth(16)
+    button.setToolTip(tooltip)
+
+    layout = QtGui.QHBoxLayout()
+    layout.addWidget(input_spinbox)
+    layout.addWidget(button)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(1)
+
+    return (layout, button)
+
 class GainPage(QtGui.QGroupBox):
-    def __init__(self, device, parent=None):
+    def __init__(self, device, context, parent=None):
         super(GainPage, self).__init__("Gain", parent)
         self.device         = device
         device.gain_changed.connect(self._on_device_gain_changed)
@@ -377,11 +391,14 @@ class GainPage(QtGui.QGroupBox):
         gain_min_max = device.profile['gain_common'].range.to_tuple()
 
         layout = QtGui.QGridLayout(self)
-
         layout.addWidget(QtGui.QLabel("Common"), 0, 0, 1, 1, Qt.AlignRight)
+
         self.gain_common = make_spinbox(limits=gain_min_max)
         self.gain_common.valueChanged[int].connect(self._on_gain_input_value_changed)
-        layout.addWidget(self.gain_common, 0, 1)
+
+        common_layout = make_apply_common_button_layout(
+                self.gain_common, "Apply to groups", self._apply_common_gain, context)[0]
+        layout.addLayout(common_layout, 0, 1)
 
         layout.addWidget(make_title_label("Group"),   1, 0, 1, 1, Qt.AlignRight)
         layout.addWidget(make_title_label("RC Gain"), 1, 1, 1, 1, Qt.AlignCenter)
@@ -424,6 +441,15 @@ class GainPage(QtGui.QGroupBox):
             layout.addWidget(descr_label, i+offset, 0, 1, 1, Qt.AlignRight)
             layout.addWidget(gain_spin,   i+offset, 1)
 
+    def _apply_common_gain(self):
+        cmd = command.SequentialCommandGroup()
+        for i in range(MSCF16.num_groups):
+            set_cmd = mrc_command.SetParameter(self.device, 'gain_group%d' % i, self.device['gain_common'])
+            cmd.add(set_cmd)
+
+        d = command.CommandProgressDialog(cmd, cancelButtonText=QtCore.QString(), parent=self)
+        d.exec_()
+
     @pyqtSlot(int)
     def _on_gain_input_value_changed(self, value):
         s = self.sender()
@@ -459,11 +485,7 @@ class AutoPZSpin(QtGui.QStackedWidget):
     def __init__(self, limits=None, parent=None):
         super(AutoPZSpin, self).__init__(parent)
 
-        self.spin = QtGui.QSpinBox()
-        if limits is not None:
-            self.spin.setMinimum(limits[0])
-            self.spin.setMaximum(limits[1])
-
+        self.spin     = make_spinbox(limits=limits)
         self.progress = QtGui.QProgressBar()
         self.progress.setTextVisible(False)
         self.progress.setMinimum(0)
@@ -471,6 +493,11 @@ class AutoPZSpin(QtGui.QStackedWidget):
 
         self.addWidget(self.spin)
         self.addWidget(self.progress)
+
+        # Ignore the size hint of the progressbar so that only the size of the
+        # spinbox is taken into account when calculating the final widget size.
+        self.widget(1).setSizePolicy(QtGui.QSizePolicy.Ignored,
+                QtGui.QSizePolicy.Ignored)
 
     def showSpin(self):
         self.setCurrentIndex(0)
@@ -504,13 +531,17 @@ class ShapingPage(QtGui.QGroupBox):
 
         # Columns: group_num, shaping time input, shaping time display, chan_num, pz input, auto pz button
 
-        layout = QtGui.QGridLayout(self)
-
         self.spin_sht_common    = make_spinbox(limits=shaping_time_limits)
         self.spin_sht_common.valueChanged[int].connect(self._on_shaping_time_value_changed)
 
         self.spin_pz_common     = make_spinbox(limits=pz_value_limits)
         self.spin_pz_common.valueChanged[int].connect(self._on_pz_value_changed)
+
+        sht_common_layout = make_apply_common_button_layout(
+                self.spin_sht_common, "Apply to groups", self._apply_common_sht, context)[0]
+
+        pz_common_layout  = make_apply_common_button_layout(
+                self.spin_pz_common, "Apply to channels", self._apply_common_pz, context)[0]
 
         self.pb_auto_pz_all  = QtGui.QPushButton("A")
         self.pb_auto_pz_all.setToolTip("Start auto PZ for all channels")
@@ -518,10 +549,11 @@ class ShapingPage(QtGui.QGroupBox):
         self.pb_auto_pz_all.setMaximumSize(ShapingPage.auto_pz_button_size)
         self.pb_auto_pz_all.clicked.connect(self._on_auto_pz_button_clicked)
 
+        layout = QtGui.QGridLayout(self)
         layout.addWidget(QtGui.QLabel("Common"),    0, 0, 1, 1, Qt.AlignRight)
-        layout.addWidget(self.spin_sht_common,      0, 1)
+        layout.addLayout(sht_common_layout,         0, 1)
         layout.addWidget(QtGui.QLabel("Common"),    0, 3, 1, 1, Qt.AlignRight)
-        layout.addWidget(self.spin_pz_common,       0, 4)
+        layout.addLayout(pz_common_layout,          0, 4)
         layout.addWidget(self.pb_auto_pz_all,       0, 5)
 
         layout.addWidget(make_title_label("Group"),   1, 0, 1, 1, Qt.AlignRight)
@@ -537,7 +569,6 @@ class ShapingPage(QtGui.QGroupBox):
             if chan % MSCF16.num_groups == 0:
                 descr_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1]))
                 spin_sht    = make_spinbox(limits=shaping_time_limits)
-                #label_sht   = QtGui.QLabel(QtCore.QString.fromUtf8("42.0 µs")) # XXX
                 label_sht   = QtGui.QLabel("N/A")
                 label_sht.setStyleSheet(dynamic_label_style)
 
@@ -632,6 +663,27 @@ class ShapingPage(QtGui.QGroupBox):
             else:
                 self.device.set_auto_pz_channel(idx+1)
 
+    def _apply_common_sht(self):
+        cmd = command.SequentialCommandGroup()
+        for i in range(MSCF16.num_groups):
+            set_cmd = mrc_command.SetParameter(self.device, 'shaping_time_group%d' % i,
+                    self.device['shaping_time_common'])
+            cmd.add(set_cmd)
+
+        d = command.CommandProgressDialog(cmd, cancelButtonText=QtCore.QString(), parent=self)
+        d.exec_()
+
+    def _apply_common_pz(self):
+        cmd = command.SequentialCommandGroup()
+        for i in range(MSCF16.num_channels):
+            set_cmd = mrc_command.SetParameter(self.device, 'pz_value_channel%d' % i,
+                    self.device['pz_value_common'])
+            cmd.add(set_cmd)
+
+        d = command.CommandProgressDialog(cmd, cancelButtonText=QtCore.QString(), parent=self)
+        d.exec_()
+
+
     # ===== Device changes =====
     def _on_device_shaping_time_changed(self, bp):
         spin = self.spin_sht_common if not bp.has_index() else self.sht_inputs[bp.index]
@@ -682,7 +734,7 @@ class ShapingPage(QtGui.QGroupBox):
 
 
 class TimingPage(QtGui.QGroupBox):
-    def __init__(self, device, parent=None):
+    def __init__(self, device, context, parent=None):
         super(TimingPage, self).__init__("Timing", parent)
         self.device           = device
         self.device.threshold_changed.connect(self._on_device_threshold_changed)
@@ -690,15 +742,18 @@ class TimingPage(QtGui.QGroupBox):
         self.device.ecl_delay_enable_changed.connect(self._on_device_ecl_enable_changed)
         self.device.tf_int_time_changed.connect(self._on_device_tf_int_time_changed)
 
-        self.threshold_common = make_spinbox(limits=device.profile['threshold_common'].range.to_tuple())
         self.threshold_inputs = list()
         self.threshold_labels = list()
 
+        self.threshold_common = make_spinbox(limits=device.profile['threshold_common'].range.to_tuple())
         self.threshold_common.valueChanged[int].connect(self._on_threshold_changed)
+
+        threshold_common_layout = make_apply_common_button_layout(
+                self.threshold_common, "Apply to channels", self._apply_common_threshold, context)[0]
 
         layout = QtGui.QGridLayout(self)
         layout.addWidget(QtGui.QLabel("Common"), 0, 0, 1, 1, Qt.AlignRight)
-        layout.addWidget(self.threshold_common, 0, 1)
+        layout.addLayout(threshold_common_layout, 0, 1)
 
         layout.addWidget(make_title_label("Channel"),   1, 0, 1, 1, Qt.AlignRight)
         layout.addWidget(make_title_label("Threshold"), 1, 1)
@@ -762,6 +817,17 @@ class TimingPage(QtGui.QGroupBox):
     @pyqtSlot(int)
     def _on_tf_int_time_changed(self, value):
         self.device.set_tf_int_time(value)
+
+    def _apply_common_threshold(self):
+        cmd = command.SequentialCommandGroup()
+        for i in range(MSCF16.num_channels):
+            set_cmd = mrc_command.SetParameter(self.device, 'threshold_channel%d' % i,
+                    self.device['threshold_common'])
+            cmd.add(set_cmd)
+
+        d = command.CommandProgressDialog(cmd, cancelButtonText=QtCore.QString(), parent=self)
+        d.exec_()
+
 
     def _on_device_threshold_changed(self, bp):
         spin = self.threshold_common if not bp.has_index() else self.threshold_inputs[bp.index]
@@ -972,9 +1038,9 @@ class MSCF16Widget(QtGui.QWidget):
         self.device  = device
         self.device.add_default_parameter_subscription(self)
 
-        self.gain_page      = GainPage(device, self)
+        self.gain_page      = GainPage(device, context, self)
         self.shaping_page   = ShapingPage(device, context, self)
-        self.timing_page    = TimingPage(device, self)
+        self.timing_page    = TimingPage(device, context, self)
         self.misc_page      = MiscPage(device, self)
 
         pages = [self.gain_page, self.shaping_page, self.timing_page, self.misc_page]
@@ -1013,7 +1079,9 @@ if __name__ == "__main__":
     context = mock.Mock()
     device  = mock.Mock()
     device.profile = device_profile_mscf16.get_device_profile()
-    device.get_total_gain = mock.MagicMock(return_value=2)
+    device.parameter_changed = mock.MagicMock()
+    device.get_total_gain  = mock.MagicMock(return_value=2)
+    device.get_gain_adjust = mock.MagicMock(return_value=30)
 
     w = MSCF16Widget(device, context)
     w.show()
