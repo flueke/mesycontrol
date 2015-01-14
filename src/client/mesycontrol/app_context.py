@@ -51,7 +51,10 @@ class Context(QtCore.QObject):
             self.unregister_mrc_model(mrc_model)
 
     def _load_system_profiles(self):
-        for mod_name in ('device_profile_mhv4', 'device_profile_mscf16', 'device_profile_stm16'):
+        mods = ('device_profile_mhv4', 'device_profile_mscf16',
+                'device_profile_stm16', 'device_profile_mcfd16')
+
+        for mod_name in mods:
             try:
                 mod = importlib.import_module("mesycontrol." + mod_name)
                 self.log.debug("Loading device profile from %s", mod.__file__)
@@ -64,7 +67,7 @@ class Context(QtCore.QObject):
                 self.log.error("Error loading device profile from %s: %s", mod_name, str(e))
 
     def _load_device_classes(self):
-        for mod_name in ('mhv4', 'mscf16', 'stm16'):
+        for mod_name in ('mhv4', 'mscf16', 'stm16', 'mcfd16'):
             try:
                 mod = importlib.import_module('mesycontrol.' + mod_name)
                 self.log.debug("Loading device class from %s", mod.__file__)

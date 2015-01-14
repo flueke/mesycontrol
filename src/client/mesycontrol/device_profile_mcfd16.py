@@ -4,6 +4,8 @@
 
 from device_profile import DeviceProfile
 
+# TODO: what is the BWL (bandwidth limit) address?
+
 profile_dict = {
         'name': 'MCFD-16',
         'idc': 26,
@@ -39,6 +41,7 @@ profile_dict = {
             { 'address': 65, 'name': 'gain_common',               'range': (0, 2) },
 
             # Width
+            # TODO: width range
             { 'address': 24, 'name': 'width_group0' , 'index': 0,  'range': (5, 255) },
             { 'address': 25, 'name': 'width_group1' , 'index': 1,  'range': (5, 255) },
             { 'address': 26, 'name': 'width_group2' , 'index': 2,  'range': (5, 255) },
@@ -47,9 +50,10 @@ profile_dict = {
             { 'address': 29, 'name': 'width_group5' , 'index': 5,  'range': (5, 255) },
             { 'address': 30, 'name': 'width_group6' , 'index': 6,  'range': (5, 255) },
             { 'address': 31, 'name': 'width_group7' , 'index': 7,  'range': (5, 255) },
-            { 'address': 66, 'name': 'width_common',               'range': (5, 255) },
+            { 'address': 66, 'name': 'width_common',               'range': (16, 222) },
 
             # Deadtime
+            # TODO: deadtime range
             { 'address': 32, 'name': 'deadtime_group0' , 'index': 0,  'range': (5, 255) },
             { 'address': 33, 'name': 'deadtime_group1' , 'index': 1,  'range': (5, 255) },
             { 'address': 34, 'name': 'deadtime_group2' , 'index': 2,  'range': (5, 255) },
@@ -58,7 +62,7 @@ profile_dict = {
             { 'address': 37, 'name': 'deadtime_group5' , 'index': 5,  'range': (5, 255) },
             { 'address': 38, 'name': 'deadtime_group6' , 'index': 6,  'range': (5, 255) },
             { 'address': 39, 'name': 'deadtime_group7' , 'index': 7,  'range': (5, 255) },
-            { 'address': 67, 'name': 'deadtime_common',               'range': (5, 255) },
+            { 'address': 67, 'name': 'deadtime_common',               'range': (27, 222) },
 
             # Delay
             { 'address': 40, 'name': 'delay_group0' , 'index': 0,  'range': (0, 4) },
@@ -94,32 +98,32 @@ profile_dict = {
             { 'address': 70, 'name': 'polarity_common',               'range': (0, 1) },
 
             # Mode & RC
-            { 'address': 72, 'name': 'channel_mode',                  'range': (0, 1) },
+            { 'address': 72, 'name': 'single_channel_mode',           'range': (0, 1) },
             { 'address': 73, 'name': 'rc',                            'range': (0, 1) },
 
             # Timing parameters
-            { 'address': 74, 'name': 'leading_edge_delay',            'range': (5, 255) },
-            { 'address': 75, 'name': 'trailing_edge_delay',           'range': (5, 255) },
-            { 'address': 76, 'name': 'coincidence_time',              'range': (0, 233) },
-            { 'address': 77, 'name': 'fast_veto',                     'range': (5, 255) },
+            { 'address': 74, 'name': 'gg_leading_edge_delay',           'range': (5, 255) },
+            { 'address': 75, 'name': 'gg_trailing_edge_delay',          'range': (5, 255) },
+            { 'address': 76, 'name': 'coincidence_time',                'range': (0, 136) }, # TODO: docs have 136 and 233 as upper limits
+            { 'address': 77, 'name': 'fast_veto',                       'range': (0, 1) },
 
             # Rate measurement
-            { 'address': 78, 'name': 'rate_monitor_channel',          'range': (0, 19) },
-            { 'address': 79, 'name': 'time_base',                     'range': (0, 255) }, # TODO: validate range
-            { 'address': 80, 'name': 'measurement_ready',           'read_only': True },
-            { 'address': 81, 'name': 'frequency_low_byte',          'read_only': True },
-            { 'address': 82, 'name': 'frequency_high_byte',         'read_only': True },
+            { 'address': 78, 'name': 'rate_monitor_channel',            'range': (0, 19) },
+            { 'address': 79, 'name': 'time_base',                       'range': (0, 255) }, # TODO: range?
+            { 'address': 80, 'name': 'measurement_ready',               'read_only': True },
+            { 'address': 81, 'name': 'frequency_low_byte',              'read_only': True },
+            { 'address': 82, 'name': 'frequency_high_byte',             'read_only': True },
 
             # Channel mask
-            { 'address': 83, 'name': 'channel_mask_low_byte',       'range': (0, 255) },
-            # TODO: is there a high byte too?
+            { 'address': 83, 'name': 'channel_mask_low_byte',           'range': (0, 255) }, # TODO: confirm there are
+            { 'address': 84, 'name': 'channel_mask_high_byte',          'range': (0, 255) }, # TODO: two masking registers
 
             # Test pulser
             { 'address': 118, 'name': 'test_pulser', 'range': (0, 1) },
 
             # Monitor outputs
             { 'address': 122, 'name': 'monitor0' }, # TODO: range
-            { 'address': 122, 'name': 'monitor1' }, # TODO: range
+            { 'address': 123, 'name': 'monitor1' }, # TODO: range
 
             # Trigger pattern
             { 'address': 124, 'name': 'trigger_pattern0_low' },
@@ -133,27 +137,29 @@ profile_dict = {
             { 'address': 130, 'name': 'trigger2' },
 
             # Gate gen sources
-            { 'address': 131, 'name': 'gate_generator' },
+            { 'address': 131, 'name': 'gg_sources' },
 
             # Multiplicity
             { 'address': 132, 'name': 'multiplicity_lo' },
             { 'address': 133, 'name': 'multiplicity_hi' },
 
             # Pair coincidence pattern
-            { 'address': 134, 'name': 'pair_pattern0' },
-            { 'address': 136, 'name': 'pair_pattern0' },
-            { 'address': 138, 'name': 'pair_pattern0' },
-            { 'address': 140, 'name': 'pair_pattern0' },
-            { 'address': 142, 'name': 'pair_pattern0' },
-            { 'address': 144, 'name': 'pair_pattern0' },
-            { 'address': 146, 'name': 'pair_pattern0' },
-            { 'address': 148, 'name': 'pair_pattern0' },
-            { 'address': 150, 'name': 'pair_pattern0' },
-            { 'address': 152, 'name': 'pair_pattern0' },
-            # XXX leftoff
-            syntax error here!
-            { 'address': 134, 'name': 'pair_pattern0' },
-
+            { 'address': 134, 'name': 'pair_pattern0',  'index': 0 },
+            { 'address': 136, 'name': 'pair_pattern1',  'index': 0 },
+            { 'address': 138, 'name': 'pair_pattern2',  'index': 0 },
+            { 'address': 140, 'name': 'pair_pattern3',  'index': 0 },
+            { 'address': 142, 'name': 'pair_pattern4',  'index': 0 },
+            { 'address': 144, 'name': 'pair_pattern5',  'index': 0 },
+            { 'address': 146, 'name': 'pair_pattern6',  'index': 0 },
+            { 'address': 148, 'name': 'pair_pattern7',  'index': 0 },
+            { 'address': 150, 'name': 'pair_pattern8',  'index': 0 },
+            { 'address': 152, 'name': 'pair_pattern9',  'index': 0 },
+            { 'address': 154, 'name': 'pair_pattern10', 'index': 0 },
+            { 'address': 156, 'name': 'pair_pattern11', 'index': 0 },
+            { 'address': 158, 'name': 'pair_pattern12', 'index': 0 },
+            { 'address': 160, 'name': 'pair_pattern13', 'index': 0 },
+            { 'address': 162, 'name': 'pair_pattern14', 'index': 0 },
+            { 'address': 164, 'name': 'pair_pattern15', 'index': 0 },
             ]
 }
 
