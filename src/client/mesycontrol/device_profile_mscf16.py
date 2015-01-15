@@ -63,8 +63,8 @@ profile_dict = {
             { 'address': 43, 'name': 'shaping_time_common', 'range': (0, 3) },
 
             # Misc
-            { 'address': 44, 'name': 'multiplicity_hi', 'range': (0, 8) },
-            { 'address': 45, 'name': 'multiplicity_lo', 'range': (0, 8) },
+            { 'address': 44, 'name': 'multiplicity_hi', 'range': (1, 8) },
+            { 'address': 45, 'name': 'multiplicity_lo', 'range': (1, 8) },
             { 'address': 46, 'name': 'monitor_channel', 'range': (1, 16)},
             { 'address': 47, 'name': 'single_channel_mode', 'range': (0, 1) },
             { 'address': 48, 'name': 'rc_enable', 'read_only': True },

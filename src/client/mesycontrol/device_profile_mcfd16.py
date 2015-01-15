@@ -4,7 +4,10 @@
 
 from device_profile import DeviceProfile
 
-# TODO: what is the BWL (bandwidth limit) address?
+# TODO: liste der komischen dinge:
+# * rc_bit und scanbus output unterscheiden sich wenn am frontpanel werte veraendert wurden.
+# * BWL on/off und CFD/LE register fehlen
+# * *_common werte sind limitiert, die gruppen/channelwerte nicht
 
 profile_dict = {
         'name': 'MCFD-16',
@@ -41,27 +44,25 @@ profile_dict = {
             { 'address': 65, 'name': 'gain_common',               'range': (0, 2) },
 
             # Width
-            # TODO: width range
-            { 'address': 24, 'name': 'width_group0' , 'index': 0,  'range': (5, 255) },
-            { 'address': 25, 'name': 'width_group1' , 'index': 1,  'range': (5, 255) },
-            { 'address': 26, 'name': 'width_group2' , 'index': 2,  'range': (5, 255) },
-            { 'address': 27, 'name': 'width_group3' , 'index': 3,  'range': (5, 255) },
-            { 'address': 28, 'name': 'width_group4' , 'index': 4,  'range': (5, 255) },
-            { 'address': 29, 'name': 'width_group5' , 'index': 5,  'range': (5, 255) },
-            { 'address': 30, 'name': 'width_group6' , 'index': 6,  'range': (5, 255) },
-            { 'address': 31, 'name': 'width_group7' , 'index': 7,  'range': (5, 255) },
+            { 'address': 24, 'name': 'width_group0' , 'index': 0,  'range': (16, 222) },
+            { 'address': 25, 'name': 'width_group1' , 'index': 1,  'range': (16, 222) },
+            { 'address': 26, 'name': 'width_group2' , 'index': 2,  'range': (16, 222) },
+            { 'address': 27, 'name': 'width_group3' , 'index': 3,  'range': (16, 222) },
+            { 'address': 28, 'name': 'width_group4' , 'index': 4,  'range': (16, 222) },
+            { 'address': 29, 'name': 'width_group5' , 'index': 5,  'range': (16, 222) },
+            { 'address': 30, 'name': 'width_group6' , 'index': 6,  'range': (16, 222) },
+            { 'address': 31, 'name': 'width_group7' , 'index': 7,  'range': (16, 222) },
             { 'address': 66, 'name': 'width_common',               'range': (16, 222) },
 
             # Deadtime
-            # TODO: deadtime range
-            { 'address': 32, 'name': 'deadtime_group0' , 'index': 0,  'range': (5, 255) },
-            { 'address': 33, 'name': 'deadtime_group1' , 'index': 1,  'range': (5, 255) },
-            { 'address': 34, 'name': 'deadtime_group2' , 'index': 2,  'range': (5, 255) },
-            { 'address': 35, 'name': 'deadtime_group3' , 'index': 3,  'range': (5, 255) },
-            { 'address': 36, 'name': 'deadtime_group4' , 'index': 4,  'range': (5, 255) },
-            { 'address': 37, 'name': 'deadtime_group5' , 'index': 5,  'range': (5, 255) },
-            { 'address': 38, 'name': 'deadtime_group6' , 'index': 6,  'range': (5, 255) },
-            { 'address': 39, 'name': 'deadtime_group7' , 'index': 7,  'range': (5, 255) },
+            { 'address': 32, 'name': 'deadtime_group0' , 'index': 0,  'range': (27, 222) },
+            { 'address': 33, 'name': 'deadtime_group1' , 'index': 1,  'range': (27, 222) },
+            { 'address': 34, 'name': 'deadtime_group2' , 'index': 2,  'range': (27, 222) },
+            { 'address': 35, 'name': 'deadtime_group3' , 'index': 3,  'range': (27, 222) },
+            { 'address': 36, 'name': 'deadtime_group4' , 'index': 4,  'range': (27, 222) },
+            { 'address': 37, 'name': 'deadtime_group5' , 'index': 5,  'range': (27, 222) },
+            { 'address': 38, 'name': 'deadtime_group6' , 'index': 6,  'range': (27, 222) },
+            { 'address': 39, 'name': 'deadtime_group7' , 'index': 7,  'range': (27, 222) },
             { 'address': 67, 'name': 'deadtime_common',               'range': (27, 222) },
 
             # Delay
@@ -104,44 +105,50 @@ profile_dict = {
             # Timing parameters
             { 'address': 74, 'name': 'gg_leading_edge_delay',           'range': (5, 255) },
             { 'address': 75, 'name': 'gg_trailing_edge_delay',          'range': (5, 255) },
-            { 'address': 76, 'name': 'coincidence_time',                'range': (0, 136) }, # TODO: docs have 136 and 233 as upper limits
+            { 'address': 76, 'name': 'coincidence_time',                'range': (0, 136) }, # [0, 3..136] -> 1,2 not valid
             { 'address': 77, 'name': 'fast_veto',                       'range': (0, 1) },
 
             # Rate measurement
+            # [0..15] : signal channels
+            # [16..18]: trig0..trig2
+            # 19      : total rate
             { 'address': 78, 'name': 'rate_monitor_channel',            'range': (0, 19) },
-            { 'address': 79, 'name': 'time_base',                       'range': (0, 255) }, # TODO: range?
-            { 'address': 80, 'name': 'measurement_ready',               'read_only': True },
-            { 'address': 81, 'name': 'frequency_low_byte',              'read_only': True },
-            { 'address': 82, 'name': 'frequency_high_byte',             'read_only': True },
+
+            # XXX: polling for testing purposes
+            { 'address': 79, 'name': 'time_base',           'range': (0, 15), 'poll': False }, 
+            { 'address': 80, 'name': 'measurement_ready',   'read_only': True, 'poll': True },
+            { 'address': 81, 'name': 'frequency_low_byte',  'read_only': True, 'poll': False },
+            { 'address': 82, 'name': 'frequency_high_byte', 'read_only': True, 'poll': False },
 
             # Channel mask
-            { 'address': 83, 'name': 'channel_mask_low_byte',           'range': (0, 255) }, # TODO: confirm there are
-            { 'address': 84, 'name': 'channel_mask_high_byte',          'range': (0, 255) }, # TODO: two masking registers
+            # Bit n masks the channel pair (n, n+1)
+            { 'address': 83, 'name': 'channel_mask',           'range': (0, 255) }, 
 
             # Test pulser
-            { 'address': 118, 'name': 'test_pulser', 'range': (0, 1) },
+            # (off, 2.5MHz, 1.22kHz)
+            { 'address': 118, 'name': 'test_pulser', 'range': (0, 2) },
 
             # Monitor outputs
-            { 'address': 122, 'name': 'monitor0' }, # TODO: range
-            { 'address': 123, 'name': 'monitor1' }, # TODO: range
+            { 'address': 122, 'name': 'monitor0', 'range': (0, 15) },
+            { 'address': 123, 'name': 'monitor1', 'range': (0, 15) },
 
             # Trigger pattern
-            { 'address': 124, 'name': 'trigger_pattern0_low' },
-            { 'address': 125, 'name': 'trigger_pattern0_high' },
-            { 'address': 126, 'name': 'trigger_pattern1_low' },
-            { 'address': 127, 'name': 'trigger_pattern1_high' },
+            { 'address': 124, 'name': 'trigger_pattern0_low' , 'range': (0, 255) },
+            { 'address': 125, 'name': 'trigger_pattern0_high', 'range': (0, 255) },
+            { 'address': 126, 'name': 'trigger_pattern1_low' , 'range': (0, 255) },
+            { 'address': 127, 'name': 'trigger_pattern1_high', 'range': (0, 255) },
 
             # Trigger sources
-            { 'address': 128, 'name': 'trigger0' },
-            { 'address': 129, 'name': 'trigger1' },
-            { 'address': 130, 'name': 'trigger2' },
+            { 'address': 128, 'name': 'trigger0', 'range': (0, 255) },
+            { 'address': 129, 'name': 'trigger1', 'range': (0, 255) },
+            { 'address': 130, 'name': 'trigger2', 'range': (0, 255) },
 
             # Gate gen sources
-            { 'address': 131, 'name': 'gg_sources' },
+            { 'address': 131, 'name': 'gg_sources', 'range': (0, 127) },
 
             # Multiplicity
-            { 'address': 132, 'name': 'multiplicity_lo' },
-            { 'address': 133, 'name': 'multiplicity_hi' },
+            { 'address': 132, 'name': 'multiplicity_lo', 'range': (1, 16) },
+            { 'address': 133, 'name': 'multiplicity_hi', 'range': (1, 16) },
 
             # Pair coincidence pattern
             { 'address': 134, 'name': 'pair_pattern0',  'index': 0 },

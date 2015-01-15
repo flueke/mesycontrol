@@ -45,9 +45,11 @@ class MCFD16(app_model.Device):
     num_channels        = 16
     num_groups          = 8
 
-    gain_factors  = { 0: 1, 1: 3, 2: 10 }
-    cfd_fractions = { 0: '20%', 1: '40%' }
-    triggers      = { 0: 'front', 1: 'rear1', 2: 'rear2' }
+    gain_factors        = { 0: 1, 1: 3, 2: 10 }
+    cfd_fractions       = { 0: '20%', 1: '40%' }
+    trigger_names       = { 0: 'front', 1: 'rear1', 2: 'rear2' }
+    test_pulser_enum    = { 0: 'off', 1: '2.5 MHz', 2: '1.22 kHz' }
+    time_base_secs      = { 0: 1/8.0, 3: 1/4.0, 7: 1/2.0, 15: 1.0 }
 
     conv_table_coincidence_ns = {
             3: 4, 4: 5, 5: 5, 6: 5, 7: 6, 8: 6, 9: 6, 10: 6, 11: 6, 12: 6, 13:
@@ -176,8 +178,171 @@ class MCFD16(app_model.Device):
         self.log = util.make_logging_source_adapter(__name__, self)
         self.parameter_changed[object].connect(self._on_parameter_changed)
 
+    def propagate_state(self):
+        """Propagate the current state using the signals defined in this class."""
+        if not self.has_model():
+            return
+
+        for param_profile in self.profile.parameters:
+            if self.has_parameter(param_profile.address):
+                self.parameter_changed[object].emit(self.make_bound_parameter(param_profile.address))
+
     def _on_parameter_changed(self, bp):
         print bp.address, bp.name, bp.value
+
+dynamic_label_style = "QLabel { background-color: lightgrey; }"
+
+class PreampPage(QtGui.QGroupBox):
+    polarity_button_size = QtCore.QSize(24, 24)
+
+    def __init__(self, device, context, parent=None):
+        super(PreampPage, self).__init__("Preamp", parent)
+        self.device  = device
+        self.context = context
+
+        self.icon_pol_positive = QtGui.QIcon(QtGui.QPixmap(context.find_data_file('mesycontrol/ui/list-add.png'))
+                .scaled(PreampPage.polarity_button_size, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.icon_pol_negative = QtGui.QIcon(QtGui.QPixmap(context.find_data_file('mesycontrol/ui/list-remove.png'))
+                .scaled(PreampPage.polarity_button_size, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+
+        #self.icon_pol_positive = QtGui.QIcon(QtGui.QPixmap(context.find_data_file('mesycontrol/ui/plus-2x.png'))
+        #        .scaled(PreampPage.polarity_button_size, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        #self.icon_pol_negative = QtGui.QIcon(QtGui.QPixmap(context.find_data_file('mesycontrol/ui/minus-2x.png'))
+        #        .scaled(PreampPage.polarity_button_size, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+
+        self.pol_common = QtGui.QPushButton(self.icon_pol_positive, QtCore.QString())
+        self.pol_common.setMaximumSize(PreampPage.polarity_button_size)
+        self.pol_inputs = list()
+
+        gain_min_max     = device.profile['gain_common'].range.to_tuple()
+        self.gain_common = make_spinbox(limits=gain_min_max)
+        self.gain_label_common = QtGui.QLabel("N/A")
+        self.gain_label_common.setStyleSheet(dynamic_label_style)
+        self.gain_inputs = list()
+        self.gain_labels = list()
+
+        layout = QtGui.QGridLayout(self)
+        layout.setContentsMargins(2, 2, 2, 2)
+
+        offset = 0
+        layout.addWidget(QtGui.QLabel("Common"),    offset, 0, 1, 1, Qt.AlignRight)
+        layout.addWidget(self.pol_common,           offset, 1, 1, 1, Qt.AlignCenter)
+        layout.addWidget(self.gain_common,          offset, 2)
+        layout.addWidget(self.gain_label_common,    offset, 3)
+
+        offset += 1
+        layout.addWidget(make_title_label("Group"),    offset, 0)
+        layout.addWidget(make_title_label("Polarity"), offset, 1)
+        layout.addWidget(make_title_label("Gain"),     offset, 2)
+
+        for i in range(MCFD16.num_groups):
+            offset      = layout.rowCount()
+            group_range = group_channel_range(i)
+            group_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1])) 
+            pol_button  = QtGui.QPushButton(self.icon_pol_positive, QtCore.QString())
+            pol_button.setMaximumSize(PreampPage.polarity_button_size)
+            gain_spin   = make_spinbox(limits=gain_min_max)
+            gain_label  = QtGui.QLabel("N/A")
+            gain_label.setStyleSheet(dynamic_label_style)
+
+            self.pol_inputs.append(pol_button)
+            self.gain_inputs.append(gain_spin)
+            self.gain_labels.append(gain_label)
+
+            layout.addWidget(group_label,   i+offset, 0, 1, 1, Qt.AlignRight)
+            layout.addWidget(pol_button,    i+offset, 1, 1, 1, Qt.AlignCenter)
+            layout.addWidget(gain_spin,     i+offset, 2)
+            layout.addWidget(gain_label,    i+offset, 3)
+
+        layout.addWidget(hline(), layout.rowCount(), 0, 1, 4) # hline separator
+
+        self.cb_bwl = QtGui.QCheckBox("BWL enable")
+        self.cb_bwl.setToolTip("Bandwidth limit enable")
+        self.cb_bwl.setStatusTip(self.cb_bwl.toolTip())
+
+        layout.addWidget(self.cb_bwl, layout.rowCount(), 2, 1, 2)
+
+def make_fraction_combo():
+    ret = QtGui.QComboBox()
+
+    for k in sorted(MCFD16.cfd_fractions.keys()):
+        ret.addItem(MCFD16.cfd_fractions[k], k)
+
+    return ret
+
+class DiscriminatorPage(QtGui.QGroupBox):
+    def __init__(self, device, context, parent=None):
+        super(DiscriminatorPage, self).__init__("Discriminator", parent)
+        self.device  = device
+        self.context = context
+
+        # 1st row:  CFD/LE choice
+        # 2nd row: common delay, fraction, threshold
+        # 3rd row: column headers
+        # following 16:  8 delays, 8 fractions, 16 thresholds
+        # last row    : delay chip max delay
+
+        delay_limits     = device.profile['delay_common'].range.to_tuple()
+        threshold_limits = device.profile['threshold_common'].range.to_tuple()
+
+        self.delay_common       = make_spinbox(limits=delay_limits)
+        self.delay_label_common = QtGui.QLabel("N/A")
+        self.delay_label_common.setStyleSheet(dynamic_label_style)
+        self.fraction_common    = make_fraction_combo()
+        self.threshold_common   = make_spinbox(limits=threshold_limits)
+        self.threshold_label_common = QtGui.QLabel("N/A")
+        self.threshold_label_common.setStyleSheet(dynamic_label_style)
+
+        self.delay_inputs       = list()
+        self.fraction_inputs    = list()
+        self.threshold_inputs   = list()
+
+        layout = QtGui.QGridLayout(self)
+        layout.setContentsMargins(2, 2, 2, 2)
+
+        offset = 0
+        layout.addWidget(QtGui.QLabel("Common"),        offset, 0, 1, 1, Qt.AlignCenter)
+        layout.addWidget(self.delay_common,             offset, 1)
+        layout.addWidget(self.delay_label_common,       offset, 2)
+        layout.addWidget(self.fraction_common,          offset, 3)
+        layout.addWidget(QtGui.QLabel("Common"),        offset, 4)
+        layout.addWidget(self.threshold_common,         offset, 5)
+        layout.addWidget(self.threshold_label_common,   offset, 7)
+
+        offset += 1
+        layout.addWidget(make_title_label("Group"),     offset, 0)
+        layout.addWidget(make_title_label("Delay"),     offset, 1)
+        layout.addWidget(make_title_label("Fraction"),  offset, 3)
+        layout.addWidget(make_title_label("Channel"),   offset, 4)
+        layout.addWidget(make_title_label("Threshold"), offset, 5)
+
+        for i in range(MCFD16.num_channels):
+            channels_per_group = MCFD16.num_channels / MCFD16.num_groups
+            group = int(i / channels_per_group)
+            group_range = group_channel_range(group)
+            offset = layout.rowCount()
+
+            print i
+
+            if i % channels_per_group == 0:
+                group_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1])) 
+                delay_input = make_spinbox(limits=delay_limits)
+                delay_label = QtGui.QLabel("N/A")
+                delay_label.setStyleSheet(dynamic_label_style)
+                fraction_input = make_fraction_combo()
+
+                self.delay_inputs.append(delay_input)
+                self.fraction_inputs.append(fraction_input)
+                
+                layout.addWidget(group_label,           offset, 0)
+
+            threshold_input = make_spinbox(limits=threshold_limits)
+            threshold_label = QtGui.QLabel("N/A")
+            threshold_label.setStyleSheet(dynamic_label_style)
+
+# Group Delay Fraction Channel Threshold
+
+
 
 class MCFD16Widget(QtGui.QWidget):
     def __init__(self, device, context, parent=None):
@@ -185,6 +350,24 @@ class MCFD16Widget(QtGui.QWidget):
         self.device  = device
         self.context = context
         self.device.add_default_parameter_subscription(self)
+
+        self.preamp_page        = PreampPage(device, context, self)
+        self.discriminator_page = DiscriminatorPage(device, context, self)
+        #self.misc_page          = MiscPage()qpushbut
+
+        pages = [self.preamp_page, self.discriminator_page]
+
+        layout = QtGui.QHBoxLayout(self)
+        layout.setContentsMargins(*(4 for i in range(4)))
+        layout.setSpacing(4)
+
+        for page in pages:
+            vbox = QtGui.QVBoxLayout()
+            vbox.addWidget(page)
+            vbox.addStretch(1)
+            layout.addItem(vbox)
+
+        #self.device.propagate_state()
 
 if __name__ == "__main__":
     import mock
