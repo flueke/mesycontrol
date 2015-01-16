@@ -41,15 +41,16 @@ def group_channel_range(group_num):
     return xrange(group_num * channels_per_group, (group_num+1) * channels_per_group)
 
 class MCFD16(app_model.Device):
-    idcs                = (26, )
-    num_channels        = 16
-    num_groups          = 8
+    idcs                    = (26, )
+    num_channels            = 16
+    num_groups              = 8
 
-    gain_factors        = { 0: 1, 1: 3, 2: 10 }
-    cfd_fractions       = { 0: '20%', 1: '40%' }
-    trigger_names       = { 0: 'front', 1: 'rear1', 2: 'rear2' }
-    test_pulser_enum    = { 0: 'off', 1: '2.5 MHz', 2: '1.22 kHz' }
-    time_base_secs      = { 0: 1/8.0, 3: 1/4.0, 7: 1/2.0, 15: 1.0 }
+    gain_factors            = { 0: 1, 1: 3, 2: 10 }
+    cfd_fractions           = { 0: '20%', 1: '40%' }
+    trigger_names           = { 0: 'front', 1: 'rear1', 2: 'rear2' }
+    test_pulser_enum        = { 0: 'off', 1: '2.5 MHz', 2: '1.22 kHz' }
+    time_base_secs          = { 0: 1/8.0, 3: 1/4.0, 7: 1/2.0, 15: 1.0 }
+    delay_chip_limits_ns    = (5, 100)
 
     conv_table_coincidence_ns = {
             3: 4, 4: 5, 5: 5, 6: 5, 7: 6, 8: 6, 9: 6, 10: 6, 11: 6, 12: 6, 13:
@@ -249,10 +250,10 @@ class PreampPage(QtGui.QGroupBox):
             self.gain_inputs.append(gain_spin)
             self.gain_labels.append(gain_label)
 
-            layout.addWidget(group_label,   i+offset, 0, 1, 1, Qt.AlignRight)
-            layout.addWidget(pol_button,    i+offset, 1, 1, 1, Qt.AlignCenter)
-            layout.addWidget(gain_spin,     i+offset, 2)
-            layout.addWidget(gain_label,    i+offset, 3)
+            layout.addWidget(group_label,   offset, 0, 1, 1, Qt.AlignRight)
+            layout.addWidget(pol_button,    offset, 1, 1, 1, Qt.AlignCenter)
+            layout.addWidget(gain_spin,     offset, 2)
+            layout.addWidget(gain_label,    offset, 3)
 
         layout.addWidget(hline(), layout.rowCount(), 0, 1, 4) # hline separator
 
@@ -285,31 +286,49 @@ class DiscriminatorPage(QtGui.QGroupBox):
         delay_limits     = device.profile['delay_common'].range.to_tuple()
         threshold_limits = device.profile['threshold_common'].range.to_tuple()
 
-        self.delay_common       = make_spinbox(limits=delay_limits)
-        self.delay_label_common = QtGui.QLabel("N/A")
+        self.delay_common               = make_spinbox(limits=delay_limits)
+        self.delay_label_common         = QtGui.QLabel("N/A")
         self.delay_label_common.setStyleSheet(dynamic_label_style)
-        self.fraction_common    = make_fraction_combo()
-        self.threshold_common   = make_spinbox(limits=threshold_limits)
-        self.threshold_label_common = QtGui.QLabel("N/A")
+        self.fraction_common            = make_fraction_combo()
+        self.threshold_common           = make_spinbox(limits=threshold_limits)
+        self.threshold_label_common     = QtGui.QLabel("N/A")
         self.threshold_label_common.setStyleSheet(dynamic_label_style)
 
         self.delay_inputs       = list()
         self.fraction_inputs    = list()
         self.threshold_inputs   = list()
+        self.threshold_labels   = list()
+
+        self.rb_mode_cfd = QtGui.QRadioButton("CFD", toggled=self._rb_mode_cfd_toggled)
+        self.rb_mode_le  = QtGui.QRadioButton("LE")
+
+        mode_label  = QtGui.QLabel("Mode:")
+        mode_label.setStyleSheet('QLabel { font-weight: bold }')
+        mode_layout = QtGui.QHBoxLayout()
+        mode_layout.setSpacing(4)
+        mode_layout.addWidget(mode_label)
+        mode_layout.addWidget(self.rb_mode_cfd)
+        mode_layout.addWidget(self.rb_mode_le)
+        mode_layout.addStretch(1)
 
         layout = QtGui.QGridLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
 
-        offset = 0
+        offset = layout.rowCount()
+        layout.addLayout(mode_layout, offset, 0, 1, 7)
+
+        layout.addWidget(hline(), layout.rowCount(), 0, 1, 7) # hline separator
+
+        offset = layout.rowCount()
         layout.addWidget(QtGui.QLabel("Common"),        offset, 0, 1, 1, Qt.AlignCenter)
         layout.addWidget(self.delay_common,             offset, 1)
         layout.addWidget(self.delay_label_common,       offset, 2)
         layout.addWidget(self.fraction_common,          offset, 3)
         layout.addWidget(QtGui.QLabel("Common"),        offset, 4)
         layout.addWidget(self.threshold_common,         offset, 5)
-        layout.addWidget(self.threshold_label_common,   offset, 7)
+        layout.addWidget(self.threshold_label_common,   offset, 6)
 
-        offset += 1
+        offset = layout.rowCount()
         layout.addWidget(make_title_label("Group"),     offset, 0)
         layout.addWidget(make_title_label("Delay"),     offset, 1)
         layout.addWidget(make_title_label("Fraction"),  offset, 3)
@@ -317,12 +336,10 @@ class DiscriminatorPage(QtGui.QGroupBox):
         layout.addWidget(make_title_label("Threshold"), offset, 5)
 
         for i in range(MCFD16.num_channels):
-            channels_per_group = MCFD16.num_channels / MCFD16.num_groups
-            group = int(i / channels_per_group)
-            group_range = group_channel_range(group)
-            offset = layout.rowCount()
-
-            print i
+            channels_per_group  = MCFD16.num_channels / MCFD16.num_groups
+            group               = int(i / channels_per_group)
+            group_range         = group_channel_range(group)
+            offset              = layout.rowCount()
 
             if i % channels_per_group == 0:
                 group_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1])) 
@@ -334,28 +351,113 @@ class DiscriminatorPage(QtGui.QGroupBox):
                 self.delay_inputs.append(delay_input)
                 self.fraction_inputs.append(fraction_input)
                 
-                layout.addWidget(group_label,           offset, 0)
+                layout.addWidget(group_label,           offset, 0, 1, 1, Qt.AlignRight)
+                layout.addWidget(delay_input,           offset, 1)
+                layout.addWidget(delay_label,           offset, 2)
+                layout.addWidget(fraction_input,        offset, 3)
 
             threshold_input = make_spinbox(limits=threshold_limits)
             threshold_label = QtGui.QLabel("N/A")
             threshold_label.setStyleSheet(dynamic_label_style)
 
-# Group Delay Fraction Channel Threshold
+            self.threshold_inputs.append(threshold_input)
+            self.threshold_labels.append(threshold_label)
 
+            layout.addWidget(QtGui.QLabel("%d" % i),    offset, 4, 1, 1, Qt.AlignRight)
+            layout.addWidget(threshold_input,           offset, 5)
+            layout.addWidget(threshold_label,           offset, 6)
 
+        layout.addWidget(hline(), layout.rowCount(), 0, 1, 7) # hline separator
 
-class MCFD16Widget(QtGui.QWidget):
+        self.delay_chip_input = make_spinbox(limits=MCFD16.delay_chip_limits_ns)
+        self.delay_chip_input.setSuffix(' ns')
+
+        delay_chip_label = QtGui.QLabel("Delay Chip:")
+        delay_chip_label.setStyleSheet('QLabel { font-weight: bold }')
+        delay_chip_layout = QtGui.QHBoxLayout()
+        delay_chip_layout.setSpacing(4)
+        delay_chip_layout.addWidget(delay_chip_label)
+        delay_chip_layout.addWidget(self.delay_chip_input)
+        delay_chip_layout.addStretch(1)
+
+        layout.addLayout(delay_chip_layout, layout.rowCount(), 0, 1, 7)
+
+    @pyqtSlot(bool)
+    def _rb_mode_cfd_toggled(self, on_off):
+        print "set cfd=", on_off
+
+class WidthAndDeadtimePage(QtGui.QGroupBox):
     def __init__(self, device, context, parent=None):
-        super(MCFD16Widget, self).__init__(parent)
+        super(WidthAndDeadtimePage, self).__init__("Width/Dead time", parent=parent)
+
+        # Columns: Group WidthInput WidthLabel DeadtimeInput DeadtimeLabel
+
+        width_limits    = device.profile['width_common'].range.to_tuple()
+        deadtime_limits = device.profile['deadtime_common'].range.to_tuple()
+
+        self.width_common = make_spinbox(limits=width_limits)
+        self.width_label_common = QtGui.QLabel("N/A")
+        self.width_label_common.setStyleSheet(dynamic_label_style)
+
+        self.deadtime_common = make_spinbox(limits=deadtime_limits)
+        self.deadtime_label_common = QtGui.QLabel("N/A")
+        self.deadtime_label_common.setStyleSheet(dynamic_label_style)
+
+        layout = QtGui.QGridLayout(self)
+        layout.setContentsMargins(2, 2, 2, 2)
+
+        offset = 0
+        layout.addWidget(QtGui.QLabel("Common"),    offset, 0, 1, 1, Qt.AlignRight)
+        layout.addWidget(self.width_common,         offset, 1)
+        layout.addWidget(self.width_label_common,   offset, 2)
+        layout.addWidget(self.deadtime_common,      offset, 3)
+        layout.addWidget(self.deadtime_label_common,offset, 4)
+
+        offset += 1
+        layout.addWidget(make_title_label("Group"),     offset, 0)
+        layout.addWidget(make_title_label("Width"),     offset, 1, 1, 2, Qt.AlignCenter)
+        layout.addWidget(make_title_label("Dead time"), offset, 3, 1, 2, Qt.AlignCenter)
+
+        self.width_inputs = list()
+        self.width_labels = list()
+        self.deadtime_inputs = list()
+        self.deadtime_labels = list()
+
+        for i in range(MCFD16.num_groups):
+            offset      = layout.rowCount()
+            group_range = group_channel_range(i)
+            group_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1])) 
+
+            width_input = make_spinbox(limits=width_limits)
+            width_label = QtGui.QLabel("N/A")
+            width_label.setStyleSheet(dynamic_label_style)
+            self.width_inputs.append(width_input)
+            self.width_labels.append(width_label)
+
+            deadtime_input = make_spinbox(limits=deadtime_limits)
+            deadtime_label = QtGui.QLabel("N/A")
+            deadtime_label.setStyleSheet(dynamic_label_style)
+            self.deadtime_inputs.append(deadtime_input)
+            self.deadtime_labels.append(deadtime_label)
+
+            layout.addWidget(group_label,       offset, 0, 1, 1, Qt.AlignRight)
+            layout.addWidget(width_input,       offset, 1)
+            layout.addWidget(width_label,       offset, 2)
+            layout.addWidget(deadtime_input,    offset, 3)
+            layout.addWidget(deadtime_label,    offset, 4)
+
+class MCFD16ControlsWidget(QtGui.QWidget):
+    """Main MCFD16 controls: polarity, gain, delay, fraction, threshold, width, dead time."""
+    def __init__(self, device, context, parent=None):
+        super(MCFD16ControlsWidget, self).__init__(parent)
         self.device  = device
         self.context = context
-        self.device.add_default_parameter_subscription(self)
 
-        self.preamp_page        = PreampPage(device, context, self)
-        self.discriminator_page = DiscriminatorPage(device, context, self)
-        #self.misc_page          = MiscPage()qpushbut
+        self.preamp_page            = PreampPage(device, context, self)
+        self.discriminator_page     = DiscriminatorPage(device, context, self)
+        self.width_deadtime_page    = WidthAndDeadtimePage(device, context, self)
 
-        pages = [self.preamp_page, self.discriminator_page]
+        pages = [self.preamp_page, self.discriminator_page, self.width_deadtime_page]
 
         layout = QtGui.QHBoxLayout(self)
         layout.setContentsMargins(*(4 for i in range(4)))
@@ -367,7 +469,47 @@ class MCFD16Widget(QtGui.QWidget):
             vbox.addStretch(1)
             layout.addItem(vbox)
 
-        #self.device.propagate_state()
+class TriggerSetupWidget(QtGui.QWidget):
+    """MCFD16 trigger setup widget"""
+    def __init__(self, device, context, parent=None):
+        super(TriggerSetupWidget, self).__init__(parent)
+
+
+        trigger_bits  = ['OR all', 'Mult', 'PA', 'Mon', 'OR1', 'OR2', 'Veto', 'GG']
+        trigger_names = ['T0', 'T1', 'T2']
+
+        layout = QtGui.QGridLayout(self)
+
+        for row, bit in enumerate(trigger_bits):
+            layout.addWidget(QtGui.QLabel(bit), row+1, 0)
+
+            for col, trig in enumerate(trigger_names):
+                layout.addWidget(QtGui.QLabel(trig), 0, col+1)
+
+                cb = QtGui.QCheckBox()
+                layout.addWidget(cb, row+1, col+1)
+
+        layout.add
+
+
+
+class MCFD16Widget(QtGui.QWidget):
+    def __init__(self, device, context, parent=None):
+        super(MCFD16Widget, self).__init__(parent)
+        self.device  = device
+        self.context = context
+
+        toolbox = QtGui.QToolBox()
+        toolbox.addItem(MCFD16ControlsWidget(device, context), "Preamp / CFD")
+        toolbox.addItem(TriggerSetupWidget(device, context),   "Trigger Setup")
+
+        layout = QtGui.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(toolbox)
+        self.setLayout(layout)
+
+        self.device.add_default_parameter_subscription(self)
+        self.device.propagate_state()
 
 if __name__ == "__main__":
     import mock

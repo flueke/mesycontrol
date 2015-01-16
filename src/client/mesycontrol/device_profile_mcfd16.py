@@ -5,9 +5,10 @@
 from device_profile import DeviceProfile
 
 # TODO: liste der komischen dinge:
-# * rc_bit und scanbus output unterscheiden sich wenn am frontpanel werte veraendert wurden.
-# * BWL on/off und CFD/LE register fehlen
-# * *_common werte sind limitiert, die gruppen/channelwerte nicht
+# - rc_bit und scanbus output unterscheiden sich wenn am frontpanel werte veraendert wurden.
+# - BWL on/off und CFD/LE register fehlen
+# - *_common werte sind limitiert, die gruppen/channelwerte nicht
+# - rate_monitor_channel: channel bezeichnungen im USB interface != in der doku
 
 profile_dict = {
         'name': 'MCFD-16',
