@@ -59,7 +59,7 @@ class MHV4(app_model.Device):
     current_limit_changed   = pyqtSignal([int, int], [object])   #: [channel, raw value], [BoundParameter]
     channel_state_changed   = pyqtSignal(int, bool)              #: channel, value
     polarity_changed        = pyqtSignal(int, int)               #: channel, Polarity.(negative|positive)
-    temperature_changed     = pyqtSignal([int, int], [object])   #: [channel, raw_value], [BoundParameter]
+    temperature_changed     = pyqtSignal([int, int], [object])   #: [sensor_idx, raw_value], [BoundParameter]
     tcomp_slope_changed     = pyqtSignal([int, int], [object])    
     tcomp_offset_changed    = pyqtSignal([int, int], [object])
     tcomp_source_changed    = pyqtSignal([int, int], [object])
@@ -111,7 +111,7 @@ class MHV4(app_model.Device):
             self.actual_current_changed.emit(param.index, new_value)
             self.actual_current_changed[object].emit(self.make_bound_parameter(param))
 
-        elif p['channel0_temp_read'] <= param <= p['channel3_temp_read']:
+        elif p['sensor0_temp_read'] <= param <= p['sensor3_temp_read']:
             self.temperature_changed.emit(param.index, new_value)
             self.temperature_changed[object].emit(self.make_bound_parameter(param))
 
@@ -193,6 +193,9 @@ class MHV4(app_model.Device):
 
     def set_tcomp_source(self, channel, value, unit_label='raw', response_handler=None):
         self.set_parameter_by_name('channel%d_tcomp_source_write' % channel, value, unit_label, response_handler)
+
+    def get_temperature(self, sensor, unit_label='°C'):
+        return self.get_parameter_by_name('sensor%d_temp_read' % sensor, unit_label)
 
     # ramp speed
     def get_ramp_speed(self):
@@ -334,7 +337,6 @@ class ChannelWidget(QtGui.QWidget):
     @pyqtSlot()
     def on_slider_target_voltage_sliderReleased(self):
         self.target_voltage_changed.emit(self.slider_target_voltage.value())
-        self.slider_target_voltage.setToolTip("%d V" % self.slider_target_voltage.value())
 
     @pyqtSlot(float)
     def on_spin_target_voltage_valueChanged(self, value):
@@ -641,7 +643,16 @@ class MHV4Widget(QtGui.QWidget):
         else:
             value = bp.get_value('°C')
 
-        self.channels[bp.index]().set_temperature(value)
+        sensor = bp.index
+
+        # Update temperature for channels using this sensor
+        for i in range(MHV4.num_channels):
+            try:
+                src = self.device.get_tcomp_source(i)
+                if src == sensor:
+                    self.channels[i]().set_temperature(value)
+            except KeyError:
+                pass
 
     def tcomp_slope_changed(self, bp):
         self.channel_settings[bp.index]().set_tcomp_slope(bp.get_value('V/°C'))
@@ -652,6 +663,14 @@ class MHV4Widget(QtGui.QWidget):
     def tcomp_source_changed(self, bp):
         self.channels[bp.index]().set_tcomp_source(bp.value)
         self.channel_settings[bp.index]().set_tcomp_source(bp.value)
+        if MHV4.tcomp_sources[bp.value] == 'off':
+            return
+
+        try:
+            temp = self.device.get_temperature(bp.value)
+            self.channels[bp.index]().set_temperature(temp)
+        except KeyError:
+            pass
 
     def ramp_speed_changed(self, value):
         self.global_settings().set_ramp_speed(value)

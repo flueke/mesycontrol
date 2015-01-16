@@ -62,10 +62,10 @@ profile_dict = {
             { 'address': 53,  'name': 'channel3_current_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': 'µA', 'factor': 1000.0}] },
 
             # Temperature
-            { 'address': 26,  'name': 'channel0_temp_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
-            { 'address': 27,  'name': 'channel1_temp_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
-            { 'address': 28,  'name': 'channel2_temp_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
-            { 'address': 29,  'name': 'channel3_temp_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
+            { 'address': 26,  'name': 'sensor0_temp_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
+            { 'address': 27,  'name': 'sensor1_temp_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
+            { 'address': 28,  'name': 'sensor2_temp_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
+            { 'address': 29,  'name': 'sensor3_temp_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
 
             # Temperature compensation slope
             { 'address': 64,  'name': 'channel0_tcomp_slope_write', 'index': 0, 'range': (0, 19999), 'units': [tcomp_slope] },
