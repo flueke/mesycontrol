@@ -20,8 +20,8 @@ from util import make_title_label, hline, make_spinbox
 # TODO for the version 2 widget:
 # - gain calculation for charge based MSCF
 # - disable version specific inputs
-# - handle single channel / common mode setting: user selectable or enable
-#   single channel mode on startup or both
+# - decode new version registers
+# - implement online features: pz mean, histogramming, trigger & mult rates
 
 # MSCF16 naming system:
 # <module_name> <shaping_times> [<timing_filter_integration>] <input_type> <input_connector> <discriminator> <cfd_delay>
@@ -915,11 +915,6 @@ class MiscPage(QtGui.QWidget):
         mode_box = QtGui.QGroupBox("Channel Mode")
         mode_layout = QtGui.QGridLayout(mode_box)
         mode_layout.setContentsMargins(2, 2, 2, 2)
-        #self.combo_mode = QtGui.QComboBox()
-        #self.combo_mode.addItem("Common")
-        #self.combo_mode.addItem("Single Channel")
-        #self.combo_mode.currentIndexChanged[int].connect(self._channel_mode_selected)
-        #mode_layout.addWidget(self.combo_mode, 0, 0)
         self.rb_mode_single = QtGui.QRadioButton("Single", toggled=self._rb_mode_single_toggled)
         self.rb_mode_common = QtGui.QRadioButton("Common")
         mode_layout.addWidget(self.rb_mode_single, 0, 0)
