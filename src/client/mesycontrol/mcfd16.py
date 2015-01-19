@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
+from qt import pyqtProperty
 from qt import pyqtSignal
 from qt import pyqtSlot
 from qt import Qt
@@ -232,7 +233,7 @@ class PreampPage(QtGui.QGroupBox):
         layout.addWidget(self.gain_label_common,    offset, 3)
 
         offset += 1
-        layout.addWidget(make_title_label("Group"),    offset, 0)
+        layout.addWidget(make_title_label("Group"),    offset, 0, 1, 1, Qt.AlignRight)
         layout.addWidget(make_title_label("Polarity"), offset, 1)
         layout.addWidget(make_title_label("Gain"),     offset, 2)
 
@@ -469,29 +470,247 @@ class MCFD16ControlsWidget(QtGui.QWidget):
             vbox.addStretch(1)
             layout.addItem(vbox)
 
+class BitPatternWidget(QtGui.QWidget):
+    """Horizontal layout containing a title label, n_bits checkboxes and a
+    result label displaying the decimal value of the bit pattern.
+    If msb_first is True the leftmost checkbox will toggle the highest valued
+    bit, otherwise the lowest valued."""
+
+    value_changed = pyqtSignal(int)
+
+    def __init__(self, label, n_bits=16, msb_first=True, parent=None):
+        super(BitPatternWidget, self).__init__(parent)
+        layout = QtGui.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(QtGui.QLabel(label))
+
+        self.checkboxes = list()
+        for i in range(n_bits):
+            cb = QtGui.QCheckBox()
+            cb.stateChanged.connect(self._on_cb_stateChanged)
+            self.checkboxes.append(cb)
+            layout.addWidget(cb)
+
+        self.result_label = QtGui.QLabel(str(2**n_bits-1))
+        self.result_label.setStyleSheet("QLabel { background-color: lightgrey; }")
+        self.result_label.setAlignment(Qt.AlignRight)
+        self.result_label.setFixedSize(self.result_label.sizeHint())
+        self.result_label.setText("0")
+        layout.addWidget(self.result_label)
+
+        if msb_first:
+            self.checkboxes = list(reversed(self.checkboxes))
+
+    def _on_cb_stateChanged(self, state):
+        value = self.value
+        self.result_label.setText(str(value))
+        self.value_changed.emit(value)
+
+    def get_value(self):
+        ret = 0
+        for i, cb in enumerate(self.checkboxes):
+            if cb.isChecked():
+                ret |= (1 << i)
+        return ret
+
+    def set_value(self, value):
+        for i, cb in enumerate(self.checkboxes):
+            with util.block_signals(cb):
+                cb.setChecked(value & (1 << i))
+        self.result_label.setText(str(value))
+        self.value_changed.emit(self.value)
+
+    value = pyqtProperty(int, get_value, set_value, notify=value_changed)
+
 class TriggerSetupWidget(QtGui.QWidget):
     """MCFD16 trigger setup widget"""
     def __init__(self, device, context, parent=None):
         super(TriggerSetupWidget, self).__init__(parent)
 
+        self.device = device
 
-        trigger_bits  = ['OR all', 'Mult', 'PA', 'Mon', 'OR1', 'OR2', 'Veto', 'GG']
-        trigger_names = ['T0', 'T1', 'T2']
+        trigger_labels  = ['OR all', 'Mult', 'PA', 'Mon0', 'Mon1', 'OR1', 'OR0', 'Veto', 'GG']
+        trigger_names   = ['T0', 'T1', 'T2']
+        self.trigger_checkboxes = [[] for i in range(len(trigger_names))]
 
         layout = QtGui.QGridLayout(self)
+        layout.setSpacing(2)
 
-        for row, bit in enumerate(trigger_bits):
-            layout.addWidget(QtGui.QLabel(bit), row+1, 0)
+        # Triggers
+        for row, label in enumerate(trigger_labels):
+            layout.addWidget(QtGui.QLabel(label), row+1, 0)
 
             for col, trig in enumerate(trigger_names):
                 layout.addWidget(QtGui.QLabel(trig), 0, col+1)
 
+                if ((label == 'Mon0' and trig == 'T2') or
+                        label == 'Mon1' and trig in ('T0', 'T1')):
+                    continue
+
                 cb = QtGui.QCheckBox()
+                cb.register_name = 'trigger%d' % col
+                cb.trigger_index = col
+                cb.bit_offset    = row
+                cb.stateChanged.connect(self._on_trigger_checkbox_state_changed)
+                print "row=%d, col=%d, register_name=%s, bit_offset=%d, trigger_name=%s, bit_name=%s" % (
+                        row, col, cb.register_name, cb.bit_offset, trig, label)
+                self.trigger_checkboxes[col].append(cb)
                 layout.addWidget(cb, row+1, col+1)
 
-        layout.add
 
+        layout.addItem(QtGui.QSpacerItem(10, 1),
+                0, layout.columnCount(), layout.rowCount(), 1)
 
+        col = layout.columnCount()
+        layout.addWidget(QtGui.QLabel("GG"), 0, col)
+        self.gg_checkboxes = list()
+
+        # GG sources
+        for i, label in enumerate(trigger_labels):
+            if label in ('Mon1', 'GG'):
+                continue
+
+            cb = QtGui.QCheckBox()
+            cb.bit_offset = i
+            cb.stateChanged.connect(self._on_gg_checkbox_state_changed)
+            layout.addWidget(cb, i+1, col, 2 if trigger_labels[i] == 'Mon0' else 1, 1)
+            self.gg_checkboxes.append(cb)
+
+        layout.addItem(QtGui.QSpacerItem(10, 1),
+                0, layout.columnCount(), layout.rowCount(), 1)
+
+        # OR all label
+        col = layout.columnCount()
+        row = 1
+        layout.addWidget(QtGui.QLabel("OR all channels"), row, col)
+
+        # Multiplicity
+        self.spin_mult_lo  = make_spinbox(limits=device.profile['multiplicity_lo'].range.to_tuple())
+        self.spin_mult_hi  = make_spinbox(limits=device.profile['multiplicity_hi'].range.to_tuple())
+
+        mult_layout = QtGui.QHBoxLayout()
+        l = QtGui.QLabel("Low:")
+        l.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        mult_layout.addWidget(l)
+        mult_layout.addWidget(self.spin_mult_lo)
+
+        mult_layout.addSpacing(10)
+
+        l = QtGui.QLabel("High:")
+        l.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        mult_layout.addWidget(l)
+        mult_layout.addWidget(self.spin_mult_hi)
+
+        # Pair coincidence button
+        self.pb_pair_coinc = QtGui.QPushButton("Pair coincidence setup")
+        self.pb_pair_coinc.setSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Fixed)
+
+        row += 1
+        layout.addLayout(mult_layout, row, col, Qt.AlignLeft)
+        row += 1
+        layout.addWidget(self.pb_pair_coinc, row, col)
+
+        # Monitor 0
+        self.monitor0 = BitPatternWidget("TM0")
+        row += 1
+        layout.addWidget(self.monitor0, row, col)
+        #self.monitor0.value = 65535
+
+        # Monitor 1
+        self.monitor1 = BitPatternWidget("TM1")
+        row += 1
+        layout.addWidget(self.monitor1, row, col)
+
+        # Trigger Pattern 1
+        tp1_layout = QtGui.QHBoxLayout()
+        tp1_layout.addWidget(QtGui.QLabel("TP1"))
+        self.tp1_checkboxes = list()
+        for i in range(16):
+            cb = QtGui.QCheckBox()
+            tp1_layout.addWidget(cb)
+            self.tp1_checkboxes.append(cb)
+        row += 1
+        layout.addLayout(tp1_layout, row, col)
+
+        # Trigger Pattern 0
+        tp0_layout = QtGui.QHBoxLayout()
+        tp0_layout.addWidget(QtGui.QLabel("TP0"))
+        for i in range(16):
+            tp0_layout.addWidget(QtGui.QCheckBox())
+        row += 1
+        layout.addLayout(tp0_layout, row, col)
+
+        # Veto
+        #self.cb_fast_veto = QtGui.QCheckBox("Fast Veto")
+        #layout.addWidget(self.cb_fast_veto, row+5, col)
+        row += 1
+        layout.addWidget(QtGui.QLabel("Veto"), row, col)
+
+        # GG delay
+        self.spin_gg_le_delay = make_spinbox(limits=device.profile['gg_leading_edge_delay'].range.to_tuple())
+        self.spin_gg_te_delay = make_spinbox(limits=device.profile['gg_trailing_edge_delay'].range.to_tuple())
+        self.label_gg_le_delay = QtGui.QLabel("N/A")
+        self.label_gg_le_delay.setStyleSheet(dynamic_label_style)
+        self.label_gg_te_delay = QtGui.QLabel("N/A")
+        self.label_gg_te_delay.setStyleSheet(dynamic_label_style)
+
+        gg_delay_layout = QtGui.QHBoxLayout()
+
+        l = QtGui.QLabel("LE delay:")
+        l.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        gg_delay_layout.addWidget(l)
+        gg_delay_layout.addWidget(self.spin_gg_le_delay)
+        gg_delay_layout.addWidget(self.label_gg_le_delay)
+
+        gg_delay_layout.addSpacing(10)
+
+        l = QtGui.QLabel("TE delay:")
+        l.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        gg_delay_layout.addWidget(l)
+        gg_delay_layout.addWidget(self.spin_gg_te_delay)
+        gg_delay_layout.addWidget(self.label_gg_te_delay)
+
+        row += 1
+        layout.addLayout(gg_delay_layout, row, col, Qt.AlignLeft)
+
+        # Add expanding spacer items to the last row and column to keep widgets
+        # tightly packed in the top-left corner.
+        layout.addItem(QtGui.QSpacerItem(1, 1, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding),
+                layout.rowCount(), 0, 1, layout.columnCount())
+        layout.addItem(QtGui.QSpacerItem(1, 1, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding),
+                0, layout.columnCount(), layout.rowCount(), 1)
+
+    # GUI changes
+    def _on_trigger_checkbox_state_changed(self, state):
+        cb = self.sender()
+        value = 0
+        for i, cb in enumerate(self.trigger_checkboxes[cb.trigger_index]):
+            if cb.isChecked():
+                value |= (1 << i)
+
+        print cb.register_name, '->', value
+        self.device.set_parameter_by_name(cb.register_name, value)
+
+    def _on_gg_checkbox_state_changed(self, state):
+        cb = self.sender()
+        value = 0
+        for i, cb in enumerate(self.gg_checkboxes):
+            if cb.isChecked():
+                value |= (1 << i)
+
+        print "gg_sources", value
+        self.device.set_parameter_by_name('gg_sources', value)
+
+    # Device state changes
+    def _on_device_trigger_source_changed(self, trigger_index, value):
+        for i, cb in enumerate(self.trigger_checkboxes[trigger_index]):
+            with util.block_signals(cb):
+                cb.setChecked(value & (1 << i))
+
+    def _on_device_gg_sources_changed(self, value):
+        for i, cb in enumerate(self.gg_checkboxes):
+            with util.block_signals(cb):
+                cb.setChecked(value & (1 << i))
 
 class MCFD16Widget(QtGui.QWidget):
     def __init__(self, device, context, parent=None):

@@ -132,7 +132,7 @@ def signal_handler(signum, frame):
     qt.QtCore.QCoreApplication.quit()
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG,
+    logging.basicConfig(level=logging.WARNING,
             format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
     signal.signum_to_name = dict((getattr(signal, n), n)

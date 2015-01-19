@@ -109,17 +109,23 @@ profile_dict = {
             { 'address': 76, 'name': 'coincidence_time',                'range': (0, 136) }, # [0, 3..136] -> 1,2 not valid
             { 'address': 77, 'name': 'fast_veto',                       'range': (0, 1) },
 
+            # TODO: verify
             # Rate measurement
+            # How rate measurement works:
+            # Set time_base to one of MCFD16.time_base_secs values to set the
+            # duration of one measurement.
+            # Once measurement_ready is 1 read frequency_low_byte and
+            # frequency_high_byte to get the value. Reading frequency_high_byte
+            # will also start a new measurement.
+            #
             # [0..15] : signal channels
             # [16..18]: trig0..trig2
             # 19      : total rate
             { 'address': 78, 'name': 'rate_monitor_channel',            'range': (0, 19) },
-
-            # XXX: polling for testing purposes
-            { 'address': 79, 'name': 'time_base',           'range': (0, 15), 'poll': False }, 
+            { 'address': 79, 'name': 'time_base',           'range': (0, 15) }, 
             { 'address': 80, 'name': 'measurement_ready',   'read_only': True, 'poll': True },
-            { 'address': 81, 'name': 'frequency_low_byte',  'read_only': True, 'poll': False },
-            { 'address': 82, 'name': 'frequency_high_byte', 'read_only': True, 'poll': False },
+            { 'address': 81, 'name': 'frequency_low_byte',  'read_only': True },
+            { 'address': 82, 'name': 'frequency_high_byte', 'read_only': True },
 
             # Channel mask
             # Bit n masks the channel pair (n, n+1)
