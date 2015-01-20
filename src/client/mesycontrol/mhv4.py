@@ -19,6 +19,10 @@ import util
 # TODO: improve modified state for ChannelSettingsWidget and
 # GlobalSettingsWidget: compare spinbox value to old value and set modified
 # state accordingly
+# FIXME: toggling polarity does not set the devices target voltage to zero.
+# this means turning a channel on after a polarity change will ramp to the
+# previous voltage with inverted polarity. Despite this the voltage slider and
+# spinbox display 0V which is wrong!
 
 def get_device_info():
     return (MHV4.idcs, MHV4)
