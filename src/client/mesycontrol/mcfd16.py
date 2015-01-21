@@ -9,6 +9,7 @@ from qt import Qt
 from qt import QtCore
 from qt import QtGui
 from functools import partial
+import re
 
 import app_model
 import command
@@ -31,8 +32,12 @@ def get_widget_info():
     return (MCFD16.idcs, MCFD16Widget)
 
 class Polarity(object):
-    negative = 0
-    positive = 1
+    negative = 1
+    positive = 0
+
+class DiscriminatorMode(object):
+    le  = 0
+    cfd = 1
 
 def group_channel_range(group_num):
     """Returns the range of channel indexes in the given channel group.
@@ -52,6 +57,8 @@ class MCFD16(app_model.Device):
     test_pulser_enum        = { 0: 'off', 1: '2.5 MHz', 2: '1.22 kHz' }
     time_base_secs          = { 0: 1/8.0, 3: 1/4.0, 7: 1/2.0, 15: 1.0 }
     delay_chip_limits_ns    = (5, 100)
+    delay_chip_taps         = 5
+    default_delay_chip      = 20
 
     conv_table_coincidence_ns = {
             3: 4, 4: 5, 5: 5, 6: 5, 7: 6, 8: 6, 9: 6, 10: 6, 11: 6, 12: 6, 13:
@@ -173,12 +180,16 @@ class MCFD16(app_model.Device):
             609, 216: 616, 217: 624, 218: 632, 219: 639, 220: 647, 221: 656,
             222: 664}
 
+    delay_chip_ns_changed = pyqtSignal(int)
+
     def __init__(self, device_model=None, device_config=None, device_profile=None, parent=None):
         super(MCFD16, self).__init__(device_model=device_model, device_config=device_config,
                 device_profile=device_profile, parent=parent)
 
         self.log = util.make_logging_source_adapter(__name__, self)
         self.parameter_changed[object].connect(self._on_parameter_changed)
+
+        self._delay_chip_ns = MCFD16.default_delay_chip
 
     def propagate_state(self):
         """Propagate the current state using the signals defined in this class."""
@@ -189,8 +200,33 @@ class MCFD16(app_model.Device):
             if self.has_parameter(param_profile.address):
                 self.parameter_changed[object].emit(self.make_bound_parameter(param_profile.address))
 
+        self.delay_chip_ns_changed.emit(self.delay_chip_ns)
+
     def _on_parameter_changed(self, bp):
         print bp.address, bp.name, bp.value
+
+    def get_effective_delay(self, group_or_common):
+        if group_or_common == 'common':
+            register_value = self.get_parameter_by_name('delay_common')
+        else:
+            register_value = self.get_parameter_by_name('delay_group%d' % int(group_or_common))
+
+        return self.get_delay_chip_ns() / MCFD16.delay_chip_taps * (register_value+1)
+
+    # Extensions
+
+    @modifies_extensions
+    def set_delay_chip_ns(self, value):
+        self._delay_chip_ns = int(value)
+        self.delay_chip_ns_changed.emit(self.delay_chip_ns)
+
+    def get_delay_chip_ns(self):
+        return self._delay_chip_ns
+
+    delay_chip_ns = pyqtProperty(int, get_delay_chip_ns, set_delay_chip_ns, notify=delay_chip_ns_changed)
+
+    def get_extensions(self):
+        return [('delay_chip_ns', self.delay_chip_ns)]
 
 dynamic_label_style = "QLabel { background-color: lightgrey; }"
 
@@ -236,7 +272,7 @@ class ChannelMaskWidget(QtGui.QGroupBox):
     value = pyqtProperty(int, get_value, set_value, notify=value_changed)
 
 class PreampPage(QtGui.QGroupBox):
-    polarity_button_size = QtCore.QSize(24, 24)
+    polarity_button_size = QtCore.QSize(20, 20)
 
     def __init__(self, device, context, parent=None):
         super(PreampPage, self).__init__("Preamp", parent)
@@ -248,19 +284,18 @@ class PreampPage(QtGui.QGroupBox):
         self.icon_pol_negative = QtGui.QIcon(QtGui.QPixmap(context.find_data_file('mesycontrol/ui/list-remove.png'))
                 .scaled(PreampPage.polarity_button_size, Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
-        #self.icon_pol_positive = QtGui.QIcon(QtGui.QPixmap(context.find_data_file('mesycontrol/ui/plus-2x.png'))
-        #        .scaled(PreampPage.polarity_button_size, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-        #self.icon_pol_negative = QtGui.QIcon(QtGui.QPixmap(context.find_data_file('mesycontrol/ui/minus-2x.png'))
-        #        .scaled(PreampPage.polarity_button_size, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-
         self.pol_common = QtGui.QPushButton(self.icon_pol_positive, QtCore.QString())
         self.pol_common.setMaximumSize(PreampPage.polarity_button_size)
         self.pol_inputs = list()
 
         gain_min_max     = device.profile['gain_common'].range.to_tuple()
         self.gain_common = make_spinbox(limits=gain_min_max)
-        self.gain_label_common = QtGui.QLabel("N/A")
+        self.gain_label_common = QtGui.QLabel("%d" % MCFD16.gain_factors[gain_min_max[1]])
         self.gain_label_common.setStyleSheet(dynamic_label_style)
+        self.gain_label_common.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        gain_label_size = self.gain_label_common.sizeHint()
+        self.gain_label_common.setFixedSize(gain_label_size)
+        self.gain_label_common.setText("")
         self.gain_inputs = list()
         self.gain_labels = list()
 
@@ -285,8 +320,10 @@ class PreampPage(QtGui.QGroupBox):
             pol_button  = QtGui.QPushButton(self.icon_pol_positive, QtCore.QString())
             pol_button.setMaximumSize(PreampPage.polarity_button_size)
             gain_spin   = make_spinbox(limits=gain_min_max)
-            gain_label  = QtGui.QLabel("N/A")
+            gain_label  = QtGui.QLabel()
             gain_label.setStyleSheet(dynamic_label_style)
+            gain_label.setFixedSize(gain_label_size)
+            gain_label.setAlignment(Qt.AlignRight)
 
             self.pol_inputs.append(pol_button)
             self.gain_inputs.append(gain_spin)
@@ -308,8 +345,24 @@ class PreampPage(QtGui.QGroupBox):
         device.parameter_changed[object].connect(self._on_device_parameter_changed)
 
     def _on_device_parameter_changed(self, bp):
-        print bp
+        if bp.name == 'polarity_common' or re.match(r'polarity_group\d', bp.name):
+            icon = (self.icon_pol_positive if bp.value == Polarity.positive
+                    else self.icon_pol_negative)
+            button = self.pol_inputs[bp.index] if bp.has_index() else self.pol_common
+            button.setIcon(icon)
 
+        elif bp.name == 'gain_common' or re.match(r'gain_group\d', bp.name):
+            spin  = self.gain_inputs[bp.index] if bp.has_index() else self.gain_common
+            label = self.gain_labels[bp.index] if bp.has_index() else self.gain_label_common
+            with util.block_signals(spin):
+                spin.setValue(bp.value)
+
+            label.setText(str(MCFD16.gain_factors[bp.value]))
+
+        # XXX: version dependent
+        elif bp.name == 'bwl_enable':
+            with util.block_signals(self.cb_bwl):
+                self.cb_bwl.setChecked(bp.value)
 
 def make_fraction_combo():
     ret = QtGui.QComboBox()
@@ -343,6 +396,7 @@ class DiscriminatorPage(QtGui.QGroupBox):
         self.threshold_label_common.setStyleSheet(dynamic_label_style)
 
         self.delay_inputs       = list()
+        self.delay_labels       = list()
         self.fraction_inputs    = list()
         self.threshold_inputs   = list()
         self.threshold_labels   = list()
@@ -396,6 +450,7 @@ class DiscriminatorPage(QtGui.QGroupBox):
                 fraction_input = make_fraction_combo()
 
                 self.delay_inputs.append(delay_input)
+                self.delay_labels.append(delay_label)
                 self.fraction_inputs.append(fraction_input)
                 
                 layout.addWidget(group_label,           offset, 0, 1, 1, Qt.AlignRight)
@@ -433,6 +488,56 @@ class DiscriminatorPage(QtGui.QGroupBox):
         self.cb_fast_veto = QtGui.QCheckBox("Fast veto")
         layout.addWidget(self.cb_fast_veto, layout.rowCount(), 0, 1, 7)
 
+        device.parameter_changed[object].connect(self._on_device_parameter_changed)
+        device.delay_chip_ns_changed.connect(self._on_device_delay_chip_ns_changed)
+
+    # Device changes
+    def _on_device_parameter_changed(self, bp):
+        # XXX: version dependent
+        if bp.name == 'discriminator_mode':
+            rb = self.rb_mode_cfd if bp.value == DiscriminatorMode.cfd else self.rb_mode_le
+            with util.block_signals(rb):
+                rb.setChecked(True)
+
+        elif bp.name == 'delay_common' or re.match(r'delay_group\d', bp.name):
+            spin  = self.delay_inputs[bp.index] if bp.has_index() else self.delay_common
+            with util.block_signals(spin):
+                spin.setValue(bp.value)
+
+            label = self.delay_labels[bp.index] if bp.has_index() else self.delay_label_common
+            self._update_delay_label(label, bp.index if bp.has_index() else 'common')
+
+        elif bp.name == 'fraction_common' or re.match(r'fraction_group\d', bp.name):
+            combo = self.fraction_inputs[bp.index] if bp.has_index() else self.fraction_common
+            with util.block_signals(combo):
+                combo.setCurrentIndex(bp.value)
+
+        elif bp.name == 'threshold_common' or re.match(r'threshold_channel\d+', bp.name):
+            spin = self.threshold_inputs[bp.index] if bp.has_index() else self.threshold_common
+            with util.block_signals(spin):
+                spin.setValue(bp.value)
+
+            label = self.threshold_labels[bp.index] if bp.has_index() else self.threshold_label_common
+            self._update_threshold_label(label)
+
+        elif bp.name == 'fast_veto':
+            cb = self.cb_fast_veto
+            with util.block_signals(cb):
+                cb.setChecked(bool(bp.value))
+
+    def _update_delay_label(self, label, group_or_common):
+        label.setText("%d ns" % self.device.get_effective_delay(group_or_common))
+
+    def _update_threshold_label(self, label):
+        # TODO: find out what to display
+        pass
+
+    def _on_device_delay_chip_ns_changed(self, value):
+        spin = self.delay_chip_input
+        with util.block_signals(spin):
+            spin.setValue(value)
+
+    # GUI changes
     @pyqtSlot(bool)
     def _rb_mode_cfd_toggled(self, on_off):
         print "set cfd=", on_off
@@ -441,18 +546,32 @@ class WidthAndDeadtimePage(QtGui.QGroupBox):
     def __init__(self, device, context, parent=None):
         super(WidthAndDeadtimePage, self).__init__("Width/Dead time", parent=parent)
 
+        self.device  = device
+        self.context = context
+
         # Columns: Group WidthInput WidthLabel DeadtimeInput DeadtimeLabel
 
         width_limits    = device.profile['width_common'].range.to_tuple()
         deadtime_limits = device.profile['deadtime_common'].range.to_tuple()
 
+        width_ns_max    = MCFD16.conv_table_width_ns[width_limits[1]]
+        deadtime_ns_max = MCFD16.conv_table_deadtime_ns[deadtime_limits[1]]
+
         self.width_common = make_spinbox(limits=width_limits)
-        self.width_label_common = QtGui.QLabel("N/A")
+        self.width_label_common = QtGui.QLabel("%d ns" % width_ns_max)
         self.width_label_common.setStyleSheet(dynamic_label_style)
+        self.width_label_common.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        width_label_size = self.width_label_common.sizeHint()
+        self.width_label_common.setFixedSize(width_label_size)
+        self.width_label_common.setText("")
 
         self.deadtime_common = make_spinbox(limits=deadtime_limits)
-        self.deadtime_label_common = QtGui.QLabel("N/A")
+        self.deadtime_label_common = QtGui.QLabel("%d ns" % deadtime_ns_max)
         self.deadtime_label_common.setStyleSheet(dynamic_label_style)
+        self.deadtime_label_common.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        deadtime_label_size = self.deadtime_label_common.sizeHint()
+        self.deadtime_label_common.setFixedSize(deadtime_label_size)
+        self.deadtime_label_common.setText("")
 
         layout = QtGui.QGridLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
@@ -480,14 +599,18 @@ class WidthAndDeadtimePage(QtGui.QGroupBox):
             group_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1])) 
 
             width_input = make_spinbox(limits=width_limits)
-            width_label = QtGui.QLabel("N/A")
+            width_label = QtGui.QLabel()
             width_label.setStyleSheet(dynamic_label_style)
+            width_label.setFixedSize(width_label_size)
+            width_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
             self.width_inputs.append(width_input)
             self.width_labels.append(width_label)
 
             deadtime_input = make_spinbox(limits=deadtime_limits)
-            deadtime_label = QtGui.QLabel("N/A")
+            deadtime_label = QtGui.QLabel()
             deadtime_label.setStyleSheet(dynamic_label_style)
+            deadtime_label.setFixedSize(deadtime_label_size)
+            deadtime_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
             self.deadtime_inputs.append(deadtime_input)
             self.deadtime_labels.append(deadtime_label)
 
@@ -496,6 +619,27 @@ class WidthAndDeadtimePage(QtGui.QGroupBox):
             layout.addWidget(width_label,       offset, 2)
             layout.addWidget(deadtime_input,    offset, 3)
             layout.addWidget(deadtime_label,    offset, 4)
+
+        device.parameter_changed[object].connect(self._on_device_parameter_changed)
+
+    def _on_device_parameter_changed(self, bp):
+        if bp.name == 'width_common' or re.match(r'width_group\d', bp.name):
+            spin  = self.width_inputs[bp.index] if bp.has_index() else self.width_common
+            label = self.width_labels[bp.index] if bp.has_index() else self.width_label_common
+            
+            with util.block_signals(spin):
+                spin.setValue(bp.value)
+
+            label.setText("%d ns" % MCFD16.conv_table_width_ns[bp.value])
+
+        elif bp.name == 'deadtime_common' or re.match(r'deadtime_group\d', bp.name):
+            spin  = self.deadtime_inputs[bp.index] if bp.has_index() else self.deadtime_common
+            label = self.deadtime_labels[bp.index] if bp.has_index() else self.deadtime_label_common
+
+            with util.block_signals(spin):
+                spin.setValue(bp.value)
+
+            label.setText("%d ns" % MCFD16.conv_table_deadtime_ns[bp.value])
 
 class MCFD16ControlsWidget(QtGui.QWidget):
     """Main MCFD16 controls: polarity, gain, delay, fraction, threshold, width, dead time."""
@@ -913,16 +1057,6 @@ class MCFD16SetupWidget(QtGui.QWidget):
             layout.addLayout(h_layout)
 
         layout.addStretch(1)
-
-        #layout = QtGui.QGridLayout(self)
-        #layout.addWidget(gb, 0, 0)
-        #layout.addWidget(gb, 1, 0)
-
-        #layout.addItem(QtGui.QSpacerItem(1, 1, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding),
-        #        layout.rowCount(), 0, 1, layout.columnCount())
-        #layout.addItem(QtGui.QSpacerItem(1, 1, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding),
-        #        0, layout.columnCount(), layout.rowCount(), 1)
-
 
 class MCFD16Widget(QtGui.QWidget):
     def __init__(self, device, context, parent=None):

@@ -99,6 +99,9 @@ profile_dict = {
             { 'address': 63, 'name': 'polarity_group7' , 'index': 7,  'range': (0, 1) },
             { 'address': 70, 'name': 'polarity_common',               'range': (0, 1) },
 
+            # Bandwidth limit
+            { 'address': 71, 'name': 'bwl_enable', 'range': (0, 1) }, # cpu firmware version >= 2.18
+
             # Mode & RC
             { 'address': 72, 'name': 'single_channel_mode',           'range': (0, 1) },
             { 'address': 73, 'name': 'rc',                            'range': (0, 1) },
@@ -130,6 +133,9 @@ profile_dict = {
             # Channel mask
             # Bit n masks the channel pair (n, n+1)
             { 'address': 83, 'name': 'channel_mask',           'range': (0, 255) }, 
+
+            # Discrimination mode
+            { 'address': 85, 'name': 'discriminator_mode', 'range': (0, 1) },   # cpu firmware version >= 2.18, 0=LE, 1=CFD
 
             # Test pulser
             # (off, 2.5MHz, 1.22kHz)
@@ -174,6 +180,9 @@ profile_dict = {
             { 'address': 160, 'name': 'pair_pattern13', 'index': 13 },
             { 'address': 162, 'name': 'pair_pattern14', 'index': 14 },
             { 'address': 164, 'name': 'pair_pattern15', 'index': 15 },
+
+            { 'address': 254, 'name': 'fpga_firmware_version', 'read_only': True },
+            { 'address': 255, 'name': 'cpu_firmware_version', 'read_only': True },
             ]
 }
 
