@@ -17,8 +17,8 @@ import util
 from app_model import modifies_extensions
 from util import make_title_label, hline, make_spinbox
 
-# TODO for the version 2 widget:
-# - gain calculation for charge based MSCF
+# TODO
+# - gain calculation for charge integrating MSCFs (PMT)
 # - disable version specific inputs
 # - decode new version registers
 # - implement online features: pz mean, histogramming, trigger & mult rates
@@ -33,7 +33,27 @@ from util import make_title_label, hline, make_spinbox
 # discriminator: CFD, LE
 # cfd_delay: 30, 60, 120, 200
 
-class MSCF16ModuleInfo(object):
+# Version handling:
+# Assumption to make things easier: all parameters from the profile are known!
+# - Read the `version' register
+# - if version < 4: hardware version is < 4 -> a lot of features unavailable
+# - if version >= 5.3: use the 3 additional info/version registers to detect available features
+# - else (hardware version is >= 4 but version is < 5.3):
+#     what is the hardware version? 4 or 5? the firmware versions major number
+#     is the same as the hardware version but as version < 5.3 the firmware
+#     version can't be detected.
+#     => assume hardware is version 5. if the newer features are supported by
+#     the hardware the software must be upgraded to 5.3
+
+def get_device_info():
+    return (MSCF16.idcs, MSCF16)
+
+def get_widget_info():
+    return (MSCF16.idcs, MSCF16Widget)
+
+class ModuleInfo(object):
+    """Holds information about an MSCF16 that can't be detected via
+    software."""
     shaping_times_us = {
             1: [0.125, 0.25, 0.5, 1.0],
             2: [0.25,  0.5,  1.0, 2.0],
@@ -50,11 +70,30 @@ class MSCF16ModuleInfo(object):
         self.discriminator      = discriminator
         self.cfd_delay          = cfd_delay
 
-def get_device_info():
-    return (MSCF16.idcs, MSCF16)
+class HardwareInfo(object):
+    """Decodes the `hardware_info' register of newer MSCF16s."""
+    LN_TYPE         = 1 << 0
+    HW_GE_V4        = 1 << 1
+    INTEGRATING     = 1 << 2
+    SUMDIS          = 1 << 6
 
-def get_widget_info():
-    return (MSCF16.idcs, MSCF16Widget)
+    def __init__(self, hw_info):
+        self.info = hw_info
+
+    def is_ln_type(self):
+        """True if LN (low noise) version"""
+        return self.info & HardwareInfo.LN_TYPE
+
+    def is_hw_version_ge_4(self):
+        """True if hardware version >= 4"""
+        return self.info & HardwareInfo.HW_GE_V4
+
+    def is_integrating(self):
+        """True if this is a charge integrating MSCF16 (PMT variant)"""
+        return self.info & HardwareInfo.INTEGRATING
+
+    def has_sumdis(self):
+        return self.info & HardwareInfo.SUMDIS
 
 class CopyFunction(object):
     panel2rc        = 1
@@ -110,7 +149,7 @@ class MSCF16(app_model.Device):
         self._auto_pz_channel = 0
         self._gain_adjusts    = [1 for i in range(MSCF16.num_groups)]
         self.parameter_changed[object].connect(self._on_parameter_changed)
-        self.module_info      = MSCF16ModuleInfo()
+        self.module_info      = ModuleInfo()
 
     def propagate_state(self):
         """Propagate the current state using the signals defined in this class."""
@@ -339,26 +378,28 @@ class MSCF16(app_model.Device):
     # ===== Feature detection =====
     # FIXME: These methods will throw if a required memory value is not yet known.
 
-    # Memory value of unsupported features
-    unsupported_mem_value = 18
+    # hardware info
+    # software_version
+    # fpga_version
 
-    def has_feature(self, param_name):
-        return self[param_name] != MSCF16.unsupported_mem_value
-
-    def has_version(self):
-        return self.has_feature('version')
-
-    def has_hardware_version(self):
-        return self.has_feature('hardware_version')
-
-    def has_fgpa_version(self):
-        return self.has_feature('fpga_version')
-
-    def has_cpu_software_version(self):
-        return self.has_feature('cpu_software_version')
+    def get_software_version(self):
+        """Returns a version tuple of the form (major, minor)"""
+        v = self.get_parameter_by_name['version']
+        return divmod(v, 16)
 
     def has_detailed_versions(self):
-        return all(self.has_hardware_version(), self.has_fgpa_version(), self.has_cpu_software_version())
+        major, minor = self.get_software_version()
+        return major >= 5 and minor >= 3
+
+    def get_fpga_version(self):
+        if not self.has_detailed_versions():
+            raise RuntimeError("FPGA version info not supported")
+
+        v = self.get_parameter_by_name['fpga_version']
+        return divmod(v, 256)
+
+    def has_pz_mean(self):
+        return 
 
 dynamic_label_style = "QLabel { background-color: lightgrey; }"
 
@@ -1012,10 +1053,6 @@ class MiscPage(QtGui.QWidget):
     def _monitor_channel_selected(self, idx):
         self.device.set_monitor_channel(idx)
 
-    #@pyqtSlot(int)
-    #def _channel_mode_selected(self, idx):
-    #    self.device.set_single_channel_mode(idx)
-
     @pyqtSlot(bool)
     def _rb_mode_single_toggled(self, on_off):
         self.device.set_single_channel_mode(on_off)
@@ -1039,15 +1076,9 @@ class MiscPage(QtGui.QWidget):
             self.combo_monitor.setCurrentIndex(value)
 
     def _on_device_single_channel_mode_changed(self, value):
-        #with util.block_signals(self.combo_mode):
-        #    self.combo_mode.setCurrentIndex(int(value))
-
-        if value:
-            with util.block_signals(self.rb_mode_single):
-                self.rb_mode_single.setChecked(True)
-        else:
-            with util.block_signals(self.rb_mode_common):
-                self.rb_mode_common.setChecked(True)
+        rb = self.rb_mode_single if value else self.rb_mode_common
+        with util.block_signals(rb):
+            rb.setChecked(True)
 
     def _on_device_parameter_changed(self, bp):
         self.log.debug("parameter_changed: %s", bp)

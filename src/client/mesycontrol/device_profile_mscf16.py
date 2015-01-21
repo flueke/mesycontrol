@@ -6,6 +6,9 @@ from device_profile import DeviceProfile
 
 threshold_percent = { 'label': '%', 'name': 'percent', 'factor': 256/30.0 }
 
+# Note: The major part of the fpga version equals the hardware version.
+# Note2: The fpga version is only readable if the software version is >= 5.3.
+
 profile_dict = {
         'name': 'MSCF-16',
         'idc': 20,
@@ -68,47 +71,53 @@ profile_dict = {
             { 'address': 46, 'name': 'monitor_channel', 'range': (1, 16)},
             { 'address': 47, 'name': 'single_channel_mode', 'range': (0, 1) },
             { 'address': 48, 'name': 'rc_enable', 'read_only': True },
-            { 'address': 49, 'name': 'version',   'read_only': True },
-            { 'address': 50, 'name': 'blr_threshold', 'range': (0, 255) },
-            { 'address': 51, 'name': 'blr_enable', 'range': (0, 1) },
-            { 'address': 52, 'name': 'coincidence_time', 'range': (0, 255),
+            { 'address': 49, 'name': 'version', 'read_only': True },                    # hw version >= 4, 16*major+minor
+            { 'address': 50, 'name': 'blr_threshold', 'range': (0, 255) },              # hw version >= 4
+            { 'address': 51, 'name': 'blr_enable', 'range': (0, 1) },                   # hw version >= 4
+            { 'address': 52, 'name': 'coincidence_time', 'range': (0, 255),             # hw version >= 4
                     'units': [{'label': 'ns', 'name': 'nanoseconds', 'factor': 255/180.0, 'offset': 20}] },
-            { 'address': 53, 'name': 'threshold_offset', 'range': (0, 200) },
-            { 'address': 54, 'name': 'shaper_offset'   , 'range': (0, 200) },
-            { 'address': 55, 'name': 'sumdis_threshold' },                      # MSCF-16-LN (special models only)
-            { 'address': 56, 'name': 'pz_display_range', 'range': (1, 255) },   # MSCF-16-LN
-            { 'address': 57, 'name': 'ecl_delay_enable' },                      # MSCF-16-F (since version 5.0)
-            { 'address': 58, 'name': 'tf_int_time', 'range': (0, 3) },          # MSCF-16-F
+            { 'address': 53, 'name': 'threshold_offset', 'range': (0, 200) },           # hw version >= 4
+            { 'address': 54, 'name': 'shaper_offset'   , 'range': (0, 200) },           # hw version >= 4
+            { 'address': 55, 'name': 'sumdis_threshold' },                              # hw version >= 4 && hardware_info sumdis bit set
+            { 'address': 56, 'name': 'pz_display_range', 'range': (1, 255) },           # ???
+            { 'address': 57, 'name': 'ecl_delay_enable', 'range': (0, 1) },             # hw version >= 5
+            { 'address': 58, 'name': 'tf_int_time', 'range': (0, 3) },                  # hw version >= 5
 
-            { 'address': 59, 'name': 'pz_mean', 'read_only': True },
-            { 'address': 62, 'name': 'trigger_rate', 'read_only': True },
-            { 'address': 63, 'name': 'multiplicity_trigger_rate', 'read_only': True },
+            { 'address': 59, 'name': 'pz_mean', 'read_only': True },                    # hw version >= 4 && sw version >= 5.0
+            { 'address': 62, 'name': 'trigger_rate', 'read_only': True },               # hw version >= 4 && fpga firmware >= 4.1
+            { 'address': 63, 'name': 'multiplicity_trigger_rate', 'read_only': True },  # hw version >= 4 && fpga firmware >= 4.1
 
-            { 'address': 78, 'name': 'histogrammer_status', 'read_only': True },
-            { 'address': 79, 'name': 'histogram_clear', 'do_not_store': True },
-            { 'address': 80, 'name': 'histogram0',  'read_only': True, 'index':  0 },
-            { 'address': 81, 'name': 'histogram1',  'read_only': True, 'index':  1 },
-            { 'address': 82, 'name': 'histogram2',  'read_only': True, 'index':  2 },
-            { 'address': 83, 'name': 'histogram3',  'read_only': True, 'index':  3 },
-            { 'address': 84, 'name': 'histogram4',  'read_only': True, 'index':  4 },
-            { 'address': 85, 'name': 'histogram5',  'read_only': True, 'index':  5 },
-            { 'address': 86, 'name': 'histogram6',  'read_only': True, 'index':  6 },
-            { 'address': 87, 'name': 'histogram7',  'read_only': True, 'index':  7 },
-            { 'address': 88, 'name': 'histogram8',  'read_only': True, 'index':  8 },
-            { 'address': 89, 'name': 'histogram9',  'read_only': True, 'index':  9 },
-            { 'address': 90, 'name': 'histogram10', 'read_only': True, 'index': 10 },
-            { 'address': 91, 'name': 'histogram11', 'read_only': True, 'index': 11 },
-            { 'address': 92, 'name': 'histogram12', 'read_only': True, 'index': 12 },
-            { 'address': 93, 'name': 'histogram13', 'read_only': True, 'index': 13 },
-            { 'address': 94, 'name': 'histogram14', 'read_only': True, 'index': 14 },
-            { 'address': 95, 'name': 'histogram15', 'read_only': True, 'index': 15 },
+            { 'address': 78, 'name': 'histogrammer_status', 'read_only': True },        # hw version >= 4 && sw version >= 5.0
+            { 'address': 79, 'name': 'histogram_clear', 'do_not_store': True },         # hw version >= 4 && sw version >= 5.0
+            { 'address': 80, 'name': 'histogram0',  'read_only': True, 'index':  0 },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 81, 'name': 'histogram1',  'read_only': True, 'index':  1 },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 82, 'name': 'histogram2',  'read_only': True, 'index':  2 },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 83, 'name': 'histogram3',  'read_only': True, 'index':  3 },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 84, 'name': 'histogram4',  'read_only': True, 'index':  4 },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 85, 'name': 'histogram5',  'read_only': True, 'index':  5 },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 86, 'name': 'histogram6',  'read_only': True, 'index':  6 },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 87, 'name': 'histogram7',  'read_only': True, 'index':  7 },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 88, 'name': 'histogram8',  'read_only': True, 'index':  8 },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 89, 'name': 'histogram9',  'read_only': True, 'index':  9 },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 90, 'name': 'histogram10', 'read_only': True, 'index': 10 },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 91, 'name': 'histogram11', 'read_only': True, 'index': 11 },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 92, 'name': 'histogram12', 'read_only': True, 'index': 12 },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 93, 'name': 'histogram13', 'read_only': True, 'index': 13 },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 94, 'name': 'histogram14', 'read_only': True, 'index': 14 },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 95, 'name': 'histogram15', 'read_only': True, 'index': 15 },   # hw version >= 4 && sw version >= 5.0
 
             { 'address': 99, 'name': 'copy_function', 'range': (1, 3), 'do_not_store': True },
             { 'address':100, 'name': 'auto_pz', 'poll': True, 'do_not_store': True },
 
-            { 'address': 253, 'name': 'hardware_version',       'read_only': True },
-            { 'address': 254, 'name': 'fpga_version',           'read_only': True },
-            { 'address': 255, 'name': 'cpu_software_version',   'read_only': True },
+            # Hardware info register:
+            # 8 bits: [- | SumDis | - | - | - | Integrating | >= V4 | LN type ]
+            { 'address': 253, 'name': 'hardware_info',          'read_only': True }, # sw version >= 5.3
+            # 256 * major + minor
+            { 'address': 254, 'name': 'fpga_version',           'read_only': True }, # sw version >= 5.3
+            # 256 * major + minor
+            # This should always yield the same version as the `version'
+            # register (49) (although the encoding is different)
+            { 'address': 255, 'name': 'cpu_software_version',   'read_only': True }, # sw version >= 5.3
             ]
 }
 
