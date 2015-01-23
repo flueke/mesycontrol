@@ -134,7 +134,7 @@ profile_dict = {
             # Bit n masks the channel pair (n, n+1)
             { 'address': 83, 'name': 'channel_mask',           'range': (0, 255) }, 
 
-            # Discrimination mode
+            # Discriminator mode
             { 'address': 85, 'name': 'discriminator_mode', 'range': (0, 1) },   # cpu firmware version >= 2.18, 0=LE, 1=CFD
 
             # Test pulser

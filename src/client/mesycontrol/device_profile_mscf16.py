@@ -84,27 +84,27 @@ profile_dict = {
             { 'address': 58, 'name': 'tf_int_time', 'range': (0, 3) },                  # hw version >= 5
 
             { 'address': 59, 'name': 'pz_mean', 'read_only': True },                    # hw version >= 4 && sw version >= 5.0
-            { 'address': 62, 'name': 'trigger_rate', 'read_only': True },               # hw version >= 4 && fpga firmware >= 4.1
-            { 'address': 63, 'name': 'multiplicity_trigger_rate', 'read_only': True },  # hw version >= 4 && fpga firmware >= 4.1
+            { 'address': 62, 'name': 'trigger_rate', 'read_only': True, 'poll': True },               # hw version >= 4 && fpga firmware >= 4.1
+            { 'address': 63, 'name': 'multiplicity_trigger_rate', 'read_only': True, 'poll': True },  # hw version >= 4 && fpga firmware >= 4.1
 
-            { 'address': 78, 'name': 'histogrammer_status', 'read_only': True },        # hw version >= 4 && sw version >= 5.0
+            { 'address': 78, 'name': 'histogrammer_status', 'read_only': True, 'poll': True },        # hw version >= 4 && sw version >= 5.0
             { 'address': 79, 'name': 'histogram_clear', 'do_not_store': True },         # hw version >= 4 && sw version >= 5.0
-            { 'address': 80, 'name': 'histogram0',  'read_only': True, 'index':  0 },   # hw version >= 4 && sw version >= 5.0
-            { 'address': 81, 'name': 'histogram1',  'read_only': True, 'index':  1 },   # hw version >= 4 && sw version >= 5.0
-            { 'address': 82, 'name': 'histogram2',  'read_only': True, 'index':  2 },   # hw version >= 4 && sw version >= 5.0
-            { 'address': 83, 'name': 'histogram3',  'read_only': True, 'index':  3 },   # hw version >= 4 && sw version >= 5.0
-            { 'address': 84, 'name': 'histogram4',  'read_only': True, 'index':  4 },   # hw version >= 4 && sw version >= 5.0
-            { 'address': 85, 'name': 'histogram5',  'read_only': True, 'index':  5 },   # hw version >= 4 && sw version >= 5.0
-            { 'address': 86, 'name': 'histogram6',  'read_only': True, 'index':  6 },   # hw version >= 4 && sw version >= 5.0
-            { 'address': 87, 'name': 'histogram7',  'read_only': True, 'index':  7 },   # hw version >= 4 && sw version >= 5.0
-            { 'address': 88, 'name': 'histogram8',  'read_only': True, 'index':  8 },   # hw version >= 4 && sw version >= 5.0
-            { 'address': 89, 'name': 'histogram9',  'read_only': True, 'index':  9 },   # hw version >= 4 && sw version >= 5.0
-            { 'address': 90, 'name': 'histogram10', 'read_only': True, 'index': 10 },   # hw version >= 4 && sw version >= 5.0
-            { 'address': 91, 'name': 'histogram11', 'read_only': True, 'index': 11 },   # hw version >= 4 && sw version >= 5.0
-            { 'address': 92, 'name': 'histogram12', 'read_only': True, 'index': 12 },   # hw version >= 4 && sw version >= 5.0
-            { 'address': 93, 'name': 'histogram13', 'read_only': True, 'index': 13 },   # hw version >= 4 && sw version >= 5.0
-            { 'address': 94, 'name': 'histogram14', 'read_only': True, 'index': 14 },   # hw version >= 4 && sw version >= 5.0
-            { 'address': 95, 'name': 'histogram15', 'read_only': True, 'index': 15 },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 80, 'name': 'histogram0',  'read_only': True, 'index':  0, 'poll': True },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 81, 'name': 'histogram1',  'read_only': True, 'index':  1, 'poll': True },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 82, 'name': 'histogram2',  'read_only': True, 'index':  2, 'poll': True },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 83, 'name': 'histogram3',  'read_only': True, 'index':  3, 'poll': True },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 84, 'name': 'histogram4',  'read_only': True, 'index':  4, 'poll': True },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 85, 'name': 'histogram5',  'read_only': True, 'index':  5, 'poll': True },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 86, 'name': 'histogram6',  'read_only': True, 'index':  6, 'poll': True },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 87, 'name': 'histogram7',  'read_only': True, 'index':  7, 'poll': True },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 88, 'name': 'histogram8',  'read_only': True, 'index':  8, 'poll': True },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 89, 'name': 'histogram9',  'read_only': True, 'index':  9, 'poll': True },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 90, 'name': 'histogram10', 'read_only': True, 'index': 10, 'poll': True },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 91, 'name': 'histogram11', 'read_only': True, 'index': 11, 'poll': True },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 92, 'name': 'histogram12', 'read_only': True, 'index': 12, 'poll': True },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 93, 'name': 'histogram13', 'read_only': True, 'index': 13, 'poll': True },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 94, 'name': 'histogram14', 'read_only': True, 'index': 14, 'poll': True },   # hw version >= 4 && sw version >= 5.0
+            { 'address': 95, 'name': 'histogram15', 'read_only': True, 'index': 15, 'poll': True },   # hw version >= 4 && sw version >= 5.0
 
             { 'address': 99, 'name': 'copy_function', 'range': (1, 3), 'do_not_store': True },
             { 'address':100, 'name': 'auto_pz', 'poll': True, 'do_not_store': True },

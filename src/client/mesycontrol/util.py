@@ -467,7 +467,8 @@ def vline(parent=None):
     ret.setFrameShadow(QtGui.QFrame.Sunken)
     return ret
 
-def make_spinbox(min_value=None, max_value=None, limits=None, parent=None):
+def make_spinbox(min_value=None, max_value=None, value=None, limits=None,
+        prefix=None, suffix=None, single_step=None, parent=None):
     ret = QtGui.QSpinBox(parent)
     if min_value is not None:
         ret.setMinimum(min_value)
@@ -476,4 +477,12 @@ def make_spinbox(min_value=None, max_value=None, limits=None, parent=None):
     if limits is not None:
         ret.setMinimum(limits[0])
         ret.setMaximum(limits[1])
+    if prefix is not None:
+        ret.setPrefix(prefix)
+    if suffix is not None:
+        ret.setSuffix(suffix)
+    if single_step is not None:
+        ret.setSingleStep(single_step)
+    if value is not None:
+        ret.setValue(value)
     return ret

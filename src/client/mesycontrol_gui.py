@@ -52,7 +52,6 @@ class MainWindow(QtGui.QMainWindow):
         super(MainWindow, self).__init__(parent)
         self.log = util.make_logging_source_adapter(__name__, self)
         self.context = context
-        self.font_point_size = QtGui.QApplication.instance().font().pointSize()
 
         QtCore.QCoreApplication.instance().aboutToQuit.connect(self.on_qapp_quit)
         uic.loadUi(self.context.find_data_file('mesycontrol/ui/mainwin.ui'), self)
@@ -111,7 +110,6 @@ class MainWindow(QtGui.QMainWindow):
             settings.setValue("pos",                self.pos());
             settings.setValue("geometry",           self.saveGeometry());
             settings.setValue("state",              self.saveState());
-            settings.setValue("font_point_size",    self.font_point_size);
         finally:
             settings.endGroup()
 
@@ -129,9 +127,6 @@ class MainWindow(QtGui.QMainWindow):
             self.move(settings.value("pos", QtCore.QPoint(0, 0)).toPoint())
             self.restoreGeometry(settings.value("geometry").toByteArray())
             self.restoreState(settings.value("state").toByteArray())
-            self.font_point_size, ignored = settings.value("font_point_size",
-                    QtGui.QApplication.instance().font().pointSize()).toInt()
-            self.change_font_size(0)
         finally:
             settings.endGroup()
 
@@ -305,18 +300,6 @@ class MainWindow(QtGui.QMainWindow):
     @pyqtSlot()
     def on_actionAbout_Qt_triggered(self):
         QtGui.QApplication.instance().aboutQt()
-
-    @pyqtSlot()
-    def on_actionFont_Size_Inc_triggered(self):
-        self.change_font_size(+1)
-
-    @pyqtSlot()
-    def on_actionFont_Size_Dec_triggered(self):
-        self.change_font_size(-1)
-
-    def change_font_size(self, delta):
-        self.font_point_size += delta
-        QtGui.QApplication.instance().setStyleSheet("QWidget { font-size: %dpt; }" % self.font_point_size)
 
     def _on_context_device_added(self, device):
         self.log.debug("ApplicationRegistry added a new device: %s", device)

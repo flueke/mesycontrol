@@ -342,7 +342,13 @@ class Device(QtCore.QObject):
         if unit_label != 'raw':
             unit = profile.get_unit(unit_label)
             return unit.unit_value(self.model.get_parameter(profile.address))
-        return self.model.get_parameter(profile.address)
+        try:
+            return self.model.get_parameter(profile.address)
+        except KeyError:
+            if profile.name is not None:
+                raise KeyError("Parameter '%s' (addr=%d) not present" % (profile.name, profile.address))
+            else:
+                raise KeyError("Parameter %d not present" % profile.address)
 
     @model_required
     def get_parameter(self, address, unit_label='raw'):
