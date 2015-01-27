@@ -5,10 +5,10 @@
 from device_profile import DeviceProfile
 
 # TODO: liste der komischen dinge:
-# - rc_bit und scanbus output unterscheiden sich wenn am frontpanel werte veraendert wurden.
-# - BWL on/off und CFD/LE register fehlen
+# - rc_bit und scanbus output unterscheiden sich wenn am frontpanel werte veraendert wurden. ??? unklar ???
 # - *_common werte sind limitiert, die gruppen/channelwerte nicht
 # - rate_monitor_channel: channel bezeichnungen im USB interface != in der doku
+# - trigger monitor mapping
 
 profile_dict = {
         'name': 'MCFD-16',
@@ -124,7 +124,7 @@ profile_dict = {
             # [0..15] : signal channels
             # [16..18]: trig0..trig2
             # 19      : total rate
-            { 'address': 78, 'name': 'rate_monitor_channel',            'range': (0, 19) },
+            { 'address': 78, 'name': 'rate_monitor_channel', 'range': (0, 19) },
             { 'address': 79, 'name': 'time_base',           'range': (0, 15) }, 
             { 'address': 80, 'name': 'measurement_ready',   'read_only': True, 'poll': True },
             { 'address': 81, 'name': 'frequency_low_byte',  'read_only': True },
@@ -142,19 +142,20 @@ profile_dict = {
             { 'address': 118, 'name': 'test_pulser', 'range': (0, 2) },
 
             # Monitor outputs
+            # channel -> monitor assignment
             { 'address': 122, 'name': 'monitor0', 'range': (0, 15) },
             { 'address': 123, 'name': 'monitor1', 'range': (0, 15) },
 
             # Trigger pattern
-            { 'address': 124, 'name': 'trigger_pattern0_low' , 'range': (0, 255) },
-            { 'address': 125, 'name': 'trigger_pattern0_high', 'range': (0, 255) },
-            { 'address': 126, 'name': 'trigger_pattern1_low' , 'range': (0, 255) },
-            { 'address': 127, 'name': 'trigger_pattern1_high', 'range': (0, 255) },
+            { 'address': 124, 'name': 'trigger_pattern0_low' , 'index': 0, 'range': (0, 255) },
+            { 'address': 125, 'name': 'trigger_pattern0_high', 'index': 0, 'range': (0, 255) },
+            { 'address': 126, 'name': 'trigger_pattern1_low' , 'index': 1, 'range': (0, 255) },
+            { 'address': 127, 'name': 'trigger_pattern1_high', 'index': 1, 'range': (0, 255) },
 
             # Trigger sources
-            { 'address': 128, 'name': 'trigger0', 'range': (0, 255) },
-            { 'address': 129, 'name': 'trigger1', 'range': (0, 255) },
-            { 'address': 130, 'name': 'trigger2', 'range': (0, 255) },
+            { 'address': 128, 'name': 'trigger0', 'index': 0, 'range': (0, 255) },
+            { 'address': 129, 'name': 'trigger1', 'index': 1, 'range': (0, 255) },
+            { 'address': 130, 'name': 'trigger2', 'index': 2, 'range': (0, 255) },
 
             # Gate gen sources
             { 'address': 131, 'name': 'gg_sources', 'range': (0, 127) },
