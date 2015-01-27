@@ -1,9 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import QObject, QTimer, pyqtProperty, pyqtSignal
-from PyQt4.QtCore import Qt
+from qt import QtCore
+from qt import QtGui
+from qt import pyqtProperty
+from qt import pyqtSignal
+from qt import Qt
+
+QObject = QtCore.QObject
+QTimer  = QtCore.QTimer
+
 import contextlib
 import gc
 import logging
@@ -420,7 +426,7 @@ def wait_for_signal(signal, expected_args=None, timeout_ms=0, emitting_callable=
 def block_signals(o):
     was_blocked = o.signalsBlocked()
     o.blockSignals(True)
-    yield
+    yield o
     o.blockSignals(was_blocked)
 
 class ExceptionHookRegistry(object):
@@ -485,4 +491,5 @@ def make_spinbox(min_value=None, max_value=None, value=None, limits=None,
         ret.setSingleStep(single_step)
     if value is not None:
         ret.setValue(value)
+
     return ret
