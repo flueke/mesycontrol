@@ -6,6 +6,8 @@ from device_profile import DeviceProfile
 
 # TODO: liste der komischen dinge:
 # - rc_bit und scanbus output unterscheiden sich wenn am frontpanel werte veraendert wurden. ??? unklar ???
+# - fast_veto manchmal wert !+ (0,1)
+# - fast veto refresh nach discriminator mode wechsel
 # - *_common werte sind limitiert, die gruppen/channelwerte nicht
 # - rate_monitor_channel: channel bezeichnungen im USB interface != in der doku
 # - trigger monitor mapping
@@ -165,22 +167,38 @@ profile_dict = {
             { 'address': 133, 'name': 'multiplicity_hi', 'range': (1, 16) },
 
             # Pair coincidence pattern
-            { 'address': 134, 'name': 'pair_pattern0',  'index': 0 },
-            { 'address': 136, 'name': 'pair_pattern1',  'index': 1 },
-            { 'address': 138, 'name': 'pair_pattern2',  'index': 2 },
-            { 'address': 140, 'name': 'pair_pattern3',  'index': 3 },
-            { 'address': 142, 'name': 'pair_pattern4',  'index': 4 },
-            { 'address': 144, 'name': 'pair_pattern5',  'index': 5 },
-            { 'address': 146, 'name': 'pair_pattern6',  'index': 6 },
-            { 'address': 148, 'name': 'pair_pattern7',  'index': 7 },
-            { 'address': 150, 'name': 'pair_pattern8',  'index': 8 },
-            { 'address': 152, 'name': 'pair_pattern9',  'index': 9 },
-            { 'address': 154, 'name': 'pair_pattern10', 'index': 10 },
-            { 'address': 156, 'name': 'pair_pattern11', 'index': 11 },
-            { 'address': 158, 'name': 'pair_pattern12', 'index': 12 },
-            { 'address': 160, 'name': 'pair_pattern13', 'index': 13 },
-            { 'address': 162, 'name': 'pair_pattern14', 'index': 14 },
-            { 'address': 164, 'name': 'pair_pattern15', 'index': 15 },
+            { 'address': 134, 'name': 'pair_pattern0_low',  'index': 0 , 'range': (0, 255)     },
+            { 'address': 135, 'name': 'pair_pattern0_high', 'index': 0 , 'range': (0, 255)     },
+            { 'address': 136, 'name': 'pair_pattern1_low',  'index': 1 , 'range': (0, 255)     },
+            { 'address': 137, 'name': 'pair_pattern1_high', 'index': 1 , 'range': (0, 255)     },
+            { 'address': 138, 'name': 'pair_pattern2_low',  'index': 2 , 'range': (0, 255)     },
+            { 'address': 139, 'name': 'pair_pattern2_high', 'index': 2 , 'range': (0, 255)     },
+            { 'address': 140, 'name': 'pair_pattern3_low',  'index': 3 , 'range': (0, 255)     },
+            { 'address': 141, 'name': 'pair_pattern3_high', 'index': 3 , 'range': (0, 255)     },
+            { 'address': 142, 'name': 'pair_pattern4_low',  'index': 4 , 'range': (0, 255)     },
+            { 'address': 143, 'name': 'pair_pattern4_high', 'index': 4 , 'range': (0, 255)     },
+            { 'address': 144, 'name': 'pair_pattern5_low',  'index': 5 , 'range': (0, 255)     },
+            { 'address': 145, 'name': 'pair_pattern5_high', 'index': 5 , 'range': (0, 255)     },
+            { 'address': 146, 'name': 'pair_pattern6_low',  'index': 6 , 'range': (0, 255)     },
+            { 'address': 147, 'name': 'pair_pattern6_high', 'index': 6 , 'range': (0, 255)     },
+            { 'address': 148, 'name': 'pair_pattern7_low',  'index': 7 , 'range': (0, 255)     },
+            { 'address': 149, 'name': 'pair_pattern7_high', 'index': 7 , 'range': (0, 255)     },
+            { 'address': 150, 'name': 'pair_pattern8_low',  'index': 8 , 'range': (0, 255)     },
+            { 'address': 151, 'name': 'pair_pattern8_high', 'index': 8 , 'range': (0, 255)     },
+            { 'address': 152, 'name': 'pair_pattern9_low',  'index': 9 , 'range': (0, 255)     },
+            { 'address': 153, 'name': 'pair_pattern9_high', 'index': 9 , 'range': (0, 255)     },
+            { 'address': 154, 'name': 'pair_pattern10_low', 'index': 10, 'range': (0, 255)     },
+            { 'address': 155, 'name': 'pair_pattern10_high','index': 10, 'range': (0, 255)     },
+            { 'address': 156, 'name': 'pair_pattern11_low', 'index': 11, 'range': (0, 255)     },
+            { 'address': 157, 'name': 'pair_pattern11_high','index': 11, 'range': (0, 255)     },
+            { 'address': 158, 'name': 'pair_pattern12_low', 'index': 12, 'range': (0, 255)     },
+            { 'address': 159, 'name': 'pair_pattern12_high','index': 12, 'range': (0, 255)     },
+            { 'address': 160, 'name': 'pair_pattern13_low', 'index': 13, 'range': (0, 255)     },
+            { 'address': 161, 'name': 'pair_pattern13_high','index': 13, 'range': (0, 255)     },
+            { 'address': 162, 'name': 'pair_pattern14_low', 'index': 14, 'range': (0, 255)     },
+            { 'address': 163, 'name': 'pair_pattern14_high','index': 14, 'range': (0, 255)     },
+            { 'address': 164, 'name': 'pair_pattern15_low', 'index': 15, 'range': (0, 255)     },
+            { 'address': 165, 'name': 'pair_pattern15_high','index': 15, 'range': (0, 255)     },
 
             { 'address': 254, 'name': 'fpga_firmware_version', 'read_only': True },
             { 'address': 255, 'name': 'cpu_firmware_version', 'read_only': True },

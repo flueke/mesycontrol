@@ -8,6 +8,7 @@ from qt import pyqtSlot
 from qt import Qt
 from qt import QtCore
 from qt import QtGui
+from qt import pg
 import math
 import re
 
@@ -22,7 +23,6 @@ from util import make_title_label, hline, make_spinbox
 # * Delay: the RC delay values depend on the delay chip in use. Dividing the
 #   chips max delay by the number of taps (5) yields the delay step.
 #   => Only the max delay needs to be configured
-# TODO: threshold values
 
 def get_device_info():
     return (MCFD16.idcs, MCFD16)
@@ -202,15 +202,20 @@ class MCFD16(app_model.Device):
             609, 216: 616, 217: 624, 218: 632, 219: 639, 220: 647, 221: 656,
             222: 664}
 
-    delay_chip_ns_changed = pyqtSignal(int)
+    
+    trigger_pattern_changed = pyqtSignal(int, int)  # trigger index, pattern value
+    pair_pattern_changed    = pyqtSignal(int, int)  # pattern index, pattern value
+    single_channel_mode_changed = pyqtSignal(bool)
+
+    delay_chip_ns_changed = pyqtSignal(int) # delay in ns
 
     def __init__(self, device_model=None, device_config=None, device_profile=None, parent=None):
         super(MCFD16, self).__init__(device_model=device_model, device_config=device_config,
                 device_profile=device_profile, parent=parent)
 
         self.log = util.make_logging_source_adapter(__name__, self)
-
         self._delay_chip_ns = MCFD16.default_delay_chip
+        self.parameter_changed[object].connect(self._on_parameter_changed)
 
     def propagate_state(self):
         """Propagate the current state using the signals defined in this class."""
@@ -220,6 +225,56 @@ class MCFD16(app_model.Device):
         for param_profile in self.profile.parameters:
             if self.has_parameter(param_profile.address):
                 self.parameter_changed[object].emit(self.make_bound_parameter(param_profile.address))
+
+    def _on_parameter_changed(self, bp):
+        if bp.name is None:
+            return
+
+        if re.match(r'trigger_pattern\d_.+', bp.name):
+            # When the device memory if being fetched for the first time these
+            # methods will throw as one of the two memory cells will not be
+            # present yet.
+            try:
+                self.trigger_pattern_changed.emit(bp.index, self.get_trigger_pattern(bp.index))
+            except KeyError:
+                pass
+
+        elif re.match(r'pair_pattern\d+_.+', bp.name):
+            try:
+                self.pair_pattern_changed.emit(bp.index, self.get_pair_pattern(bp.index))
+            except KeyError:
+                pass
+
+        elif bp.name == 'single_channel_mode':
+            self.single_channel_mode_changed.emit(bp.value)
+
+        elif bp.name == 'discriminator_mode':
+            # Refresh the fast_veto register on discriminator mode change
+            self.read_parameter(self.profile['fast_veto'].address)
+
+    def get_trigger_pattern(self, trigger_index):
+        high = self.get_parameter_by_name('trigger_pattern%d_high' % trigger_index)
+        low  = self.get_parameter_by_name('trigger_pattern%d_low'  % trigger_index)
+
+        return (high << 8) | low
+
+    def set_trigger_pattern(self, trigger_index, pattern):
+        high = (pattern & 0xFF00) >> 8
+        low  = pattern & 0x00FF
+        self.set_parameter_by_name('trigger_pattern%d_high' % trigger_index, high)
+        self.set_parameter_by_name('trigger_pattern%d_low'  % trigger_index, low)
+
+    def get_pair_pattern(self, pattern_index):
+        high = self.get_parameter_by_name('pair_pattern%d_high' % pattern_index)
+        low  = self.get_parameter_by_name('pair_pattern%d_low'  % pattern_index)
+
+        return (high << 8) | low
+
+    def set_pair_pattern(self, pattern_index, pattern):
+        high = (pattern & 0xFF00) >> 8
+        low  = pattern & 0x00FF
+        self.set_parameter_by_name('pair_pattern%d_high' % pattern_index, high)
+        self.set_parameter_by_name('pair_pattern%d_low'  % pattern_index, low)
 
     def get_effective_delay(self, group_or_common):
         if group_or_common == 'common':
@@ -251,6 +306,23 @@ class MCFD16(app_model.Device):
 
         return threshold_mv
 
+    def get_polarity(self, group):
+        """Returns the polarity for the given group.
+        Group is either a numeric group index or the word 'common'.
+        """
+        name = 'polarity_common' if group == 'common' else 'polarity_group%d' % group
+        return self[name]
+
+    def set_polarity(self, group, polarity):
+        name = 'polarity_common' if group == 'common' else 'polarity_group%d' % group
+        self.set_parameter_by_name(name, polarity)
+
+    def toggle_polarity(self, group):
+        pol = self.get_polarity(group)
+        self.set_polarity(group, Polarity.positive if pol == Polarity.negative else Polarity.negative)
+
+    def set_single_channel_mode(self, value, response_handler=None):
+        return self.set_parameter('single_channel_mode', value, response_handler=response_handler)
 
     # Extensions
     @modifies_extensions
@@ -385,6 +457,7 @@ class PreampPage(QtGui.QGroupBox):
             group_range = group_channel_range(i)
             group_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1])) 
             pol_button  = QtGui.QPushButton(self.icon_pol_positive, QtCore.QString())
+            pol_button.clicked.connect(self._on_pb_polarity_clicked)
             pol_button.setMaximumSize(PreampPage.polarity_button_size)
             gain_spin   = make_spinbox(limits=gain_min_max)
             gain_spin.valueChanged.connect(self._on_gain_value_changed)
@@ -429,7 +502,6 @@ class PreampPage(QtGui.QGroupBox):
 
             label.setText(str(MCFD16.gain_factors[bp.value]))
 
-        # XXX: version dependent
         elif bp.name == 'bwl_enable':
             with util.block_signals(self.cb_bwl):
                 self.cb_bwl.setChecked(bp.value)
@@ -437,14 +509,18 @@ class PreampPage(QtGui.QGroupBox):
     # GUI changes
     def _on_pb_polarity_clicked(self):
         pb = self.sender()
-        if pb == self.pol_common:
-            name = 'polarity_common'
-        else:
-            name = 'polarity_group%d' % self.pol_inputs.index(pb)
+        group = 'common' if pb == self.pol_common else self.pol_inputs.index(pb)
+        self.device.toggle_polarity(group)
 
-        value = Polarity.negative if self.device[name] == Polarity.positive else Polarity.negative
+        #pb = self.sender()
+        #if pb == self.pol_common:
+        #    name = 'polarity_common'
+        #else:
+        #    name = 'polarity_group%d' % self.pol_inputs.index(pb)
 
-        self.device.set_parameter_by_name(name, value)
+        #value = Polarity.negative if self.device[name] == Polarity.positive else Polarity.negative
+
+        #self.device.set_parameter_by_name(name, value)
 
     def _on_gain_value_changed(self, value):
         pb = self.sender()
@@ -528,7 +604,7 @@ class DiscriminatorPage(QtGui.QGroupBox):
         layout.addWidget(make_title_label("Group"),     offset, 0)
         layout.addWidget(make_title_label("Delay"),     offset, 1, 1, 2, Qt.AlignCenter)
         layout.addWidget(make_title_label("Fraction"),  offset, 3)
-        layout.addWidget(make_title_label("Channel"),   offset, 4)
+        layout.addWidget(make_title_label("Chan"),   offset, 4)
         layout.addWidget(make_title_label("Threshold"), offset, 5, 1, 2, Qt.AlignCenter)
 
         for i in range(MCFD16.num_channels):
@@ -594,9 +670,6 @@ class DiscriminatorPage(QtGui.QGroupBox):
         if bp.name is None:
             return
 
-        print bp.name, bp.value
-
-        # XXX: version dependent
         if bp.name == 'discriminator_mode':
             rb = self.rb_mode_cfd if bp.value == DiscriminatorMode.cfd else self.rb_mode_le
             with util.block_signals(rb):
@@ -693,7 +766,8 @@ class DiscriminatorPage(QtGui.QGroupBox):
         self.device.set_parameter_by_name(name, value)
 
     def _on_cb_fast_veto_stateChanged(self, state):
-        self.device.set_parameter_by_name('fast_veto', self.cb_fast_veto.isChecked())
+        value = 1 if self.cb_fast_veto.isChecked() else 0
+        self.device.set_parameter_by_name('fast_veto', value)
 
 class WidthAndDeadtimePage(QtGui.QGroupBox):
     def __init__(self, device, context, parent=None):
@@ -818,6 +892,15 @@ class MCFD16ControlsWidget(QtGui.QWidget):
         self.discriminator_page     = DiscriminatorPage(device, context, self)
         self.width_deadtime_page    = WidthAndDeadtimePage(device, context, self)
 
+        # Channel mode
+        mode_box = QtGui.QGroupBox("Channel Mode", self)
+        mode_layout = QtGui.QGridLayout(mode_box)
+        mode_layout.setContentsMargins(2, 2, 2, 2)
+        self.rb_mode_single = QtGui.QRadioButton("Single", toggled=self._rb_mode_single_toggled)
+        self.rb_mode_common = QtGui.QRadioButton("Common")
+        mode_layout.addWidget(self.rb_mode_single, 0, 0)
+        mode_layout.addWidget(self.rb_mode_common, 0, 1)
+
         layout = QtGui.QHBoxLayout(self)
         layout.setContentsMargins(*(4 for i in range(4)))
         layout.setSpacing(4)
@@ -835,11 +918,14 @@ class MCFD16ControlsWidget(QtGui.QWidget):
         layout.addItem(vbox)
 
         vbox = QtGui.QVBoxLayout()
+        vbox.setSpacing(8)
         vbox.addWidget(self.width_deadtime_page)
+        vbox.addWidget(mode_box)
         vbox.addStretch(1)
         layout.addItem(vbox)
 
         device.parameter_changed[object].connect(self._on_device_parameter_changed)
+        self.device.single_channel_mode_changed.connect(self._on_device_single_channel_mode_changed)
 
     # Device changes
     def _on_device_parameter_changed(self, bp):
@@ -852,6 +938,15 @@ class MCFD16ControlsWidget(QtGui.QWidget):
     # Gui Changes
     def _on_channel_mask_value_changed(self, value):
         self.device.set_parameter_by_name('channel_mask', value)
+
+    def _on_device_single_channel_mode_changed(self, value):
+        rb = self.rb_mode_single if value else self.rb_mode_common
+        with util.block_signals(rb):
+            rb.setChecked(True)
+
+    @pyqtSlot(bool)
+    def _rb_mode_single_toggled(self, on_off):
+        self.device.set_single_channel_mode(on_off)
 
 class BitPatternHelper(QtCore.QObject):
     value_changed = pyqtSignal(int)
@@ -929,6 +1024,9 @@ class TriggerSetupWidget(QtGui.QWidget):
 
         self.device = device
 
+        device.parameter_changed[object].connect(self._on_device_parameter_changed)
+        device.trigger_pattern_changed.connect(self._on_device_trigger_pattern_changed)
+
         layout = QtGui.QGridLayout(self)
         layout.setSpacing(2)
         layout.setContentsMargins(4, 4, 4, 4)
@@ -971,26 +1069,35 @@ class TriggerSetupWidget(QtGui.QWidget):
                     continue
 
                 cb = QtGui.QCheckBox()
-                cb.register_name = 'trigger%d' % col
-                cb.trigger_index = col
-                cb.bit_offset    = row
-                #cb.stateChanged.connect(self._on_trigger_checkbox_state_changed)
-                print "row=%d, col=%d, register_name=%s, bit_offset=%d, trigger_name=%s, bit_name=%s" % (
-                        row, col, cb.register_name, cb.bit_offset, trig, label)
                 self.trigger_checkboxes[col].append(cb)
                 layout.addWidget(cb, row+1+row_offset, col+1)
 
         self.trigger_source_helpers = list()
-        for box_list in self.trigger_checkboxes:
+        self.trigger_source_labels  = list()
+        label_row = layout.rowCount()
+        for i, box_list in enumerate(self.trigger_checkboxes):
             helper = BitPatternHelper(box_list)
             helper.value_changed.connect(self._on_trigger_source_helper_value_changed)
             self.trigger_source_helpers.append(helper)
 
+
+            label = pg.VerticalLabel("0", forceWidth=True)
+            label.setStyleSheet(dynamic_label_style)
+            layout.addWidget(label, label_row, i+1)
+            self.trigger_source_labels.append(label)
+
+        # Set the label column to a fixed minimum height to work around a
+        # problem with pg.VerticalLabel which does not honor setFixedSize() at
+        # all and thus resizes depending on it's contents which causes ugly
+        # re-layouts.
+        layout.setRowMinimumHeight(label_row, 24)
+
+        # Spacer between T2 and GG
         layout.addItem(QtGui.QSpacerItem(10, 1),
                 row_offset, 4, layout.rowCount(), 1)
 
-        col = 5
-        layout.addWidget(QtGui.QLabel("GG"), row_offset, col)
+        gg_col = 5
+        layout.addWidget(QtGui.QLabel("GG"), row_offset, gg_col)
         self.gg_checkboxes = list()
 
         # GG sources
@@ -999,13 +1106,14 @@ class TriggerSetupWidget(QtGui.QWidget):
                 continue
 
             cb = QtGui.QCheckBox()
-            cb.bit_offset = i
-            #cb.stateChanged.connect(self._on_gg_checkbox_state_changed)
-            layout.addWidget(cb, i+1+row_offset, col, 2 if trigger_labels[i] == 'Mon0' else 1, 1)
+            layout.addWidget(cb, i+1+row_offset, gg_col, 2 if trigger_labels[i] == 'Mon0' else 1, 1)
             self.gg_checkboxes.append(cb)
 
         self.gg_source_helper = BitPatternHelper(self.gg_checkboxes)
         self.gg_source_helper.value_changed.connect(self._on_gg_source_helper_value_changed)
+        self.gg_source_label  = pg.VerticalLabel("0")
+        self.gg_source_label.setStyleSheet(dynamic_label_style)
+        layout.addWidget(self.gg_source_label, label_row, gg_col)
 
         layout.addItem(QtGui.QSpacerItem(10, 1),
                 0, 6, layout.rowCount(), 1)
@@ -1042,19 +1150,44 @@ class TriggerSetupWidget(QtGui.QWidget):
         row += 1
         layout.addWidget(QtGui.QLabel("Pair coincidence"), row, col)
 
+        def make_monitor_combo():
+            combo = QtGui.QComboBox()
+            combo.addItems([("Channel %d" % i) for i in range(MCFD16.num_channels)])
+            return combo
+
         # Monitor 0
-        self.monitor0 = BitPatternWidget("TM0")
-        self.monitor0.value_changed.connect(self._on_monitor_value_changed)
-        sz = self.monitor0.title_label.sizeHint()
+        label = QtGui.QLabel("TM0")
+        sz    = label.sizeHint()
+        label.setFixedSize(sz)
+        combo = make_monitor_combo()
+        combo.currentIndexChanged.connect(self._on_monitor_combo_currentIndexChanged)
+        mon_layout = QtGui.QHBoxLayout()
+        mon_layout.setContentsMargins(0, 0, 0, 0)
+        mon_layout.addWidget(label)
+        mon_layout.addWidget(combo)
+        mon_layout.addStretch(1)
+
+        self.monitor_inputs = list()
+        self.monitor_inputs.append(combo)
+
         row += 1
-        layout.addWidget(self.monitor0, row, col)
+        layout.addLayout(mon_layout, row, col)
 
         # Monitor 1
-        self.monitor1 = BitPatternWidget("TM1")
-        self.monitor1.value_changed.connect(self._on_monitor_value_changed)
-        self.monitor1.title_label.setFixedSize(sz)
+        label = QtGui.QLabel("TM1")
+        label.setFixedSize(sz)
+        combo = make_monitor_combo()
+        combo.currentIndexChanged.connect(self._on_monitor_combo_currentIndexChanged)
+        mon_layout = QtGui.QHBoxLayout()
+        mon_layout.setContentsMargins(0, 0, 0, 0)
+        mon_layout.addWidget(label)
+        mon_layout.addWidget(combo)
+        mon_layout.addStretch(1)
+
+        self.monitor_inputs.append(combo)
+
         row += 1
-        layout.addWidget(self.monitor1, row, col)
+        layout.addLayout(mon_layout, row, col)
 
         # Trigger Pattern 1
         self.trigger_pattern1 = BitPatternWidget("TP1")
@@ -1111,26 +1244,6 @@ class TriggerSetupWidget(QtGui.QWidget):
                 0, layout.columnCount(), layout.rowCount(), 1)
 
     # GUI changes
-    #def _on_trigger_checkbox_state_changed(self, state):
-    #    cb = self.sender()
-    #    value = 0
-    #    for i, cb in enumerate(self.trigger_checkboxes[cb.trigger_index]):
-    #        if cb.isChecked():
-    #            value |= (1 << i)
-
-    #    print cb.register_name, '->', value
-    #    self.device.set_parameter_by_name(cb.register_name, value)
-
-    #def _on_gg_checkbox_state_changed(self, state):
-    #    cb = self.sender()
-    #    value = 0
-    #    for i, cb in enumerate(self.gg_checkboxes):
-    #        if cb.isChecked():
-    #            value |= (1 << i)
-
-    #    print "gg_sources", value
-    #    self.device.set_parameter_by_name('gg_sources', value)
-
     def _on_spin_coincidence_value_changed(self, value):
         # Correct to the overlap coincidence value if needed
         if value == self.spin_coincidence_time.minimum():
@@ -1144,15 +1257,13 @@ class TriggerSetupWidget(QtGui.QWidget):
     def _on_spin_mult_hi_valueChanged(self, value):
         self.device.set_parameter_by_name('multiplicity_hi', value)
 
-    def _on_monitor_value_changed(self, value):
-        p = 'monitor0' if self.sender() == self.monitor0 else 'monitor1'
-        self.device.set_parameter_by_name(p, value)
+    def _on_monitor_combo_currentIndexChanged(self, idx):
+        p = 'monitor%d' % self.monitor_inputs.index(self.sender())
+        self.device.set_parameter_by_name(p, idx)
 
     def _on_trigger_pattern_value_changed(self, value):
         idx = 0 if self.sender() == self.trigger_pattern0 else 1
-        low, high = divmod(value, 0x100)
-        self.device.set_parameter('trigger_pattern%d_low' % idx, low)
-        self.device.set_parameter('trigger_pattern%d_high' % idx, high)
+        self.device.set_trigger_pattern(idx, value)
 
     def _on_spin_gg_le_delay_valueChanged(self, value):
         self.device.set_parameter_by_name('gg_leading_edge_delay', value)
@@ -1161,25 +1272,85 @@ class TriggerSetupWidget(QtGui.QWidget):
         self.device.set_parameter_by_name('gg_trailing_edge_delay', value)
 
     def _on_trigger_source_helper_value_changed(self, value):
-        pass
+        s = self.sender()
+        idx = self.trigger_source_helpers.index(s)
+        self.device.set_parameter_by_name('trigger%d' % idx, value)
+        self.trigger_source_labels[idx].setText(str(value))
 
     def _on_gg_source_helper_value_changed(self, value):
-        pass
+        self.device.set_parameter_by_name('gg_sources', value)
+        self.gg_source_label.setText(str(value))
 
     # Device state changes
-    def _on_device_trigger_source_changed(self, trigger_index, value):
-        for i, cb in enumerate(self.trigger_checkboxes[trigger_index]):
-            with util.block_signals(cb):
-                cb.setChecked(value & (1 << i))
+    def _on_device_parameter_changed(self, bp):
+        if bp.name is None:
+            return
 
-    def _on_device_gg_sources_changed(self, value):
-        for i, cb in enumerate(self.gg_checkboxes):
-            with util.block_signals(cb):
-                cb.setChecked(value & (1 << i))
+        if bp.name == 'coincidence_time':
+            value = self.spin_coincidence_time.minimum() if bp.value < self.spin_coincidence_time.minimum() else bp.value
+            with util.block_signals(self.spin_coincidence_time):
+                self.spin_coincidence_time.setValue(value)
+            text  = ("" if bp.value < self.spin_coincidence_time.minimum() else
+                    "%d ns" % MCFD16.conv_table_coincidence_ns[bp.value])
+            self.label_coincidence_time.setText(text)
+
+        elif re.match('trigger\d', bp.name):
+            h = self.trigger_source_helpers[bp.index]
+            with util.block_signals(h):
+                h.value = bp.value
+            self.trigger_source_labels[bp.index].setText(str(bp.value))
+
+        elif bp.name == 'gg_sources':
+            with util.block_signals(self.gg_source_helper):
+                self.gg_source_helper.value = bp.value
+            self.gg_source_label.setText(str(bp.value))
+
+        elif bp.name == 'multiplicity_lo':
+            with util.block_signals(self.spin_mult_lo) as spin:
+                spin.setValue(bp.value)
+
+        elif bp.name == 'multiplicity_hi':
+            with util.block_signals(self.spin_mult_hi) as spin:
+                spin.setValue(bp.value)
+
+        elif bp.name == 'monitor0':
+            with util.block_signals(self.monitor_inputs[0]) as w:
+                w.setCurrentIndex(bp.value)
+
+        elif bp.name == 'monitor1':
+            with util.block_signals(self.monitor_inputs[1]) as w:
+                w.setCurrentIndex(bp.value)
+
+        elif bp.name == 'gg_leading_edge_delay':
+            with util.block_signals(self.spin_gg_le_delay) as w:
+                w.setValue(bp.value)
+            self.label_gg_le_delay.setText('%d ns' %
+                    MCFD16.conv_table_gategen_ns[bp.value])
+
+        elif bp.name == 'gg_trailing_edge_delay':
+            with util.block_signals(self.spin_gg_te_delay) as w:
+                w.setValue(bp.value)
+            self.label_gg_te_delay.setText('%d ns' %
+                    MCFD16.conv_table_gategen_ns[bp.value])
+
+    def _on_device_trigger_pattern_changed(self, idx, pattern):
+        w = self.trigger_pattern0 if idx == 0 else self.trigger_pattern1
+        with util.block_signals(w):
+            w.value = pattern
 
 class PairCoincidenceSetupWidget(QtGui.QWidget):
+    """Pair coincidence matrix display."""
+
+    # Displays the lower right part of the pair coincidence matrix. Rows 0-14
+    # correspond to pair coincidence registers 1-15 (register 0 is unused!).
+    # The first row contains one checkbox (pair(0, 1)). Each consecutive row
+    # contains one more checkbox, up to 15 in the last row.
+
     def __init__(self, device, context, parent=None):
         super(PairCoincidenceSetupWidget, self).__init__(parent)
+
+        self.device = device
+        device.pair_pattern_changed.connect(self._on_device_pair_pattern_changed)
 
         layout = QtGui.QGridLayout(self)
         layout.setSpacing(4)
@@ -1189,14 +1360,6 @@ class PairCoincidenceSetupWidget(QtGui.QWidget):
         self.pattern_labels  = list()
 
         row_offset = 0
-
-        ## Horizontal labels top
-        #for col in range(15):
-        #    l = QtGui.QLabel("%d" % (14-col))
-        #    l.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-        #    layout.addWidget(l, row_offset, col+1)
-        #
-        #row_offset += 1
 
         # Checkboxes
         for row in range(15):
@@ -1234,9 +1397,23 @@ class PairCoincidenceSetupWidget(QtGui.QWidget):
             self.pattern_labels.append(l_pattern)
             layout.addWidget(l_pattern, row+row_offset, col+1)
 
+    # GUI changes
     def _on_bit_pattern_value_changed(self, value):
         idx = self.pattern_helpers.index(self.sender())
-        self.pattern_labels[idx].setText(str(value))
+        self._update_pattern_label(idx)
+        self.device.set_pair_pattern(idx+1, value)
+
+    # Device changes
+    def _on_device_pair_pattern_changed(self, idx, pattern):
+        print "device pair pattern changed; idx=", idx, "pattern=", pattern, hex(pattern), bin(pattern)
+        if idx >= 1:
+            with util.block_signals(self.pattern_helpers[idx-1]) as w:
+                w.value = pattern
+            self._update_pattern_label(idx-1)
+
+    def _update_pattern_label(self, idx):
+        self.pattern_labels[idx].setText(str(
+            self.pattern_helpers[idx].value))
 
 class MCFD16SetupWidget(QtGui.QWidget):
     def __init__(self, device, context, parent=None):
@@ -1307,6 +1484,7 @@ if __name__ == "__main__":
     device  = mock.Mock()
     device.profile = device_profile_mcfd16.get_device_profile()
     device.parameter_changed = mock.MagicMock()
+    device.get_delay_chip_ns = mock.MagicMock(return_value=MCFD16.default_delay_chip)
 
     w = MCFD16Widget(device, context)
     w.show()
