@@ -199,6 +199,11 @@ class MHV4(app_model.Device):
         self.set_parameter_by_name('channel%d_tcomp_source_write' % channel, value, unit_label, response_handler)
 
     def get_temperature(self, sensor, unit_label='°C'):
+        """Returns the temperature for the given sensor or None if no valid
+        temperature reading is available."""
+        if self.get_parameter_by_name('sensor%d_temp_read' % sensor) == MHV4.temp_no_sensor:
+            return None
+
         return self.get_parameter_by_name('sensor%d_temp_read' % sensor, unit_label)
 
     # ramp speed
