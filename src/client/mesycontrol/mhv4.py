@@ -365,6 +365,7 @@ class ChannelWidget(QtGui.QWidget):
     def on_spin_target_voltage_valueChanged(self, value):
         with util.block_signals(self.slider_target_voltage):
             self.slider_target_voltage.setValue(value)
+        self.target_voltage_changed.emit(value)
 
     @pyqtSlot()
     def on_spin_target_voltage_editingFinished(self):
