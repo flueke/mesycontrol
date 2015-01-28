@@ -211,6 +211,14 @@ class MHV4(app_model.Device):
     def get_maximum_voltage(self):
         return 800.0
 
+class WheelEventFilter(QtCore.QObject):
+    """Event filter to filter out QEvent::Wheel events."""
+    def __init__(self, parent=None):
+        super(WheelEventFilter, self).__init__(parent)
+
+    def eventFilter(self, obj, event):
+        return event.type() == QtCore.QEvent.Wheel
+
 class ChannelWidget(QtGui.QWidget):
     target_voltage_changed          = pyqtSignal(float)
     channel_state_changed           = pyqtSignal(bool)
@@ -232,6 +240,8 @@ class ChannelWidget(QtGui.QWidget):
         self._last_tcomp_source     = None
         self._last_current          = None
         self._last_current_limit    = None
+
+        self.slider_target_voltage.installEventFilter(WheelEventFilter(self))
 
     def set_voltage(self, voltage):
         self.lcd_voltage.display(float(voltage))
