@@ -18,7 +18,10 @@ from app_model import modifies_extensions
 from util import make_title_label, hline, make_spinbox
 
 # TODO
-# - gain calculation for charge integrating MSCFs (PMT)
+# - Setup page:
+#   - inputs for cfd shaping times (SH2, 4, 8...) and input_type (Voltage or Charge)
+#   - move gain jumper inputs to the settings page
+# - gain calculation for charge integrating MSCFs (PMT) -> gain jumper / gain value
 # - disable version specific inputs
 # - decode new version registers
 # - implement online features: pz mean, histogramming, trigger & mult rates
@@ -364,6 +367,7 @@ class MSCF16(app_model.Device):
 
     def get_total_gain(self, group):
         return MSCF16.gain_factor ** self['gain_group%d' % group] * self.get_gain_adjust(group)
+        #return MSCF16.gain_factor ** self['gain_group%d' % group] / self.get_gain_adjust(group)
 
     def get_extensions(self):
         return [('gain_adjusts',    self.gain_adjusts),
@@ -599,7 +603,7 @@ class ShapingPage(QtGui.QGroupBox):
 
         layout.addWidget(make_title_label("Group"),         1, 0, 1, 1, Qt.AlignRight)
         layout.addWidget(make_title_label("Shaping time"),  1, 1, 1, 2, Qt.AlignCenter)
-        layout.addWidget(make_title_label("Channel"),       1, 3)
+        layout.addWidget(make_title_label("Chan"),       1, 3)
         layout.addWidget(make_title_label("PZ"),            1, 4)
 
         for chan in range(MSCF16.num_channels):
@@ -797,7 +801,7 @@ class TimingPage(QtGui.QGroupBox):
         layout.addWidget(QtGui.QLabel("Common"), 0, 0, 1, 1, Qt.AlignRight)
         layout.addLayout(threshold_common_layout, 0, 1)
 
-        layout.addWidget(make_title_label("Channel"),   1, 0, 1, 1, Qt.AlignRight)
+        layout.addWidget(make_title_label("Chan"),   1, 0, 1, 1, Qt.AlignRight)
         layout.addWidget(make_title_label("Threshold"), 1, 1)
 
         for chan in range(MSCF16.num_channels):
@@ -1096,6 +1100,29 @@ class MiscPage(QtGui.QWidget):
             update_version_label(self.version_labels['Software'], bp.value)
             self.version_labels['FPGA'].setText('N/A')
             self.version_labels['Hardware'].setText('N/A')
+
+class MSCF16SetupWidget(QtGui.QWidget):
+    gain_adjust_changed = pyqtSignal(int, int) # group, value
+
+
+
+    def __init__(self, device, context, parent=None):
+        super(MSCF16SetupWidget, self).__init__(parent)
+
+        layout = QtGui.QGridLayout(self)
+
+        for i in range(MSCF16.num_groups):
+            group_range = group_channel_range(i)
+            descr_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1]))
+            gain_spin   = make_spinbox(limits=MSCF16.gain_adjust_limits)
+            gain_spin.setValue(device.get_gain_adjust(i))
+            gain_spin.valueChanged[int].connect(self._on_hw_gain_input_value_changed)
+
+            self.hw_gain_inputs.append(gain_spin)
+
+            layout.addWidget(descr_label, i+offset, 0, 1, 1, Qt.AlignRight)
+            layout.addWidget(gain_spin,   i+offset, 1)
+
 
 class MSCF16Widget(QtGui.QWidget):
     def __init__(self, device, context, parent=None):
