@@ -52,7 +52,7 @@ class SimpleShell(cmd.Cmd):
         for i in range(16):
             if self.mrc.has_device(bus, i):
                 device = self.mrc[bus][i]
-                self.print("%2d: %s, rc=%d" % (i, device, device.rc))
+                self.print("%2d: %s, rc=%d, conflict=%d" % (i, device, device.rc, device.has_address_conflict()))
             else:
                 self.print("%2d: -" % i)
 
