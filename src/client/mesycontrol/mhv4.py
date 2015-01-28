@@ -249,7 +249,11 @@ class ChannelWidget(QtGui.QWidget):
         self.slider_target_voltage.installEventFilter(WheelEventFilter(self))
 
     def set_voltage(self, voltage):
-        self.lcd_voltage.display(float(voltage))
+        if voltage < 100.0:
+            t = "%.2f" % voltage
+        else:
+            t = "%.1f" % voltage
+        self.lcd_voltage.display(t)
 
     def set_target_voltage(self, voltage):
         if self.spin_target_voltage.maximum() < voltage:
