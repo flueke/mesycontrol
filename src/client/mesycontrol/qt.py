@@ -9,4 +9,3 @@ from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import pyqtSlot
 from PyQt4.Qt import Qt
 from PyQt4 import uic
-import pyqtgraph as pg

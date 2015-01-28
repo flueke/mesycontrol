@@ -8,7 +8,6 @@ from qt import pyqtSlot
 from qt import Qt
 from qt import QtCore
 from qt import QtGui
-from qt import pg
 import math
 import re
 
@@ -1021,6 +1020,8 @@ class TriggerSetupWidget(QtGui.QWidget):
     """MCFD16 trigger setup widget"""
     def __init__(self, device, context, parent=None):
         super(TriggerSetupWidget, self).__init__(parent)
+
+        import pyqtgraph as pg
 
         self.device = device
 
