@@ -6,11 +6,7 @@ from device_profile import DeviceProfile
 
 # TODO: liste der komischen dinge:
 # - rc_bit und scanbus output unterscheiden sich wenn am frontpanel werte veraendert wurden. ??? unklar ???
-# - fast_veto manchmal wert !+ (0,1)
-# - fast veto refresh nach discriminator mode wechsel
-# - *_common werte sind limitiert, die gruppen/channelwerte nicht
-# - rate_monitor_channel: channel bezeichnungen im USB interface != in der doku
-# - trigger monitor mapping
+# - discriminator_mode wechsel: LE -> CFD: fast_veto wird aktiviert, CFD -> LE: fast_veto wird deaktiviert
 
 profile_dict = {
         'name': 'MCFD-16',
@@ -105,14 +101,14 @@ profile_dict = {
             { 'address': 71, 'name': 'bwl_enable', 'range': (0, 1) }, # cpu firmware version >= 2.18
 
             # Mode & RC
-            { 'address': 72, 'name': 'single_channel_mode',           'range': (0, 1) },
-            { 'address': 73, 'name': 'rc',                            'range': (0, 1) },
+            { 'address': 72, 'name': 'single_channel_mode',     'range': (0, 1) },
+            { 'address': 73, 'name': 'rc', 'read_only': True,   'range': (0, 1) }, # Marked as read only to avoid storing/loading it
 
             # Timing parameters
             { 'address': 74, 'name': 'gg_leading_edge_delay',           'range': (5, 255) },
             { 'address': 75, 'name': 'gg_trailing_edge_delay',          'range': (5, 255) },
             { 'address': 76, 'name': 'coincidence_time',                'range': (0, 136) }, # [0, 3..136] -> 1,2 not valid
-            { 'address': 77, 'name': 'fast_veto',                       'range': (0, 1) },
+            { 'address': 77, 'name': 'fast_veto',                       'range': (0, 1) },  # Changes on discriminator_mode change
 
             # TODO: verify
             # Rate measurement
