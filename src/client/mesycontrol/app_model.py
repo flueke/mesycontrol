@@ -329,6 +329,10 @@ class Device(QtCore.QObject):
         return False
 
     @model_required
+    def has_address_conflict(self):
+        return self.model.has_address_conflict()
+
+    @model_required
     def set_rc(self, on_off, response_handler=None):
         return self.model.controller.set_rc(on_off, response_handler)
 
