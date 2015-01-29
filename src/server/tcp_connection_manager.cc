@@ -59,22 +59,25 @@ void TCPConnectionManager::dispatch_request(const TCPConnectionPtr &connection, 
     if (request->is_mrc1_write_command() && connection != m_write_connection) {
       connection->send_message(MessageFactory::make_error_response(error_type::permission_denied));
     } else {
-      m_mrc1_queue.queue_request(request,
-          boost::bind(&TCPConnectionManager::handle_mrc1_response,
-            this, connection, _1, _2));
-
       if (request->type == message_type::request_set ||
           request->type == message_type::request_mirror_set) {
-        /* Create an artificial read request on parameter set to notify clients
-         * about the updated memory value. */
+        m_mrc1_queue.queue_request(request,
+            boost::bind(&TCPConnectionManager::handle_set_response,
+              this, connection, _1, _2));
 
+        /* Create an artificial read request on parameter set to get the
+         * updated memory value. */
         MessagePtr read_request(MessageFactory::make_read_request(
               request->bus, request->dev, request->par,
               request->type == message_type::request_mirror_set));
 
         m_mrc1_queue.queue_request(read_request,
             boost::bind(&TCPConnectionManager::handle_read_after_set,
-              this, _1, _2));
+              this, connection, _1, _2));
+      } else {
+        m_mrc1_queue.queue_request(request,
+            boost::bind(&TCPConnectionManager::handle_mrc1_response,
+              this, connection, _1, _2));
       }
     }
   } else {
@@ -156,27 +159,31 @@ void TCPConnectionManager::handle_mrc1_response(const TCPConnectionPtr &connecti
     const MessagePtr &request, const MessagePtr &response)
 {
   connection->send_message(response);
+}
 
-  if (response->type == message_type::response_set
-      || response->type == message_type::response_mirror_set) {
-
-    send_to_all_except(connection,
-        MessageFactory::make_parameter_set_notification(
-          response->bus, response->dev, response->par, response->val,
-          response->type == message_type::response_mirror_set));
+void TCPConnectionManager::handle_set_response(const TCPConnectionPtr &connection,
+    const MessagePtr &request, const MessagePtr &response)
+{
+  /* Only pass error messages on to the connection. The actual reponse to the
+   * set command will be sent by handle_read_after_set(). */
+  if (response->type == message_type::response_error) {
+    connection->send_message(response);
   }
 }
 
-void TCPConnectionManager::handle_read_after_set(
+void TCPConnectionManager::handle_read_after_set(const TCPConnectionPtr &connection,
     const MessagePtr &request, const MessagePtr &response)
 {
-  if (response->type == message_type::response_read ||
-      response->type == message_type::response_mirror_read) {
+  /* Send a set/mirror_set response to the client that originally sent the set
+   * request. */
+  connection->send_message(MessageFactory::make_read_or_set_response(
+        request->type == message_type::request_read ? message_type::request_set : message_type::request_mirror_set,
+        response->bus, response->dev, response->par, response->val));
 
-    send_to_all(MessageFactory::make_parameter_set_notification(
-          response->bus, response->dev, response->par, response->val,
-          response->type == message_type::response_mirror_read));
-  }
+  /* Notify other clients that a parameter has been set. */
+  send_to_all(MessageFactory::make_parameter_set_notification(
+        response->bus, response->dev, response->par, response->val,
+        response->type == message_type::response_mirror_read));
 }
 
 void TCPConnectionManager::handle_mrc1_status_change(const mrc_status::Status &status)
