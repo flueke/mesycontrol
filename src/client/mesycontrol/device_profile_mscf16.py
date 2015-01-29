@@ -116,7 +116,7 @@ profile_dict = {
             { 'address': 254, 'name': 'fpga_version',           'read_only': True }, # sw version >= 5.3
             # 256 * major + minor
             # This should always yield the same version as the `version'
-            # register (49) (although the encoding is different)
+            # register (49) (although the encoding is different).
             { 'address': 255, 'name': 'cpu_software_version',   'read_only': True }, # sw version >= 5.3
             ]
 }
