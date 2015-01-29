@@ -392,13 +392,19 @@ class Device(QtCore.QObject):
         unit      = profile.get_unit(unit_label)
         raw_value = unit.raw_value(value)
 
-        ret = self.model.controller.set_parameter(profile.address, raw_value,
-                response_handler)
+        def handle_set_response(request, response):
+            if (self.has_config() and profile.should_be_stored() and
+                    not response.is_error() and response.val == request.val):
+                self.log.debug("Updating parameter config value (name=%s,addr=%d,val=%d)",
+                        profile.name, profile.address, response.val)
+                self.config.set_parameter_value(profile.address, response.val)
 
-        if self.has_config() and profile.should_be_stored():
-            self.log.debug("Updating parameter config value (name=%s,addr=%d,val=%d)",
-                    profile.name, profile.address, raw_value)
-            self.config.set_parameter_value(profile.address, raw_value)
+            # Invoke the original response handler
+            if response_handler:
+                response_handler(request, response)
+
+        ret = self.model.controller.set_parameter(profile.address, raw_value,
+                handle_set_response)
 
         return ret
 
