@@ -232,7 +232,11 @@ bool MRC1ReplyParser::parse_read_multi(const std::string &reply_line)
     return false;
   }
 
-  boost::int32_t value(boost::lexical_cast<boost::int32_t>(matches[1]));
+  boost::int32_t value;
+  std::stringstream ss;
+  ss << std::hex << matches[1];
+  ss >> value;
+
   BOOST_LOG_SEV(m_log, log::lvl::trace) << "parse_read_multi: got value " << value;
   m_response->values.push_back(value);
   return --m_multi_read_lines_left == 0;
