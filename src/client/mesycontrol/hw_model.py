@@ -60,8 +60,8 @@ class MRCModel(QtCore.QObject):
         if self.is_ready():
             self.ready.emit(True)
 
-    def set_parameter(self, bus, dev, par, val):
-        self.get_device(bus, dev).set_parameter(par, val)
+    def set_parameter(self, bus, dev, par, val, force_emit_change=False):
+        self.get_device(bus, dev).set_parameter(par, val, force_emit_change)
 
     def set_mirror_parameter(self, bus, dev, par, val):
         self.get_device(bus, dev).set_mirror_parameter(par, val)
@@ -251,11 +251,15 @@ class DeviceModel(QtCore.QObject):
     def get_parameter(self, address):
         return self._memory[address]
 
-    def set_parameter(self, address, value):
+    def set_parameter(self, address, value, force_emit_change=False):
+        """Sets the devices parameter at `address' to `value'.
+        Emit `parameter_changed' if the parameter changes value or
+        `force_emit_change' is True.
+        """
         old_value = self.get_parameter(address) if self.has_parameter(address) else -sys.maxint - 1
         self._memory[address] = value
 
-        if old_value != value:
+        if old_value != value or force_emit_change:
             self.parameter_changed.emit(address, old_value, value)
 
     def has_mirror_parameter(self, address):

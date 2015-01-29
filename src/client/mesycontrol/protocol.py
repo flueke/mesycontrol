@@ -304,7 +304,7 @@ class ErrorInfo:
         },
       { 'code': 7,
         'name': 'mrc_comm_error',
-        'description': 'Non-timeout MRC communication error.',
+        'description': 'MRC communication error.',
         },
       { 'code': 8,
         'name': 'silenced',

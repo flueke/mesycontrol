@@ -161,7 +161,7 @@ class MRCController(QtCore.QObject):
 
         if mt in ('response_scanbus', 'notify_scanbus'):
             self.model.set_scanbus_data(msg.bus, msg.bus_data)
-        elif mt in ('response_read', 'notify_read', 'response_set', 'notify_set'):
+        elif mt in ('response_read', 'notify_read', 'notify_set'):
             self.model.set_parameter(msg.bus, msg.dev, msg.par, msg.val)
         elif mt in ('response_mirror_read', 'notify_mirror_read', 'response_mirror_set', 'notify_mirror_set'):
             self.model.set_mirror_parameter(msg.bus, msg.dev, msg.par, msg.val)
@@ -175,6 +175,14 @@ class MRCController(QtCore.QObject):
             elif req_t in ('request_reset', 'request_copy'):
                 self.model.reset_mem(request.bus, request.dev)
                 self.model.reset_mirror(request.bus, request.dev)
+
+        elif response.get_type_name() == 'response_set':
+            # Update the model and force it to emit parameter_changed if
+            # request and response values are not equal. This has the effect of
+            # updating GUI controls which will display the value that was sent
+            # with the set_request to display the correct value again.
+            self.model.set_parameter(response.bus, response.dev, response.par, response.val,
+                    request.val != response.val)
 
     def _on_request_queue_size_changed(self, size):
         self.request_queue_size_changed.emit(size)
