@@ -5,6 +5,7 @@
 from functools import partial
 import util
 from command import Command
+from command import SequentialCommandGroup
 
 class ErrorResponse(Exception):
     def __init__(self, response):
@@ -31,7 +32,7 @@ class MRCCommand(Command):
 
     def _handle_response(self, request, response):
         self._response = response
-        self._stopped(True)
+        self._stopped(not response.is_error())
 
     def _stop(self):
         pass
@@ -229,22 +230,12 @@ class Reset(Command):
         return len(self.refresh)
 
 
-class FetchMissingParameters(Command):
-    def __init__(self, device, mirror=False, parent=None):
+class FetchMissingParameters(SequentialCommandGroup):
+    """Fetches parameters missing from the device memory."""
+    def __init__(self, device, parent=None):
         super(FetchMissingParameters, self).__init__(parent)
         self.device = device
-        self.mirror = mirror
 
-    def _start(self):
         for i in range(256):
             if not self.device.has_parameter(i):
-                if self.mirror:
-                    self.device.read_mirror_parameter(i, self._handle_response)
-                else:
-                    self.device.read_parameter(i, self._handle_response)
-
-    def _handle_response(self, request, response):
-        if response.is_error():
-            self._stopped(False)
-        elif self.device.has_all_parameters():
-            self._stopped(True)
+                self.add(ReadParameter(device, i))

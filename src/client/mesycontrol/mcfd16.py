@@ -932,7 +932,8 @@ class MCFD16ControlsWidget(QtGui.QWidget):
             return
 
         if bp.name == 'channel_mask':
-            self.channel_mask_box.value = bp.value
+            with util.block_signals(self.channel_mask_box) as box:
+                box.value = bp.value
 
     # Gui Changes
     def _on_channel_mask_value_changed(self, value):

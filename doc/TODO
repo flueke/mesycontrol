@@ -1,6 +1,79 @@
-* scanbus(3) shuts down the mrc connection cause of a timeout. fix this!
-  the command 'sc 3' results in only one line of output: 'ERROR!' no other
-  output is generated.
+== Fri Jan 30 10:29:16 CET 2015 ==
+* Bug: With set requests: server sends an error response and then the response
+  to the artificial read which means the clients receives two responses for one
+  request. Bad!
+* Bug: Server does not open USB device in exclusive mode on linux!
+* Poll RC memory address for all devices
+* Periodic scanbus to detect disappearing devices and address conflicts early
+* Make spinboxes delay their valueChanged signal. Use pg.SignalProxy to achieve
+* this. Probably will need GUI code changes.
+
+* Fetch device memory before opening device widgets
+  - What should be fetched?
+  - When should it be fetched?
+  - Should DeviceModel or Device initiate the fetch?
+  - How is completion signaled?
+  - Completion access method?
+
+  * Motivation and Purpose
+  The MSCF-16 gui needs to figure out the specific version of the device. To do
+  this multiple memory cells are accessed. What happens right now is:
+  MSCF16Widget is created and calls
+    device.add_default_parameter_subscription(self)
+    device.propagate_state()
+  The first line will initiate a fetch of all required parameters, the second
+  line will tell the device to propagate its current state using
+  parameter_changed() and specific signals. The second line is needed for the
+  case where the device memory is present and thus no change signals will be
+  emitted at Widget creation time. propagate_state() forces change signals to
+  be re-emitted.
+  As parameters arrive change signals are emitted which cause widget logic code
+  to run which has to manually get additional memory values. If those values
+  are not present exceptions will occur and UI elements will be left empty or
+  in an incorrect state.
+
+  Solution:
+  Fetch memory before GUI initialization code runs.
+
+  - What to fetch? Full memory or subscription only?
+  - When to fetch? On DeviceModel creation (full mem only as subscriptions are
+    only known by the Device class on Device creation, on method invocation
+    ("ensure_memory_complete()")
+    If fetching on DeviceModel creation the behaviour is built into the the
+    core and thus will also take place in e.g. a CLI client. Is this desired?
+    Otherwise fetching will happen when the user opens the widget for the first
+    time even if it could have been done earlier while the bus was idle.
+  - What to do if the device is disconnected during the fetch? 'ready' will
+    never be emitted (but 'disconnected' will).
+  - What if the server is in silenced mode? Device memory can't be fetched at
+    all.
+
+  Alternatives:
+  - Init memory to a certain value (0,-inf,None). This value might be out of
+    range for a certain parameter and thus cause weird behaviour and other
+    exceptions to occur! In the case of None clients using the memory would
+    _always_ have to check for a param being None.
+  - Init memory to parameters min value. => Not all params have a range...
+
+  Tons of problems:
+  widget with subwidgets is created
+  -> widget and subwidgets immediately listen to parameter_changed
+  -> during initial fetch paramter_changed is emitted
+  -> same problem as before: gui code runs, wants memory values, gets exceptions
+  -> memory fetch completes
+  -> state is propagated again
+
+  => delay creation of the actual widget
+  -> create a dummy widget that checks if fetching needs to be done. if true it
+  initiates the fetch and waits, possibly displaying a progress indicator
+  -> once memory is present the real device widget is created and now has the
+  full device memory present
+  again a problem: restoring the subwindow state as it is done right now
+  _slt_open_device_window -> _add_subwindow -> restore_subwindow_state will
+  resize the temporary widget too.
+
+  Implementation for now:
+  - 
 
 * Scripting:
   - Standalone vs. running inside the GUI

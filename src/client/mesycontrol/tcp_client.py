@@ -178,6 +178,7 @@ class TCPClient(QtCore.QObject):
 
         try:
             self._current_request_tuple = self._write_queue.pop(0)
+            self.log.debug("_current_request_tuple = %s", self._current_request_tuple)
             msg_data = self._current_request_tuple[0].serialize()
             self._current_write_data = struct.pack('!H', len(msg_data)) + msg_data
             self.log.debug("Writing message %s (size=%d)", self._current_request_tuple[0], len(self._current_write_data))
@@ -208,6 +209,7 @@ class TCPClient(QtCore.QObject):
                 return
 
             self.log.debug("Received message %s", message)
+            self.log.debug("_current_request_tuple = %s", self._current_request_tuple)
 
             self.stats.message_received(message, self._read_size + 2)
             self.message_received.emit(message)

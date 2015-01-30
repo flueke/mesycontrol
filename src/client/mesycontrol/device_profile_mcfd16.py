@@ -102,7 +102,7 @@ profile_dict = {
 
             # Mode & RC
             { 'address': 72, 'name': 'single_channel_mode',     'range': (0, 1) },
-            { 'address': 73, 'name': 'rc', 'read_only': True,   'range': (0, 1) }, # Marked as read only to avoid storing/loading it
+            { 'address': 73, 'name': 'rc', 'read_only': True, 'poll': True,   'range': (0, 1) }, # Marked as read only to avoid storing/loading it
 
             # Timing parameters
             { 'address': 74, 'name': 'gg_leading_edge_delay',           'range': (5, 255) },
