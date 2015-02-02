@@ -247,10 +247,6 @@ class MCFD16(app_model.Device):
         elif bp.name == 'single_channel_mode':
             self.single_channel_mode_changed.emit(bp.value)
 
-        elif bp.name == 'discriminator_mode':
-            # Refresh the fast_veto register on discriminator mode change
-            self.read_parameter(self.profile['fast_veto'].address)
-
     def get_trigger_pattern(self, trigger_index):
         high = self.get_parameter_by_name('trigger_pattern%d_high' % trigger_index)
         low  = self.get_parameter_by_name('trigger_pattern%d_low'  % trigger_index)
@@ -430,12 +426,14 @@ class PreampPage(QtGui.QGroupBox):
         self.pol_common.clicked.connect(self._on_pb_polarity_clicked)
         self.pol_inputs = list()
 
-        gain_min_max     = device.profile['gain_common'].range.to_tuple()
-        self.gain_common = make_spinbox(limits=gain_min_max)
-        self.gain_common.valueChanged.connect(self._on_gain_value_changed)
-        self.gain_label_common = make_dynamic_label(longest_value=MCFD16.gain_factors[gain_min_max[1]])
-        self.gain_inputs = list()
-        self.gain_labels = list()
+        def make_gain_combo():
+            ret = QtGui.QComboBox()
+            for rc_value, gain in sorted(MCFD16.gain_factors.iteritems()):
+                ret.addItem(str(gain), rc_value)
+            return ret
+
+        self.gain_common = make_gain_combo()
+        self.gain_common.currentIndexChanged.connect(self._on_gain_combo_index_changed)
 
         layout = QtGui.QGridLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
@@ -444,12 +442,13 @@ class PreampPage(QtGui.QGroupBox):
         layout.addWidget(QtGui.QLabel("Common"),    offset, 0, 1, 1, Qt.AlignRight)
         layout.addWidget(self.pol_common,           offset, 1, 1, 1, Qt.AlignCenter)
         layout.addWidget(self.gain_common,          offset, 2)
-        layout.addWidget(self.gain_label_common,    offset, 3)
 
         offset += 1
         layout.addWidget(make_title_label("Group"),    offset, 0, 1, 1, Qt.AlignRight)
         layout.addWidget(make_title_label("Polarity"), offset, 1)
-        layout.addWidget(make_title_label("Gain"),     offset, 2, 1, 2, Qt.AlignCenter)
+        layout.addWidget(make_title_label("Gain"),     offset, 2, 1, 1, Qt.AlignCenter)
+
+        self.gain_inputs = list()
 
         for i in range(MCFD16.num_groups):
             offset      = layout.rowCount()
@@ -458,27 +457,25 @@ class PreampPage(QtGui.QGroupBox):
             pol_button  = QtGui.QPushButton(self.icon_pol_positive, QtCore.QString())
             pol_button.clicked.connect(self._on_pb_polarity_clicked)
             pol_button.setMaximumSize(PreampPage.polarity_button_size)
-            gain_spin   = make_spinbox(limits=gain_min_max)
-            gain_spin.valueChanged.connect(self._on_gain_value_changed)
-            gain_label  = make_dynamic_label(longest_value=MCFD16.gain_factors[gain_min_max[1]])
+
+            gain_combo = make_gain_combo()
+            gain_combo.currentIndexChanged.connect(self._on_gain_combo_index_changed)
 
             self.pol_inputs.append(pol_button)
-            self.gain_inputs.append(gain_spin)
-            self.gain_labels.append(gain_label)
+            self.gain_inputs.append(gain_combo)
 
             layout.addWidget(group_label,   offset, 0, 1, 1, Qt.AlignRight)
             layout.addWidget(pol_button,    offset, 1, 1, 1, Qt.AlignCenter)
-            layout.addWidget(gain_spin,     offset, 2)
-            layout.addWidget(gain_label,    offset, 3)
+            layout.addWidget(gain_combo,    offset, 2)
 
-        layout.addWidget(hline(), layout.rowCount(), 0, 1, 4) # hline separator
+        layout.addWidget(hline(), layout.rowCount(), 0, 1, layout.columnCount()) # hline separator
 
         self.cb_bwl = QtGui.QCheckBox("BWL enable")
         self.cb_bwl.stateChanged.connect(self._on_cb_bwl_state_changed)
         self.cb_bwl.setToolTip("Bandwidth limit enable")
         self.cb_bwl.setStatusTip(self.cb_bwl.toolTip())
 
-        layout.addWidget(self.cb_bwl, layout.rowCount(), 2, 1, 2)
+        layout.addWidget(self.cb_bwl, layout.rowCount(), 0, 1, layout.columnCount(), Qt.AlignRight)
 
         device.parameter_changed[object].connect(self._on_device_parameter_changed)
 
@@ -494,12 +491,9 @@ class PreampPage(QtGui.QGroupBox):
             button.setIcon(icon)
 
         elif bp.name == 'gain_common' or re.match(r'gain_group\d', bp.name):
-            spin  = self.gain_inputs[bp.index] if bp.has_index() else self.gain_common
-            label = self.gain_labels[bp.index] if bp.has_index() else self.gain_label_common
-            with util.block_signals(spin):
-                spin.setValue(bp.value)
-
-            label.setText(str(MCFD16.gain_factors[bp.value]))
+            combo = self.gain_inputs[bp.index] if bp.has_index() else self.gain_common
+            with util.block_signals(combo):
+                combo.setCurrentIndex(bp.value)
 
         elif bp.name == 'bwl_enable':
             with util.block_signals(self.cb_bwl):
@@ -511,23 +505,14 @@ class PreampPage(QtGui.QGroupBox):
         group = 'common' if pb == self.pol_common else self.pol_inputs.index(pb)
         self.device.toggle_polarity(group)
 
-        #pb = self.sender()
-        #if pb == self.pol_common:
-        #    name = 'polarity_common'
-        #else:
-        #    name = 'polarity_group%d' % self.pol_inputs.index(pb)
-
-        #value = Polarity.negative if self.device[name] == Polarity.positive else Polarity.negative
-
-        #self.device.set_parameter_by_name(name, value)
-
-    def _on_gain_value_changed(self, value):
-        pb = self.sender()
-        if pb == self.gain_common:
+    def _on_gain_combo_index_changed(self, idx):
+        s = self.sender()
+        if s == self.gain_common:
             name = 'gain_common'
         else:
-            name = 'gain_group%d' % self.gain_inputs.index(pb)
+            name = 'gain_group%d' % self.gain_inputs.index(s)
 
+        value, ok = s.itemData(idx).toInt()
         self.device.set_parameter_by_name(name, value)
 
     def _on_cb_bwl_state_changed(self, state):
@@ -753,7 +738,8 @@ class DiscriminatorPage(QtGui.QGroupBox):
         else:
             name = 'fraction_group%d' % self.fraction_inputs.index(s)
 
-        self.device.set_parameter_by_name(name, idx)
+        value, ok = s.itemData(idx).toInt()
+        self.device.set_parameter_by_name(name, value)
 
     def _on_threshold_input_valueChanged(self, value):
         s = self.sender()
@@ -895,7 +881,7 @@ class MCFD16ControlsWidget(QtGui.QWidget):
         mode_box = QtGui.QGroupBox("Channel Mode", self)
         mode_layout = QtGui.QGridLayout(mode_box)
         mode_layout.setContentsMargins(2, 2, 2, 2)
-        self.rb_mode_single = QtGui.QRadioButton("Single", toggled=self._rb_mode_single_toggled)
+        self.rb_mode_single = QtGui.QRadioButton("Individual", toggled=self._rb_mode_single_toggled)
         self.rb_mode_common = QtGui.QRadioButton("Common")
         mode_layout.addWidget(self.rb_mode_single, 0, 0)
         mode_layout.addWidget(self.rb_mode_common, 0, 1)
