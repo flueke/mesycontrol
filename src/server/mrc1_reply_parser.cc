@@ -100,7 +100,8 @@ bool MRC1ReplyParser::parse_read_or_set(const std::string &reply_line)
 
   m_response = get_error_response(reply_line);
   if (m_response) {
-    return true;
+    m_error_lines_to_consume = 1;
+    return false;
   }
 
   if (!regex_match(reply_line, matches, re_read_or_set)) {
