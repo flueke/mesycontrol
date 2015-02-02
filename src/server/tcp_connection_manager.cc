@@ -9,6 +9,7 @@ namespace mesycontrol
 TCPConnectionManager::TCPConnectionManager(MRC1RequestQueue &mrc1_queue)
   : m_mrc1_queue(mrc1_queue)
   , m_log(log::keywords::channel="TCPConnectionManager")
+  , m_skip_read_after_set_response(false)
 {
   m_mrc1_queue.get_mrc1_connection()->register_status_change_callback(
       boost::bind(&TCPConnectionManager::handle_mrc1_status_change, this, _1));
@@ -65,7 +66,7 @@ void TCPConnectionManager::dispatch_request(const TCPConnectionPtr &connection, 
             boost::bind(&TCPConnectionManager::handle_set_response,
               this, connection, _1, _2));
 
-        /* Create an artificial read request on parameter set to get the
+        /* Create an extra read request on parameter set to get the
          * updated memory value. */
         MessagePtr read_request(MessageFactory::make_read_request(
               request->bus, request->dev, request->par,
@@ -168,22 +169,26 @@ void TCPConnectionManager::handle_set_response(const TCPConnectionPtr &connectio
    * set command will be sent by handle_read_after_set(). */
   if (response->type == message_type::response_error) {
     connection->send_message(response);
+    m_skip_read_after_set_response = true; // Don't send a response to the read_after_set request
   }
 }
 
 void TCPConnectionManager::handle_read_after_set(const TCPConnectionPtr &connection,
     const MessagePtr &request, const MessagePtr &response)
 {
-  /* Send a set/mirror_set response to the client that originally sent the set
-   * request. */
-  connection->send_message(MessageFactory::make_read_or_set_response(
-        request->type == message_type::request_read ? message_type::request_set : message_type::request_mirror_set,
-        response->bus, response->dev, response->par, response->val));
+  if (!m_skip_read_after_set_response) {
+    /* Send a set/mirror_set response to the client that originally sent the set
+     * request. */
+    connection->send_message(MessageFactory::make_read_or_set_response(
+          request->type == message_type::request_read ? message_type::request_set : message_type::request_mirror_set,
+          response->bus, response->dev, response->par, response->val));
 
-  /* Notify other clients that a parameter has been set. */
-  send_to_all(MessageFactory::make_parameter_set_notification(
-        response->bus, response->dev, response->par, response->val,
-        response->type == message_type::response_mirror_read));
+    /* Notify other clients that a parameter has been set. */
+    send_to_all_except(connection, MessageFactory::make_parameter_set_notification(
+          response->bus, response->dev, response->par, response->val,
+          response->type == message_type::response_mirror_read));
+  }
+  m_skip_read_after_set_response = false;
 }
 
 void TCPConnectionManager::handle_mrc1_status_change(const mrc_status::Status &status)

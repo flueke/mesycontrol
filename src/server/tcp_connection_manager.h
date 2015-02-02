@@ -58,6 +58,9 @@ class TCPConnectionManager: private boost::noncopyable
 
     /// Local logger instance
     log::Logger m_log;
+
+    /// Flag to indicate that the read_after_set response should not be send.
+    bool m_skip_read_after_set_response;
 };
 
 } // namespace mesycontrol
