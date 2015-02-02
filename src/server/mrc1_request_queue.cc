@@ -21,6 +21,7 @@ void MRC1RequestQueue::queue_request(const MessagePtr &request, ResponseHandler 
   if (!request->is_mrc1_command()) {
     BOOST_THROW_EXCEPTION(std::runtime_error("Given request is not a MRC1 command"));
   }
+  BOOST_LOG_SEV(m_log, log::lvl::trace) << "Queueing request " << request->get_info_string();
   m_request_queue.push_back(std::make_pair(request, response_handler));
   try_send_mrc1_request();
 }
@@ -28,12 +29,12 @@ void MRC1RequestQueue::queue_request(const MessagePtr &request, ResponseHandler 
 void MRC1RequestQueue::try_send_mrc1_request()
 {
   if (m_request_queue.empty()) {
-    BOOST_LOG_SEV(m_log, log::lvl::trace) << "Empty queue. Nothing to do";
+    BOOST_LOG_SEV(m_log, log::lvl::trace) << "try_send_mrc1_request: Empty queue. Nothing to do";
     return;
   }
   
   if (m_mrc1_connection->command_in_progress()) {
-    BOOST_LOG_SEV(m_log, log::lvl::trace) << "Command in progress";
+    BOOST_LOG_SEV(m_log, log::lvl::trace) << "try_send_mrc1_request: Command in progress";
     return;
   }
 
@@ -61,7 +62,8 @@ void MRC1RequestQueue::try_send_mrc1_request()
     BOOST_LOG_SEV(m_log, log::lvl::error) << "MRC connection not running. Sending error response";
     handle_mrc1_response(m_request_queue.front().first, MessageFactory::make_error_response(et));
   } else {
-    BOOST_LOG_SEV(m_log, log::lvl::trace) << "invoking MRC write_command()";
+    BOOST_LOG_SEV(m_log, log::lvl::trace) << "invoking MRC write_command(): " <<
+      m_request_queue.front().first->get_info_string();
     m_mrc1_connection->write_command(m_request_queue.front().first,
         boost::bind(&MRC1RequestQueue::handle_mrc1_response, this, _1, _2));
   }
