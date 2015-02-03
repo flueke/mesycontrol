@@ -1,0 +1,54 @@
+Use cases
+=========
+* Connect to MRC, scan bus, detect devices
+* View device parameters
+* Edit device parameters using device specific GUIs and/or a generic table
+  view
+* Save single device config to file
+* Load single device config from file
+* Save all device configs and the corresponding mrc information to a file
+  (Setup)
+* Load setup from file
+
+Facts
+=====
+* Serial communication is the major bottleneck. This means deciding when to
+  issue which requests is important for GUI responsiveness.
+* Periodic execution of certain commands is needed: polling of changing
+  parameters and status flags, scanbus commands to detect changes on the bus.
+* The basic hardware model is relatively simple: a tree with an MRC at the
+  root, two busses and up to 16 devices per bus.
+  - MRC data: None
+  - Bus data: bus number
+  - Device data:
+    bus
+    address
+    idc
+    256 memory cells
+    256 mirror cells
+    RC state
+
+* Additional bus data: Bus not terminated
+  This is currently not directly reported by the MRC but instead address
+  conflicts are seen at every address (exception: no conflict is shown for the
+  STM-16 in my setup). In a newer firmware version this might be reported.
+  -> Can't distinguish a termination problem from address conflicts.
+
+* Address conflicts:
+  - Reported for each device by the scanbus command
+  - Reported for device specific commands like read, set, rc_on, etc...
+* One main problem is: How to handle changes to the bus configuration?
+
+Possible bus changes
+====================
+* No device present -> 1.1 device present
+                    -> 1.2 device present + address conflict
+
+* device present    -> 2.1 no device present
+                    -> 2.2 device present + address conflict
+                    -> 2.3 device idc changed
+
+* device present +  -> 3.1 no device present
+  address conflict  -> 3.2 device present
+                    -> 3.3 device idc changed
+                    -> 3.4 device idc changed + address conflict
