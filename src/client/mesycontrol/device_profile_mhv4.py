@@ -101,17 +101,25 @@ profile_dict = {
             { 'address': 111,  'name': 'channel3_tcomp_source_read', 'index': 3, 'read_only': True, 'poll': True},
 
             # Voltage precision
-            { 'address': 76,   'name': 'channel0_voltage_prec_write', 'index': 0, 'range': (0, 64000), 'units': [{'label': 'V', 'factor': 80.0 }] },
-            { 'address': 77,   'name': 'channel1_voltage_prec_write', 'index': 1, 'range': (0, 64000), 'units': [{'label': 'V', 'factor': 80.0 }] },
-            { 'address': 78,   'name': 'channel2_voltage_prec_write', 'index': 2, 'range': (0, 64000), 'units': [{'label': 'V', 'factor': 80.0 }] },
-            { 'address': 79,   'name': 'channel3_voltage_prec_write', 'index': 3, 'range': (0, 64000), 'units': [{'label': 'V', 'factor': 80.0 }] },
+            # Set to not be stored/loaded as this interferes with channelN_voltage_write.
+            { 'address': 76,   'name': 'channel0_voltage_prec_write', 'index': 0, 'range': (0, 64000), 'units': [{'label': 'V', 'factor': 80.0 }], 'do_not_store': True },
+            { 'address': 77,   'name': 'channel1_voltage_prec_write', 'index': 1, 'range': (0, 64000), 'units': [{'label': 'V', 'factor': 80.0 }], 'do_not_store': True },
+            { 'address': 78,   'name': 'channel2_voltage_prec_write', 'index': 2, 'range': (0, 64000), 'units': [{'label': 'V', 'factor': 80.0 }], 'do_not_store': True },
+            { 'address': 79,   'name': 'channel3_voltage_prec_write', 'index': 3, 'range': (0, 64000), 'units': [{'label': 'V', 'factor': 80.0 }], 'do_not_store': True },
 
             { 'address': 112,  'name': 'channel0_voltage_prec_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 80.0 }] },
             { 'address': 113,  'name': 'channel1_voltage_prec_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 80.0 }] },
             { 'address': 114,  'name': 'channel2_voltage_prec_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 80.0 }] },
             { 'address': 115,  'name': 'channel3_voltage_prec_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 80.0 }] },
 
+            # Misc
+            { 'address': 44,  'name': 'rc_enable', 'read_only': True },
+            { 'address': 80,  'name': 'ramp_speed_write', 'range': (0, 3) },
+            { 'address': 116, 'name': 'ramp_speed_read', 'read_only': True, 'poll': True },
+
             # Voltage
+            # Keep at the end of the parameter list to make sure these
+            # addresses are written last when loading a config.
             { 'address': 0,   'name': 'channel0_voltage_write', 'index': 0, 'range': (0, 8000), 'units': [voltage_10] },
             { 'address': 1,   'name': 'channel1_voltage_write', 'index': 1, 'range': (0, 8000), 'units': [voltage_10] },
             { 'address': 2,   'name': 'channel2_voltage_write', 'index': 2, 'range': (0, 8000), 'units': [voltage_10] },
@@ -121,11 +129,6 @@ profile_dict = {
             { 'address': 33,  'name': 'channel1_voltage_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [voltage_10] },
             { 'address': 34,  'name': 'channel2_voltage_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [voltage_10] },
             { 'address': 35,  'name': 'channel3_voltage_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [voltage_10] },
-
-            # Misc
-            { 'address': 44,  'name': 'rc_enable', 'read_only': True },
-            { 'address': 80,  'name': 'ramp_speed_write', 'range': (0, 3) },
-            { 'address': 116, 'name': 'ramp_speed_read', 'read_only': True, 'poll': True }
             ]
 }
 
