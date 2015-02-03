@@ -1,12 +1,12 @@
 == Fri Jan 30 10:29:16 CET 2015 ==
-* Bug: With set requests: server sends an error response and then the response
-  to the artificial read which means the clients receives two responses for one
-  request. Bad!
-* Bug: Server does not open USB device in exclusive mode on linux!
-* Poll RC memory address for all devices
-* Periodic scanbus to detect disappearing devices and address conflicts early
+* Connection error handling
+* Anderungen an Geraeten nur im RC zulassen -> Panel deaktivieren wenn RC aus.
+  Braucht scanbus polling um aenderungen zu erkennen.
+* Meldung wenn RC wechsel ("dip switches can not be set via software", etc)
+* Periodic scanbus to detect disconnected devices, address conflicts and RC changes
+
 * Make spinboxes delay their valueChanged signal. Use pg.SignalProxy to achieve
-* this. Probably will need GUI code changes.
+  this. Probably will need GUI code changes.
 
 * Fetch device memory before opening device widgets
   - What should be fetched?
@@ -72,9 +72,6 @@
   _slt_open_device_window -> _add_subwindow -> restore_subwindow_state will
   resize the temporary widget too.
 
-  Implementation for now:
-  - 
-
 * Scripting:
   - Standalone vs. running inside the GUI
   - Wrapper documentation
@@ -105,7 +102,7 @@ Device has DeviceModel and DeviceConfig. User issues a "load config" action via 
 controller.load_config(bus=0, dev=1, config=self.config,
     started=self._load_started, stopped=self._load_stopped, progress_changed=self._load_progress_changed)
 
-xxx: From an application view loading a config needs more action that just
+xxx: From an application view loading a config needs more action than just
 applying the config values to the device: Device.config needs to be updated.
 The new config might have a different Setup root than the old config. -> Node
 needs to move in a tree view.
