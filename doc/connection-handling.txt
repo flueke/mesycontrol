@@ -85,6 +85,8 @@ Things to do & problems to solve
     accordingly. During that time the model should remain in the "connecting"
     state.
 
+=> Make this a "communication error".
+
   - Error: Failed starting TCP server component: bind: Address already in use
     This error causes the server to exit with one of the
     ServerProcess.exit_code values. This is easily detected and handled in the
@@ -92,8 +94,5 @@ Things to do & problems to solve
 
 The Plan
 --------
-* add status_request, status_response and notify_status to the protocol.
-* update the server to react to status_requests
 * update the client to handle status_responses
   - separate server_process, tcp_client and protocol states
-  - 
