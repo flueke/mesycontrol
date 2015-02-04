@@ -73,6 +73,9 @@ int main(int argc, char *argv[])
     ("listen-port", po::value<unsigned short>()->default_value(23000),
      "Server listening port.")
 
+    ("auto-reconnect", po::value<bool>()->default_value(true),
+     "Automatically reconnect to the MRC in case of connection errors.")
+
     ("verbose,v", accumulator<int>(),
      "Increase verbosity level (can be used multiple times).")
 
@@ -142,6 +145,8 @@ int main(int argc, char *argv[])
     std::cerr << "Error: neither --mrc-serial-port nor --mrc-host given" << std::endl;
     return exit_options_error;
   }
+
+  mrc1_connection->set_auto_reconnect(option_map["auto-reconnect"].as<bool>());
 
   MRC1RequestQueue mrc1_request_queue(mrc1_connection);
   TCPConnectionManager connection_manager(mrc1_request_queue);
