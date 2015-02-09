@@ -139,7 +139,7 @@ if __name__ == "__main__":
             for n in dir(signal) if n.startswith('SIG') and '_' not in n)
     signal.signal(signal.SIGINT, signal_handler)
 
-    app     = qt.QtCore.QCoreApplication(sys.argv)
+    app     = qt.QtGui.QApplication(sys.argv)
     context = app_context.Context(sys.executable if getattr(sys, 'frozen', False) else __file__)
     # Update the environments path to easily find the mesycontrol_server binary.
     os.environ['PATH'] = context.bin_dir + os.pathsep + os.environ['PATH']
