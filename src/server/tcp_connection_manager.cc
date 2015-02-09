@@ -20,6 +20,9 @@ void TCPConnectionManager::start(TCPConnectionPtr c)
   m_connections.insert(c);
   c->start();
 
+  c->send_message(MessageFactory::make_mrc_status_changed_notification(
+        m_mrc1_queue.get_mrc1_connection()->get_status()));
+
   if (m_connections.size() == 1) {
     // Automatically give write access to the first client
     set_write_connection(c);
@@ -29,9 +32,6 @@ void TCPConnectionManager::start(TCPConnectionPtr c)
     // Also tell the client if it can acquire write access
     c->send_message(MessageFactory::make_can_acquire_write_access_notification(!m_write_connection));
   }
-
-  c->send_message(MessageFactory::make_mrc_status_changed_notification(
-        m_mrc1_queue.get_mrc1_connection()->get_status()));
 }
 
 void TCPConnectionManager::stop(TCPConnectionPtr c, bool graceful)
