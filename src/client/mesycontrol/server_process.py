@@ -10,6 +10,12 @@ import sys
 import util
 import weakref
 
+qprocess_states = {
+        0: 'Not Running',
+        1: 'Starting',
+        2: 'Running'
+}
+
 class InvalidArgument(Exception):
     pass
 
@@ -74,6 +80,7 @@ class ServerProcess(QtCore.QObject):
         self.process.error.connect(self._slt_error)
         self.process.finished.connect(self._slt_finished)
         self.process.readyReadStandardOutput.connect(self._slt_stdout_ready)
+        self.process.stateChanged.connect(self._slt_process_state_changed)
 
         self.log = util.make_logging_source_adapter(__name__, self)
 
@@ -175,6 +182,9 @@ class ServerProcess(QtCore.QObject):
             self.log.debug(line)
             self.sig_stdout.emit(line)
 
+    def _slt_process_state_changed(self, state):
+        self.log.info("Process state changed: %s", qprocess_states[state])
+
 class ProcessPool(QtCore.QObject):
     default_base_port = 23000
 
@@ -211,7 +221,9 @@ class ProcessPool(QtCore.QObject):
         if exit_code_string == 'exit_address_in_use':
             self.log.warning('listen_port %d in use by an external process', process.listen_port)
             self._unavailable_ports.add(process.listen_port)
+            del self._procs_by_port[process.listen_port]
             process.listen_port = self._get_free_port()
+            self._procs_by_port[process.listen_port] = process
             process.start()
 
 pool = ProcessPool()

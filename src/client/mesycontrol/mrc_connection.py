@@ -24,7 +24,7 @@ class AbstractConnection(QtCore.QObject):
 
     connecting               = pyqtSignal()
     connected                = pyqtSignal()
-    disconnected             = pyqtSignal(object)
+    disconnected             = pyqtSignal()
     connection_error         = pyqtSignal(ConnectionError)
 
     message_sent             = pyqtSignal(protocol.Message) #: message
@@ -44,10 +44,13 @@ class AbstractConnection(QtCore.QObject):
     write_access_changed     = pyqtSignal(bool)
     silence_changed          = pyqtSignal(bool)
 
+    mrc_status_changed       = pyqtSignal(object) #: protocol.MRCStatus.info_list entry
+
     def __init__(self, parent=None):
         super(AbstractConnection, self).__init__(parent)
         self._write_access = False
         self._silenced     = False
+        self._mrc_status   = protocol.MRCStatus.by_code[0]
 
     def connect(self):
         raise NotImplementedError()
@@ -103,6 +106,11 @@ class AbstractConnection(QtCore.QObject):
         specifying the same hardware."""
         raise NotImplementedError()
 
+    def get_mrc_status(self):
+        return self._mrc_status
+
+    mrc_status = pyqtProperty(object, get_mrc_status, notify=mrc_status_changed)
+
     write_access = pyqtProperty(bool, has_write_access, set_write_access,
             notify=write_access_changed)
 
@@ -118,9 +126,14 @@ class AbstractConnection(QtCore.QObject):
             self.notification_received.emit(msg)
             t = msg.get_type_name()
 
-            if t == 'notify_silent_mode' and self.silenced != msg.bool_value:
+            if t == 'notify_mrc_status':
+                self._mrc_status = protocol.MRCStatus.by_code[msg.status]
+                self.mrc_status_changed.emit(self._mrc_status)
+
+            elif t == 'notify_silent_mode' and self.silenced != msg.bool_value:
                 self._silenced = msg.bool_value
                 self.silence_changed.emit(self._silenced)
+
             elif t == 'notify_write_access' and self.write_access != msg.bool_value:
                 self._write_access = msg.bool_value
                 self.write_access_changed.emit(self._write_access)
@@ -129,6 +142,18 @@ class AbstractConnection(QtCore.QObject):
 
 class MesycontrolConnection(AbstractConnection):
     """TCP connection to a mesycontrol server."""
+
+
+    # connection states:
+    # is_connecting   = tcp_client.is_connecting or mrc_status in 'connecting', 'initializing'
+    # is_connected    = tcp_client.is_connected and mrc_status is 'running'
+    # is_disconnected = tcp_client.is_disconnected or mrc_status in 'stopped', 'connection_failed', 'init_failed'
+    # While the server is trying to establish its MRC connection it will cycle
+    # through the states quite quickly. This will also make the
+    # MesycontrolConnection connection appear to cycle quickly. Have to be
+    # careful with performing actions on state changes as those would be
+    # executed rapidly.
+    # 
     def __init__(self, host=None, port=None, parent=None):
 
         super(MesycontrolConnection, self).__init__(parent)
@@ -137,8 +162,8 @@ class MesycontrolConnection(AbstractConnection):
         self.port    = int(port) if port is not None else None
 
         self._client = tcp_client.TCPClient(self)
-        self._client.connecting.connect(self.connecting)
-        self._client.connected.connect(self.connected)
+        self._client.connecting.connect(self._on_client_connecting)
+        self._client.connected.connect(self._on_client_connected)
         self._client.disconnected.connect(self._on_client_disconnected)
         self._client.socket_error.connect(self._slt_socket_error)
 
@@ -154,6 +179,8 @@ class MesycontrolConnection(AbstractConnection):
         self._client.write_queue_empty.connect(self.idle)
         self._client.write_queue_size_changed.connect(self.write_queue_size_changed)
 
+        self.mrc_status_changed.connect(self._on_mrc_status_changed)
+
     def connect(self):
         if None in (self.host, self.port):
             raise RuntimeError("host or port not set")
@@ -162,11 +189,31 @@ class MesycontrolConnection(AbstractConnection):
     def disconnect(self):
         self._client.disconnect()
 
+    # State changes
     def is_connected(self):
-        return self._client.is_connected()
+        return self._client.is_connected() and self.mrc_status['name'] == 'running'
 
     def is_connecting(self):
-        return self._client.is_connecting()
+        return (self._client.is_connecting() or
+                self.mrc_status['name'] in ('connecting', 'initializing'))
+
+    def _on_client_connecting(self):
+        pass
+
+    def _on_client_connected(self):
+        pass
+
+    def _on_mrc_status_changed(self, status):
+        if self.is_connected():
+            self.connected.emit()
+        if self.is_connecting():
+            self.connecting.emit()
+    
+    def _on_client_disconnected(self):
+        self.disconnected.emit()
+
+    def _slt_socket_error(self, errc, errstr):
+        self.connection_error.emit(ConnectionError(str(errstr), errc))
 
     def queue_request(self, msg, response_handler=None):
         return self._client.queue_request(msg, response_handler)
@@ -176,12 +223,6 @@ class MesycontrolConnection(AbstractConnection):
 
     def get_write_queue_size(self):
         return self._client.get_write_queue_size()
-    
-    def _on_client_disconnected(self):
-        self.disconnected.emit(None)
-
-    def _slt_socket_error(self, errc, errstr):
-        self.connection_error.emit(ConnectionError(str(errstr), errc))
 
     def matches_config(self, connection_config):
         return (connection_config.is_mesycontrol_connection()
