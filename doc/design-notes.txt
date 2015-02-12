@@ -17,6 +17,9 @@ Use cases
   The gui should allow to add and remove devices from/to a setup. Specific
   GUIs and the generic table view should also work (limitations are ok and
   expected as there will be no feedback from the hardware)
+* Logging of MRC communication and events
+  Logging should be able to differentiate between polling and non-polling
+  reads.
 
 GUI elements
 ============
