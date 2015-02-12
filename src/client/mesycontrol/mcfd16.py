@@ -8,7 +8,7 @@ from qt import pyqtSlot
 from qt import Qt
 from qt import QtCore
 from qt import QtGui
-import pyqtgraph as pg
+from . import pyqtgraph as pg
 
 import math
 import re
@@ -1454,6 +1454,8 @@ if __name__ == "__main__":
     import signal
     import sys
     import device_profile_mcfd16
+
+    print pg.__file__
 
     QtGui.QApplication.setDesktopSettingsAware(False)
     app = QtGui.QApplication(sys.argv)
