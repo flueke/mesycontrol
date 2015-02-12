@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from mesycontrol import app_context
-from mesycontrol import config
-from mesycontrol import config_xml
+from .. import app_context
+from .. import config
+from .. import config_xml
 from nose.tools import assert_raises
 import xml.etree.ElementTree as ET
 
