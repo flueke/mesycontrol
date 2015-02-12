@@ -8,7 +8,7 @@ from qt import pyqtSlot
 from qt import Qt
 from qt import QtCore
 from qt import QtGui
-import pyqtgraph as pg
+from . import pyqtgraph as pg
 
 import math
 import re
