@@ -4,6 +4,17 @@ Use cases
 * View an MRCs bus configuration
 * View and edit device parameters using device specific GUIs and/or a generic
   table view
+* Save device state to config file
+* Load config onto device. Notify user on errors. Allow retries.
+* Save complete device tree (may include multiple mrc connections) to a config
+  file ("Setup")
+* Load a Setup from file.
+  For each MRC in the Setup:
+   - Connect to the MRC
+   - Read the bus configuration and compare it to the Setup.
+   - Abort if bus configuration does not match. Multiple cases here:
+     additional devices present, missing devices, conflicting devices.
+   - Load device configs
 * Apply changes done to the hardware to the config
 * Save single device config to file
 * Load single device config from file
@@ -74,6 +85,20 @@ Facts
   -> Getting an address conflict error for a specific command could trigger a
   scan of the bus to determine other devices involved in the conflict
 * One main problem is: How to handle changes to the bus configuration?
+* The mesycontrol protocol does not work well with multiple clients as polling
+  of parameters is done client-side. This means multiple clients would poll
+  the same data and thus overload the serial communication. Clients would
+  basically be stuck.
+  Solutions:
+  - Make clients talk to each other and decide on a common set of
+    parameters to poll.
+    => too complex
+  - Perform server-side polling: clients tell the server which parameters
+    they're interested in. The server then performs the poll if no commands
+    are pending (meaning the serial connection is idle).
+    => Server work needed: add polling logic, keep track of sets of parameters
+    per client, interrupt polling if an interactive command arrives and resume
+    once no more commands are pending.
 
 Possible bus changes
 ====================
@@ -89,12 +114,15 @@ Possible bus changes
                     -> 3.3 device idc changed
                     -> 3.4 device idc changed + address conflict
 
-1.1 Add the device to the current setup. Allow user interaction with the
-    device.
+1.1 Allow the user to add the device to the current setup. Allow user
+    interaction with the device.
 1.2 User has to fix the conflict. No interaction with the device possible.
 
 2.1 Notify the user about a missing device, i.e. mark the device somehow.
     Saving the last known device state to a config should still be possible.
+    -> scanbus is performed, device is not present anymore, create a snapshot
+    of the current device state, remove the device from the model and notify
+    observers
 2.2 User has to fix the conflict. Saving the current device state should be
     possible, other device interactions must be blocked.
 2.3 IDC change: Mark the device. Saving the last known state of the old device
@@ -104,7 +132,7 @@ Possible bus changes
 
 3.1 Transition from error state to normal state. Handling depends on whether
     a device with the specified address is in the Setup. If no device in the
-    setup -> no action needed. Else mark the devie as missing as in 2.1. If a
+    setup -> no action needed. Else mark the device as missing as in 2.1. If a
     device state is known it should be possible to save it.
 3.2 Address conflict resolved. Refresh device state.
 3.3 As 2.3 but an old device state might not be known.
