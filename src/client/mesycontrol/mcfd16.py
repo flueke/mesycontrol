@@ -1455,6 +1455,8 @@ if __name__ == "__main__":
     import sys
     import device_profile_mcfd16
 
+    print pg.__file__
+
     QtGui.QApplication.setDesktopSettingsAware(False)
     app = QtGui.QApplication(sys.argv)
     app.setStyle(QtGui.QStyleFactory.create("Plastique"))
