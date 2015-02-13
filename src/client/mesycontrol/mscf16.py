@@ -1179,4 +1179,9 @@ if __name__ == "__main__":
     w = MSCF16Widget(device, context)
     w.show()
 
-    sys.exit(app.exec_())
+    ret = app.exec_()
+
+    print "context:", context.mock_calls
+    print "device:", device.mock_calls
+
+    sys.exit(ret)

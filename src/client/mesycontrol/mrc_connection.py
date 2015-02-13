@@ -13,6 +13,8 @@ import util
 class ConnectionError(Exception):
     pass
 
+# FIXME: send_message() is wrong and unused
+
 class AbstractConnection(QtCore.QObject):
     """Abstract MRC connection representation.
     Supports the following operations:
