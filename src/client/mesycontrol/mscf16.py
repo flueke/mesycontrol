@@ -266,7 +266,7 @@ class MSCF16(app_model.Device):
     def get_effective_shaping_time(self, group):
         sht   = self.get_shaping_time(group)
         times = self.module_info.shaping_times_us[self.module_info.shaping_time]
-        return times[sht]
+        return times[int(sht)]
 
     def set_common_shaping_time(self, value, response_handler=None):
         return self.set_parameter('shaping_time_common', value, response_handler=response_handler)

@@ -111,11 +111,13 @@ class Context(QtCore.QObject):
     def register_mrc_model(self, mrc_model):
         if mrc_model in self.mrc_models:
             return
+        self.log.debug("Registering mrc_model %s", mrc_model)
         mrc_model.setParent(self)
         self.mrc_models.append(mrc_model)
 
     def unregister_mrc_model(self, mrc_model):
         if mrc_model in self.mrc_models:
+            self.log.debug("Removing mrc_model %s", mrc_model)
             self.mrc_models.remove(mrc_model)
             mrc_model.setParent(None)
             mrc_model.controller.disconnect()
@@ -123,6 +125,7 @@ class Context(QtCore.QObject):
     def register_mrc(self, mrc):
         if mrc in self.mrcs:
             return
+        self.log.debug("Registering mrc %s", mrc)
         mrc.setParent(self)
         self.register_mrc_model(mrc.model)
         self.mrcs.append(mrc)
@@ -134,6 +137,7 @@ class Context(QtCore.QObject):
 
     def unregister_mrc(self, mrc):
         if mrc in self.mrcs:
+            self.log.debug("Removing mrc %s", mrc)
             self.mrcs.remove(mrc)
             mrc.setParent(None)
             self.unregister_mrc_model(mrc.model)

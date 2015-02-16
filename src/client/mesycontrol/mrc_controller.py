@@ -10,6 +10,7 @@ import weakref
 import hw_model
 import protocol
 import util
+from eventloop_callback import CallbackEvent
 
 class MRCController(QtCore.QObject):
     write_access_changed            = pyqtSignal(bool)
@@ -340,9 +341,10 @@ class DeviceController(QtCore.QObject):
         return self.mrc_controller.is_connected()
 
     def _add_request_id(self, request_id):
-        self._request_ids.add(request_id)
-        self.request_queue_size_changed.emit(self.get_request_queue_size())
-        return request_id
+        if request_id is not None:
+            self._request_ids.add(request_id)
+            self.request_queue_size_changed.emit(self.get_request_queue_size())
+            return request_id
 
     def _on_request_sent(self, request_id, request):
         if request_id in self._request_ids:
@@ -414,3 +416,126 @@ class DeviceController(QtCore.QObject):
     mrc_controller  = pyqtProperty(MRCController, get_mrc_controller)
     model           = pyqtProperty(hw_model.DeviceModel, get_model, set_model)
     polling         = pyqtProperty(bool, should_poll, set_polling_enabled)
+
+class VirtualMRCController(QtCore.QObject):
+    write_access_changed            = pyqtSignal(bool)
+    silence_changed                 = pyqtSignal(bool)
+    request_queue_size_changed      = pyqtSignal(int)
+    request_queue_empty             = pyqtSignal()
+    request_sent                    = pyqtSignal(object, object)          #: request_id, request
+    request_canceled                = pyqtSignal(object, object)          #: request_id, request
+    request_completed               = pyqtSignal(object, object, object)  #: request_id, request, response
+    polling_changed                 = pyqtSignal(bool)
+
+    def __init__(self, mrc_model, parent=None):
+        super(VirtualMRCController, self).__init__(parent)
+        self.log        = util.make_logging_source_adapter(__name__, self)
+        self._model     = None
+        self._poll_flag = True
+        self.model      = mrc_model
+
+    def get_model(self):
+        return self._model() if self._model is not None else None
+
+    def set_model(self, mrc_model):
+        self._model = weakref.ref(mrc_model) if mrc_model is not None else None
+        self.model.set_connected()
+
+    # connection related methods
+    def connect(self):
+        pass
+
+    def disconnect(self):
+        pass
+
+    def is_connected(self):
+        return True
+
+    def is_connecting(self):
+        return False
+
+    def get_connection_info(self):
+        return "virtual"
+
+    def set_write_access(self, want_access, force=False, response_handler=None):
+        raise NotImplementedError()
+
+    def has_write_access(self):
+        return True
+
+    def set_silenced(self):
+        raise NotImplementedError()
+
+    def is_silenced(self):
+        return False
+
+    # MRC-1 commands
+    def scanbus(self, bus, response_handler=None):
+        if not response_handler:
+            return
+
+        scanbus_data = [(0, 0) for i in range(16)]
+        for device in self.model.get_devices(bus=bus):
+            scanbus_data[device.address] = (device.idc, device.rc)
+
+        response = protocol.ScanbusResponse(bus=bus, bus_data=scanbus_data)
+        CallbackEvent.post(response_handler, None, response)
+
+    def set_rc(self, bus, device, on_off, response_handler=None):
+        self.model.get_device(bus=bus, address=device).rc = on_off
+
+    def reset(self, bus, device, response_handler=None):
+        pass
+
+    def copy_mem(self, bus, device, response_handler=None):
+        pass
+
+    def read_parameter(self, bus, device, address, response_handler=None):
+        value = self.model.get_device(bus, device).get_parameter(address)
+        response = protocol.Message('response_read', bus=bus, dev=device, par=address, val=value)
+        CallbackEvent.post(response_handler, None, response)
+
+    def read_multi(self, bus, device, address, length, response_handler=None):
+        raise NotImplementedError()
+
+    def set_parameter(self, bus, device, address, value, response_handler=None):
+        value = int(value)
+        self.model.get_device(bus, device).set_parameter(address, value)
+        request  = protocol.Message('request_set', bus=bus, dev=device, par=address, val=value)
+        response = protocol.Message('response_set', bus=bus, dev=device, par=address, val=value)
+        CallbackEvent.post(response_handler, request, response)
+
+    def read_mirror_parameter(self, bus, device, address, response_handler=None):
+        raise NotImplementedError()
+
+    def set_mirror_parameter(self, bus, device, address, value, response_handler=None):
+        raise NotImplementedError()
+
+    # Misc
+    def make_device_controller(self, device=None):
+        return DeviceController(mrc_controller=self, device_model=device)
+
+    def should_poll(self):
+        return self._poll_flag
+
+    def set_polling_enabled(self, on_off):
+        changed = self.polling != on_off
+        self._poll_flag = bool(on_off)
+        if changed:
+            self.polling_changed.emit(self.polling)
+
+    def add_static_parameter_subscription(self, subscriber, device_controller, address):
+        pass
+
+    def add_volatile_parameter_subscription(self, subscriber, device_controller, address):
+        pass
+
+    def del_static_parameter_subscription(self, subscriber, device_controller, address):
+        pass
+
+    def del_volatile_parameter_subscription(self, subscriber, device_controller, address):
+        pass
+
+
+    model   = pyqtProperty(hw_model.MRCModel, get_model, set_model)
+    polling = pyqtProperty(bool, should_poll, set_polling_enabled, notify=polling_changed)
