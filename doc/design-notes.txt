@@ -9,18 +9,7 @@ Use cases
 * Save complete device tree (may include multiple mrc connections) to a config
   file ("Setup")
 * Load a Setup from file.
-  For each MRC in the Setup:
-   - Connect to the MRC
-   - Read the bus configuration and compare it to the Setup.
-   - Abort if bus configuration does not match. Multiple cases here:
-     additional devices present, missing devices, conflicting devices.
-   - Load device configs
 * Apply changes done to the hardware to the config
-* Save single device config to file
-* Load single device config from file
-* Save all device configs and the corresponding mrc information to a file
-  (Setup)
-* Load setup from file
 * Re(apply) setups and device configs
 * On application start restore the previous state: open and load the last
   saved setup, open device windows.
@@ -43,6 +32,20 @@ ServerLogView       dock            Server output if running a local server
 Device GUIs         mdi windows
 Device TableViews   mdi windows
 Interactive Windows mdi windows     device specific, e.g. histogram
+[Scripting Views]
+
+GUI behaviour
+=============
+* Should be able to restore the last state at startup. This means load and
+  apply the last known setup, then reopen device windows, etc.
+* When to apply device parameter changes to the config?
+  Robert: ask the user when the window closes.
+  => on_window_close():
+    if values_of_config_relevant_params(hardware) != values_of_config_relevant_params(config):
+      dialog: Should changes apply to the config?
+      if true:
+        apply hardware values to config
+      close window
 
 Terms
 =====
@@ -141,4 +144,3 @@ Possible bus changes
 3.3 As 2.3 but an old device state might not be known.
 3.4 Error state remains the same but device IDC changed. The device is still
     not usable.
-

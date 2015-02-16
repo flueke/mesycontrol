@@ -5,7 +5,7 @@
 import struct
 
 def deserialize_scanbus_response(type_info, data):
-  ret = ScanbusResponse(type_info['code'])
+  ret = ScanbusResponse()
   values = struct.unpack_from('!' + type_info['format'], data, 1)
   ret.bus = values[0]
   ret.bus_data = []
@@ -523,8 +523,8 @@ class Message(object):
 class ScanbusResponse(Message):
   __slots__ = 'bus_data'
 
-  def __init__(self, type_code, **kwargs):
-    super(ScanbusResponse, self).__init__(type_code, **kwargs)
+  def __init__(self, **kwargs):
+    super(ScanbusResponse, self).__init__('response_scanbus', **kwargs)
     self.bus_data = list()
 
 class ReadMultiResponse(Message):
@@ -546,7 +546,7 @@ if __name__ == "__main__":
   assert msg.par == msg_deserialized.par
   print msg_deserialized
 
-  msg = ScanbusResponse('response_scanbus', bus=1, bus_data=[(27,1) for i in range(16)])
+  msg = ScanbusResponse(bus=1, bus_data=[(27,1) for i in range(16)])
   print msg
 
   try:
