@@ -1,3 +1,9 @@
+* Config centric model
+  - GUI inputs should first be written to the device config
+  - Optionally config changes should be synced to the hardware
+  - The GUI must be able to react to the case where cfg_value != hw_value (after set)
+    -> set_param(addr, value) -> response(addr, actual_value) with value != actual_value
+
 * Connection error handling
 * Anderungen an Geraeten nur im RC zulassen -> Panel deaktivieren wenn RC aus.
   Braucht scanbus polling um aenderungen zu erkennen.
