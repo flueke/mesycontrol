@@ -17,6 +17,7 @@ def serial_read(port):
     return data
 
 ser = serial.Serial(port='/dev/ttyUSB0', baudrate=115200, timeout=.1)
+#ser = serial.rfc2217.Serial('rfc2217://localhost:4001')
 
 print "+++ Initial read"
 data = serial_read(ser)
