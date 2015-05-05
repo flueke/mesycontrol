@@ -12,8 +12,6 @@
 # Side by side view of both of the above views + actions (save setup, load
 # setup, save config, load config, remove device from config tree
 
-# unterliegendes model muss her! jaja, nix neues an der front...
-
 from qt import QtGui
 
 import config_tree_model
