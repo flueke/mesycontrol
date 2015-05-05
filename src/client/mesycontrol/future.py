@@ -69,9 +69,9 @@ class Future(object):
             except ImportError:
                 pass
 
-    def then(*args):
-        pass
-        
+    def then(self, fun):
+        ret = Future()
+        return ret
 
 
 f1 = async1(args)
