@@ -13,109 +13,123 @@
 # TreeViewDirector: updates models
 # TreeViewWidget: combines HardwareTreeView and SetupTreeView into one Widget
 
-from PyQt4 import QtCore
-from PyQt4 import QtGui
+# Context Menu handling is external (MCTreeView)
+# Selection Sync is external (MCTreeView)
+# Sync of nodes is external (MCTreeView)
+# how to handle changes to nodes?
+# each specific node type knows when its' ref changes
+# -> call a notify_changed method on the model
 
-# Setup/Config side
-class Setup:
-    def __init__(self):
-        self._mrc_configs = list()
+from qt import QtCore
+from qt import QtGui
+from qt import Qt
 
-class MRCConfig:
-    def __init__(self):
-        self._devices = list()
+import setup_tree_model as stm
+from setup_tree_view import SetupTreeView
 
-class DeviceConfig:
-    # bus, address could be changed by the user. in this case
-    # someone has to check the consistency of the tree structures. the combined
-    # model might have to be updated.
-    def __init__(self, bus, address):
-        self._parameters = dict()
+import signal
+import sys
 
-class ParameterConfig:
-    def __init__(self, address, value=None):
-        self._address = address
-        self._value   = value
+## Setup/Config side
+#class Setup:
+#    def __init__(self):
+#        self._mrc_configs = list()
+#
+#class MRCConfig:
+#    def __init__(self):
+#        self._devices = list()
+#
+#class DeviceConfig:
+#    # bus, address could be changed by the user. in this case
+#    # someone has to check the consistency of the tree structures. the combined
+#    # model might have to be updated.
+#    def __init__(self, bus, address):
+#        self._parameters = dict()
+#
+#class ParameterConfig:
+#    def __init__(self, address, value=None):
+#        self._address = address
+#        self._value   = value
+#
+#s = Setup()
+## ...
+#future = s.get_mrc("/dev/ttyUSB0").get_device(0, 1).get_parameter(2)
+#future = s["/dev/ttyUSB0"][0][1][2]
 
-s = Setup()
-# ...
-future = s.get_mrc("/dev/ttyUSB0").get_device(0, 1).get_parameter(2)
-future = s["/dev/ttyUSB0"][0][1][2]
+## Hardware side
+#class Connections:
+#    def __init__(self):
+#        self._mrcs = list()
+#
+#    def add_mrc(self, mrc):
+#    def remove_mrc(self, mrc):
+#    def get_mrc(self, url):
+#
+#class MRC:
+#    def __init__(self):
+#        self._devices = list()
+#
+#    def add_device(self, device):
+#    def remove_device(self, device):
+#    def get_device(self, bus, address):
+#
+#class Device:
+#    pass
+#
+#class Parameter:
+#    def __init__(self, address, value=None):
+#        self._address = address
+#        self._value   = value
+#
+#c = Connections()
+## ...
+#future = c.get_mrc("/dev/ttyUSB0").get_device(0, 1).get_parameter(2)
+#future = c["/dev/ttyUSB0"][0][1][2]
 
-# Hardware side
-class Connections:
-    def __init__(self):
-        self._mrcs = list()
-
-    def add_mrc(self, mrc):
-    def remove_mrc(self, mrc):
-    def get_mrc(self, url):
-
-class MRC:
-    def __init__(self):
-        self._devices = list()
-
-    def add_device(self, device):
-    def remove_device(self, device):
-    def get_device(self, bus, address):
-
-class Device:
-    pass
-
-class Parameter:
-    def __init__(self, address, value=None):
-        self._address = address
-        self._value   = value
-
-c = Connections()
-# ...
-future = c.get_mrc("/dev/ttyUSB0").get_device(0, 1).get_parameter(2)
-future = c["/dev/ttyUSB0"][0][1][2]
-
-# Combined Model
-class Root:
-    def __init__(self):
-        self._setup = None
-        self._connections = None
-
-class MRC:
-    # condition: config.url == hardware.url
-    def __init__(self):
-        self._config = None
-        self._hardware = None
-
-class Device:
-    # condition: (config.bus, config.address) == (hardware.bus, hardware.address)
-    def __init__(self):
-        self._config = None
-        self._hardware = None
-
-class MRCCollection:
-    def add_mrc(self, mrc)
-    def remove_mrc(self, mrc)
-    def get_mrc(self, url)
-
-class BasicMRC:
-    def __init__(self, url):
-        self._url = url
-        self._devices = dict()
-
-    def get_url(self):
-        return self._url
-
-    def add_device(self, device):
-        if (device.bus, device.address) in self._devices:
-            raise DuplicateDevice()
-        self._devices[(device.bus, device.address)] = device
-        device.set_mrc(self)
-
-    def remove_device(self, device):
-    def get_device(self, bus, address):
-
-class BasicDevice:
-    def __init__(self, bus, address):
-        self._bus = bus
-        self._address = address
+## Combined Model
+#class Root:
+#    def __init__(self):
+#        self._setup = None
+#        self._connections = None
+#
+#class MRC:
+#    # condition: config.url == hardware.url
+#    def __init__(self):
+#        self._config = None
+#        self._hardware = None
+#
+#class Device:
+#    # condition: (config.bus, config.address) == (hardware.bus, hardware.address)
+#    def __init__(self):
+#        self._config = None
+#        self._hardware = None
+#
+#class MRCCollection:
+#    def add_mrc(self, mrc)
+#    def remove_mrc(self, mrc)
+#    def get_mrc(self, url)
+#
+#class BasicMRC:
+#    def __init__(self, url):
+#        self._url = url
+#        self._devices = dict()
+#
+#    def get_url(self):
+#        return self._url
+#
+#    def add_device(self, device):
+#        if (device.bus, device.address) in self._devices:
+#            raise DuplicateDevice()
+#        self._devices[(device.bus, device.address)] = device
+#        device.set_mrc(self)
+#
+#    def remove_device(self, device):
+#    def get_device(self, bus, address):
+#
+#class BasicDevice:
+#    def __init__(self, bus, address):
+#        self._bus = bus
+#        self._address = address
 
 # True for both sides:
 # - MRC is identified by its connection URL
@@ -125,70 +139,67 @@ class BasicDevice:
 # - The root (Setup, Connections) contains unique MRCs. Duplicates are not allowed
 # - Each MRC contains unique devices. No duplicates allowed.
 
-class BasicTreeModel(QtCore.QAbstractItemModel):
-    def index(self, row, col, parent=QModelIndex()):
-        try:
-            root = parent.internalPointer() if parent.isValid() else self.root
-            return self.createIndex(row, col, root.children[row])
-        except IndexError:
-            return QModelIndex()
+def signal_handler(signum, frame):
+    QtGui.QApplication.quit()
 
-    def parent(self, idx):
-        node = idx.internalPointer() if idx.isValid() else None
+if __name__ == "__main__":
+    QtGui.QApplication.setDesktopSettingsAware(False)
+    app = QtGui.QApplication(sys.argv)
+    app.setStyle(QtGui.QStyleFactory.create("Plastique"))
 
-        if None in (node, node.parent()):
-            return QModelIndex()
+    timer = QtCore.QTimer()
+    timer.timeout.connect(lambda: None)
+    timer.start(500)
 
-        return self.createIndex(node.parent().row, 0, node.parent())
+    signal.signal(signal.SIGINT, signal_handler)
 
-    def rowCount(self, parent=QModelIndex()):
-        node = parent.internalPointer() if parent.isValid() else self.root
-        return len(node.children)
+    setup_node = stm.SetupNode()
 
-class HardwareTreeModel(QtCore.QAbstractItemModel):
-    def columnCount(self, parent=QModelIndex()):
-        return 3
+    #mrc_node = stm.MRCNode(parent=setup_node)
+    #setup_node.append_child(mrc_node)
 
-    def headerData(self, section, orientation, role=Qt.DisplayRole):
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return str(section)
-        return None
+    #bus_node_0 = stm.BusNode(parent=mrc_node)
+    #mrc_node.children.append(bus_node_0)
 
-    def flags(self, idx):
-        ret = None
-        if idx.isValid():
-            try:
-                ret = idx.internalPointer().flags(idx.column())
-            except NotImplementedError:
-                pass
-        return ret if ret is not None else super(HardwareTreeModel, self).flags(idx)
+    #device_node_0_0 = stm.DeviceNode(parent=bus_node_0)
+    #bus_node_0.children.append(device_node_0_0)
 
-    def data(self, idx, role=Qt.DisplayRole):
-        if not idx.isValid():
-            return None
-        return idx.internalPointer().data(idx.column(), role)
+    #device_node_0_2 = stm.DeviceNode(parent=bus_node_0)
+    #bus_node_0.children.append(device_node_0_2)
 
-    def setData(self, idx, value, role = Qt.EditRole):
-        ret = False
-        if idx.isValid():
-            try:
-                ret = idx.internalPointer().set_data(idx.column(), value, role)
-            except NotImplementedError:
-                pass
-        if ret:
-            self.dataChanged.emit(
-                    self.index(idx.row(), 0, idx.parent()),
-                    self.index(idx.row(), self.columnCount(idx.parent()), idx.parent()))
-            return ret
-        return super(HardwareTreeModel, self).setData(idx, value, role)
+    #bus_node_1 = stm.BusNode(parent=mrc_node)
+    #mrc_node.children.append(bus_node_1)
 
+    #device_node_1_0 = stm.DeviceNode(parent=bus_node_1)
+    #bus_node_1.children.append(device_node_1_0)
 
+    #device_node_1_3 = stm.DeviceNode(parent=bus_node_1)
+    #bus_node_1.children.append(device_node_1_3)
 
-class HardwareTreeView(QtGui.QTreeView):
-    pass
+    setup_tree_model = stm.SetupTreeModel()
+    setup_tree_model.root.append_child(setup_node)
 
-class SetupTreeModel(QtCore.QAbstractItemModel):
-    pass
+    setup_tree_view = SetupTreeView()
 
-class SetupTreeView(QtGui.QTreeView):
-    pass
+    setup_tree_view.setModel(setup_tree_model)
+    setup_tree_view.show()
+
+    setup_tree_view.expandAll()
+
+#    device_node_1_4 = stm.DeviceNode()
+#    setup_tree_model.add_node(device_node_1_4, bus_node_1, 0)
+#
+#    def change_stuff():
+#        device_node_1_3.set_name("changed!")
+#
+#    button = QtGui.QPushButton("change stuff", clicked=change_stuff)
+#    button.show()
+
+    import pyqtgraph as pg
+    import pyqtgraph.console
+
+    console = pg.console.ConsoleWidget(namespace=locals())
+    console.show()
+
+    ret = app.exec_()
+    sys.exit(ret)
