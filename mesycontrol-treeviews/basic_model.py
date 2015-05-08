@@ -44,6 +44,7 @@ class MRC(QtCore.QObject):
     device_removed = pyqtSignal(object)
 
     def __init__(self, url, parent=None):
+        super(MRC, self).__init__(parent)
         self._url       = url
         self._devices   = list()
 
@@ -84,9 +85,9 @@ class Device(QtCore.QObject):
 
     def __init__(self, bus, address, idc, parent=None):
         super(Device, self).__init__(parent)
-        self._bus       = None
-        self._address   = None
-        self._idc       = None
+        self._bus       = int(bus)
+        self._address   = int(address)
+        self._idc       = int(idc)
 
     def get_bus(self):
         return self._bus

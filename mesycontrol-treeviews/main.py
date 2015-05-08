@@ -171,7 +171,12 @@ if __name__ == "__main__":
 
     app_director   = am.Director(hw_registry, setup_registry)
 
-    hw_registry.add_mrc(hm.MRC("serial:///dev/ttyUSB0"))
+    hw_mrc = hm.MRC("foo_url")
+    hw_mrc.add_device(hm.Device(0, 0, 42))
+    hw_mrc.add_device(hm.Device(0, 1, 43))
+    hw_mrc.add_device(hm.Device(1, 0, 44))
+
+    hw_registry.add_mrc(hw_mrc)
     setup_registry.add_mrc(sm.MRC("mc://localhost:4001"))
     setup_registry.add_mrc(sm.MRC("serial:///dev/ttyUSB0"))
 
@@ -181,6 +186,8 @@ if __name__ == "__main__":
 
     for mrc in app_director.registry.mrcs:
         print str(mrc), "hw:", str(mrc.hw), "cfg:", str(mrc.cfg)
+        for device in mrc.get_devices():
+            print str(device)
 
     print
 
@@ -193,6 +200,8 @@ if __name__ == "__main__":
 
     for mrc in app_director.registry.mrcs:
         print str(mrc), "hw:", str(mrc.hw), "cfg:", str(mrc.cfg)
+        for device in mrc.get_devices():
+            print str(device)
 
     print
 
@@ -205,6 +214,8 @@ if __name__ == "__main__":
 
     for mrc in app_director.registry.mrcs:
         print str(mrc), "hw:", str(mrc.hw), "cfg:", str(mrc.cfg)
+        for device in mrc.get_devices():
+            print str(device)
 
 
     ret = app.exec_()

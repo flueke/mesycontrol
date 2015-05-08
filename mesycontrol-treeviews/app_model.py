@@ -47,10 +47,14 @@ class Director(object):
             app_mrc = MRC(mrc.url)
             self.registry.add_mrc(app_mrc)
         app_mrc.hw = mrc
+        for device in mrc.get_devices():
+            self._hw_mrc_device_added(mrc, device)
 
     def _hw_mrc_removed(self, mrc):
         app_mrc = self.registry.get_mrc(mrc.url)
         app_mrc.hw = None
+        for device in mrc.get_devices():
+            self._hw_mrc_device_removed(mrc, device)
         if app_mrc.cfg is None:
             self.registry.remove_mrc(app_mrc)
 
@@ -75,10 +79,14 @@ class Director(object):
             app_mrc = MRC(mrc.url)
             self.registry.add_mrc(app_mrc)
         app_mrc.cfg = mrc
+        for device in mrc.get_devices():
+            self._setup_mrc_device_added(mrc, device)
 
     def _setup_mrc_removed(self, mrc):
         app_mrc = self.registry.get_mrc(mrc.url)
         app_mrc.cfg = None
+        for device in mrc.get_devices():
+            self._setup_mrc_device_removed(mrc, device)
         if app_mrc.hw is None:
             self.registry.remove_mrc(app_mrc)
 
