@@ -87,12 +87,15 @@ class BasicTreeNode(object):
         self.children   = list()
 
     def get_ref(self):
-        return self._ref() if self._ref is not None else None
+        return self._ref() if self.has_ref() else None
 
     def set_ref(self, ref):
         self._ref = weakref.ref(ref) if ref is not None else None
         if self.model is not None:
             self.model.notify_data_changed(self, 0, self.model.columnCount())
+
+    def has_ref(self):
+        return self._ref is not None
 
     def get_parent(self):
         return self._parent() if self._parent is not None else None
@@ -107,8 +110,8 @@ class BasicTreeNode(object):
 
     def get_model(self):
         """
-        Get this nodes model. If no model is set for this node returns the
-        parent nodes model. Returns None if no model is set for the node
+        Get this nodes model. If no model is set for this node return the
+        parent nodes model. Return None if no model is set for the node
         hierarchy.
         """
         if self._model is not None:

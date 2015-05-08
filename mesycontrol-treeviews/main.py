@@ -142,6 +142,11 @@ import sys
 def signal_handler(signum, frame):
     QtGui.QApplication.quit()
 
+import app_model as am
+import basic_model as bm
+import hardware_model as hm
+import setup_model as sm
+
 if __name__ == "__main__":
     QtGui.QApplication.setDesktopSettingsAware(False)
     app = QtGui.QApplication(sys.argv)
@@ -153,53 +158,54 @@ if __name__ == "__main__":
 
     signal.signal(signal.SIGINT, signal_handler)
 
-    setup_node = stm.SetupNode()
-
-    #mrc_node = stm.MRCNode(parent=setup_node)
-    #setup_node.append_child(mrc_node)
-
-    #bus_node_0 = stm.BusNode(parent=mrc_node)
-    #mrc_node.children.append(bus_node_0)
-
-    #device_node_0_0 = stm.DeviceNode(parent=bus_node_0)
-    #bus_node_0.children.append(device_node_0_0)
-
-    #device_node_0_2 = stm.DeviceNode(parent=bus_node_0)
-    #bus_node_0.children.append(device_node_0_2)
-
-    #bus_node_1 = stm.BusNode(parent=mrc_node)
-    #mrc_node.children.append(bus_node_1)
-
-    #device_node_1_0 = stm.DeviceNode(parent=bus_node_1)
-    #bus_node_1.children.append(device_node_1_0)
-
-    #device_node_1_3 = stm.DeviceNode(parent=bus_node_1)
-    #bus_node_1.children.append(device_node_1_3)
-
-    setup_tree_model = stm.SetupTreeModel()
-    setup_tree_model.root.append_child(setup_node)
-
-    setup_tree_view = SetupTreeView()
-
-    setup_tree_view.setModel(setup_tree_model)
-    setup_tree_view.show()
-
-    setup_tree_view.expandAll()
-
-#    device_node_1_4 = stm.DeviceNode()
-#    setup_tree_model.add_node(device_node_1_4, bus_node_1, 0)
-#
-#    def change_stuff():
-#        device_node_1_3.set_name("changed!")
-#
-#    button = QtGui.QPushButton("change stuff", clicked=change_stuff)
-#    button.show()
-
     import pyqtgraph as pg
     import pyqtgraph.console
 
     console = pg.console.ConsoleWidget(namespace=locals())
     console.show()
+
+    hw_registry    = bm.MRCRegistry()
+
+
+    setup_registry = sm.Setup()
+
+    app_director   = am.Director(hw_registry, setup_registry)
+
+    hw_registry.add_mrc(hm.MRC("serial:///dev/ttyUSB0"))
+    setup_registry.add_mrc(sm.MRC("mc://localhost:4001"))
+    setup_registry.add_mrc(sm.MRC("serial:///dev/ttyUSB0"))
+
+    print "hw:", hw_registry.mrcs
+    print "setup:", setup_registry.mrcs
+    print "app:", app_director.registry.mrcs
+
+    for mrc in app_director.registry.mrcs:
+        print str(mrc), "hw:", str(mrc.hw), "cfg:", str(mrc.cfg)
+
+    print
+
+    for mrc in hw_registry.mrcs:
+        hw_registry.remove_mrc(mrc)
+
+    print "hw:", hw_registry.mrcs
+    print "setup:", setup_registry.mrcs
+    print "app:", app_director.registry.mrcs
+
+    for mrc in app_director.registry.mrcs:
+        print str(mrc), "hw:", str(mrc.hw), "cfg:", str(mrc.cfg)
+
+    print
+
+    for mrc in setup_registry.mrcs:
+        setup_registry.remove_mrc(mrc)
+
+    print "hw:", hw_registry.mrcs
+    print "setup:", setup_registry.mrcs
+    print "app:", app_director.registry.mrcs
+
+    for mrc in app_director.registry.mrcs:
+        print str(mrc), "hw:", str(mrc.hw), "cfg:", str(mrc.cfg)
+
 
     ret = app.exec_()
     sys.exit(ret)
