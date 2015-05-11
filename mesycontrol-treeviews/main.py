@@ -177,7 +177,12 @@ if __name__ == "__main__":
     hw_mrc.add_device(hm.Device(1, 0, 44))
 
     hw_registry.add_mrc(hw_mrc)
-    setup_registry.add_mrc(sm.MRC("mc://localhost:4001"))
+
+    setup_mrc = sm.MRC("foo_url")
+    setup_mrc.add_device(sm.Device(0, 0, 42))
+    setup_mrc.add_device(sm.Device(0, 2, 42))
+    setup_mrc.add_device(sm.Device(1, 1, 42))
+    setup_registry.add_mrc(setup_mrc)
     setup_registry.add_mrc(sm.MRC("serial:///dev/ttyUSB0"))
 
     print "hw:", hw_registry.mrcs

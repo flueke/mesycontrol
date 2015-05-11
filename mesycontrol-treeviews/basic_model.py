@@ -6,6 +6,11 @@ from qt import pyqtProperty
 from qt import pyqtSignal
 from qt import QtCore
 
+import collections
+import weakref
+
+import future
+
 class MRCRegistry(QtCore.QObject):
     """Manages MRC instances"""
 
@@ -80,14 +85,21 @@ class MRC(QtCore.QObject):
 
     url = pyqtProperty(str, get_url)
 
+ReadResult = collections.namedtuple("ReadResult", "bus device address value")
+SetResult  = collections.namedtuple("SetResult",  "bus device address value requested_value")
+
 class Device(QtCore.QObject):
     idc_changed     = pyqtSignal(int)
+    mrc_changed     = pyqtSignal(object)
+    parameter_changed = pyqtSignal(int, int)
 
     def __init__(self, bus, address, idc, parent=None):
         super(Device, self).__init__(parent)
         self._bus       = int(bus)
         self._address   = int(address)
         self._idc       = int(idc)
+        self._mrc       = None
+        self._memory    = dict()
 
     def get_bus(self):
         return self._bus
@@ -102,10 +114,44 @@ class Device(QtCore.QObject):
         self._idc = int(idc)
         self.idc_changed.emit(self.idc)
 
+    def get_mrc(self):
+        return None if self._mrc is None else self._mrc()
+
+    def set_mrc(self, mrc):
+        self._mrc = None if mrc is None else weakref.ref(mrc)
+        self.mrc_changed.emit(self.mrc)
+
+    def get_parameter(self, address):
+        if self.has_cached_parameter(address):
+            result = ReadResult(self.bus, self.address, address,
+                    self.get_cached_parameter(address))
+            return future.Future().set_result(result)
+
+        return self.read_parameter(address)
+
+    def read_parameter(self, address):
+        raise NotImplementedError
+
+    def set_parameter(self, address, value):
+        raise NotImplementedError
+
+    def get_cached_parameter(self, address):
+        return self._memory.get(address, None)
+
+    def set_cached_parameter(self, address, value):
+        changed = self.get_cached_parameter(address) != value
+        self._memory[address] = value
+        if changed:
+            self.parameter_changed.emit(address, value)
+
+    def has_cached_parameter(self, address):
+        return address in self._memory
+
     def __str__(self):
-        return 'Device(bus=%d, address=%d, idc=%d)' % (
-                self.bus, self.address, self.idc)
+        return 'Device(bus=%d, address=%d, idc=%d, mrc=%s)' % (
+                self.bus, self.address, self.idc, self.mrc)
 
     bus     = pyqtProperty(int, get_bus)
     address = pyqtProperty(int, get_address)
     idc     = pyqtProperty(int, get_idc, set_idc, notify=idc_changed)
+    mrc     = pyqtProperty(object, get_mrc, set_mrc, notify=mrc_changed)
