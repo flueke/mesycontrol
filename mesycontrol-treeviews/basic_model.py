@@ -10,6 +10,7 @@ import collections
 import weakref
 
 import future
+import util
 
 class MRCRegistry(QtCore.QObject):
     """Manages MRC instances"""
@@ -20,11 +21,13 @@ class MRCRegistry(QtCore.QObject):
     def __init__(self, parent=None):
         super(MRCRegistry, self).__init__(parent)
         self._mrcs = list()
+        self.log   = util.make_logging_source_adapter(__name__, self)
 
     def add_mrc(self, mrc):
         if self.get_mrc(mrc.url) is not None:
             raise RuntimeError("MRC %s exists in MRCRegistry" % mrc.url)
 
+        self.log.debug("add_mrc: %s %s", mrc, mrc.url)
         self._mrcs.append(mrc)
         self._mrcs.sort(key=lambda mrc: mrc.url)
         self.mrc_added.emit(mrc)
@@ -50,7 +53,7 @@ class MRC(QtCore.QObject):
 
     def __init__(self, url, parent=None):
         super(MRC, self).__init__(parent)
-        self._url       = url
+        self._url       = str(url)
         self._devices   = list()
 
     def add_device(self, device):
@@ -86,12 +89,12 @@ class MRC(QtCore.QObject):
     url = pyqtProperty(str, get_url)
 
 ReadResult = collections.namedtuple("ReadResult", "bus device address value")
-SetResult  = collections.namedtuple("SetResult",  "bus device address value requested_value")
+SetResult  = collections.namedtuple("SetResult", ReadResult._fields + ('requested_value',))
 
 class Device(QtCore.QObject):
     idc_changed     = pyqtSignal(int)
     mrc_changed     = pyqtSignal(object)
-    parameter_changed = pyqtSignal(int, int)
+    parameter_changed = pyqtSignal(int, object)
 
     def __init__(self, bus, address, idc, parent=None):
         super(Device, self).__init__(parent)

@@ -9,7 +9,7 @@ from qt import Qt
 
 QModelIndex = QtCore.QModelIndex
 
-class SetupTreeModel(BasicTreeModel):
+class ConfigTreeModel(BasicTreeModel):
     def columnCount(self, parent=QModelIndex()):
         return 3
 

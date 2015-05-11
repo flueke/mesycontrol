@@ -126,61 +126,61 @@ def all_done(*futures):
     return ret
 
 
-def on_f1_done(f1):
-    print "f1 done:", f1.result()
-
-f1 = Future()
-f1.add_done_callback(on_f1_done)
-f1.set_result("foobar")
-
-
-f1 = Future()
-f2 = Future()
-f3 = Future()
-
-def on_all_done(f):
-    print "all futures done"
-    for fu in f.result():
-        print fu, fu.result() if fu.exception() is None else repr(fu.exception())
-
-def on_progress_changed(f):
-    print "progress changed:", f.progress()
-
-f_all = all_done(f1, f2, f3)
-f_all.add_done_callback(on_all_done)
-f_all.add_progress_callback(on_progress_changed)
-
-f2.set_result("bar")
-f3.set_exception(RuntimeError("hello"))
-f1.set_result("foo")
-
-
-class MSCF:
-    def get_version(self):
-        ret = Future()
-
-        f_reg1 = self.get_parameter(254)
-        f_reg2 = self.get_parameter(255)
-
-        def on_regs_available(f):
-            try:
-                version = f_reg1.result() + f_reg2.result()
-                ret.set_result(version)
-            except Exception as e:
-                ret.set_exception(e)
-
-        all_done(f_reg1, f_reg2).add_done_callback(on_regs_available)
-        
-        return ret
-
-    def get_parameter(self, address):
-        print "get_parameter", address
-        ret = Future()
-        ret.set_result(address)
-        return ret
-
-mscf = MSCF()
-def print_version(future):
-    print "version:", future.result()
-
-mscf.get_version().add_done_callback(print_version)
+#def on_f1_done(f1):
+#    print "f1 done:", f1.result()
+#
+#f1 = Future()
+#f1.add_done_callback(on_f1_done)
+#f1.set_result("foobar")
+#
+#
+#f1 = Future()
+#f2 = Future()
+#f3 = Future()
+#
+#def on_all_done(f):
+#    print "all futures done"
+#    for fu in f.result():
+#        print fu, fu.result() if fu.exception() is None else repr(fu.exception())
+#
+#def on_progress_changed(f):
+#    print "progress changed:", f.progress()
+#
+#f_all = all_done(f1, f2, f3)
+#f_all.add_done_callback(on_all_done)
+#f_all.add_progress_callback(on_progress_changed)
+#
+#f2.set_result("bar")
+#f3.set_exception(RuntimeError("hello"))
+#f1.set_result("foo")
+#
+#
+#class MSCF:
+#    def get_version(self):
+#        ret = Future()
+#
+#        f_reg1 = self.get_parameter(254)
+#        f_reg2 = self.get_parameter(255)
+#
+#        def on_regs_available(f):
+#            try:
+#                version = f_reg1.result() + f_reg2.result()
+#                ret.set_result(version)
+#            except Exception as e:
+#                ret.set_exception(e)
+#
+#        all_done(f_reg1, f_reg2).add_done_callback(on_regs_available)
+#        
+#        return ret
+#
+#    def get_parameter(self, address):
+#        print "get_parameter", address
+#        ret = Future()
+#        ret.set_result(address)
+#        return ret
+#
+#mscf = MSCF()
+#def print_version(future):
+#    print "version:", future.result()
+#
+#mscf.get_version().add_done_callback(print_version)

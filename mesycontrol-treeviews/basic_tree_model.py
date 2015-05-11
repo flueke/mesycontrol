@@ -4,6 +4,7 @@
 
 from qt import QtCore
 from qt import Qt
+import util
 
 QModelIndex = QtCore.QModelIndex
 
@@ -12,6 +13,7 @@ import weakref
 class BasicTreeModel(QtCore.QAbstractItemModel):
     def __init__(self, parent=None):
         super(BasicTreeModel, self).__init__(parent)
+        self.log  = util.make_logging_source_adapter(__name__, self)
         self.root = BasicTreeNode()
         self.root.model = self
 
@@ -55,6 +57,7 @@ class BasicTreeModel(QtCore.QAbstractItemModel):
         return super(BasicTreeModel, self).setData(idx, value, role)
 
     def add_node(self, node, parent_node, row):
+        self.log.debug("add_node: node=%s, parent=%s, row=%d", node, parent_node, row)
         parent_idx  = self.createIndex(parent_node.row, 0, parent_node)
         self.beginInsertRows(parent_idx, row, row)
         parent_node.children.insert(row, node)
@@ -126,6 +129,9 @@ class BasicTreeNode(object):
         self._model = weakref.ref(model) if model is not None else None
 
     def find_node_by_ref(self, ref):
+        if ref is None:
+            return None
+
         if self.ref is ref:
             return self
 
