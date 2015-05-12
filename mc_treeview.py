@@ -140,8 +140,6 @@ class MCTreeView(QtGui.QWidget):
             def remove_mrc():
                 self.app_director.registry.cfg.remove_mrc(mrc.cfg)
 
-            menu.addAction("Remove MRC").triggered.connect(remove_mrc)
-
             def add_device():
                 dialog = AddDeviceDialog(mrc=mrc, parent=self.cfg_view)
                 dialog.setModal(True)
@@ -155,6 +153,7 @@ class MCTreeView(QtGui.QWidget):
                 dialog.show()
 
             menu.addAction("Add Device").triggered.connect(add_device)
+            menu.addAction("Remove MRC").triggered.connect(remove_mrc)
 
         if isinstance(node, ctm.BusNode):
             pass
