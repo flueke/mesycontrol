@@ -37,7 +37,7 @@ class MRCRegistry(QtCore.QObject):
             self._mrcs.remove(mrc)
             self.mrc_removed.emit(mrc)
         except ValueError:
-            raise ValueError("No such MRC %s" % mrc.url)
+            raise ValueError("No such MRC %s" % mrc)
 
     def get_mrc(self, url):
         return next((mrc for mrc in self._mrcs if mrc.url == url), None)

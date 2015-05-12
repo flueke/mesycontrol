@@ -24,6 +24,12 @@ class BasicTreeModel(QtCore.QAbstractItemModel):
         except IndexError:
             return QModelIndex()
 
+    def index_for_node(self, node):
+        return self.createIndex(node.row, 0, node)
+
+    def index_for_ref(self, ref):
+        return self.index_for_node(self.find_node_by_ref(ref))
+
     def parent(self, idx):
         node = idx.internalPointer() if idx.isValid() else None
 
@@ -78,6 +84,9 @@ class BasicTreeModel(QtCore.QAbstractItemModel):
         idx1 = self.createIndex(node.row, col1, node)
         idx2 = self.createIndex(node.row, col2, node)
         self.dataChanged.emit(idx1, idx2)
+
+    def find_node_by_ref(self, ref):
+        return self.root.find_node_by_ref(ref)
 
 class BasicTreeNode(object):
     """Support class for implementing the nodes of a Qt tree model."""

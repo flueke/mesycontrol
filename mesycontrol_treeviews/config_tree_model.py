@@ -2,14 +2,15 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from basic_tree_model import BasicTreeModel
-from basic_tree_model import BasicTreeNode
 from qt import QtCore
 from qt import Qt
+from functools import partial
+
+import basic_tree_model as btm
 
 QModelIndex = QtCore.QModelIndex
 
-class ConfigTreeModel(BasicTreeModel):
+class ConfigTreeModel(btm.BasicTreeModel):
     def columnCount(self, parent=QModelIndex()):
         return 3
 
@@ -29,17 +30,42 @@ class ConfigTreeModel(BasicTreeModel):
 # BusNode       bus number
 # DeviceNode    address, name, type, 
 
-class SetupNode(BasicTreeNode):
-    def data(self, column, role):
-        if column == 0 and role == Qt.DisplayRole:
-            return "SetupNode %s" % hex(id(self))
+class SetupNode(btm.BasicTreeNode):
+    def __init__(self, setup, parent=None):
+        """setup should be an instance of app_model.MRCRegistry."""
+        super(SetupNode, self).__init__(ref=setup, parent=parent)
+        setup.config_model_set.connect(self._model_set)
 
-class MRCNode(BasicTreeNode):
+    def _model_set(self, setup):
+        f = partial(self.model.notify_data_changed, self, 0, 0)
+        if setup.cfg is not None:
+            setup.cfg.filename_changed.connect(f)
+            setup.cfg.modified_changed.connect(f)
+        f()
+           
     def data(self, column, role):
+        setup = self.ref.cfg
         if column == 0 and role == Qt.DisplayRole:
-            return "MRCNode %s" % hex(id(self))
+            ret = setup.filename if setup is not None and len(setup.filename) else "<unsaved setup>"
+            if setup is not None and setup.modified:
+                ret += "*"
+            return ret
 
-class BusNode(BasicTreeNode):
+class MRCNode(btm.BasicTreeNode):
+    def __init__(self, mrc, parent=None):
+        """mrc should be an instance of app_model.MRC"""
+        super(MRCNode, self).__init__(ref=mrc, parent=parent)
+        mrc.config_model_set.connect(self._model_set)
+
+    def _model_set(self, mrc):
+        f = partial(self.model.notify_data_changed, self, 0, 0)
+        f()
+
+    def data(self, column, role):
+        if column == 0 and role == Qt.DisplayRole and self.ref is not None:
+            return self.ref.url
+
+class BusNode(btm.BasicTreeNode):
     def __init__(self, bus_number, parent=None):
         super(BusNode, self).__init__(parent=parent)
         self.bus_number = bus_number
@@ -48,7 +74,7 @@ class BusNode(BasicTreeNode):
         if column == 0 and role == Qt.DisplayRole:
             return str(self.bus_number)
 
-class DeviceNode(BasicTreeNode):
+class DeviceNode(btm.BasicTreeNode):
     def __init__(self, device=None, bus=None, address=None, parent=None):
         super(DeviceNode, self).__init__(ref=device, parent=parent)
         self._bus = bus
@@ -62,7 +88,7 @@ class DeviceNode(BasicTreeNode):
 
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:
-            return "DeviceNode %s %s" % (hex(id(self)), (self.bus, self.address))
+            return "(%s, %s)" % (self.bus, self.address)
 
     bus     = property(get_bus)
     address = property(get_address)

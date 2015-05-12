@@ -8,32 +8,108 @@ import basic_model as bm
 import hardware_model as hm
 import config_model as cm
 import util
+from qt import pyqtSignal
+from qt import pyqtProperty
+
+class MRCRegistry(bm.MRCRegistry):
+    config_model_set   = pyqtSignal(object)
+    hardware_model_set = pyqtSignal(object)
+
+    def __init__(self, hw_reg, cfg_reg, parent=None):
+        super(MRCRegistry, self).__init__(parent)
+        self.log  = util.make_logging_source_adapter(__name__, self)
+        self.cfg  = cfg_reg
+        self.hw   = hw_reg
+
+    def get_hardware_model(self):
+        return self._hw
+
+    def set_hardware_model(self, hw):
+        self.log.debug("%s.set_hardware_model %s", self, hw)
+        self._hw = hw
+        self.hardware_model_set.emit(self.hw)
+
+    def get_config_model(self):
+        return self._cfg
+
+    def set_config_model(self, cfg):
+        self.log.debug("%s.set_config_model %s", self, cfg)
+        self._cfg = cfg
+        self.config_model_set.emit(self.cfg)
+
+    hw  = pyqtProperty(object, get_hardware_model, set_hardware_model, notify=hardware_model_set)
+    cfg = pyqtProperty(object, get_config_model, set_config_model, notify=config_model_set)
+
 
 class MRC(bm.MRC):
+    config_model_set   = pyqtSignal(object)
+    hardware_model_set = pyqtSignal(object)
+
     def __init__(self, url, parent=None):
         super(MRC, self).__init__(url, parent)
-        self.hw  = None
-        self.cfg = None
+        self.log  = util.make_logging_source_adapter(__name__, self)
+        self._cfg = None
+        self._hw  = None
+
+    def get_hardware_model(self):
+        return self._hw
+
+    def set_hardware_model(self, hw):
+        self.log.debug("%s.set_hardware_model %s", self, hw)
+        self._hw = hw
+        self.hardware_model_set.emit(self.hw)
+
+    def get_config_model(self):
+        return self._cfg
+
+    def set_config_model(self, cfg):
+        self.log.debug("%s.set_config_model %s", self, cfg)
+        self._cfg = cfg
+        self.config_model_set.emit(self.cfg)
+
+    hw  = pyqtProperty(object, get_hardware_model, set_hardware_model, notify=hardware_model_set)
+    cfg = pyqtProperty(object, get_config_model, set_config_model, notify=config_model_set)
 
 class Device(bm.Device):
+    config_model_set   = pyqtSignal(object)
+    hardware_model_set = pyqtSignal(object)
+
     def __init__(self, bus, address, idc, parent=None):
         super(Device, self).__init__(bus, address, idc, parent)
-        self.hw  = None
-        self.cfg = None
+        self.log  = util.make_logging_source_adapter(__name__, self)
+        self._cfg = None
+        self._hw  = None
+
+    def get_hardware_model(self):
+        return self._hw
+
+    def set_hardware_model(self, hw):
+        self.log.debug("%s.set_hardware_model %s", self, hw)
+        self._hw = hw
+        self.hardware_model_set.emit(self.hw)
+
+    def get_config_model(self):
+        return self._cfg
+
+    def set_config_model(self, cfg):
+        self.log.debug("%s.set_config_model %s", self, cfg)
+        self._cfg = cfg
+        self.config_model_set.emit(self.cfg)
+
+    hw  = pyqtProperty(object, get_hardware_model, set_hardware_model, notify=hardware_model_set)
+    cfg = pyqtProperty(object, get_config_model, set_config_model, notify=config_model_set)
 
 class Director(object):
     def __init__(self, hw_registry, cfg_registry):
-        self.hw_registry    = hw_registry
-        self.cfg_registry   = cfg_registry
-        self.registry       = bm.MRCRegistry()
-        self.log            = util.make_logging_source_adapter(__name__, self)
+        self.registry = MRCRegistry(hw_registry, cfg_registry)
+        self.log      = util.make_logging_source_adapter(__name__, self)
 
-        for mrc in self.hw_registry.mrcs:
+        for mrc in hw_registry.mrcs:
             self._hw_mrc_added(mrc)
             mrc.device_added.connect(partial(self._hw_mrc_device_added, mrc))
             mrc.device_removed.connect(partial(self._hw_mrc_device_removed, mrc))
 
-        for mrc in self.cfg_registry.mrcs:
+        for mrc in cfg_registry.mrcs:
             self._config_mrc_added(mrc)
             mrc.device_added.connect(partial(self._config_mrc_device_added, mrc))
             mrc.device_removed.connect(partial(self._config_mrc_device_removed, mrc))
