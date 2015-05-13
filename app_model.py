@@ -5,8 +5,6 @@
 from functools import partial
 
 import basic_model as bm
-import hardware_model as hm
-import config_model as cm
 import util
 from qt import pyqtSignal
 from qt import pyqtProperty
@@ -140,6 +138,7 @@ class Director(object):
             self.registry.remove_mrc(app_mrc)
 
     def _hw_mrc_device_added(self, mrc, device):
+        self.log.debug("_hw_mrc_device_added: mrc=%s, device=%s", mrc, device)
         app_mrc = self.registry.get_mrc(mrc.url)
         app_device = app_mrc.get_device(device.bus, device.address)
         if app_device is None:
@@ -148,6 +147,7 @@ class Director(object):
         app_device.hw = device
 
     def _hw_mrc_device_removed(self, mrc, device):
+        self.log.debug("_hw_mrc_device_removed: mrc=%s, device=%s", mrc, device)
         app_mrc = self.registry.get_mrc(mrc.url)
         app_device = app_mrc.get_device(device.bus, device.address)
         app_device.hw = None
@@ -159,10 +159,13 @@ class Director(object):
         app_mrc = self.registry.get_mrc(mrc.url)
         if app_mrc is None:
             app_mrc = MRC(mrc.url)
+            self.log.debug("_config_mrc_added: created %s", app_mrc)
             self.registry.add_mrc(app_mrc)
         app_mrc.cfg = mrc
         for device in mrc.get_devices():
             self._config_mrc_device_added(mrc, device)
+        mrc.device_added.connect(partial(self._config_mrc_device_added, mrc))
+        mrc.device_removed.connect(partial(self._config_mrc_device_removed, mrc))
 
     def _config_mrc_removed(self, mrc):
         self.log.debug("_config_mrc_removed: %s", mrc)
@@ -174,6 +177,7 @@ class Director(object):
             self.registry.remove_mrc(app_mrc)
 
     def _config_mrc_device_added(self, mrc, device):
+        self.log.debug("_config_mrc_device_added: mrc=%s, device=%s", mrc, device)
         app_mrc = self.registry.get_mrc(mrc.url)
         app_device = app_mrc.get_device(device.bus, device.address)
         if app_device is None:
@@ -182,6 +186,7 @@ class Director(object):
         app_device.cfg = device
 
     def _config_mrc_device_removed(self, mrc, device):
+        self.log.debug("_config_mrc_device_removed: mrc=%s, device=%s", mrc, device)
         app_mrc = self.registry.get_mrc(mrc.url)
         app_device = app_mrc.get_device(device.bus, device.address)
         app_device.cfg = None

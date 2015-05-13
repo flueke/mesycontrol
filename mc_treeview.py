@@ -6,6 +6,7 @@ from qt import QtGui
 from qt import QtCore
 import logging
 from functools import partial
+import collections
 
 import app_model
 import basic_model as bm
@@ -17,11 +18,47 @@ import hardware_tree_view as htv
 import util
 
 class AddDeviceDialog(QtGui.QDialog):
+    Result = collections.namedtuple("Result", "bus address idc")
+
     def __init__(self, mrc, bus=None, parent=None):
         super(AddDeviceDialog, self).__init__(parent)
-        self._result = (0, 0, 27)
-        ok = QtGui.QPushButton("ok", self)
-        ok.clicked.connect(self.accept)
+        self._result = None
+
+        self.bus_combo = QtGui.QComboBox()
+        self.bus_combo.addItems([str(i) for i in range(2)])
+
+        self.address_combo = QtGui.QComboBox()
+        self.address_combo.addItems([str(i) for i in range(16)])
+
+        self.idc_input = QtGui.QLineEdit()
+        self.idc_input.setValidator(QtGui.QIntValidator(1, 99))
+
+        self.button_box = QtGui.QDialogButtonBox(
+                QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
+
+        ok_button = self.button_box.button(QtGui.QDialogButtonBox.Ok)
+        ok_button.setEnabled(False)
+
+        def idc_text_changed():
+            ok_button.setEnabled(self.idc_input.hasAcceptableInput())
+
+        self.idc_input.textChanged.connect(idc_text_changed)
+
+        def accept():
+            self._result = AddDeviceDialog.Result(
+                    self.bus_combo.currentIndex(),
+                    self.address_combo.currentIndex(),
+                    int(str(self.idc_input.text())))
+            self.accept()
+
+        self.button_box.accepted.connect(accept)
+        self.button_box.rejected.connect(self.reject)
+
+        layout = QtGui.QFormLayout(self)
+        layout.addRow("Bus", self.bus_combo)
+        layout.addRow("Address", self.address_combo)
+        layout.addRow("IDC", self.idc_input)
+        layout.addRow(self.button_box)
 
     def result(self):
         return self._result
@@ -53,27 +90,54 @@ class MCTreeDirector(object):
         mrc.config_model_set.connect(partial(print_mrc, mrc))
         mrc.hardware_model_set.connect(partial(print_mrc, mrc))
 
-        cfg_node = self.cfg_model.root.find_node_by_ref(mrc)
+        cfg_node = self.cfg_model.find_node_by_ref(mrc)
         if cfg_node is None:
             cfg_node = ctm.MRCNode(mrc)
             for i in range(2):
                 cfg_node.append_child(ctm.BusNode(i))
             self.cfg_model.add_node(cfg_node, self.setup_node, len(self.setup_node.children))
+            # FIXME: sort mrcs by url
 
-        hw_node = self.hw_model.root.find_node_by_ref(mrc)
+        hw_node = self.hw_model.find_node_by_ref(mrc)
         if hw_node is None:
             hw_node = htm.MRCNode(mrc)
             for i in range(2):
                 hw_node.append_child(htm.BusNode(i))
             self.hw_model.add_node(hw_node, self.hw_registry_node, len(self.hw_registry_node.children))
+            # FIXME: sort mrcs by url
 
-        mrc.device_added.connect(self._device_added) # XXX: leftoff
+        mrc.device_added.connect(self._device_added)
+        mrc.device_removed.connect(self._device_removed)
 
     def _mrc_removed(self, mrc):
         self.log.debug("_mrc_removed: %s, url=%s, hw=%s, cfg=%s", mrc, mrc.url, mrc.hw, mrc.cfg)
-        cfg_node = self.cfg_model.root.find_node_by_ref(mrc)
+        cfg_node = self.cfg_model.find_node_by_ref(mrc)
         self.cfg_model.remove_node(cfg_node)
-        hw_node  = self.hw_model.root.find_node_by_ref(mrc)
+        hw_node  = self.hw_model.find_node_by_ref(mrc)
+        self.hw_model.remove_node(hw_node)
+
+    def _device_added(self, device):
+        self.log.debug("_device_added: %s", device)
+
+        cfg_node = self.cfg_model.find_node_by_ref(device)
+        if cfg_node is None:
+            cfg_node    = ctm.DeviceNode(device)
+            parent_node = self.cfg_model.find_node_by_ref(device.mrc).children[device.bus]
+            row         = len(parent_node.children) # FIXME: sort children by address
+            self.cfg_model.add_node(cfg_node, parent_node, row)
+
+        hw_node = self.hw_model.find_node_by_ref(device)
+        if hw_node is None:
+            hw_node     = htm.DeviceNode(device)
+            parent_node = self.hw_model.find_node_by_ref(device.mrc).children[device.bus]
+            row         = len(parent_node.children) # FIXME: sort children by address
+            self.hw_model.add_node(hw_node, parent_node, row)
+
+    def _device_removed(self, device):
+        self.log.debug("_device_removed: %s", device)
+        cfg_node = self.cfg_model.find_node_by_ref(device)
+        self.cfg_model.remove_node(cfg_node)
+        hw_node  = self.hw_model.find_node_by_ref(device)
         self.hw_model.remove_node(hw_node)
 
 class MCTreeView(QtGui.QWidget):
@@ -104,6 +168,9 @@ class MCTreeView(QtGui.QWidget):
         self.hw_view.collapsed.connect(self._hw_collapsed)
         self.hw_view.selectionModel().currentChanged.connect(self._hw_selection_current_changed)
 
+        self.cfg_view.expandAll()
+        self.hw_view.expandAll()
+
         splitter = QtGui.QSplitter()
         splitter.addWidget(self.hw_view)
         splitter.addWidget(self.cfg_view)
@@ -122,15 +189,8 @@ class MCTreeView(QtGui.QWidget):
                 if not ok or len(url) == 0:
                     return
                 try:
-                    print self.app_director
-                    print self.app_director.registry
-                    print self.app_director.registry.cfg
                     self.app_director.registry.cfg.add_mrc(cm.MRC(url))
                 except Exception as e:
-                    #d = QtGui.QErrorMessage(self.cfg_view)
-                    #d.showMessage(str(e))
-                    #import traceback
-                    #traceback.print_exc()
                     QtGui.QMessageBox.critical(self.cfg_view, "Error adding MRC", str(e))
 
             menu.addAction("Add MRC").triggered.connect(add_mrc)
@@ -147,7 +207,7 @@ class MCTreeView(QtGui.QWidget):
                 def dialog_accepted():
                     bus, address, idc = dialog.result()
                     device = cm.Device(bus, address, idc)
-                    mrc.add_device(device)
+                    mrc.cfg.add_device(device)
 
                 dialog.accepted.connect(dialog_accepted)
                 dialog.show()
@@ -161,27 +221,6 @@ class MCTreeView(QtGui.QWidget):
         if not menu.isEmpty():
             menu.exec_(self.cfg_view.mapToGlobal(pos))
 
-    def _cfg_expanded(self, idx):
-        cfg_node = idx.internalPointer()
-        if cfg_node is not self.cfg_model.root:
-            self.hw_view.expand(self.hw_model.index_for_ref(cfg_node.ref))
-
-    def _cfg_collapsed(self, idx):
-        self.hw_view.collapse(self.hw_model.index_for_ref(
-            idx.internalPointer().ref))
-
-    def _cfg_selection_current_changed(self, current, previous):
-        print self, current.internalPointer()
-        node = current.internalPointer()
-        if isinstance(node, ctm.BusNode):
-            mrc = node.parent.ref
-            bus = node.bus_number
-            hw_node = self.hw_model.find_node_by_ref(mrc).children[bus]
-            hw_idx  = self.hw_model.index_for_node(hw_node)
-        else:
-            hw_idx = self.hw_model.index_for_ref(node.ref)
-        self.hw_view.setCurrentIndex(hw_idx)
-
     def _hw_context_menu(self, pos):
         idx  = self.hw_view.indexAt(pos)
         node = idx.internalPointer()
@@ -191,26 +230,47 @@ class MCTreeView(QtGui.QWidget):
         if not menu.isEmpty():
             menu.exec_(self.hw_view.mapToGlobal(pos))
 
+    def cfg_idx_for_hw_idx(self, hw_idx):
+        hw_node = hw_idx.internalPointer()
+
+        if isinstance(hw_node, htm.BusNode):
+            mrc      = hw_node.parent.ref
+            bus      = hw_node.bus_number
+            cfg_node = self.cfg_model.find_node_by_ref(mrc).children[bus]
+            return self.cfg_model.index_for_node(cfg_node)
+
+        return self.cfg_model.index_for_ref(hw_node.ref)
+
+    def hw_idx_for_cfg_idx(self, cfg_idx):
+        cfg_node = cfg_idx.internalPointer()
+
+        if isinstance(cfg_node, ctm.BusNode):
+            mrc      = cfg_node.parent.ref
+            bus      = cfg_node.bus_number
+            hw_node = self.hw_model.find_node_by_ref(mrc).children[bus]
+            return self.hw_model.index_for_node(hw_node)
+
+        return self.hw_model.index_for_ref(cfg_node.ref)
+
+    def _cfg_expanded(self, idx):
+        if idx.internalPointer() is not self.cfg_model.root:
+            self.hw_view.expand(self.hw_idx_for_cfg_idx(idx))
+
+    def _cfg_collapsed(self, idx):
+        self.hw_view.collapse(self.hw_idx_for_cfg_idx(idx))
+
+    def _cfg_selection_current_changed(self, current, previous):
+        self.hw_view.setCurrentIndex(self.hw_idx_for_cfg_idx(current))
+
     def _hw_expanded(self, idx):
-        hw_node  = idx.internalPointer()
-        if hw_node is not self.hw_model.root:
-            self.cfg_view.expand(self.cfg_model.index_for_ref(hw_node.ref))
+        if idx.internalPointer() is not self.hw_model.root:
+            self.cfg_view.expand(self.cfg_idx_for_hw_idx(idx))
 
     def _hw_collapsed(self, idx):
-        self.cfg_view.collapse(self.cfg_model.index_for_ref(
-            idx.internalPointer().ref))
+        self.cfg_view.collapse(self.cfg_idx_for_hw_idx(idx))
 
     def _hw_selection_current_changed(self, current, previous):
-        print self, current.internalPointer()
-        node = current.internalPointer()
-        if isinstance(node, htm.BusNode):
-            mrc = node.parent.ref
-            bus = node.bus_number
-            cfg_node = self.cfg_model.find_node_by_ref(mrc).children[bus]
-            cfg_idx  = self.cfg_model.index_for_node(cfg_node)
-        else:
-            cfg_idx = self.cfg_model.index_for_ref(node.ref)
-        self.cfg_view.setCurrentIndex(cfg_idx)
+        self.cfg_view.setCurrentIndex(self.cfg_idx_for_hw_idx(current))
 
 import signal
 
@@ -239,10 +299,22 @@ if __name__ == "__main__":
     v = MCTreeView(app_director)
     v.show()
 
+    mrc    = cm.MRC("mc://localhost:4001")
+    cfg_registry.add_mrc(mrc)
+    d1 = cm.Device(0, 0, 42)
+    d2 = cm.Device(0, 1, 42)
+    d3 = cm.Device(1, 15, 42)
+    d4 = cm.Device(1, 14, 42)
+
+    mrc.add_device(d1)
+    mrc.add_device(d2)
+    mrc.add_device(d3)
+    mrc.add_device(d4)
+
     import pyqtgraph as pg
     import pyqtgraph.console
 
     console = pg.console.ConsoleWidget(namespace=locals())
-    console.show()
+    #console.show()
 
     sys.exit(app.exec_())
