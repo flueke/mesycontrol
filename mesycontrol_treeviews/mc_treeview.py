@@ -27,6 +27,10 @@ class AddDeviceDialog(QtGui.QDialog):
         self.bus_combo = QtGui.QComboBox()
         self.bus_combo.addItems([str(i) for i in range(2)])
 
+        if bus is not None:
+            self.bus_combo.setCurrentIndex(bus)
+            self.bus_combo.setEnabled(False)
+
         self.address_combo = QtGui.QComboBox()
         self.address_combo.addItems([str(i) for i in range(16)])
 
@@ -63,6 +67,10 @@ class AddDeviceDialog(QtGui.QDialog):
     def result(self):
         return self._result
 
+def find_insertion_index(items, test_fun):
+    prev_item = next((o for o in items if test_fun(o)), None)
+    return items.index(prev_item) if prev_item is not None else len(items)
+
 class MCTreeDirector(object):
     def __init__(self, app_director):
         self.log       = util.make_logging_source_adapter(__name__, self)
@@ -81,6 +89,28 @@ class MCTreeDirector(object):
         app_director.registry.mrc_added.connect(self._mrc_added)
         app_director.registry.mrc_removed.connect(self._mrc_removed)
 
+    def cfg_idx_for_hw_idx(self, hw_idx):
+        hw_node = hw_idx.internalPointer()
+
+        if isinstance(hw_node, htm.BusNode):
+            mrc      = hw_node.parent.ref
+            bus      = hw_node.bus_number
+            cfg_node = self.cfg_model.find_node_by_ref(mrc).children[bus]
+            return self.cfg_model.index_for_node(cfg_node)
+
+        return self.cfg_model.index_for_ref(hw_node.ref)
+
+    def hw_idx_for_cfg_idx(self, cfg_idx):
+        cfg_node = cfg_idx.internalPointer()
+
+        if isinstance(cfg_node, ctm.BusNode):
+            mrc      = cfg_node.parent.ref
+            bus      = cfg_node.bus_number
+            hw_node = self.hw_model.find_node_by_ref(mrc).children[bus]
+            return self.hw_model.index_for_node(hw_node)
+
+        return self.hw_model.index_for_ref(cfg_node.ref)
+
     def _mrc_added(self, mrc):
         self.log.debug("_mrc_added: %s, url=%s, hw=%s, cfg=%s", mrc, mrc.url, mrc.hw, mrc.cfg)
 
@@ -95,16 +125,20 @@ class MCTreeDirector(object):
             cfg_node = ctm.MRCNode(mrc)
             for i in range(2):
                 cfg_node.append_child(ctm.BusNode(i))
-            self.cfg_model.add_node(cfg_node, self.setup_node, len(self.setup_node.children))
-            # FIXME: sort mrcs by url
+
+            # keep mrcs sorted by url
+            idx = find_insertion_index(self.setup_node.children, lambda c: mrc.url < c.ref.url)
+            self.cfg_model.add_node(cfg_node, self.setup_node, idx)
 
         hw_node = self.hw_model.find_node_by_ref(mrc)
         if hw_node is None:
             hw_node = htm.MRCNode(mrc)
             for i in range(2):
                 hw_node.append_child(htm.BusNode(i))
-            self.hw_model.add_node(hw_node, self.hw_registry_node, len(self.hw_registry_node.children))
-            # FIXME: sort mrcs by url
+
+            # keep mrcs sorted by url
+            idx = find_insertion_index(self.hw_registry_node.children, lambda c: mrc.url < c.ref.url)
+            self.hw_model.add_node(hw_node, self.hw_registry_node, idx)
 
         mrc.device_added.connect(self._device_added)
         mrc.device_removed.connect(self._device_removed)
@@ -123,14 +157,14 @@ class MCTreeDirector(object):
         if cfg_node is None:
             cfg_node    = ctm.DeviceNode(device)
             parent_node = self.cfg_model.find_node_by_ref(device.mrc).children[device.bus]
-            row         = len(parent_node.children) # FIXME: sort children by address
+            row = find_insertion_index(parent_node.children, lambda c: device.address < c.ref.address)
             self.cfg_model.add_node(cfg_node, parent_node, row)
 
         hw_node = self.hw_model.find_node_by_ref(device)
         if hw_node is None:
             hw_node     = htm.DeviceNode(device)
             parent_node = self.hw_model.find_node_by_ref(device.mrc).children[device.bus]
-            row         = len(parent_node.children) # FIXME: sort children by address
+            row = find_insertion_index(parent_node.children, lambda c: device.address < c.ref.address)
             self.hw_model.add_node(hw_node, parent_node, row)
 
     def _device_removed(self, device):
@@ -201,7 +235,7 @@ class MCTreeView(QtGui.QWidget):
                 self.app_director.registry.cfg.remove_mrc(mrc.cfg)
 
             def add_device():
-                dialog = AddDeviceDialog(mrc=mrc, parent=self.cfg_view)
+                dialog = AddDeviceDialog(mrc=mrc, parent=self)
                 dialog.setModal(True)
 
                 def dialog_accepted():
@@ -216,7 +250,30 @@ class MCTreeView(QtGui.QWidget):
             menu.addAction("Remove MRC").triggered.connect(remove_mrc)
 
         if isinstance(node, ctm.BusNode):
-            pass
+            mrc = node.parent.ref
+            bus = node.bus_number
+
+            def add_device():
+                dialog = AddDeviceDialog(mrc=mrc, bus=bus, parent=self)
+                dialog.setModal(True)
+
+                def dialog_accepted():
+                    bus, address, idc = dialog.result()
+                    device = cm.Device(bus, address, idc)
+                    mrc.cfg.add_device(device)
+
+                dialog.accepted.connect(dialog_accepted)
+                dialog.show()
+
+            menu.addAction("Add Device").triggered.connect(add_device)
+
+        # FIXME: handle node.ref.cfg is None
+        if isinstance(node, ctm.DeviceNode):
+            def remove_device():
+                mrc = node.ref.cfg.mrc
+                mrc.remove_device(node.ref.cfg)
+
+            menu.addAction("Remove Device").triggered.connect(remove_device)
 
         if not menu.isEmpty():
             menu.exec_(self.cfg_view.mapToGlobal(pos))
@@ -231,26 +288,10 @@ class MCTreeView(QtGui.QWidget):
             menu.exec_(self.hw_view.mapToGlobal(pos))
 
     def cfg_idx_for_hw_idx(self, hw_idx):
-        hw_node = hw_idx.internalPointer()
-
-        if isinstance(hw_node, htm.BusNode):
-            mrc      = hw_node.parent.ref
-            bus      = hw_node.bus_number
-            cfg_node = self.cfg_model.find_node_by_ref(mrc).children[bus]
-            return self.cfg_model.index_for_node(cfg_node)
-
-        return self.cfg_model.index_for_ref(hw_node.ref)
+        return self.director.cfg_idx_for_hw_idx(hw_idx)
 
     def hw_idx_for_cfg_idx(self, cfg_idx):
-        cfg_node = cfg_idx.internalPointer()
-
-        if isinstance(cfg_node, ctm.BusNode):
-            mrc      = cfg_node.parent.ref
-            bus      = cfg_node.bus_number
-            hw_node = self.hw_model.find_node_by_ref(mrc).children[bus]
-            return self.hw_model.index_for_node(hw_node)
-
-        return self.hw_model.index_for_ref(cfg_node.ref)
+        return self.director.hw_idx_for_cfg_idx(cfg_idx)
 
     def _cfg_expanded(self, idx):
         if idx.internalPointer() is not self.cfg_model.root:
@@ -299,17 +340,24 @@ if __name__ == "__main__":
     v = MCTreeView(app_director)
     v.show()
 
-    mrc    = cm.MRC("mc://localhost:4001")
+    mrc    = cm.MRC("bbb")
+    mrc2   = cm.MRC("aaa")
+    mrc3   = cm.MRC("ccc")
     cfg_registry.add_mrc(mrc)
+    cfg_registry.add_mrc(mrc2)
+    cfg_registry.add_mrc(mrc3)
+
     d1 = cm.Device(0, 0, 42)
-    d2 = cm.Device(0, 1, 42)
-    d3 = cm.Device(1, 15, 42)
-    d4 = cm.Device(1, 14, 42)
+    d2 = cm.Device(0, 1, 43)
+    d3 = cm.Device(1, 15, 44)
+    d4 = cm.Device(1, 14, 45)
+    d5 = cm.Device(1, 0, 41)
 
     mrc.add_device(d1)
     mrc.add_device(d2)
     mrc.add_device(d3)
     mrc.add_device(d4)
+    mrc.add_device(d5)
 
     import pyqtgraph as pg
     import pyqtgraph.console
