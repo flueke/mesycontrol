@@ -37,7 +37,7 @@ class SetupNode(btm.BasicTreeNode):
         setup.config_model_set.connect(self._model_set)
 
     def _model_set(self, setup):
-        f = partial(self.model.notify_data_changed, self, 0, 0)
+        f = partial(self.model.notify_data_changed, self, 0, self.model.columnCount())
         if setup.cfg is not None:
             setup.cfg.filename_changed.connect(f)
             setup.cfg.modified_changed.connect(f)
@@ -58,11 +58,12 @@ class MRCNode(btm.BasicTreeNode):
         mrc.config_model_set.connect(self._model_set)
 
     def _model_set(self, mrc):
-        f = partial(self.model.notify_data_changed, self, 0, 0)
+        f = partial(self.model.notify_data_changed, self, 0, self.model.columnCount())
         f()
 
     def data(self, column, role):
-        if column == 0 and role == Qt.DisplayRole and self.ref is not None:
+        if column == 0 and role == Qt.DisplayRole:
+            #if self.ref is not None:
             return self.ref.url
 
 class BusNode(btm.BasicTreeNode):
@@ -75,20 +76,15 @@ class BusNode(btm.BasicTreeNode):
             return str(self.bus_number)
 
 class DeviceNode(btm.BasicTreeNode):
-    def __init__(self, device=None, bus=None, address=None, parent=None):
+    def __init__(self, device, parent=None):
         super(DeviceNode, self).__init__(ref=device, parent=parent)
-        self._bus = bus
-        self._address = address
+        device.config_model_set.connect(self._model_set)
 
-    def get_bus(self):
-        return self._bus if self.ref is None else self.ref.bus
-
-    def get_address(self):
-        return self._address if self.ref is None else self.ref.address
+    def _model_set(self, device):
+        f = partial(self.model.notify_data_changed, self, 0, self.model.columnCount())
+        f()
 
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:
-            return "(%s, %s)" % (self.bus, self.address)
-
-    bus     = property(get_bus)
-    address = property(get_address)
+            return "%s %s" % (self.ref.address,
+                    self.ref.idc if self.ref is not None else "<not in config>")
