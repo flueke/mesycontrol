@@ -58,15 +58,17 @@ class MRC(QtCore.QObject):
 
     def add_device(self, device):
         if self.get_device(device.bus, device.address) is not None:
-            raise RuntimeError("Device at (%d, %d) exists", device.bus, device.address)
+            raise ValueError("Device at (%d, %d) exists", device.bus, device.address)
 
         self._devices.append(device)
         self._devices.sort(key=lambda device: (device.bus, device.address))
+        device.mrc = self
         self.device_added.emit(device)
 
     def remove_device(self, device):
         try:
             self._devices.remove(device)
+            device.mrc = None
             self.device_removed.emit(device)
         except ValueError:
             raise ValueError("No Device %s" % device)
@@ -149,6 +151,9 @@ class Device(QtCore.QObject):
 
     def has_cached_parameter(self, address):
         return address in self._memory
+
+    def get_cached_memory(self):
+        return dict(self._memory)
 
     def __str__(self):
         return 'Device(bus=%d, address=%d, idc=%d, mrc=%s)' % (
