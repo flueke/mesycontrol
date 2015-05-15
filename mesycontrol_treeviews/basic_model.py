@@ -90,8 +90,13 @@ class MRC(QtCore.QObject):
 
     url = pyqtProperty(str, get_url)
 
-ReadResult = collections.namedtuple("ReadResult", "bus device address value")
-SetResult  = collections.namedtuple("SetResult", ReadResult._fields + ('requested_value',))
+class ReadResult(collections.namedtuple("ReadResult", "bus device address value")):
+    def __int__(self):
+        return self.value
+
+class SetResult(collections.namedtuple("SetResult", ReadResult._fields + ('requested_value',))):
+    def __int__(self):
+        return self.value
 
 class Device(QtCore.QObject):
     idc_changed     = pyqtSignal(int)
@@ -127,6 +132,11 @@ class Device(QtCore.QObject):
         self.mrc_changed.emit(self.mrc)
 
     def get_parameter(self, address):
+        """Get a parameter from the devices memory cache if available.
+        Otherwise use Device.read_parameter() to read the parameter from the
+        hardware.
+        Returns a Future whose result is a ReadResult instance.
+        """
         if self.has_cached_parameter(address):
             result = ReadResult(self.bus, self.address, address,
                     self.get_cached_parameter(address))
@@ -135,6 +145,12 @@ class Device(QtCore.QObject):
         return self.read_parameter(address)
 
     def read_parameter(self, address):
+        """Read a parameter from the device. Subclass implementations must call
+        Device.set_cached_parameter() on read success to update the local
+        memory cache.
+        This method is expected to return a Future whose result is a ReadResult
+        instance.
+        """
         raise NotImplementedError
 
     def set_parameter(self, address, value):
