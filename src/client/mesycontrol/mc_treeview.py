@@ -2,9 +2,6 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-#links: hardware
-#rechts: config
-#
 #HWTreeModel ConfigTreeModel
 #HWTreeView  ConfigTreeView
 #
