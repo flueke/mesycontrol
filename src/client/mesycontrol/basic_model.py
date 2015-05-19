@@ -48,13 +48,22 @@ class MRCRegistry(QtCore.QObject):
     mrcs = pyqtProperty(list, get_mrcs)
 
 class MRC(QtCore.QObject):
-    device_added   = pyqtSignal(object)
-    device_removed = pyqtSignal(object)
+    url_changed     = pyqtSignal(str)
+    device_added    = pyqtSignal(object)
+    device_removed  = pyqtSignal(object)
 
     def __init__(self, url, parent=None):
         super(MRC, self).__init__(parent)
         self._url       = str(url)
         self._devices   = list()
+
+    def set_url(self, url):
+        if self._url != url:
+            self._url = str(url)
+            self.url_changed.emit(self.url)
+
+    def get_url(self):
+        return self._url
 
     def add_device(self, device):
         if self.get_device(device.bus, device.address) is not None:
@@ -73,9 +82,6 @@ class MRC(QtCore.QObject):
         except ValueError:
             raise ValueError("No Device %s" % device)
 
-    def get_url(self):
-        return self._url
-
     def get_device(self, bus, address):
         compare = lambda d: (d.bus, d.address) == (bus, address)
         return next((dev for dev in self._devices if compare(dev)), None)
@@ -85,10 +91,7 @@ class MRC(QtCore.QObject):
             return list(self._devices)
         return [d for d in self._devices if d.bus == bus]
 
-    #def __str__(self):
-    #    return 'MRC(url="%s")' % self.url
-
-    url = pyqtProperty(str, get_url)
+    url = pyqtProperty(str, get_url, set_url, notify=url_changed)
 
 class ReadResult(collections.namedtuple("ReadResult", "bus device address value")):
     def __int__(self):
@@ -107,9 +110,11 @@ class ResultFuture(future.Future):
         return int(self.result())
 
 class Device(QtCore.QObject):
-    idc_changed     = pyqtSignal(int)
-    mrc_changed     = pyqtSignal(object)
-    parameter_changed = pyqtSignal(int, object)
+    bus_changed         = pyqtSignal(int)
+    address_changed     = pyqtSignal(int)
+    idc_changed         = pyqtSignal(int)
+    mrc_changed         = pyqtSignal(object)
+    parameter_changed   = pyqtSignal(int, object)
 
     def __init__(self, bus, address, idc, parent=None):
         super(Device, self).__init__(parent)
@@ -122,8 +127,16 @@ class Device(QtCore.QObject):
     def get_bus(self):
         return self._bus
 
+    def set_bus(self, bus):
+        self._bus = int(bus)
+        self.bus_changed.emit(self.bus)
+
     def get_address(self):
         return self._address
+
+    def set_address(self, address):
+        self._address = int(address)
+        self.address_changed.emit(self.address)
 
     def get_idc(self):
         return self._idc
@@ -184,7 +197,7 @@ class Device(QtCore.QObject):
         return 'Device(bus=%d, address=%d, idc=%d, mrc=%s)' % (
                 self.bus, self.address, self.idc, self.mrc)
 
-    bus     = pyqtProperty(int, get_bus)
-    address = pyqtProperty(int, get_address)
+    bus     = pyqtProperty(int, get_bus, set_bus, notify=bus_changed)
+    address = pyqtProperty(int, get_address, set_address, notify=address_changed)
     idc     = pyqtProperty(int, get_idc, set_idc, notify=idc_changed)
     mrc     = pyqtProperty(object, get_mrc, set_mrc, notify=mrc_changed)

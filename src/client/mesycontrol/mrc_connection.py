@@ -532,6 +532,72 @@ class ServerProcessPool(QtCore.QObject):
 
 pool = ServerProcessPool()
 
+def factory(**kwargs):
+    """Connection factory.
+    Supported keyword arguments in order of priority:
+        - config:
+          MRCConnectionConfig instance specifying the details of the connection.
+        - url:
+          A string that is passed to util.parse_connection_url(). The resulting
+          dictionary will then be used to create the connection.
+        - mesycontrol_host, mesycontrol_port:
+          Creates a MesycontrolConnection to the given host and port.
+        - serial_port, baud_rate:
+          Creates a LocalMesycontrolConnection using the given serial port and
+          baud rate.
+        - host, port:
+          Creates a LocalMesycontrolConnection connecting to the MRC on the
+          given host and port.
+
+    Additionally 'parent' may specify a parent QObject for the resulting
+    connection.
+    """
+    config  = kwargs.get('config', None)
+    url     = kwargs.get('url', None)
+    parent  = kwargs.get('parent', None)
+
+    if config is not None:
+        ret = None
+        if config.is_mesycontrol_connection():
+            ret = MRCConnection(host=config.get_mesycontrol_host(),
+                    port=config.get_mesycontrol_port(), parent=parent)
+        elif config.is_local_connection():
+            ret = LocalMRCConnection(server_options=config.get_server_options(),
+                    parent=parent)
+        else:
+            raise RuntimeError("Could not create connection from %s" % str(config))
+
+        return ret
+
+    elif url is not None:
+        return factory(**util.parse_connection_url(url))
+    else:
+        mesycontrol_host = kwargs.get('mesycontrol_host', None)
+        mesycontrol_port = kwargs.get('mesycontrol_port', None)
+        serial_device    = kwargs.get('serial_port', None)
+        serial_baud_rate = kwargs.get('baud_rate', None)
+        tcp_host         = kwargs.get('host', None)
+        tcp_port         = kwargs.get('port', None)
+
+        if None not in (mesycontrol_host, mesycontrol_port):
+            return MRCConnection(host=mesycontrol_host,
+                    port=mesycontrol_port, parent=parent)
+
+        elif None not in (serial_device, serial_baud_rate):
+            return LocalMRCConnection(
+                    server_options={
+                        'mrc_serial_port': serial_device,
+                        'mrc_baud_rate': serial_baud_rate},
+                    parent=parent)
+        elif None not in (tcp_host, tcp_port):
+            return LocalMRCConnection(
+                    server_options={
+                        'mrc_host': tcp_host,
+                        'mrc_port': tcp_port},
+                    parent=parent)
+        else:
+            raise RuntimeError("Could not create connection from given arguments")
+
 if __name__ == "__main__":
     from qt import QtGui
     import logging
