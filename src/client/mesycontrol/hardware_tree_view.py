@@ -4,8 +4,9 @@
 
 from qt import Qt
 from qt import QtGui
+import hardware_tree_model as htm
 
-class ConfigTreeView(QtGui.QTreeView):
+class HardwareTreeView(QtGui.QTreeView):
     def __init__(self, parent=None):
-        super(ConfigTreeView, self).__init__(parent)
+        super(HardwareTreeView, self).__init__(parent)
         self.setContextMenuPolicy(Qt.CustomContextMenu)
