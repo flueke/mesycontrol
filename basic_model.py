@@ -98,6 +98,14 @@ class SetResult(collections.namedtuple("SetResult", ReadResult._fields + ('reque
     def __int__(self):
         return self.value
 
+class ResultFuture(future.Future):
+    """
+    Future subclass used to hold ReadResult/SetResult instances. This class
+    adds an int() conversion method to easily obtain the result value.
+    """
+    def __int__(self):
+        return int(self.result())
+
 class Device(QtCore.QObject):
     idc_changed     = pyqtSignal(int)
     mrc_changed     = pyqtSignal(object)
@@ -135,12 +143,12 @@ class Device(QtCore.QObject):
         """Get a parameter from the devices memory cache if available.
         Otherwise use Device.read_parameter() to read the parameter from the
         hardware.
-        Returns a Future whose result is a ReadResult instance.
+        Returns a ResultFuture whose result is a ReadResult instance.
         """
         if self.has_cached_parameter(address):
             result = ReadResult(self.bus, self.address, address,
                     self.get_cached_parameter(address))
-            return future.Future().set_result(result)
+            return ResultFuture().set_result(result)
 
         return self.read_parameter(address)
 
@@ -150,6 +158,7 @@ class Device(QtCore.QObject):
         memory cache.
         This method is expected to return a Future whose result is a ReadResult
         instance.
+        The returned Future itself should be of type ResultFuture
         """
         raise NotImplementedError
 
