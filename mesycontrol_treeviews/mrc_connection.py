@@ -4,6 +4,7 @@
 
 import collections
 import struct
+import weakref
 from qt import QtCore
 from qt import QtNetwork
 from qt import pyqtProperty
@@ -15,25 +16,34 @@ from future import Future
 
 class SocketError(Exception):
     def __init__(self, error_code, error_string):
-        self.error_code   = error_code
-        self.error_string = error_string
+        self.error_code   = int(error_code)
+        self.error_string = str(error_string)
 
     def __str__(self):
         return self.error_string
 
+    def __int__(self):
+        return self.error_code
+
 RequestResult = collections.namedtuple("RequestResult", "request response")
 
 class MCTCPClient(QtCore.QObject):
-    connected           = pyqtSignal()
-    disconnected        = pyqtSignal()
-    connecting          = pyqtSignal(str, int)
-    socket_error        = pyqtSignal(int, str) #: error code, error message
+    """Mesycontrol TCP client"""
 
-    request_queued      = pyqtSignal(object, object) #: request, Future
-    request_sent        = pyqtSignal(object, object) #: request, Future
-    message_received    = pyqtSignal(object)         #: Message
-    response_received   = pyqtSignal(object, object, object) #: request, response, Future
-    queue_empty         = pyqtSignal()
+    connected               = pyqtSignal()
+    disconnected            = pyqtSignal()
+    connecting              = pyqtSignal(str, int)
+    socket_error            = pyqtSignal(object)   #: instance of SocketError
+
+    request_queued          = pyqtSignal(object, object) #: request, Future
+    request_sent            = pyqtSignal(object, object) #: request, Future
+    message_received        = pyqtSignal(object)         #: Message
+    response_received       = pyqtSignal(object, object, object) #: request, response, Future
+    notification_received   = pyqtSignal(object) #: Message
+    error_received          = pyqtSignal(object) #: Message
+
+    queue_empty             = pyqtSignal()
+    queue_size_changed      = pyqtSignal(int)
 
     def __init__(self, parent=None):
         super(MCTCPClient, self).__init__(parent)
@@ -115,7 +125,7 @@ class MCTCPClient(QtCore.QObject):
         return self.is_connecting() or self.get_queue_size() > 0
 
     def is_idle(self):
-        return not self.is_connecting() and self.get_queue_size() == 0
+        return self.is_connected() and self.get_queue_size() == 0
 
     def get_queue_size(self):
         return len(self._queue)
@@ -127,6 +137,7 @@ class MCTCPClient(QtCore.QObject):
         ret = Future()
         self._queue.add((request, ret))
         self.request_queued.emit(request, ret)
+        self.queue_size_changed.emit(len(self._queue))
         if was_empty:
             self._start_write_request()
         return ret
@@ -137,6 +148,7 @@ class MCTCPClient(QtCore.QObject):
             return
 
         request, future = self._current_request = self._queue.pop(False) # FIFO order
+        self.queue_size_changed.emit(len(self._queue))
         data = request.serialize()
         data = struct.pack('!H', len(data)) + data # prepend message size
         self.log.debug("_start_write_request: writing %s (len=%d)", request, len(data))
@@ -174,13 +186,17 @@ class MCTCPClient(QtCore.QObject):
                     self._start_write_request()
                 else:
                     self.queue_empty.emit()
+            elif message.is_notification():
+                self.notification_received.emit(message)
+            elif message.is_error():
+                self.error_received.emit(message)
 
             if self._socket.bytesAvailable() >= 2:
                 # Handle additional available data.
                 self._socket_readyRead()
 
     def _socket_error(self, socket_error):
-        self.socket_error.emit(socket_error, self._socket.errorString())
+        self.socket_error.emit(SocketError(socket_error, self._socket.errorString()))
         self.disconnected.emit()
 
     def get_host(self):
@@ -192,12 +208,60 @@ class MCTCPClient(QtCore.QObject):
     host = pyqtProperty(str, get_host)
     port = pyqtProperty(int, get_port)
 
-class MRCConnection(QtCore.QObject):
+class AbstractConnection(QtCore.QObject):
+    connected               = pyqtSignal()
+    disconnected            = pyqtSignal()
+    connecting              = pyqtSignal()
+    connection_error        = pyqtSignal(object)   #: error object
+
+    request_queued          = pyqtSignal(object, object) #: request, Future
+    request_sent            = pyqtSignal(object, object) #: request, Future
+    message_received        = pyqtSignal(object)         #: Message
+    response_received       = pyqtSignal(object, object, object) #: request, response, Future
+    notification_received   = pyqtSignal(object) #: Message
+    error_received          = pyqtSignal(object) #: Message
+
+    queue_empty             = pyqtSignal()
+    queue_size_changed      = pyqtSignal(int)
+
+    # TODO: add write_access, silence, mrc status
+
+    def __init__(self, parent=None):
+        super(AbstractConnection, self).__init__(parent)
+
+    def connect(self):
+        raise NotImplementedError()
+
+    def disconnect(self):
+        raise NotImplementedError()
+
+    def is_connected(self):
+        raise NotImplementedError()
+
+    def queue_request(self, request):
+        raise NotImplementedError()
+
+class MRCConnection(AbstractConnection):
     def __init__(self, host, port, parent=None):
         super(MRCConnection, self).__init__(parent)
+        self.host   = host
+        self.port   = port
         self.client = MCTCPClient()
-        self.host = host
-        self.port = port
+
+        self.client.connected.connect(self.connected)
+        self.client.disconnected.connect(self.disconnected)
+        self.client.connecting.connect(self.connecting)
+        self.client.socket_error.connect(self.connection_error)
+
+        self.client.request_queued.connect(self.request_queued)
+        self.client.request_sent.connect(self.request_sent)
+        self.client.message_received.connect(self.message_received)
+        self.client.response_received.connect(self.response_received)
+        self.client.notification_received(self.notification_received)
+        self.client.error_received(self.error_received)
+
+        self.client.queue_empty.connect(self.queue_empty)
+        self.client.queue_size_changed(self.queue_size_changed)
 
     def connect(self):
         return self.client.connect(self.host, self.port)
@@ -205,10 +269,33 @@ class MRCConnection(QtCore.QObject):
     def disconnect(self):
         return self.client.disconnect()
 
+    def is_connected(self):
+        return self.client.is_connected()
+
+    def queue_request(self, request):
+        return self.client.queue_request(request)
+
 class LocalMRCConnection:
+    connect_delay_ms = 1000 #: delay between server startup and connection attempt
+
     def __init__(self, server_options=dict(), parent=None):
         self.server = ServerProcess(*server_options)
         self.client = MCTCPClient()
+
+        self.client.connected.connect(self.connected)
+        self.client.disconnected.connect(self.disconnected)
+        self.client.connecting.connect(self.connecting)
+        self.client.socket_error.connect(self.connection_error)
+
+        self.client.request_queued.connect(self.request_queued)
+        self.client.request_sent.connect(self.request_sent)
+        self.client.message_received.connect(self.message_received)
+        self.client.response_received.connect(self.response_received)
+        self.client.notification_received(self.notification_received)
+        self.client.error_received(self.error_received)
+
+        self.client.queue_empty.connect(self.queue_empty)
+        self.client.queue_size_changed(self.queue_size_changed)
 
     def connect(self):
         ret = Future()
@@ -219,10 +306,17 @@ class LocalMRCConnection:
             except Exception as e:
                 ret.set_exception(e)
 
+        def on_connect_timer_expired():
+            g = self.client.connect(self.server.listen_address, self.server.listen_port)
+            g.add_done_callback(on_connected)
+
         def on_server_started(f):
             if f.exception() is None:
-                g = self.client.connect(self.server.listen_address, self.server.listen_port)
-                g.add_done_callback(on_connected)
+                self._connect_timer = QtCore.QTimer()
+                self._connect_timer.setSingleShot(True)
+                self._connect_timer.setInterval(LocalMRCConnection.connect_delay_ms)
+                self._connect_timer.timeout.connect(on_connect_timer_expired)
+                self._connect_timer.start()
             else:
                 ret.set_exception(f.exception())
 
@@ -245,6 +339,12 @@ class LocalMRCConnection:
         self.client.disconnect().add_done_callback(stop_server)
 
         return ret
+
+    def is_connected(self):
+        return self.client.is_connected()
+
+    def queue_request(self, request):
+        return self.client.queue_request(request)
 
 class ServerError(Exception):
     pass
@@ -386,6 +486,49 @@ class ServerProcess(QtCore.QObject):
 
     def _finished(self, code, status):
         self.finished.emit(status, code, ServerProcess.get_exit_code_string(code))
+
+class ServerProcessPool(QtCore.QObject):
+    default_base_port = 23000
+
+    def __init__(self, parent=None):
+        super(ServerProcessPool, self).__init__(parent)
+        self.log                = util.make_logging_source_adapter(__name__, self)
+        self.base_port          = ServerProcessPool.default_base_port
+        self._procs_by_port     = weakref.WeakValueDictionary()
+        self._unavailable_ports = set()
+
+    def create_process(self, options={}, parent=None):
+        proc = ServerProcess(parent=parent)
+
+        for attr, value in options.iteritems():
+            setattr(proc, attr, value)
+
+        proc.listen_port = self._get_free_port()
+        self._procs_by_port[proc.listen_port] = proc
+        proc.finished.connect(partial(self._on_process_finished, process=proc))
+
+        return proc
+
+    def _get_free_port(self):
+        in_use = set(self._procs_by_port.keys())
+        in_use = in_use.union(self._unavailable_ports)
+
+        for p in xrange(self.base_port, 65535):
+            if p not in in_use:
+                return p
+
+        raise RuntimeError("No listen ports available")
+
+    def _on_process_finished(self, qt_exit_status, exit_code, exit_code_string, process):
+        if exit_code_string == 'exit_address_in_use':
+            self.log.warning('listen_port %d in use by an external process', process.listen_port)
+            self._unavailable_ports.add(process.listen_port)
+            del self._procs_by_port[process.listen_port]
+            process.listen_port = self._get_free_port()
+            self._procs_by_port[process.listen_port] = process
+            process.start()
+
+pool = ProcessPool()
 
 if __name__ == "__main__":
     from qt import QtGui
