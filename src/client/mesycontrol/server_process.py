@@ -56,7 +56,7 @@ class ServerProcess(QtCore.QObject):
         self.process.started.connect(self.started)
         self.process.error.connect(self._error)
         self.process.finished.connect(self._finished)
-        self.process.readyReadStandardOutput.connect(self._stdout)
+        self.process.readyReadStandardOutput.connect(self._output)
 
     def start(self):
         ret = Future()
@@ -150,6 +150,10 @@ class ServerProcess(QtCore.QObject):
 
     def _finished(self, code, status):
         self.finished.emit(status, code, ServerProcess.get_exit_code_string(code))
+
+    def _output(self):
+        data = str(self.process.readAllStandardOutput())
+        self.output.emit(data)
 
 class ServerProcessPool(QtCore.QObject):
     default_base_port = 23000
