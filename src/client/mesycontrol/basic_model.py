@@ -12,6 +12,11 @@ import weakref
 import future
 import util
 
+# TODO: enforce ranges
+BUS_RANGE   = range(2)
+DEV_RANGE   = range(16)
+ADDR_RANGE  = range(256)
+
 class MRCRegistry(QtCore.QObject):
     """Manages MRC instances"""
 
@@ -107,7 +112,7 @@ class ResultFuture(future.Future):
     adds an int() conversion method to easily obtain the result value.
     """
     def __int__(self):
-        return int(self.result())
+        return int(self.result().value)
 
 class Device(QtCore.QObject):
     bus_changed         = pyqtSignal(int)
@@ -118,39 +123,47 @@ class Device(QtCore.QObject):
 
     def __init__(self, bus, address, idc, parent=None):
         super(Device, self).__init__(parent)
-        self._bus       = int(bus)
-        self._address   = int(address)
-        self._idc       = int(idc)
+        self._bus       = None
+        self._address   = None
+        self._idc       = None
         self._mrc       = None
         self._memory    = dict()
+
+        self.bus        = int(bus)
+        self.address    = int(address)
+        self.idc        = int(idc)
 
     def get_bus(self):
         return self._bus
 
     def set_bus(self, bus):
-        self._bus = int(bus)
-        self.bus_changed.emit(self.bus)
+        if self.bus != bus:
+            self._bus = int(bus)
+            self.bus_changed.emit(self.bus)
 
     def get_address(self):
         return self._address
 
     def set_address(self, address):
-        self._address = int(address)
-        self.address_changed.emit(self.address)
+        if self.address != address:
+            self._address = int(address)
+            self.address_changed.emit(self.address)
 
     def get_idc(self):
         return self._idc
 
     def set_idc(self, idc):
-        self._idc = int(idc)
-        self.idc_changed.emit(self.idc)
+        if self.idc != idc:
+            self._idc = int(idc)
+            self.idc_changed.emit(self.idc)
 
     def get_mrc(self):
         return None if self._mrc is None else self._mrc()
 
     def set_mrc(self, mrc):
-        self._mrc = None if mrc is None else weakref.ref(mrc)
-        self.mrc_changed.emit(self.mrc)
+        if self.mrc != mrc:
+            self._mrc = None if mrc is None else weakref.ref(mrc)
+            self.mrc_changed.emit(self.mrc)
 
     def get_parameter(self, address):
         """Get a parameter from the devices memory cache if available.
@@ -166,16 +179,21 @@ class Device(QtCore.QObject):
         return self.read_parameter(address)
 
     def read_parameter(self, address):
-        """Read a parameter from the device. Subclass implementations must call
-        Device.set_cached_parameter() on read success to update the local
-        memory cache.
-        This method is expected to return a Future whose result is a ReadResult
-        instance.
-        The returned Future itself should be of type ResultFuture
+        """Read a parameter from the device.
+        Subclass implementations must call Device.set_cached_parameter() on
+        read success to update the local memory cache.
+        This method is expected to return a ResultFuture whose result is a
+        ReadResult instance.
         """
         raise NotImplementedError
 
     def set_parameter(self, address, value):
+        """Set the parameter at the given address to the given value.
+        Subclasses must call Device.set_cached_parameter() on success to update
+        the local memory cache with the newly set value.
+        This method is expected to return a ResultFuture whose result is a
+        SetResult instance.
+        """
         raise NotImplementedError
 
     def get_cached_parameter(self, address):
