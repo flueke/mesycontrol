@@ -137,14 +137,3 @@ class Device(bm.Device):
 
     modified    = pyqtProperty(bool, is_modified, set_modified, notify=modified_changed)
     name        = pyqtProperty(str, get_name, set_name, notify=name_changed)
-
-s = Setup()
-print s.modified
-mrc = MRC("foobar")
-def on_mrc_added(mrc):
-    print s.modified, mrc
-s.mrc_added.connect(on_mrc_added)
-s.add_mrc(mrc)
-print s.modified
-print s.add_mrc
-print s.add_mrc.__doc__
