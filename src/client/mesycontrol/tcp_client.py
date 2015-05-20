@@ -2,283 +2,216 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from PyQt4 import QtCore
-from PyQt4 import QtNetwork
-from PyQt4.QtCore import pyqtSignal, pyqtProperty, pyqtSlot
+from qt import pyqtProperty
+from qt import pyqtSignal
+from qt import QtCore
+from qt import QtNetwork
+import collections
 import struct
+
+from future import Future
+import protocol
 import util
 
-import protocol
+class SocketError(Exception):
+    def __init__(self, error_code, error_string):
+        self.error_code   = int(error_code)
+        self.error_string = str(error_string)
 
-class Stats:
-    def __init__(self):
-        self.tx_queue_max_size = 0
-        self.messages_sent        = 0
-        self.messages_received    = 0
-        self.bytes_sent           = 0
-        self.bytes_received       = 0
-        self.send_histo           = {}
-        self.receive_histo        = {}
+    def __str__(self):
+        return self.error_string
 
-    def update_write_queue_size(self, sz):
-        self.tx_queue_max_size = max(self.tx_queue_max_size, sz)
+    def __int__(self):
+        return self.error_code
 
-    def message_sent(self, msg, wire_size):
-        self.messages_sent += 1
-        self.bytes_sent += wire_size
-        t = msg.get_type_name()
-        self.send_histo[t] = self.send_histo.get(t, 0) + 1
+RequestResult = collections.namedtuple("RequestResult", "request response")
 
-    def message_received(self, msg, wire_size):
-        self.messages_received += 1
-        self.bytes_received   += wire_size
-        t = msg.get_type_name()
-        self.receive_histo[t] = self.receive_histo.get(t, 0) + 1
+class MCTCPClient(QtCore.QObject):
+    """Mesycontrol TCP client"""
 
-class TCPClient(QtCore.QObject):
-    """Mesycontrol TCP client.
-    Writes outgoing requests and handles receiving of responses and notifications.
-    """
-    connecting               = pyqtSignal()
-    connected                = pyqtSignal()
-    disconnected             = pyqtSignal()
-    socket_error             = pyqtSignal(int, str)
+    connected               = pyqtSignal()
+    disconnected            = pyqtSignal()
+    connecting              = pyqtSignal(str, int)
+    socket_error            = pyqtSignal(object)   #: instance of SocketError
 
-    message_sent             = pyqtSignal(protocol.Message)               #: message
-    message_received         = pyqtSignal(protocol.Message)               #: message
-    response_received        = pyqtSignal(protocol.Message, protocol.Message)      #: request, response
+    request_queued          = pyqtSignal(object, object) #: request, Future
+    request_sent            = pyqtSignal(object, object) #: request, Future
+    message_received        = pyqtSignal(object)         #: Message
+    response_received       = pyqtSignal(object, object, object) #: request, response, Future
+    notification_received   = pyqtSignal(object) #: Message
+    error_received          = pyqtSignal(object) #: Message
 
-    request_sent             = pyqtSignal(object, protocol.Message)          #: request_id, request
-    request_canceled         = pyqtSignal(object, protocol.Message)          #: request_id, request
-    request_completed        = pyqtSignal(object, protocol.Message, protocol.Message) #: request_id, request, response
-
-    write_queue_empty        = pyqtSignal()
-    write_queue_size_changed = pyqtSignal(int)                   #: new size
+    queue_empty             = pyqtSignal()
+    queue_size_changed      = pyqtSignal(int)
 
     def __init__(self, parent=None):
-        super(TCPClient, self).__init__(parent)
-
-        self.log   = util.make_logging_source_adapter(__name__, self)
-        self._host = None
-        self._port = None
-        self._write_queue = list()
+        super(MCTCPClient, self).__init__(parent)
+        self.log    = util.make_logging_source_adapter(__name__, self)
+        self._queue = util.OrderedSet()
+        self._socket = QtNetwork.QTcpSocket()
+        self._socket.connected.connect(self.connected)
+        self._socket.disconnected.connect(self.disconnected)
+        self._socket.error.connect(self._socket_error)
+        self._socket.readyRead.connect(self._socket_readyRead)
         self._reset_state()
-
-        self._socket = QtNetwork.QTcpSocket(self)
-        self._socket.connected.connect(self._slt_connected)
-        self._socket.disconnected.connect(self._slt_disconnected)
-        self._socket.error.connect(self._slt_socket_error)
-        self._socket.bytesWritten.connect(self._slt_socket_bytesWritten)
-        self._socket.readyRead.connect(self._slt_socket_readyRead)
 
     def _reset_state(self):
-        self._current_request_tuple = None
-        self._current_write_data = None
+        self._current_request = None
         self._read_size = 0
-        self._stats = Stats()
-
-    def get_host(self): return self._host
-    def get_port(self): return self._port
-    def get_stats(self): return self._stats
-
-    host  = pyqtProperty(str, get_host)
-    port  = pyqtProperty(int, get_port)
-    stats = pyqtProperty(object, get_stats)
 
     def connect(self, host, port):
+        """Connect to the given host and port.
+        Returns a Future that fullfills once the connection has been
+        established or an errors occurs.
+        Disconnects if the client currently is connected.
+        """
+
+        ret = Future()
+
+        def do_connect():
+            def socket_connected():
+                ret.set_result(True)
+
+            def socket_error(socket_error):
+                ret.set_exception(SocketError(socket_error, self._socket.errorString()))
+
+            self._reset_state()
+            self._socket.connected.connect(socket_connected)
+            self._socket.error.connect(socket_error)
+            self._socket.connectToHost(host, port)
+            self.connecting.emit(host, port)
+
         if self.is_connected() or self.is_connecting():
-            return
-        self.disconnect()
-        self._reset_state()
-        self._host = str(host)
-        self._port = int(port)
-        self.connecting.emit()
-        self.log.info("Connecting to %s:%d", self.host, self.port)
-        self._socket.connectToHost(self.host, self.port)
+            self.disconnect().add_done_callback(do_connect)
+        else:
+            do_connect()
+
+        return ret
 
     def disconnect(self):
-        if self._socket.state() != QtNetwork.QAbstractSocket.UnconnectedState:
-          self._socket.disconnectFromHost()
-          if self._socket.state() != QtNetwork.QAbstractSocket.UnconnectedState:
-            self._socket.waitForDisconnected()
+        """Disconnect. Returns a Future that fullfills once the connection has
+        been disconnected or an error occurs."""
+        if self.is_disconnected():
+            return Future().set_result(True)
+
+        ret = Future()
+
+        def socket_disconnected():
+            self._reset_state()
+            ret.set_result(True)
+
+        def socket_error(socket_error):
+            ret.set_exception(SocketError(socket_error, self._socket.errorString()))
+
+        self._socket.disconnected.connect(socket_disconnected)
+        self._socket.error.connect(socket_error)
+        self._socket.disconnectFromHost()
+
+        return ret
 
     def is_connected(self):
+        """True if connected, False otherwise."""
         return self._socket.state() == QtNetwork.QAbstractSocket.ConnectedState
 
     def is_connecting(self):
         return self._socket.state() in (QtNetwork.QAbstractSocket.ConnectingState,
                 QtNetwork.QAbstractSocket.HostLookupState)
 
-    def request_in_progress(self):
-        return self._current_request_tuple is not None
+    def is_disconnected(self):
+        return self._socket.state() == QtNetwork.QAbstractSocket.UnconnectedState
 
-    def queue_request(self, request, response_handler=None):
-        """Adds the given request to the outgoing queue. Once the request has
-        been sent and a response is received the given response handler will be
-        invoked.
-        Returns a unique identifier that can be used to remove the request from
-        the queue using cancel_request().
-        """
-        was_empty = self.get_write_queue_size() == 0
-        tup = (request, response_handler)
-        self.log.debug("Queueing request %s, response_handler=%s, id=%d", request, response_handler, id(tup))
-        self._write_queue.append(tup)
-        self.log.debug("Write queue size = %d", self.get_write_queue_size())
-        self.stats.update_write_queue_size(self.get_write_queue_size())
-        self.write_queue_size_changed.emit(self.get_write_queue_size())
+    def is_busy(self):
+        return self.is_connecting() or self.get_queue_size() > 0
+
+    def is_idle(self):
+        return self.is_connected() and self.get_queue_size() == 0
+
+    def get_queue_size(self):
+        return len(self._queue)
+
+    def queue_request(self, request):
+        """Adds the given request to the outgoing queue. Returns a Future that
+        fullfills once a response is received or an error occurs."""
+        was_empty = self.get_queue_size() == 0
+        ret = Future()
+        self._queue.add((request, ret))
+        self.request_queued.emit(request, ret)
+        self.queue_size_changed.emit(len(self._queue))
         if was_empty:
-            self._start_write_message()
-        return id(tup)
+            self._start_write_request()
+        return ret
 
-    def cancel_request(self, request_id):
-        try:
-            tup = request, response_handler = filter(lambda t: id(t) == request_id, self._write_queue)[0]
-
-            self.log.debug("Canceling request %s, response_handler=%s, id=%d",
-                    request, response_handler, request_id)
-
-            self._write_queue.remove(tup)
-            self.write_queue_size_changed.emit(self.get_write_queue_size())
-            if self.get_write_queue_size() == 0:
-                self.write_queue_empty.emit()
-
-            if response_handler is not None:
-                response_handler(request, protocol.Message('response_error',
-                    error_code=protocol.ErrorInfo.by_name['request_canceled']))
-
-            self.request_canceled.emit(request_id, request)
-
-            return True
-        except IndexError:
-            return False
-
-    def get_write_queue_size(self):
-        return len(self._write_queue)
-
-    def cancel_all_requests(self):
-        request_ids = [id(t) for t in self._write_queue]
-        for request_id in request_ids:
-            self.cancel_request(request_id)
-
-    def get_request_tuple(self, request_id):
-        """Returns the request tuple for the given request_id.
-        The returned tuple has the form (request_message, response_handler).
-        """
-        try:
-            return filter(lambda t: id(t) == request_id, self._write_queue)[0]
-        except IndexError:
-            raise RuntimeError("No such request_id")
-
-    def get_request_message(self, request_id):
-        return self.get_request_tuple(request_id)[0]
-
-    def _start_write_message(self):
-        if not self.is_connected() or self.request_in_progress():
+    def _start_write_request(self):
+        if not self.is_connected() or self._current_request is not None:
+            self.log.debug("_start_write_request: not connected or request in progress")
             return
 
-        try:
-            self._current_request_tuple = self._write_queue.pop(0)
-            self.log.debug("_current_request_tuple = %s", self._current_request_tuple)
-            msg_data = self._current_request_tuple[0].serialize()
-            self._current_write_data = struct.pack('!H', len(msg_data)) + msg_data
-            self.log.debug("Writing message %s (size=%d)", self._current_request_tuple[0], len(self._current_write_data))
-            self._socket.write(self._current_write_data)
-            self.write_queue_size_changed.emit(self.get_write_queue_size())
-            if self.get_write_queue_size() == 0:
-                self.write_queue_empty.emit()
-        except IndexError:
-            self.log.debug("protocol.Message queue is empty")
-            return
+        request, future = self._current_request = self._queue.pop(False) # FIFO order
+        self.queue_size_changed.emit(len(self._queue))
+        data = request.serialize()
+        data = struct.pack('!H', len(data)) + data # prepend message size
+        self.log.debug("_start_write_request: writing %s (len=%d)", request, len(data))
+        if self._socket.write(data) == -1:
+            future.set_exception(SocketError(self._socket.error(), self._socket.errorString()))
+        else:
+            def bytes_written():
+                self.log.debug("_start_write_request: request %s sent", request)
+                self.request_sent.emit(request, future)
+            self._socket.bytesWritten.connect(bytes_written)
 
-    def _slt_socket_bytesWritten(self, n_bytes):
-        self.stats.message_sent(self._current_request_tuple[0], len(self._current_write_data))
-        self.message_sent.emit(self._current_request_tuple[0])
-        self.request_sent.emit(id(self._current_request_tuple), self._current_request_tuple[0])
-
-    def _slt_socket_readyRead(self):
+    def _socket_readyRead(self):
         if self._read_size <= 0 and self._socket.bytesAvailable() >= 2:
             self._read_size = struct.unpack('!H', self._socket.read(2))[0]
-            self.log.debug("Incoming message size=%d", self._read_size)
+            self.log.debug("_socket_readyRead: incoming msg size = %d", self._read_size)
 
         if self._read_size > 0 and self._socket.bytesAvailable() >= self._read_size:
             message_data = self._socket.read(self._read_size)
             try:
                 message = protocol.Message.deserialize(message_data)
+                self.log.debug("_socket_readyRead: received %s", message)
             except protocol.MessageError as e:
                 self.log.error("Could not deserialize incoming message: %s.", e)
                 return
 
-            self.log.debug("Received message %s", message)
-            self.log.debug("_current_request_tuple = %s", self._current_request_tuple)
-
-            self.stats.message_received(message, self._read_size + 2)
-            self.message_received.emit(message)
             self._read_size = 0
+            self.message_received.emit(message)
 
-            if message.is_response():
-                self.response_received.emit(self._current_request_tuple[0], message)
+            if message.is_response() or message.is_error():
+                request, future = self._current_request
 
-                response_handler = self._current_request_tuple[1]
+                if message.is_error():
+                    future.set_exception(protocol.MessageError(
+                        message.get_error_code(), message.get_error_string(), request))
 
-                if response_handler is not None:
-                    response_handler(self._current_request_tuple[0], message)
-
-                self.log.debug("request %d completed", id(self._current_request_tuple))
-                self.request_completed.emit(id(self._current_request_tuple),
-                        self._current_request_tuple[0], message)
-
-                self._current_request_tuple = None
-
-                # The response to the last message was received. Start sending
-                # the next message or signal that the queue is empty.
-                if len(self._write_queue) > 0:
-                    self._start_write_message()
+                    self.error_received.emit(message)
                 else:
-                    self.write_queue_empty.emit()
+                    future.set_result(RequestResult(request, message))
+
+                self.response_received.emit(request, message, future)
+                self._current_request = None
+
+                if self.get_queue_size() > 0:
+                    self._start_write_request()
+                else:
+                    self.queue_empty.emit()
+
+            elif message.is_notification():
+                self.notification_received.emit(message)
 
             if self._socket.bytesAvailable() >= 2:
                 # Handle additional available data.
-                self._slt_socket_readyRead()
+                self._socket_readyRead()
 
-    @pyqtSlot()
-    def _slt_connected(self):
-        self.log.info("Connected to %s:%d" % (self.host, self.port))
-        self.connected.emit()
-        self._start_write_message()
-
-    @pyqtSlot()
-    def _slt_disconnected(self):
-        self.log.info("Disconnected from %s:%d" % (self.host, self.port))
-        self.log.info("socket.errorString()=%s" % self._socket.errorString())
-
-        stats = self.stats
-        self.log.debug("%d messages sent (%d bytes)" %
-                (stats.messages_sent, stats.bytes_sent))
-
-        self.log.debug("%d messages received (%d bytes)" %
-                (stats.messages_received, stats.bytes_received))
-
-        self.log.debug("Send histo: %s" % stats.send_histo)
-        self.log.debug("Recv histo: %s" % stats.receive_histo)
-
+    def _socket_error(self, socket_error):
+        self.socket_error.emit(SocketError(socket_error, self._socket.errorString()))
         self.disconnected.emit()
 
-        if self._current_request_tuple is not None:
-            request, response_handler = self._current_request_tuple
-            if response_handler is not None:
-                response_handler(request, protocol.Message('response_error',
-                    error_code=protocol.ErrorInfo.by_name['request_canceled']))
-            self._current_request_tuple = None
+    def get_host(self):
+        return self._socket.peerName()
 
-    @pyqtSlot(int)
-    def _slt_socket_error(self, socket_error):
-        self.log.error("%s:%d: %s" % (self.host, self.port, self._socket.errorString()))
-        self.socket_error.emit(socket_error, self._socket.errorString())
-        self.disconnected.emit()
+    def get_port(self):
+        return self._socket.peerPort()
 
-        if self._current_request_tuple is not None:
-            request, response_handler = self._current_request_tuple
-            if response_handler is not None:
-                response_handler(request, protocol.Message('response_error',
-                    error_code=protocol.ErrorInfo.by_name['request_canceled']))
-            self._current_request_tuple = None
+    host = pyqtProperty(str, get_host)
+    port = pyqtProperty(int, get_port)
+

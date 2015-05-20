@@ -2,36 +2,31 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from PyQt4 import QtCore
-from PyQt4.QtCore import QProcess
-from PyQt4.QtCore import pyqtSignal, pyqtProperty
+from qt import QtCore
+from qt import pyqtSignal
 from functools import partial
-import sys
-import util
 import weakref
 
-qprocess_states = {
-        0: 'Not Running',
-        1: 'Starting',
-        2: 'Running'
-}
+import util
+from future import Future
 
-class InvalidArgument(Exception):
+class ServerError(Exception):
     pass
 
-class QProcessWrapper(QProcess):
-    def __init__(self, parent=None):
-        super(QProcessWrapper, self).__init__(parent)
+class ServerIsRunning(ServerError):
+    pass
 
-    #def setupChildProcess(self):
-    #    """Called by Qt in the childs context just before the program is
-    #    executed.
-    #    Moves the child into its own process group to avoid receiving signals
-    #    from the parent process.
-    #    """
-    #    os.setpgrp()
+class ServerIsStopped(ServerError):
+    pass
+
+QProcess = QtCore.QProcess
 
 class ServerProcess(QtCore.QObject):
+    started  = pyqtSignal()
+    error    = pyqtSignal(QProcess.ProcessError, str, int, str)
+    finished = pyqtSignal(QProcess.ExitStatus, int, str)
+    output   = pyqtSignal(str)
+
     exit_codes = {
             0:   "exit_success",
             1:   "exit_options_error",
@@ -42,52 +37,92 @@ class ServerProcess(QtCore.QObject):
             127: "exit_unknown_error"
             }
 
-    default_binary_name    = "mesycontrol_server"
-    default_listen_address = "127.0.0.1"
-    default_listen_port    = 23000
-    default_baud_rate      = 9600
-    default_mrc_port       = 4001
-    default_verbosity      = 3
+    def __init__(self, binary='mesycontrol_server', listen_address='127.0.0.1', listen_port=23000,
+            serial_port=None, baud_rate=0, tcp_host=None, tcp_port=4001, verbosity=3, parent=None):
 
-    sig_started  = pyqtSignal()
-
-    #: qt process error code, error string, system exit code, exit code string
-    sig_error    = pyqtSignal(QProcess.ProcessError, str, int, str)
-
-    #: qt exit status, system exit code, exit code string
-    sig_finished = pyqtSignal(QProcess.ExitStatus, int, str)
-
-    #: stdout and stderr of the child process
-    sig_stdout   = pyqtSignal(str)
-
-    def __init__(self, parent=None):
         super(ServerProcess, self).__init__(parent)
 
-        self.binary_name     = ServerProcess.default_binary_name
-        if sys.platform.startswith('win32'):
-            self.binary_name += '.exe'
-        self.listen_address  = ServerProcess.default_listen_address
-        self.listen_port     = ServerProcess.default_listen_port
-        self.mrc_serial_port = None
-        self.mrc_baud_rate   = ServerProcess.default_baud_rate
-        self.mrc_host        = None
-        self.mrc_port        = ServerProcess.default_mrc_port
-        self.verbosity       = ServerProcess.default_verbosity
+        self.binary = binary
+        self.listen_address = listen_address
+        self.listen_port = listen_port
+        self.serial_port = serial_port
+        self.baud_rate = baud_rate
+        self.tcp_host = tcp_host
+        self.tcp_port = tcp_port
+        self.verbosity = verbosity
 
         self.process = QProcess()
         self.process.setProcessChannelMode(QtCore.QProcess.MergedChannels)
-        self.process.started.connect(self._slt_started)
-        self.process.error.connect(self._slt_error)
-        self.process.finished.connect(self._slt_finished)
-        self.process.readyReadStandardOutput.connect(self._slt_stdout_ready)
-        self.process.stateChanged.connect(self._slt_process_state_changed)
-
-        self.log = util.make_logging_source_adapter(__name__, self)
+        self.process.started.connect(self.started)
+        self.process.error.connect(self._error)
+        self.process.finished.connect(self._finished)
+        self.process.readyReadStandardOutput.connect(self._stdout)
 
     def start(self):
-        if self.process.state() != QtCore.QProcess.NotRunning:
-            return
+        ret = Future()
 
+        try:
+            if self.process.state() != QtCore.QProcess.NotRunning:
+                raise ServerIsRunning()
+
+            args = self._prepare_args()
+            program = util.which(self.binary)
+
+            if program is None:
+                raise RuntimeError("Could not find server binary '%s'" % self.binary)
+
+            # cmd_line = "%s %s" % (program, " ".join(args))
+
+            def on_started():
+                ret.set_result(True)
+
+            def on_error(error):
+                ret.set_exception(ServerError(error))
+
+            self.process.started.connect(on_started)
+            self.process.error.connect(on_error)
+
+            self.process.start(program, args, QtCore.QIODevice.ReadOnly)
+
+        except Exception as e:
+            ret.set_exception(e)
+
+        return ret
+
+    def stop(self, kill=False):
+        ret = Future()
+
+        if self.process.state() != QtCore.QProcess.NotRunning:
+            def on_finished(code, status):
+                ret.set_result(True)
+
+            self.process.finished.connect(on_finished)
+            if not kill:
+                self.process.terminate()
+            else:
+                self.process.kill()
+        else:
+            ret.set_exception(ServerIsStopped())
+        return ret
+
+    def kill(self):
+        return self.stop(True)
+
+    def is_starting(self):
+        return self.process.state() == QtCore.QProcess.Starting
+
+    def is_running(self):
+        return self.process.state() == QtCore.QProcess.Running
+
+    def exit_code(self):
+        code = self.process.exitCode()
+        return (code, ServerProcess.exit_code_string(code))
+
+    @staticmethod
+    def exit_code_string(code):
+        return ServerProcess.exit_codes.get(code, "exit_unknown_error")
+
+    def _prepare_args(self):
         args = list()
 
         if self.verbosity != 0:
@@ -99,111 +134,42 @@ class ServerProcess(QtCore.QObject):
         args.extend(['--listen-address', self.listen_address])
         args.extend(['--listen-port', str(self.listen_port)])
 
-        if self.mrc_serial_port is not None:
-            args.extend(['--mrc-serial-port', self.mrc_serial_port])
-            args.extend(['--mrc-baud-rate', str(self.mrc_baud_rate)])
-        elif self.mrc_host is not None:
-            args.extend(['--mrc-host', self.mrc_host])
-            args.extend(['--mrc-port', str(self.mrc_port)])
+        if self.serial_port is not None:
+            args.extend(['--mrc-serial-port', self.serial_port])
+            args.extend(['--mrc-baud-rate', str(self.baud_rate)])
+        elif self.tcp_host is not None:
+            args.extend(['--mrc-host', self.tcp_host])
+            args.extend(['--mrc-port', str(self.tcp_port)])
         else:
-            raise InvalidArgument("Neither mrc_serial_port nor mrc_host set.")
+            raise RuntimeError("Neither serial_port nor tcp_host given.")
 
-        program = util.which(self.binary_name)
+        return args
 
-        if program is None:
-            raise RuntimeError("Could not find server binary '%s'" % self.binary_name)
+    def _error(self, error):
+        self.error.emit(error, self.process.errorString(), ServerProcess.exit_code_string(error))
 
-        self.log.debug("Using server binary '%s'", program)
+    def _finished(self, code, status):
+        self.finished.emit(status, code, ServerProcess.get_exit_code_string(code))
 
-        self._cmd_line = "%s %s" % (program, " ".join(args))
-
-        self.log.info("Starting %s", self._cmd_line)
-        self.process.start(program, args, QtCore.QIODevice.ReadOnly)
-        self.process.waitForStarted() # FIXME: remove this blocking call
-
-    def stop(self, kill=False):
-        if not self.is_running():
-            return False
-
-        if kill:
-            self.process.kill()
-        else:
-            self.process.terminate()
-
-        return True
-
-    def is_running(self):
-        return self.process.state() == QtCore.QProcess.Running
-
-    def get_exit_code(self):
-        return self.process.exitCode()
-
-    def get_exit_code_string(self):
-        return self.exit_codes.get(self.get_exit_code(), "exit_unknown_error")
-
-    def get_verbosity(self):
-        return self._verbosity
-
-    def set_verbosity(self, verbosity):
-        self._verbosity = int(verbosity)
-
-    def get_info(self):
-        if self.mrc_serial_port is not None:
-            return "%s" % (self.mrc_serial_port, )
-        elif self.mrc_host is not None:
-            return "%s:%d" % (self.mrc_host, self.mrc_port)
-
-    #: Set the server processes verbosity. Only affects newly started server
-    #: processes.
-    verbosity = pyqtProperty(int, get_verbosity, set_verbosity)
-
-    def _slt_started(self):
-        self.log.info("Started %s => pid = %s", self._cmd_line, self.process.pid())
-        self.sig_started.emit()
-
-    def _slt_error(self, process_error):
-        self.log.error("Failed starting %s => error = %s: %s: %s",
-                self._cmd_line, process_error, self.process.errorString(),
-                    self.get_exit_code_string())
-
-        self.sig_error.emit(process_error, self.process.errorString(),
-                self.get_exit_code(), self.get_exit_code_string())
-
-    def _slt_finished(self, exit_code, exit_status):
-        self.log.info("%s finished. exit_code = %s, exit_status = %s => %s",
-                self._cmd_line, exit_code, exit_status,
-                    self.get_exit_code_string())
-
-        self.sig_finished.emit(exit_status, exit_code, self.get_exit_code_string())
-
-    def _slt_stdout_ready(self):
-        data = str(self.process.readAllStandardOutput())
-        for line in data.splitlines():
-            self.log.debug(line)
-            self.sig_stdout.emit(line)
-
-    def _slt_process_state_changed(self, state):
-        self.log.info("Process state changed: %s", qprocess_states[state])
-
-class ProcessPool(QtCore.QObject):
+class ServerProcessPool(QtCore.QObject):
     default_base_port = 23000
 
     def __init__(self, parent=None):
-        super(ProcessPool, self).__init__(parent)
+        super(ServerProcessPool, self).__init__(parent)
         self.log                = util.make_logging_source_adapter(__name__, self)
-        self.base_port          = ProcessPool.default_base_port
+        self.base_port          = ServerProcessPool.default_base_port
         self._procs_by_port     = weakref.WeakValueDictionary()
         self._unavailable_ports = set()
 
     def create_process(self, options={}, parent=None):
-        proc = ServerProcess(parent)
+        proc = ServerProcess(parent=parent)
 
         for attr, value in options.iteritems():
             setattr(proc, attr, value)
 
         proc.listen_port = self._get_free_port()
         self._procs_by_port[proc.listen_port] = proc
-        proc.sig_finished.connect(partial(self._slt_process_finished, process=proc))
+        proc.finished.connect(partial(self._on_process_finished, process=proc))
 
         return proc
 
@@ -217,7 +183,7 @@ class ProcessPool(QtCore.QObject):
 
         raise RuntimeError("No listen ports available")
 
-    def _slt_process_finished(self, qt_exit_status, exit_code, exit_code_string, process):
+    def _on_process_finished(self, qt_exit_status, exit_code, exit_code_string, process):
         if exit_code_string == 'exit_address_in_use':
             self.log.warning('listen_port %d in use by an external process', process.listen_port)
             self._unavailable_ports.add(process.listen_port)
@@ -226,39 +192,4 @@ class ProcessPool(QtCore.QObject):
             self._procs_by_port[process.listen_port] = process
             process.start()
 
-pool = ProcessPool()
-
-#if __name__ == "__main__":
-#    import sys
-#
-#    logging.basicConfig(level=logging.DEBUG,
-#            format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
-#
-#    app = QtCore.QCoreApplication(sys.argv)
-#
-#    procs = []
-#    for i in range(10):
-#        print "Starting processes"
-#        proc = pool.create_process(
-#                options={'mrc_serial_port': '/dev/ttyUSB0', 'mrc_baud_rate': 115200})
-#        proc.start()
-#        procs.append(proc)
-#
-#    def stop_all():
-#        print "Stopping processes"
-#        for proc in procs:
-#            proc.stop()
-#
-#    def stop_all_and_quit():
-#        stop_all()
-#        QtCore.QTimer.singleShot(5000, app.quit)
-#
-#    QtCore.QTimer.singleShot(5000, stop_all_and_quit)
-#
-#    ret = app.exec_()
-#
-#    for proc in procs:
-#        if proc.is_running():
-#            print "Process still running!"
-#
-#    sys.exit(ret)
+pool = ServerProcessPool()
