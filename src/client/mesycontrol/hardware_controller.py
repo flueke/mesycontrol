@@ -2,34 +2,97 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
+import weakref
+
+import basic_model as bm
+import hardware_model as hm
 import protocol
 import util
 
+class ErrorResponse(Exception):
+    pass
+
 class Controller(object):
-    def __init__(self):
-        self.mrc = None
-        self.connection = None
+    """Link between MRC and MRCConnection."""
+    def __init__(self, mrc=None, connection=None):
+        self.mrc = mrc
+        self.connection = connection
         self.log        = util.make_logging_source_adapter(__name__, self)
 
+    def set_mrc(self, mrc):
+        self._mrc = weakref.ref(mrc) if mrc is not None else None
+
+    def get_mrc(self):
+        return self._mrc() if self._mrc is not None else None
+
+    def set_connection(self, connection):
+        self._connection = weakref.ref(connection) if connection is not None else None
+
+    def get_connection(self):
+        return self._connection() if self._connection is not None else None
+
+    mrc = property(get_mrc, set_mrc)
+    connection = property(get_connection, set_connection)
+
     def read_parameter(self, bus, device, address):
-        def response_received(f):
+        """Read the parameter at (bus, device address).
+        Returns a basic_model.ResultFuture containing a basic_model.ReadResult
+        instance on success.
+        """
+        ret = bm.ResultFuture()
+
+        def on_response_received(f):
             try:
-                self.mrc.get_device(bus, device).set_cached_parameter(f.result().value)
-            except Exception:
+                ret.set_result(bm.ReadResult(bus, device, address, f.result().response.val))
+            except Exception as e:
                 self.log.error(exc_info=True)
+                ret.set_exception(e)
 
         m = protocol.Message('request_read', bus=bus, dev=device, par=address)
-        return self.connection.queue_request(m).add_done_callback(response_received)
+        self.connection.queue_request(m).add_done_callback(on_response_received)
+
+        return ret
 
     def set_parameter(self, bus, device, address, value):
-        def response_received(f):
+        """Set the parameter at (bus, device, address) to the given value.
+        Returns a basic_model.ResultFuture containing a basic_model.SetResult
+        instance on success.
+        """
+        ret = bm.ResultFuture()
+
+        def on_response_received(f):
             try:
-                self.mrc.get_device(bus, device).set_cached_parameter(f.result().value)
+                ret.set_result(bm.SetResult(bus, device, address, f.result().response.val, value))
+            except Exception as e:
+                self.log.error(exc_info=True)
+                ret.set_exception(e)
+
+        m = protocol.Message('request_set', bus=bus, dev=device, par=address, val=value)
+        self.connection.queue_request(m).add_done_callback(on_response_received)
+
+        return ret
+
+    def scanbus(self, bus):
+        def on_bus_scanned(f):
+            try:
+                data = f.result().response.bus_data
+
+                for addr in bm.DEV_RANGE:
+                    idc, rc = data[addr]
+                    device  = self.mrc.get_device(bus, addr)
+
+                    if idc <= 0 and device is not None:
+                        self.mrc.remove_device(device)
+                    elif idc > 0:
+                        if device is None:
+                            device = hm.Device(bus, addr, idc)
+                            self.mrc.add_device(device)
+                        device.idc = idc
+                        device.rc  = bool(rc) if rc in (0, 1) else False
+                        # TODO: address conflict
+
             except Exception:
                 self.log.error(exc_info=True)
 
-        m = protocol.Message('request_set', bus=bus, dev=device, par=address, val=value)
-        return self.connection.queue_request(m).add_done_callback(response_received)
-
-    def scanbus(self, bus, response_handler=None):
         m = protocol.Message('request_scanbus', bus=bus)
+        return self.connection.queue_request(m).add_done_callback(on_bus_scanned)
