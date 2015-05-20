@@ -88,8 +88,16 @@ if __name__ == "__main__":
     console = pg.console.ConsoleWidget(namespace=locals())
     console.show()
 
-    #mainwin = MainWindow(context=context)
-    #mainwin.show()
+    from mesycontrol import mrc_connection
+    from mesycontrol import hardware_model
+    from mesycontrol import hardware_controller
+
+    conn = mrc_connection.factory(url="serial:///dev/ttyUSB0")
+    ctrl = hardware_controller.Controller()
+    mrc  = hardware_model.MRC(conn.get_url())
+
+    hw_reg.add_mrc(mrc)
+
     ret = app.exec_()
 
     #del mainwin
