@@ -3,13 +3,9 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 from qt import QtGui
-from qt import QtCore
-import logging
 from functools import partial
 import collections
 
-import app_model
-import basic_model as bm
 import config_model as cm
 import config_tree_model as ctm
 import config_tree_view as ctv
@@ -208,6 +204,9 @@ class MCTreeView(QtGui.QWidget):
         splitter = QtGui.QSplitter()
         splitter.addWidget(self.hw_view)
         splitter.addWidget(self.cfg_view)
+
+        layout = QtGui.QGridLayout(self)
+        layout.addWidget(splitter, 0, 0)
 
     def _cfg_context_menu(self, pos):
         idx  = self.cfg_view.indexAt(pos)
