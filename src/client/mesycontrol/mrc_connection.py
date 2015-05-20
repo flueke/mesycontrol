@@ -43,6 +43,9 @@ class AbstractConnection(QtCore.QObject):
     def queue_request(self, request):
         raise NotImplementedError()
 
+    def get_url(self):
+        raise NotImplementedError()
+
 class MRCConnection(AbstractConnection):
     def __init__(self, host, port, parent=None):
         super(MRCConnection, self).__init__(parent)
@@ -77,6 +80,9 @@ class MRCConnection(AbstractConnection):
     def queue_request(self, request):
         return self.client.queue_request(request)
 
+    def get_url(self):
+        return "mc://%s:%d" % (self.host, self.port)
+
 class LocalMRCConnection(AbstractConnection):
     connect_delay_ms = 1000 #: delay between server startup and connection attempt
 
@@ -94,11 +100,11 @@ class LocalMRCConnection(AbstractConnection):
         self.client.request_sent.connect(self.request_sent)
         self.client.message_received.connect(self.message_received)
         self.client.response_received.connect(self.response_received)
-        self.client.notification_received(self.notification_received)
-        self.client.error_received(self.error_received)
+        self.client.notification_received.connect(self.notification_received)
+        self.client.error_received.connect(self.error_received)
 
         self.client.queue_empty.connect(self.queue_empty)
-        self.client.queue_size_changed(self.queue_size_changed)
+        self.client.queue_size_changed.connect(self.queue_size_changed)
 
     def connect(self):
         ret = Future()
@@ -148,6 +154,12 @@ class LocalMRCConnection(AbstractConnection):
 
     def queue_request(self, request):
         return self.client.queue_request(request)
+
+    def get_url(self):
+        if self.server.serial_port:
+            return "serial://%s:%d" % (self.server.serial_port, self.server.baud_rate)
+        else:
+            return "tcp://%s:%d" % (self.server.tcp_host, self.server.tcp_port)
 
 def factory(**kwargs):
     """Connection factory.
