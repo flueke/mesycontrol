@@ -152,6 +152,9 @@ class LocalMRCConnection(AbstractConnection):
     def is_connected(self):
         return self.client.is_connected()
 
+    def is_disconnected(self):
+        return self.client.is_disconnected()
+
     def queue_request(self, request):
         return self.client.queue_request(request)
 
@@ -201,28 +204,27 @@ def factory(**kwargs):
     elif url is not None:
         return factory(**util.parse_connection_url(url))
     else:
-        mesycontrol_host = kwargs.get('mesycontrol_host', None)
-        mesycontrol_port = kwargs.get('mesycontrol_port', None)
-        serial_device    = kwargs.get('serial_port', None)
-        serial_baud_rate = kwargs.get('baud_rate', None)
-        tcp_host         = kwargs.get('host', None)
-        tcp_port         = kwargs.get('port', None)
+        mc_host     = kwargs.get('mc_host', None)
+        mc_port     = kwargs.get('mc_port', None)
+        serial_port = kwargs.get('serial_port', None)
+        baud_rate   = kwargs.get('baud_rate', None)
+        tcp_host    = kwargs.get('host', None)
+        tcp_port    = kwargs.get('port', None)
 
-        if None not in (mesycontrol_host, mesycontrol_port):
-            return MRCConnection(host=mesycontrol_host,
-                    port=mesycontrol_port, parent=parent)
+        if None not in (mc_host, mc_port):
+            return MRCConnection(host=mc_host, port=mc_port, parent=parent)
 
-        elif None not in (serial_device, serial_baud_rate):
+        elif None not in (serial_port, baud_rate):
             return LocalMRCConnection(
                     server_options={
-                        'mrc_serial_port': serial_device,
-                        'mrc_baud_rate': serial_baud_rate},
+                        'serial_port': serial_port,
+                        'baud_rate': baud_rate},
                     parent=parent)
         elif None not in (tcp_host, tcp_port):
             return LocalMRCConnection(
                     server_options={
-                        'mrc_host': tcp_host,
-                        'mrc_port': tcp_port},
+                        'tcp_host': tcp_host,
+                        'tcp_port': tcp_port},
                     parent=parent)
         else:
             raise RuntimeError("Could not create connection from given arguments")

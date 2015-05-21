@@ -168,7 +168,7 @@ def parse_connection_url(url):
         <host>:<port>
         tcp://<host>[:<port=4001>]
     - For connections to a mesycontrol server:
-        mesycontrol://<host>[:<port=23000>]
+        mc://<host>[:<port=23000>]
     """
     proto, proto_sep, contents = url.partition('://')
 
@@ -208,7 +208,7 @@ def parse_connection_url(url):
     if len(proto) == 0:
         proto = 'tcp'
 
-    if proto in ('tcp', 'mesycontrol'):
+    if proto in ('tcp', 'mc'):
         if len(host) == 0:
             raise URLParseError("Empty host")
 
@@ -222,7 +222,7 @@ def parse_connection_url(url):
         if proto == 'tcp':
             return dict(host=host, port=port)
         else:
-            return dict(mesycontrol_host=host, mesycontrol_port=port)
+            return dict(mc_host=host, mc_port=port)
 
     raise URLParseError("Invalid protocol '%s'" % proto)
 

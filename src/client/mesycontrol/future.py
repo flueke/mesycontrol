@@ -25,7 +25,7 @@ class Future(object):
 
     def result(self):
         if not self.done():
-            raise IncompleteFuture()
+            raise IncompleteFuture(self)
 
         if self._exception is not None:
             raise self._exception
@@ -34,13 +34,13 @@ class Future(object):
 
     def exception(self):
         if not self.done():
-            raise IncompleteFuture()
+            raise IncompleteFuture(self)
 
         return self._exception
 
     def set_result(self, result):
         if self.done():
-            raise FutureIsDone()
+            raise FutureIsDone(self)
 
         self._result = result
         self._set_done()
@@ -48,7 +48,7 @@ class Future(object):
         return self
     def set_exception(self, exception):
         if self.done():
-            raise FutureIsDone()
+            raise FutureIsDone(self)
 
         self._exception = exception
         self._set_done()

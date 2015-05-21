@@ -69,11 +69,21 @@ class MCTCPClient(QtCore.QObject):
         ret = Future()
 
         def do_connect():
+            self.log.debug("Connecting to %s:%d", host, port)
+
+            def dc():
+                self._socket.connected.disconnect(socket_connected)
+                self._socket.error.disconnect(socket_error)
+
             def socket_connected():
+                self.log.debug("Connected to %s:%d", host, port)
+                dc()
                 ret.set_result(True)
 
             def socket_error(socket_error):
+                dc()
                 ret.set_exception(SocketError(socket_error, self._socket.errorString()))
+                self.log.error("%s", ret.exception())
 
             self._reset_state()
             self._socket.connected.connect(socket_connected)
@@ -96,15 +106,22 @@ class MCTCPClient(QtCore.QObject):
 
         ret = Future()
 
+        def dc():
+            self._socket.disconnected.disconnect(socket_disconnected)
+            self._socket.error.disconnect(socket_error)
+
         def socket_disconnected():
+            dc()
             self._reset_state()
             ret.set_result(True)
 
         def socket_error(socket_error):
+            dc()
             ret.set_exception(SocketError(socket_error, self._socket.errorString()))
 
         self._socket.disconnected.connect(socket_disconnected)
         self._socket.error.connect(socket_error)
+
         self._socket.disconnectFromHost()
 
         return ret
@@ -156,6 +173,7 @@ class MCTCPClient(QtCore.QObject):
         else:
             def bytes_written():
                 self.log.debug("_start_write_request: request %s sent", request)
+                self._socket.bytesWritten.disconnect(bytes_written)
                 self.request_sent.emit(request, future)
             self._socket.bytesWritten.connect(bytes_written)
 

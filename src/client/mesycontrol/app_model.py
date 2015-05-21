@@ -130,13 +130,9 @@ class Director(object):
 
         for mrc in hw_registry.mrcs:
             self._hw_mrc_added(mrc)
-            mrc.device_added.connect(partial(self._hw_mrc_device_added, mrc))
-            mrc.device_removed.connect(partial(self._hw_mrc_device_removed, mrc))
 
         for mrc in cfg_registry.mrcs:
             self._config_mrc_added(mrc)
-            mrc.device_added.connect(partial(self._config_mrc_device_added, mrc))
-            mrc.device_removed.connect(partial(self._config_mrc_device_removed, mrc))
 
         hw_registry.mrc_added.connect(self._hw_mrc_added)
         hw_registry.mrc_removed.connect(self._hw_mrc_removed)
@@ -153,6 +149,8 @@ class Director(object):
         app_mrc.hw = mrc
         for device in mrc.get_devices():
             self._hw_mrc_device_added(mrc, device)
+        mrc.device_added.connect(partial(self._hw_mrc_device_added, mrc))
+        mrc.device_removed.connect(partial(self._hw_mrc_device_removed, mrc))
 
     def _hw_mrc_removed(self, mrc):
         self.log.debug("_hw_mrc_removed: %s", mrc)

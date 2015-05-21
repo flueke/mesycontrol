@@ -16,7 +16,7 @@ class MRC(bm.MRC):
 
     def set_connection(self, connection):
         self._connection = connection
-        if self.controller:
+        if self.controller is not None:
             self.controller.connection = self.connection
 
     def get_connection(self):
@@ -24,12 +24,27 @@ class MRC(bm.MRC):
 
     def set_controller(self, controller):
         self._controller = controller
-        if self.controller:
+        if self.controller is not None:
             self.controller.mrc = self
             self.controller.connection = self.connection
 
     def get_controller(self):
         return self._controller
+
+    connection = pyqtProperty(object, get_connection, set_connection)
+    controller = pyqtProperty(object, get_controller, set_controller)
+
+    def connect(self):
+        return self.connection.connect()
+
+    def disconnect(self):
+        return self.connection.disconnect()
+
+    def is_connected(self):
+        return self.connection.is_connected()
+
+    def is_disconnected(self):
+        return self.connection.is_disconnected()
 
     def read_parameter(self, bus, device, address):
         def on_parameter_read(f):

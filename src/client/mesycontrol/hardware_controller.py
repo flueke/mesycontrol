@@ -15,18 +15,20 @@ class ErrorResponse(Exception):
 class Controller(object):
     """Link between MRC and MRCConnection."""
     def __init__(self, mrc=None, connection=None):
-        self.mrc = mrc
-        self.connection = connection
         self.log        = util.make_logging_source_adapter(__name__, self)
+        self.mrc        = mrc
+        self.connection = connection
 
     def set_mrc(self, mrc):
         self._mrc = weakref.ref(mrc) if mrc is not None else None
+        self.log.debug("set_mrc: %s", self.mrc)
 
     def get_mrc(self):
         return self._mrc() if self._mrc is not None else None
 
     def set_connection(self, connection):
         self._connection = weakref.ref(connection) if connection is not None else None
+        self.log.debug("set_connection: %s", self.connection)
 
     def get_connection(self):
         return self._connection() if self._connection is not None else None
@@ -45,7 +47,7 @@ class Controller(object):
             try:
                 ret.set_result(bm.ReadResult(bus, device, address, f.result().response.val))
             except Exception as e:
-                self.log.error(exc_info=True)
+                self.log.exception("read_parameter")
                 ret.set_exception(e)
 
         m = protocol.Message('request_read', bus=bus, dev=device, par=address)
@@ -64,7 +66,7 @@ class Controller(object):
             try:
                 ret.set_result(bm.SetResult(bus, device, address, f.result().response.val, value))
             except Exception as e:
-                self.log.error(exc_info=True)
+                self.log.exception("set_parameter")
                 ret.set_exception(e)
 
         m = protocol.Message('request_set', bus=bus, dev=device, par=address, val=value)
@@ -77,6 +79,8 @@ class Controller(object):
             try:
                 data = f.result().response.bus_data
 
+                self.log.debug("scanbus: received response: %s", data)
+
                 for addr in bm.DEV_RANGE:
                     idc, rc = data[addr]
                     device  = self.mrc.get_device(bus, addr)
@@ -85,6 +89,7 @@ class Controller(object):
                         self.mrc.remove_device(device)
                     elif idc > 0:
                         if device is None:
+                            self.log.debug("scanbus: creating device (%d, %d, %d)", bus, addr, idc)
                             device = hm.Device(bus, addr, idc)
                             self.mrc.add_device(device)
                         device.idc = idc
@@ -92,7 +97,7 @@ class Controller(object):
                         # TODO: address conflict
 
             except Exception:
-                self.log.error(exc_info=True)
+                self.log.exception("scanbus error")
 
         m = protocol.Message('request_scanbus', bus=bus)
         return self.connection.queue_request(m).add_done_callback(on_bus_scanned)

@@ -73,10 +73,16 @@ class ServerProcess(QtCore.QObject):
 
             # cmd_line = "%s %s" % (program, " ".join(args))
 
+            def dc():
+                self.process.started.disconnect(on_started)
+                self.process.error.disconnect(on_error)
+
             def on_started():
+                dc()
                 ret.set_result(True)
 
             def on_error(error):
+                dc()
                 ret.set_exception(ServerError(error))
 
             self.process.started.connect(on_started)
@@ -94,6 +100,7 @@ class ServerProcess(QtCore.QObject):
 
         if self.process.state() != QtCore.QProcess.NotRunning:
             def on_finished(code, status):
+                self.process.finished.disconnect(on_finished)
                 ret.set_result(True)
 
             self.process.finished.connect(on_finished)
@@ -149,7 +156,7 @@ class ServerProcess(QtCore.QObject):
         self.error.emit(error, self.process.errorString(), ServerProcess.exit_code_string(error))
 
     def _finished(self, code, status):
-        self.finished.emit(status, code, ServerProcess.get_exit_code_string(code))
+        self.finished.emit(status, code, ServerProcess.exit_code_string(code))
 
     def _output(self):
         data = str(self.process.readAllStandardOutput())

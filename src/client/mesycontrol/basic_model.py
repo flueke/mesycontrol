@@ -59,6 +59,7 @@ class MRC(QtCore.QObject):
 
     def __init__(self, url, parent=None):
         super(MRC, self).__init__(parent)
+        self.log        = util.make_logging_source_adapter(__name__, self)
         self._url       = str(url)
         self._devices   = list()
 
@@ -74,6 +75,8 @@ class MRC(QtCore.QObject):
         if self.get_device(device.bus, device.address) is not None:
             raise ValueError("Device at (%d, %d) exists", device.bus, device.address)
 
+        self.log.debug("add_device: %s", device)
+
         self._devices.append(device)
         self._devices.sort(key=lambda device: (device.bus, device.address))
         device.mrc = self
@@ -83,6 +86,7 @@ class MRC(QtCore.QObject):
         try:
             self._devices.remove(device)
             device.mrc = None
+            self.log.debug("remove_device: %s", device)
             self.device_removed.emit(device)
         except ValueError:
             raise ValueError("No Device %s" % device)

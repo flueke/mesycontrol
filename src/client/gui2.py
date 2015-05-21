@@ -15,6 +15,22 @@ from mesycontrol.qt import QtCore
 from mesycontrol.qt import QtGui
 from mesycontrol import util
 
+class Application(object):
+    def __init__(self, mc_treeview):
+        self.tv = mc_treeview
+        self.tv.cfg_context_menu_requested.connect(self._cfg_context_menu)
+        self.tv.hw_context_menu_requested.connect(self._hw_context_menu)
+        self.tv.node_selected.connect(self._node_selected)
+
+    def _cfg_context_menu(self, node, idx, pos, view):
+        print "_cfg_context_menu", node, idx, pos, view
+
+    def _hw_context_menu(self, node, idx, pos, view):
+        print "_hw_context_menu", node, idx, pos, view
+
+    def _node_selected(self, node, idx, view):
+        print "_node_selected", node, idx, view
+
 if __name__ == "__main__":
     if not sys.platform.startswith('win32'):
         parser = argparse.ArgumentParser(description='mesycontrol GUI command line arguments')
@@ -92,11 +108,14 @@ if __name__ == "__main__":
     from mesycontrol import hardware_model
     from mesycontrol import hardware_controller
 
-    conn = mrc_connection.factory(url="serial:///dev/ttyUSB0")
-    ctrl = hardware_controller.Controller()
-    mrc  = hardware_model.MRC(conn.get_url())
-
+    url = "serial:///dev/ttyUSB1"
+    mrc = hardware_model.MRC(url)
+    mrc.connection = mrc_connection.factory(url=url)
+    mrc.controller = hardware_controller.Controller()
     hw_reg.add_mrc(mrc)
+    mrc.connect()
+
+    mc_app = Application(mc_tv)
 
     ret = app.exec_()
 
@@ -104,3 +123,4 @@ if __name__ == "__main__":
     del garbage_collector
 
     sys.exit(ret)
+
