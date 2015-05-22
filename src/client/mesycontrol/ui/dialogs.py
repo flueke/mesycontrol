@@ -4,7 +4,6 @@
 
 import collections
 from .. qt import Qt
-from .. qt import QtCore
 from .. qt import QtGui
 from .. import basic_model as bm
 
@@ -14,12 +13,64 @@ class EatReturnCombo(QtGui.QComboBox):
         if e.key() in (Qt.Key_Enter, Qt.Key_Return):
             e.accept() # accept the event so it won't be propagated
 
+class AddMRCDialog(QtGui.QDialog):
+    Result = collections.namedtuple("Result", "url name connect")
+
+    def __init__(self, context, serial_ports, urls_in_use=list(), title="Add MRC", parent=None):
+        super(AddMRCDialog, self).__init__(parent)
+        self.urls_in_use = urls_in_use
+        uic.loadUi(context.find_data_file('mesycontrol/ui/connect_dialog.ui'), self)
+
+        self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(False)
+        self.combo_serial_port.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+'), None))
+        self.le_tcp_host.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+'), None))
+        self.le_mesycontrol_host.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+'), None))
+        self.le_tcp_host.setText('localhost')
+        self.le_mesycontrol_host.setText('localhost')
+
+        for port in serial_ports:
+            self.combo_serial_port.addItem(port)
+
+        for le in self.findChildren(QtGui.QLineEdit):
+            le.textChanged.connect(self._validate_inputs)
+
+        for combo in self.findChildren(QtGui.QComboBox):
+            combo.currentIndexChanged.connect(self._validate_inputs)
+            combo.editTextChanged.connect(self._validate_inputs)
+
+        self.stacked_widget.currentChanged.connect(self._validate_inputs)
+        self._validate_inputs()
+
+    def _validate_inputs(self):
+        page_widget = self.stacked_widget.currentWidget()
+        is_ok = all(le.hasAcceptableInput() for le in page_widget.findChildren(QtGui.QLineEdit))
+        self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(is_ok)
+
+    # XXX: leftoff. get args and let a util function build a URL from them
+    def accept(self):
+        self.connection_config      = config.MRCConnectionConfig()
+
+        idx = self.stacked_widget.currentIndex()
+        if idx == 0:
+            self.connection_config.serial_device    = self.combo_serial_port.currentText()
+            baud_text = self.combo_baud_rate.currentText()
+            baud_rate = int(baud_text) if baud_text != 'auto' else 0
+            self.connection_config.serial_baud_rate = baud_rate
+        elif idx == 1:
+            self.connection_config.tcp_host = self.le_tcp_host.text()
+            self.connection_config.tcp_port = self.spin_tcp_port.value()
+        elif idx == 2:
+            self.connection_config.mesycontrol_host = self.le_mesycontrol_host.text()
+            self.connection_config.mesycontrol_port = self.spin_mesycontrol_port.value()
+
+        super(ConnectDialog, self).accept()
+
 class AddDeviceDialog(QtGui.QDialog):
     Result = collections.namedtuple("Result", "bus address idc name")
 
     def __init__(self, bus=None,
             available_addresses=[(b, d) for b in bm.BUS_RANGE for d in bm.DEV_RANGE],
-            known_idcs=list(), allow_custom_idcs=True, parent=None):
+            known_idcs=list(), allow_custom_idcs=True, title="Add Device", parent=None):
         """
         Dialog constructor.
         If `bus' is given the dialog will use it as the selected bus and won't
@@ -36,11 +87,16 @@ class AddDeviceDialog(QtGui.QDialog):
         if len(known_idcs) == 0 and not allow_custom_idcs:
             raise RuntimeError("No devices to choose from")
 
-        if len(available_addresses) == 0:
+        if len(available_addresses) == 0 or (
+                bus is not None and len(filter(
+                    lambda x: x[0] == bus, available_addresses)) == 0):
             raise RuntimeError("No addresses available")
 
         super(AddDeviceDialog, self).__init__(parent)
+
+        self.setWindowTitle(title)
         self._result = None
+        self.allow_custom_idcs = allow_custom_idcs
 
         self.bus_combo = QtGui.QComboBox()
         self.bus_combo.addItems([str(i) for i in bm.BUS_RANGE])
@@ -57,54 +113,46 @@ class AddDeviceDialog(QtGui.QDialog):
 
         self.bus_combo.activated.connect(self.address_combo_stack.setCurrentIndex)
 
-        #self.idc_combo = QtGui.QComboBox()
         self.idc_combo = EatReturnCombo()
-        for idc, name in sorted(known_idcs, cmp=lambda a, b: cmp(a[1], b[1])):
+        for idc, name in sorted(known_idcs, key=lambda x: x[1]):
             self.idc_combo.addItem("%s (%d)" % (name, idc), idc)
-
-        if allow_custom_idcs:
-            self.idc_combo.setEditable(True)
-            self.idc_combo.setValidator(QtGui.QIntValidator(1, 99))
 
         if bus is not None:
             self.bus_combo.setCurrentIndex(bus)
             self.bus_combo.setEnabled(False)
+            self.address_combo_stack.setCurrentIndex(bus)
 
         self.name_input = QtGui.QLineEdit()
 
         self.button_box = QtGui.QDialogButtonBox(
                 QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
 
-
-        ok_button = self.button_box.button(QtGui.QDialogButtonBox.Ok)
-
-        # XXX: leftoff FIXME: QComboBox sucks
         if allow_custom_idcs:
+            self.idc_combo.setEditable(True)
+            self.idc_combo.setValidator(QtGui.QIntValidator(1, 99))
+
+            ok_button = self.button_box.button(QtGui.QDialogButtonBox.Ok)
             ok_button.setEnabled(len(known_idcs))
-            def idc_text_changed():
-                is_known_idc = self.idc_combo.itemData(
-                        self.idc_combo.currentIndex()).type() != QtCore.QVariant.Invalid
-                print "text_changed", is_known_idc
-                ok_button.setEnabled(is_known_idc or self.idc_combo.lineEdit().hasAcceptableInput())
-            self.idc_combo.editTextChanged.connect(idc_text_changed)
 
-        #def idc_text_changed():
-        #    ok_button.setEnabled(self.idc_input.hasAcceptableInput())
+            def combo_index_changed():
+                ok_button.setEnabled(True)
 
-        #self.idc_input.textChanged.connect(idc_text_changed)
+            def combo_le_text_edited():
+                ok_button.setEnabled(self.idc_combo.lineEdit().hasAcceptableInput())
+
+            self.idc_combo.currentIndexChanged.connect(combo_index_changed)
+            self.idc_combo.lineEdit().textEdited.connect(combo_le_text_edited)
 
         def accept():
             bus = self.bus_combo.currentIndex()
             address, ok = self.address_combos[bus].itemData(
                     self.address_combos[bus].currentIndex()).toInt()
 
-            idx = self.idc_combo.currentIndex()
-            idc = self.idc_combo.itemData(idx)
-            if idc.type() == QtCore.QVariant.Invalid:
-                # No item data set -> user entered an IDC
-                #idc = int(str(self.idc_combo.itemText(idx)))
-                idc = int(self.idc_combo.currentText())
+            if self.allow_custom_idcs and self.idc_combo.lineEdit().hasAcceptableInput():
+                idc = int(self.idc_combo.lineEdit().text())
             else:
+                idx = self.idc_combo.currentIndex()
+                idc = self.idc_combo.itemData(idx)
                 idc, _ = idc.toInt()
 
             name = str(self.name_input.text())
@@ -130,7 +178,10 @@ class AddDeviceDialog(QtGui.QDialog):
 if __name__ == "__main__":
     from functools import partial
 
+    #QtGui.QApplication.setDesktopSettingsAware(False)
     a = QtGui.QApplication([])
+    #a.setStyle(QtGui.QStyleFactory.create("Cleanlooks"))
+    #a.setStyle(QtGui.QStyleFactory.create("Plastique"))
     dialogs = list()
     d = AddDeviceDialog()
     dialogs.append(d)
@@ -139,6 +190,9 @@ if __name__ == "__main__":
     dialogs.append(d)
 
     d = AddDeviceDialog(available_addresses=[(0,1), (1,1), (0,15), (1,13)])
+    dialogs.append(d)
+
+    d = AddDeviceDialog(bus=1, available_addresses=[(0,1), (1,1), (0,15), (1,13)])
     dialogs.append(d)
 
     d = AddDeviceDialog(known_idcs=[(42, 'MHV4'), (41, 'MSCF16'), (21, 'MCFD16')])
