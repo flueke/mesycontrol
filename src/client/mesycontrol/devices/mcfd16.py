@@ -2,34 +2,28 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from qt import pyqtProperty
-from qt import pyqtSignal
-from qt import pyqtSlot
-from qt import Qt
-from qt import QtCore
-from qt import QtGui
+from ..qt import pyqtProperty
+from ..qt import pyqtSignal
+from ..qt import pyqtSlot
+from ..qt import Qt
+from ..qt import QtCore
+from ..qt import QtGui
 import pyqtgraph as pg
 
 import math
 import re
 
-import app_model
-import util
+from .. import app_model
+from .. import util
 
-from app_model import modifies_extensions
-from util import make_title_label, hline, make_spinbox
+from .. app_model import modifies_extensions
+from .. util import make_title_label, hline, make_spinbox
 
 # MCFD16 - 16 channel CFD
 # Hardware dependent tunables:
 # * Delay: the RC delay values depend on the delay chip in use. Dividing the
 #   chips max delay by the number of taps (5) yields the delay step.
 #   => Only the max delay needs to be configured
-
-def get_device_info():
-    return (MCFD16.idcs, MCFD16)
-
-def get_widget_info():
-    return (MCFD16.idcs, MCFD16Widget)
 
 class Polarity(object):
     negative = 1
@@ -1448,6 +1442,10 @@ class MCFD16Widget(QtGui.QWidget):
 
         self.device.add_default_parameter_subscription(self)
         self.device.propagate_state()
+
+idc             = 26
+device_class    = MCFD16
+device_ui_class = MCFD16Widget
 
 if __name__ == "__main__":
     import mock

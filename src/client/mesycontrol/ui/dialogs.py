@@ -4,8 +4,11 @@
 
 import collections
 from .. qt import Qt
+from .. qt import QtCore
 from .. qt import QtGui
+from .. qt import uic
 from .. import basic_model as bm
+from .. import util
 
 class EatReturnCombo(QtGui.QComboBox):
     def keyPressEvent(self, e):
@@ -13,8 +16,11 @@ class EatReturnCombo(QtGui.QComboBox):
         if e.key() in (Qt.Key_Enter, Qt.Key_Return):
             e.accept() # accept the event so it won't be propagated
 
+# TODO: check if resulting url is in urls_in_use
+# TODO: add name and connect fields (if connect is displayed should be selectable by the user)
 class AddMRCDialog(QtGui.QDialog):
     Result = collections.namedtuple("Result", "url name connect")
+    SERIAL, TCP, MC = range(3)
 
     def __init__(self, context, serial_ports, urls_in_use=list(), title="Add MRC", parent=None):
         super(AddMRCDialog, self).__init__(parent)
@@ -41,29 +47,42 @@ class AddMRCDialog(QtGui.QDialog):
         self.stacked_widget.currentChanged.connect(self._validate_inputs)
         self._validate_inputs()
 
+        self._result = None
+
+    # TODO: check if resulting url is in use
     def _validate_inputs(self):
         page_widget = self.stacked_widget.currentWidget()
         is_ok = all(le.hasAcceptableInput() for le in page_widget.findChildren(QtGui.QLineEdit))
         self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(is_ok)
 
-    # XXX: leftoff. get args and let a util function build a URL from them
-    def accept(self):
-        self.connection_config      = config.MRCConnectionConfig()
-
+    def _get_current_url(self):
         idx = self.stacked_widget.currentIndex()
-        if idx == 0:
-            self.connection_config.serial_device    = self.combo_serial_port.currentText()
+        if idx == AddMRCDialog.SERIAL:
             baud_text = self.combo_baud_rate.currentText()
             baud_rate = int(baud_text) if baud_text != 'auto' else 0
-            self.connection_config.serial_baud_rate = baud_rate
-        elif idx == 1:
-            self.connection_config.tcp_host = self.le_tcp_host.text()
-            self.connection_config.tcp_port = self.spin_tcp_port.value()
-        elif idx == 2:
-            self.connection_config.mesycontrol_host = self.le_mesycontrol_host.text()
-            self.connection_config.mesycontrol_port = self.spin_mesycontrol_port.value()
+            return util.build_connection_url(
+                    serial_port=str(self.combo_serial_port.currentText()),
+                    baud_rate=baud_rate)
 
-        super(ConnectDialog, self).accept()
+        if idx == AddMRCDialog.TCP:
+            return util.build_connection_url(
+                    host=self.le_tcp_host.text(),
+                    port=self.spin_tcp_port.value())
+
+        if idx == AddMRCDialog.MC:
+            return util.build_connection_url(
+                    mc_host=self.le_mesycontrol_host.text(),
+                    mc_port=self.spin_mesycontrol_port.value())
+
+    def accept(self):
+        url  = self._get_current_url()
+        name = None
+        connect = False
+        self._result = AddMRCDialog.Result(url, name, connect)
+        super(AddMRCDialog, self).accept()
+
+    def result(self):
+        return self._result
 
 class AddDeviceDialog(QtGui.QDialog):
     Result = collections.namedtuple("Result", "bus address idc name")
@@ -73,13 +92,18 @@ class AddDeviceDialog(QtGui.QDialog):
             known_idcs=list(), allow_custom_idcs=True, title="Add Device", parent=None):
         """
         Dialog constructor.
+
         If `bus' is given the dialog will use it as the selected bus and won't
         allow the user to change the bus.
+
         `available_addresses` should be a list of (bus, address) pairs. These
         address pairs will be available for the user to choose from.
+
         `known_idcs` should be a list of (idc, name) pairs.
+
         If `allow_custom_idcs` is True the user may enter a custom IDC,
         otherwise only IDCs from `known_idcs` are selectable.
+
         If `known_idcs' is empty and `allow_custom_idcs' is False this method
         will raise an exception.
         """
@@ -160,7 +184,7 @@ class AddDeviceDialog(QtGui.QDialog):
             self._result = AddDeviceDialog.Result(
                     bus, address, idc, name)
 
-            self.accept()
+            super(AddDeviceDialog, self).accept()
 
         self.button_box.accepted.connect(accept)
         self.button_box.rejected.connect(self.reject)

@@ -12,7 +12,7 @@ QModelIndex = QtCore.QModelIndex
 
 class ConfigTreeModel(btm.BasicTreeModel):
     def columnCount(self, parent=QModelIndex()):
-        return 3
+        return 1
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
@@ -25,7 +25,7 @@ class ConfigTreeModel(btm.BasicTreeModel):
         return idx.internalPointer().data(idx.column(), role)
 
 # Node types and displayed data
-# SetupNode     filename, modified
+# SetupNode     filename, modified (*); <unsaved setup> if not filename
 # MRCNode       name, url
 # BusNode       bus number
 # DeviceNode    address, name, type, 
@@ -63,8 +63,9 @@ class MRCNode(btm.BasicTreeNode):
 
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:
-            #if self.ref is not None:
-            return self.ref.url
+            mrc = self.ref
+            has_cfg = bool(mrc.cfg)
+            return "%s | cfg=%s" % (mrc.url, has_cfg)
 
 class BusNode(btm.BasicTreeNode):
     def __init__(self, bus_number, parent=None):
@@ -86,5 +87,9 @@ class DeviceNode(btm.BasicTreeNode):
 
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:
-            return "%s %s" % (self.ref.address,
-                    self.ref.idc if self.ref is not None else "<not in config>")
+            #return "%s %s" % (self.ref.address,
+            #        self.ref.idc if self.ref is not None else "<not in config>")
+            device = self.ref
+            address = device.address
+            idc = device.idc
+            return "%X | idc=%d | cfg=%s" % (address, idc, bool(device.cfg))

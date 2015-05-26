@@ -13,18 +13,12 @@ from functools import partial
 import math
 import weakref
 
-import app_model
-import util
+from .. import app_model
+from .. import util
 
 # TODO: improve modified state for ChannelSettingsWidget and
 # GlobalSettingsWidget: compare spinbox value to old value and set modified
 # state accordingly
-
-def get_device_info():
-    return (MHV4.idcs, MHV4)
-
-def get_widget_info():
-    return (MHV4.idcs, MHV4Widget)
 
 class Polarity(object):
     negative = 0
@@ -765,3 +759,7 @@ class MHV4Widget(QtGui.QWidget):
                 setter=d.set_ramp_speed)
 
         gsw.modified = False
+
+idc             = 27
+device_class    = MHV4
+device_ui_class = MHV4Widget

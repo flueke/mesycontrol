@@ -2,20 +2,18 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from qt import pyqtSignal
-from qt import pyqtSlot
-from qt import Qt
-from qt import QtCore
-from qt import QtGui
 from functools import partial
+from ..qt import pyqtSignal
+from ..qt import pyqtSlot
+from ..qt import Qt
+from ..qt import QtCore
+from ..qt import QtGui
 
-import app_model
-import command
-import mrc_command
-import util
+from .. import app_model
+from .. import util
 
-from app_model import modifies_extensions
-from util import make_title_label, hline, make_spinbox
+from .. app_model import modifies_extensions
+from .. util import make_title_label, hline, make_spinbox
 
 # TODO
 # - Setup page:
@@ -47,12 +45,6 @@ from util import make_title_label, hline, make_spinbox
 #     version can't be detected.
 #     => assume hardware is version 5. if the newer features are supported by
 #     the hardware the software must be upgraded to 5.3
-
-def get_device_info():
-    return (MSCF16.idcs, MSCF16)
-
-def get_widget_info():
-    return (MSCF16.idcs, MSCF16Widget)
 
 class ModuleInfo(object):
     """Holds information about an MSCF16 that can't be detected via
@@ -1149,6 +1141,10 @@ class MSCF16Widget(QtGui.QWidget):
             layout.addItem(vbox)
 
         self.device.propagate_state()
+
+idc             = 20
+device_class    = MSCF16
+device_ui_class = MSCF16Widget
 
 if __name__ == "__main__":
     import mock

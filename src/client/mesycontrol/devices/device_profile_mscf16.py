@@ -2,16 +2,16 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from device_profile import DeviceProfile
-
 threshold_percent = { 'label': '%', 'name': 'percent', 'factor': 256/30.0 }
 
 # Note: The major part of the fpga version equals the hardware version.
 # Note2: The fpga version is only readable if the software version is >= 5.3.
 
+idc = 20
+
 profile_dict = {
         'name': 'MSCF-16',
-        'idc': 20,
+        'idc': idc,
         'parameters': [
             # Gain
             { 'address': 0, 'name': 'gain_group0', 'index': 0, 'range': (0, 15)},
@@ -120,6 +120,3 @@ profile_dict = {
             { 'address': 255, 'name': 'cpu_software_version',   'read_only': True }, # sw version >= 5.3
             ]
 }
-
-def get_device_profile():
-    return DeviceProfile.fromDict(profile_dict)

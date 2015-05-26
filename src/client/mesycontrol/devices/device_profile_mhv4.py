@@ -2,14 +2,14 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from device_profile import DeviceProfile
-
 voltage_10  = { 'label': 'V',    'name': 'volt', 'factor': 10.0 }
 tcomp_slope = { 'label': 'V/°C', 'name': 'volt_per_deg', 'factor': 1000.0, 'offset': -10.0 }
 
+idc = 27
+
 profile_dict = {
         'name': 'MHV-4-800V',
-        'idc': 27,
+        'idc': idc,
         'parameters': [
             # Enable. Mark channel enable setting as critical. 
             { 'address': 4,   'name': 'channel0_enable_write', 'index': 0, 'critical': True },
@@ -131,6 +131,3 @@ profile_dict = {
             { 'address': 35,  'name': 'channel3_voltage_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [voltage_10] },
             ]
 }
-
-def get_device_profile():
-    return DeviceProfile.fromDict(profile_dict)

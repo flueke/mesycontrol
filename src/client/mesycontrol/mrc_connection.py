@@ -62,11 +62,11 @@ class MRCConnection(AbstractConnection):
         self.client.request_sent.connect(self.request_sent)
         self.client.message_received.connect(self.message_received)
         self.client.response_received.connect(self.response_received)
-        self.client.notification_received(self.notification_received)
-        self.client.error_received(self.error_received)
+        self.client.notification_received.connect(self.notification_received)
+        self.client.error_received.connect(self.error_received)
 
         self.client.queue_empty.connect(self.queue_empty)
-        self.client.queue_size_changed(self.queue_size_changed)
+        self.client.queue_size_changed.connect(self.queue_size_changed)
 
     def connect(self):
         return self.client.connect(self.host, self.port)
@@ -172,13 +172,13 @@ def factory(**kwargs):
         - url:
           A string that is passed to util.parse_connection_url(). The resulting
           dictionary will then be used to create the connection.
-        - mesycontrol_host, mesycontrol_port:
-          Creates a MesycontrolConnection to the given host and port.
+        - mc_host, mc_port:
+          Creates a MRCConnection to the given host and port.
         - serial_port, baud_rate:
-          Creates a LocalMesycontrolConnection using the given serial port and
+          Creates a LocalMRCConnection using the given serial port and
           baud rate.
         - host, port:
-          Creates a LocalMesycontrolConnection connecting to the MRC on the
+          Creates a LocalMRCConnection connecting to the MRC on the
           given host and port.
 
     Additionally 'parent' may specify a parent QObject for the resulting

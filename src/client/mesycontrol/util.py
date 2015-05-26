@@ -226,6 +226,20 @@ def parse_connection_url(url):
 
     raise URLParseError("Invalid protocol '%s'" % proto)
 
+def build_connection_url(serial_port=None, baud_rate=0, host=None, port=4001, mc_host=None, mc_port=23000):
+    if serial_port:
+        if baud_rate != 0:
+            return "serial://%s@%d" % (serial_port, baud_rate)
+        return "serial://%s" % serial_port
+
+    if host:
+        return "tcp://%s:%d" % (host, port)
+
+    if mc_host:
+        return "mc://%s:%d" % (mc_host, mc_port)
+
+    raise ValueError("Invalid arguments given")
+
 def make_logging_source_adapter(module_name, object_instance):
     logger_name = "%s.%s" % (module_name, object_instance.__class__.__name__)
 
@@ -553,3 +567,16 @@ class OrderedSet(collections.MutableSet):
         if isinstance(other, OrderedSet):
             return len(self) == len(other) and list(self) == list(other)
         return set(self) == set(other)
+
+def find_data_dir(main_file):
+    """Locates the directory used for data files.
+    Recursively follows symlinks until the location of main_file is known.
+    Returns the name of the directory of the location of the main file.
+    """
+    while os.path.islink(main_file):
+        lnk = os.readlink(main_file)
+        if os.path.isabs(lnk):
+            main_file = lnk
+        else:
+            main_file = os.path.abspath(os.path.join(os.path.dirname(main_file), lnk))
+    return os.path.dirname(os.path.abspath(main_file))

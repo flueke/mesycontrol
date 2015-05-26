@@ -42,6 +42,7 @@ class ServerProcess(QtCore.QObject):
 
         super(ServerProcess, self).__init__(parent)
 
+        self.log  = util.make_logging_source_adapter(__name__, self)
         self.binary = binary
         self.listen_address = listen_address
         self.listen_port = listen_port
@@ -88,9 +89,11 @@ class ServerProcess(QtCore.QObject):
             self.process.started.connect(on_started)
             self.process.error.connect(on_error)
 
+            self.log.debug("Starting %s %s", program, " ".join(args))
             self.process.start(program, args, QtCore.QIODevice.ReadOnly)
 
         except Exception as e:
+            self.log.exception("ServerProcess")
             ret.set_exception(e)
 
         return ret
@@ -101,6 +104,7 @@ class ServerProcess(QtCore.QObject):
         if self.process.state() != QtCore.QProcess.NotRunning:
             def on_finished(code, status):
                 self.process.finished.disconnect(on_finished)
+                self.log.debug("Process finished with code=%d (%s)", code, ServerProcess.exit_code_string(code))
                 ret.set_result(True)
 
             self.process.finished.connect(on_finished)

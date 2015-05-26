@@ -208,13 +208,12 @@ class DeviceProfile(object):
     def get_volatile_addresses(self):
         return map(lambda p: p.address, filter(lambda p: p.poll, self.parameters))
 
-    @staticmethod
-    def fromDict(d):
-        ret = DeviceProfile(d['idc'])
-        ret.name = str(d.get('name', None))
-        for pd in d['parameters']:
-            ret.add_parameter(ParameterProfile.fromDict(pd))
-        return ret
+def from_dict(d):
+    ret = DeviceProfile(d['idc'])
+    ret.name = str(d.get('name', None))
+    for pd in d['parameters']:
+        ret.add_parameter(ParameterProfile.fromDict(pd))
+    return ret
 
 
 def make_generic_profile(device_idc):

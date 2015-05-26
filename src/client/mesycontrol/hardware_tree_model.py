@@ -12,7 +12,7 @@ QModelIndex = QtCore.QModelIndex
 
 class HardwareTreeModel(btm.BasicTreeModel):
     def columnCount(self, parent=QModelIndex()):
-        return 3
+        return 1
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
@@ -40,12 +40,15 @@ class MRCNode(btm.BasicTreeNode):
         mrc.hardware_model_set.connect(self._model_set)
 
     def _model_set(self, mrc):
-        f = partial(self.model.notify_data_changed, self, 0, 0)
+        f = partial(self.model.notify_data_changed, self, 0, self.model.columnCount())
         f()
 
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:
-            return "MRCNode %s" % hex(id(self))
+            mrc = self.ref
+            has_hw = bool(mrc.hw)
+            is_connected = has_hw and mrc.hw.is_connected()
+            return "%s | hw=%s | c=%s" % (mrc.url, has_hw, is_connected)
 
 class BusNode(btm.BasicTreeNode):
     def __init__(self, bus_number, parent=None):
@@ -57,20 +60,17 @@ class BusNode(btm.BasicTreeNode):
             return str(self.bus_number)
 
 class DeviceNode(btm.BasicTreeNode):
-    def __init__(self, device=None, bus=None, address=None, parent=None):
+    def __init__(self, device, parent=None):
         super(DeviceNode, self).__init__(ref=device, parent=parent)
-        self._bus = bus
-        self._address = address
+        device.hardware_model_set.connect(self._model_set)
 
-    def get_bus(self):
-        return self._bus if self.ref is None else self.ref.bus
-
-    def get_address(self):
-        return self._address if self.ref is None else self.ref.address
+    def _model_set(self, mrc):
+        f = partial(self.model.notify_data_changed, self, 0, self.model.columnCount())
+        f()
 
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:
-            return "DeviceNode %s %s" % (hex(id(self)), (self.bus, self.address))
-
-    bus     = property(get_bus)
-    address = property(get_address)
+            device = self.ref
+            address = device.address
+            idc = device.idc
+            return "%X | idc=%d | hw=%s" % (address, idc, bool(device.hw))

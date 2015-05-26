@@ -2,21 +2,15 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from qt import pyqtSignal
-from qt import pyqtSlot
-from qt import Qt
-from qt import QtGui
 import re
+from .. qt import pyqtSignal
+from .. qt import pyqtSlot
+from .. qt import Qt
+from .. qt import QtGui
 
-from util import make_title_label, hline, make_spinbox
-import app_model
-import util
-
-def get_device_info():
-    return (STM16.idcs, STM16)
-
-def get_widget_info():
-    return (STM16.idcs, STM16Widget)
+from .. util import make_title_label, hline, make_spinbox
+from .. import app_model
+from .. import util
 
 def group_channel_range(group_num):
     """Returns the range of channel indexes in the given channel group.
@@ -246,3 +240,7 @@ class STM16Widget(QtGui.QWidget):
             layout.addItem(vbox)
 
         self.device.propagate_state()
+
+idc             = 19
+device_class    = STM16
+device_ui_class = STM16Widget

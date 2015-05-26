@@ -12,10 +12,9 @@ import weakref
 import future
 import util
 
-# TODO: enforce ranges
 BUS_RANGE   = range(2)
 DEV_RANGE   = range(16)
-ADDR_RANGE  = range(256)
+PARAM_RANGE = range(256)
 
 class MRCRegistry(QtCore.QObject):
     """Manages MRC instances"""
@@ -30,7 +29,7 @@ class MRCRegistry(QtCore.QObject):
 
     def add_mrc(self, mrc):
         if self.get_mrc(mrc.url) is not None:
-            raise RuntimeError("MRC %s exists in MRCRegistry" % mrc.url)
+            raise ValueError("MRC '%s' exists" % mrc.url)
 
         self.log.debug("add_mrc: %s %s", mrc, mrc.url)
         self._mrcs.append(mrc)
@@ -142,7 +141,10 @@ class Device(QtCore.QObject):
 
     def set_bus(self, bus):
         if self.bus != bus:
-            self._bus = int(bus)
+            bus       = int(bus)
+            if bus not in BUS_RANGE:
+                raise ValueError("Bus out of range")
+            self._bus = bus
             self.bus_changed.emit(self.bus)
 
     def get_address(self):
@@ -150,7 +152,10 @@ class Device(QtCore.QObject):
 
     def set_address(self, address):
         if self.address != address:
-            self._address = int(address)
+            address       = int(address)
+            if address not in DEV_RANGE:
+                raise ValueError("Device address out of range")
+            self._address = address
             self.address_changed.emit(self.address)
 
     def get_idc(self):
@@ -201,6 +206,8 @@ class Device(QtCore.QObject):
         raise NotImplementedError
 
     def get_cached_parameter(self, address):
+        if address not in PARAM_RANGE:
+            raise ValueError("Parameter address out of range")
         return self._memory.get(address, None)
 
     def set_cached_parameter(self, address, value):

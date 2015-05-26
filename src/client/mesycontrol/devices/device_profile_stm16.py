@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from device_profile import DeviceProfile
-
 threshold_percent = { 'label': '%', 'name': 'percent', 'factor': 256/40.0 }
+
+idc = 19
 
 profile_dict = {
         'name': 'STM-16+',
-        'idc': 19,
+        'idc': idc,
         'parameters': [
             # Gain
             { 'address': 0,  'name': 'gain_group0', 'index': 0, 'range': (0, 15)},
@@ -39,6 +39,3 @@ profile_dict = {
             { 'address':  31, 'name': 'threshold_channel15' , 'index': 15,  'range': (0, 255), 'units': [threshold_percent] },
             ]
 }
-
-def get_device_profile():
-    return DeviceProfile.fromDict(profile_dict)

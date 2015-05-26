@@ -4,9 +4,11 @@
 
 from qt import Qt
 from qt import QtGui
-import hardware_tree_model as htm
 
 class HardwareTreeView(QtGui.QTreeView):
     def __init__(self, parent=None):
         super(HardwareTreeView, self).__init__(parent)
         self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setHeaderHidden(True)
+        self.setTextElideMode(Qt.ElideNone)
+        self.setRootIsDecorated(False)

@@ -2,15 +2,15 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from device_profile import DeviceProfile
-
 # TODO: liste der komischen dinge:
 # - rc_bit und scanbus output unterscheiden sich wenn am frontpanel werte veraendert wurden. ??? unklar ???
 # - discriminator_mode wechsel: LE -> CFD: fast_veto wird aktiviert, CFD -> LE: fast_veto wird deaktiviert
 
+idc = 26
+
 profile_dict = {
         'name': 'MCFD-16',
-        'idc': 26,
+        'idc': idc,
         'parameters': [
             # Threshold
             { 'address':  0, 'name': 'threshold_channel0' , 'index': 0,  'range': (0, 255) },
@@ -200,6 +200,3 @@ profile_dict = {
             { 'address': 255, 'name': 'cpu_firmware_version', 'read_only': True },
             ]
 }
-
-def get_device_profile():
-    return DeviceProfile.fromDict(profile_dict)
