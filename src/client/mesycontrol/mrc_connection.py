@@ -6,15 +6,16 @@ from qt import QtCore
 from qt import pyqtSignal
 
 from future import Future
+from protocol import MRCStatus
 from tcp_client import MCTCPClient
 import server_process
 import util
 
 class AbstractConnection(QtCore.QObject):
-    connected               = pyqtSignal()
-    disconnected            = pyqtSignal()
-    connecting              = pyqtSignal()
-    connection_error        = pyqtSignal(object)   #: error object
+    connected               = pyqtSignal()          #: connected and ready to send requests
+    disconnected            = pyqtSignal()          #: disconnected; not ready to handle requests
+    connecting              = pyqtSignal()          #: establishing the connection
+    connection_error        = pyqtSignal(object)    #: error object
 
     request_queued          = pyqtSignal(object, object) #: request, Future
     request_sent            = pyqtSignal(object, object) #: request, Future
@@ -26,7 +27,7 @@ class AbstractConnection(QtCore.QObject):
     queue_empty             = pyqtSignal()
     queue_size_changed      = pyqtSignal(int)
 
-    # TODO: add write_access, silence, mrc status
+    # TODO: add write_access, silence
 
     def __init__(self, parent=None):
         super(AbstractConnection, self).__init__(parent)
@@ -40,11 +41,30 @@ class AbstractConnection(QtCore.QObject):
     def is_connected(self):
         raise NotImplementedError()
 
+    def is_connecting(self):
+        raise NotImplementedError()
+
     def queue_request(self, request):
         raise NotImplementedError()
 
     def get_url(self):
         raise NotImplementedError()
+
+    def get_status(self):
+        raise NotImplementedError()
+
+# how to handle protocol level MRC status:
+# client = MCTCPClient()
+# client.connect()
+# wait for connected
+# wait for status notification
+# if status == running:
+#  self.connected.emit() and self.is_connected() == true
+# continue handling status notifications
+
+# It would be nice to keep knowledge about MRCStatus inside protocol.py and
+# this file. Clients should get an object which should yield a human readable
+# status description when converted to string.
 
 class MRCConnection(AbstractConnection):
     def __init__(self, host, port, parent=None):
@@ -53,7 +73,7 @@ class MRCConnection(AbstractConnection):
         self.port   = port
         self.client = MCTCPClient()
 
-        self.client.connected.connect(self.connected)
+        #self.client.connected.connect(self.connected)
         self.client.disconnected.connect(self.disconnected)
         self.client.connecting.connect(self.connecting)
         self.client.socket_error.connect(self.connection_error)
@@ -68,8 +88,24 @@ class MRCConnection(AbstractConnection):
         self.client.queue_empty.connect(self.queue_empty)
         self.client.queue_size_changed.connect(self.queue_size_changed)
 
+    # FIXME: leftoff here. how to do this properly?
     def connect(self):
-        return self.client.connect(self.host, self.port)
+        ret = Future()
+
+        def on_client_connect_done(f):
+            if f.exception() is not None:
+                ret.set_exception(f.exception())
+
+        def on_client_notification_received(msg):
+            if (msg.get_type_name() == 'mrc_status' and
+                    msg.status == MRCStatus.RUNNING):
+                self.client.notification_received.disconnect(on_client_notification_received)
+                ret.set_result(True)
+
+        self.client.notification_received.connect(on_client_notification_received)
+        self.client.connect(self.host, self.port).add_done_callback(on_client_connect_done)
+
+        return ret
 
     def disconnect(self):
         return self.client.disconnect()

@@ -156,7 +156,11 @@ class MCTreeView(QtGui.QWidget):
         self.cfg_view.expandAll()
         self.hw_view.expandAll()
 
+        def on_splitter_moved(pos, index):
+            print "splitter moved: pos=%d, index=%d" % (pos, index)
+
         splitter = QtGui.QSplitter()
+        splitter.splitterMoved.connect(on_splitter_moved)
         splitter.setChildrenCollapsible(False)
         splitter.addWidget(self.hw_view)
         splitter.addWidget(self.cfg_view)

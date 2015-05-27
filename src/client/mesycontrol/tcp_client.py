@@ -81,6 +81,8 @@ class MCTCPClient(QtCore.QObject):
                 ret.set_result(True)
 
             def socket_error(socket_error):
+                self.log.error("Error connecting to %s:%d: %s", host, port,
+                        self._socket.errorString())
                 dc()
                 ret.set_exception(SocketError(socket_error, self._socket.errorString()))
                 self.log.error("%s", ret.exception())
@@ -106,17 +108,23 @@ class MCTCPClient(QtCore.QObject):
 
         ret = Future()
 
+        host, port = self.host, self.port
+
         def dc():
             self._socket.disconnected.disconnect(socket_disconnected)
             self._socket.error.disconnect(socket_error)
 
         def socket_disconnected():
+            self.log.debug("Disconnected from %s:%d", host, port)
             dc()
             self._reset_state()
             ret.set_result(True)
 
         def socket_error(socket_error):
+            self.log.error("Socket error from %s:%d: %s", host, port,
+                    self._socket.errorString())
             dc()
+            self._reset_state()
             ret.set_exception(SocketError(socket_error, self._socket.errorString()))
 
         self._socket.disconnected.connect(socket_disconnected)
@@ -152,15 +160,20 @@ class MCTCPClient(QtCore.QObject):
         was_empty = self.get_queue_size() == 0
         ret = Future()
         self._queue.add((request, ret))
+        self.log.debug("Queueing request %s, queue size=%d", request, self.get_queue_size())
         self.request_queued.emit(request, ret)
-        self.queue_size_changed.emit(len(self._queue))
+        self.queue_size_changed.emit(self.get_queue_size())
         if was_empty:
             self._start_write_request()
         return ret
 
     def _start_write_request(self):
-        if not self.is_connected() or self._current_request is not None:
-            self.log.debug("_start_write_request: not connected or request in progress")
+        if not self.is_connected():
+            self.log.debug("_start_write_request: not connected")
+            return
+
+        if self._current_request is not None:
+            self.log.debug("_start_write_request: request in progress")
             return
 
         request, future = self._current_request = self._queue.pop(False) # FIFO order

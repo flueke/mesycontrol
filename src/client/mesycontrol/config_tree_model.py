@@ -63,9 +63,10 @@ class MRCNode(btm.BasicTreeNode):
 
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:
-            mrc = self.ref
-            has_cfg = bool(mrc.cfg)
-            return "%s | cfg=%s" % (mrc.url, has_cfg)
+            if self.ref.cfg:
+                return "%s | cfg=%s" % (self.ref.url, bool(self.ref.cfg))
+            #mrc = self.ref
+            #has_cfg = bool(mrc.cfg)
 
 class BusNode(btm.BasicTreeNode):
     def __init__(self, bus_number, parent=None):
@@ -74,7 +75,9 @@ class BusNode(btm.BasicTreeNode):
 
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:
-            return str(self.bus_number)
+            mrc = self.parent.ref
+            if mrc.cfg:
+                return str(self.bus_number)
 
 class DeviceNode(btm.BasicTreeNode):
     def __init__(self, device, parent=None):
@@ -90,6 +93,7 @@ class DeviceNode(btm.BasicTreeNode):
             #return "%s %s" % (self.ref.address,
             #        self.ref.idc if self.ref is not None else "<not in config>")
             device = self.ref
-            address = device.address
-            idc = device.idc
-            return "%X | idc=%d | cfg=%s" % (address, idc, bool(device.cfg))
+            if device.cfg:
+                address = device.address
+                idc = device.idc
+                return "%X | idc=%d | cfg=%s" % (address, idc, bool(device.cfg))

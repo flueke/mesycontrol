@@ -11,6 +11,7 @@ import basic_model as bm
 import config_model as cm
 import device_profile
 import devices
+import future
 import util
 
 class Context(QtCore.QObject):
@@ -35,7 +36,13 @@ class Context(QtCore.QObject):
         self.app_registry   = self.director.registry
 
     def shutdown(self):
-        raise NotImplementedError()
+        observer = future.FutureObserver()
+
+        def do_disconnect():
+            futures = [mrc.disconnect() for mrc in self.hw_registry.get_mrcs()]
+            observer.set_future(future.all_done(*futures))
+
+        util.wait_for_signal(signal=observer.done, emitting_callable=do_disconnect, timeout_ms=5000)
 
     def _load_profile_modules(self):
         for mod_name in devices.profile_modules:

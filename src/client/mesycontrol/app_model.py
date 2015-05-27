@@ -10,6 +10,14 @@ from qt import pyqtSignal
 import basic_model as bm
 import util
 
+# FIXME: The app model classes should not inherit the basic model classes.
+# FIXME: Reason: methods like Device.read_parameter() are not well defined for
+# FIXME: the app model. Also an app model device does not neccessarily have a single
+# FIXME: IDC but one for the hardware and one for the config.
+# Parameters for app model classes:
+# MRC: url
+# Device: bus address
+
 def model_required(f):
     @wraps(f)
     def wrapper(self, *args, **kwargs):

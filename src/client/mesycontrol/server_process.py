@@ -72,24 +72,26 @@ class ServerProcess(QtCore.QObject):
             if program is None:
                 raise RuntimeError("Could not find server binary '%s'" % self.binary)
 
-            # cmd_line = "%s %s" % (program, " ".join(args))
+            cmd_line = "%s %s" % (program, " ".join(args))
 
             def dc():
                 self.process.started.disconnect(on_started)
                 self.process.error.disconnect(on_error)
 
             def on_started():
+                self.log.debug("[pid=%s] Started %s", self.process.pid(), cmd_line)
                 dc()
                 ret.set_result(True)
 
             def on_error(error):
+                self.log.debug("Error starting %s: %d", error)
                 dc()
                 ret.set_exception(ServerError(error))
 
             self.process.started.connect(on_started)
             self.process.error.connect(on_error)
 
-            self.log.debug("Starting %s %s", program, " ".join(args))
+            self.log.debug("Starting %s", cmd_line)
             self.process.start(program, args, QtCore.QIODevice.ReadOnly)
 
         except Exception as e:
@@ -103,8 +105,8 @@ class ServerProcess(QtCore.QObject):
 
         if self.process.state() != QtCore.QProcess.NotRunning:
             def on_finished(code, status):
-                self.process.finished.disconnect(on_finished)
                 self.log.debug("Process finished with code=%d (%s)", code, ServerProcess.exit_code_string(code))
+                self.process.finished.disconnect(on_finished)
                 ret.set_result(True)
 
             self.process.finished.connect(on_finished)

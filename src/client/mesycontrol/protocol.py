@@ -348,6 +348,8 @@ class ErrorInfo:
     return ErrorInfo.by_name.keys()
 
 class MRCStatus:
+  STOPPED, CONNECTING, CONNECT_FAILED, INITIALIZING, INIT_FAILED, RUNNING = range(6)
+
   info_list = [
       { 'code': 0,
         'name': 'stopped',
