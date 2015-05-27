@@ -169,7 +169,13 @@ class GUIApplication(object):
                 menu.addAction("Disconnect").triggered.connect(mrc.hw.disconnect)
 
             if mrc.hw:
-                menu.addAction("Remove MRC Connection").triggered.connect(partial(self.registry.hw.remove_mrc, mrc.hw))
+                def do_disconnect():
+                    mrc.hw.disconnect().add_done_callback(do_remove)
+
+                def do_remove(f):
+                    self.registry.hw.remove_mrc(mrc.hw)
+
+                menu.addAction("Remove MRC Connection").triggered.connect(do_disconnect)
 
         if isinstance(node, htm.BusNode):
             mrc = node.parent.ref
