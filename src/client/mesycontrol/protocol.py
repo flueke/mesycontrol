@@ -334,6 +334,10 @@ class ErrorInfo:
         'name': 'read_out_of_bounds',
         'description': 'The multi-read request exceeds the devices memory range.',
         },
+      { 'code': 15,
+        'name': 'mrc_connecting',
+        'description': 'The MRC connection is being established.',
+        },
       ]
 
   by_name = {}
