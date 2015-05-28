@@ -78,7 +78,8 @@ namespace error_type
     mrc_parse_error             = 11, // Error parsing MRC reply
     mrc_address_conflict        = 12, // Bus address conflict
     request_canceled            = 13, // Request canceled (currently client side only)
-    read_out_of_bounds          = 14  // A multi read request exceeds the memory range
+    read_out_of_bounds          = 14, // A multi read request exceeds the memory range
+    mrc_connecting              = 15  // The MRC connection is being established and thus can't handle incoming requests
   };
 } // namespace error_type
 

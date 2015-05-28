@@ -55,6 +55,10 @@ void MRC1RequestQueue::try_send_mrc1_request()
       case mrc_status::init_failed:
         et = error_type::mrc_comm_error;
         break;
+      case mrc_status::connecting:
+      case mrc_status::initializing:
+        et = error_type::mrc_connecting;
+        break;
       default:
         et = error_type::unknown_error;
         break;

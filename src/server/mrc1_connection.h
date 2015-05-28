@@ -59,7 +59,7 @@ class MRC1Connection:
     mrc_status::Status get_status() const { return m_status; }
     bool is_initializing() const { return m_status == mrc_status::initializing; }
     bool is_running() const { return m_status == mrc_status::running; }
-    bool is_stopped() const { return m_status == mrc_status::stopped; }
+    bool is_stopped() const;
     bool is_silenced() const { return m_silenced; }
     void set_silenced(bool silenced) { m_silenced = silenced; }
     boost::system::error_code get_last_error() const { return m_last_error; }

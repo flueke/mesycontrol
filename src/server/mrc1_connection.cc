@@ -150,6 +150,13 @@ MRC1Connection::MRC1Connection(boost::asio::io_service &io_service):
 {
 }
 
+bool MRC1Connection::is_stopped() const
+{
+  return m_status == mrc_status::stopped ||
+    m_status == mrc_status::connect_failed ||
+    m_status == mrc_status::init_failed;
+}
+
 void MRC1Connection::start()
 {
   if (!is_stopped())
@@ -363,7 +370,6 @@ void MRC1Connection::handle_reconnect_timeout(const boost::system::error_code &e
 {
   if (ec != boost::asio::error::operation_aborted &&
       m_timeout_timer.expires_at() <= boost::asio::deadline_timer::traits_type::now()) {
-    set_status(mrc_status::stopped);
     start();
   }
 }
