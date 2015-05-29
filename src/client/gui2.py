@@ -152,6 +152,10 @@ class GUIApplication(object):
         if isinstance(node, htm.MRCNode):
             mrc = node.ref
 
+            if mrc.hw:
+                print ("_hw_context_menu on MRCNode: connected=%s, connecting=%s, disconnected=%s" %
+                        (mrc.hw.is_connected(), mrc.hw.is_connecting(), mrc.hw.is_disconnected()))
+
             if not mrc.hw or mrc.hw.is_disconnected():
                 def do_connect():
                     if not mrc.hw:
@@ -166,6 +170,8 @@ class GUIApplication(object):
                     for i in bm.BUS_RANGE:
                         mrc.hw.scanbus(i)
                 menu.addAction("Scanbus").triggered.connect(do_scanbus)
+
+            if mrc.hw and (mrc.hw.is_connected() or mrc.hw.is_connecting()):
                 menu.addAction("Disconnect").triggered.connect(mrc.hw.disconnect)
 
             if mrc.hw:
