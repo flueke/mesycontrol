@@ -50,28 +50,10 @@ class MRC(bm.MRC):
         return self.connection.is_disconnected()
 
     def read_parameter(self, bus, device, address):
-        def on_parameter_read(f):
-            try:
-                self.get_device(bus, device).set_cached_parameter(address, int(f))
-            except Exception as e:
-                self.log.error(e)
-
-        ret = self.controller.read_parameter(bus, device, address)
-        ret.add_done_callback(on_parameter_read)
-
-        return ret
+        return self.controller.read_parameter(bus, device, address)
 
     def set_parameter(self, bus, device, address, value):
-        def on_parameter_set(f):
-            try:
-                self.get_device(bus, device).set_cached_parameter(address, int(f))
-            except Exception as e:
-                self.log.error(e)
-
-        ret = self.controller.set_parameter(self, bus, device, address, value)
-        ret.add_done_callback(on_parameter_set)
-
-        return ret
+        return self.controller.set_parameter(self, bus, device, address, value)
 
     def scanbus(self, bus):
         return self.controller.scanbus(bus)
@@ -81,10 +63,26 @@ class Device(bm.Device):
         super(Device, self).__init__(bus, address, idc, parent)
 
     def read_parameter(self, address):
-        return self.mrc.read_parameter(self.bus, self.address, address)
+        def on_parameter_read(f):
+            try:
+                self.set_cached_parameter(address, int(f))
+            except Exception:
+                self.log.exception("read_parameter")
+
+        ret = self.mrc.read_parameter(self.bus, self.address, address)
+        ret.add_done_callback(on_parameter_read)
+        return ret
 
     def set_parameter(self, address, value):
-        return self.mrc.set_parameter(self.bus, self.address, address, value)
+        def on_parameter_set(f):
+            try:
+                self.set_cached_parameter(address, int(f))
+            except Exception:
+                self.log.exception("set_parameter")
+
+        ret = self.mrc.set_parameter(self.bus, self.address, address, value)
+        ret.add_done_callback(on_parameter_set)
+        return ret
 
     def get_controller(self):
         return self.mrc.controller

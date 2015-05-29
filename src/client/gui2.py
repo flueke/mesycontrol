@@ -291,35 +291,10 @@ if __name__ == "__main__":
     context = Context(main_file, bin_dir, data_dir)
     mainwindow = MainWindow(context)
     mainwindow.show()
-    #from mesycontrol import app_model as am
-    #from mesycontrol import mc_treeview
-
-    #hw_reg   = bm.MRCRegistry()
-    #cfg_reg  = cm.Setup()
-    #director = am.Director(hw_reg, cfg_reg)
-
-    #mc_tv = mc_treeview.MCTreeView(director)
-    #mc_tv.show()
-
-    #console = pg.console.ConsoleWidget(namespace=locals())
-    #console.show()
-
-    #from mesycontrol import mrc_connection
-    #from mesycontrol import hardware_model
-    #from mesycontrol import hardware_controller
-
-    #url = "serial:///dev/ttyUSB1"
-    #mrc = hardware_model.MRC(url)
-    #mrc.connection = mrc_connection.factory(url=url)
-    #mrc.controller = hardware_controller.Controller()
-    #hw_reg.add_mrc(mrc)
-    ##mrc.connect()
-
-    #mc_app = Application(mc_tv)
 
     ret = app.exec_()
 
-    #del mainwin
+    del mainwindow
     del garbage_collector
 
     sys.exit(ret)

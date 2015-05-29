@@ -122,7 +122,7 @@ class Device(QtCore.QObject):
     address_changed     = pyqtSignal(int)
     idc_changed         = pyqtSignal(int)
     mrc_changed         = pyqtSignal(object)
-    parameter_changed   = pyqtSignal(int, object)
+    parameter_changed   = pyqtSignal(int, object)   #: address, value
 
     def __init__(self, bus, address, idc, parent=None):
         super(Device, self).__init__(parent)
