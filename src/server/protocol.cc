@@ -548,7 +548,7 @@ MessagePtr MessageFactory::make_parameter_set_notification(boost::uint8_t bus, b
 MessagePtr MessageFactory::make_can_acquire_write_access_notification(bool can_acquire)
 {
   MessagePtr ret(boost::make_shared<Message>());
-  ret->type        = message_type::notify_silent_mode;
+  ret->type        = message_type::notify_can_acquire_write_access;
   ret->bool_value  = can_acquire;
   return ret;
 }
