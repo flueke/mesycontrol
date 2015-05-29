@@ -43,6 +43,9 @@ class MRC(bm.MRC):
     def is_connected(self):
         return self.connection.is_connected()
 
+    def is_connecting(self):
+        return self.connection.is_connecting()
+
     def is_disconnected(self):
         return self.connection.is_disconnected()
 
