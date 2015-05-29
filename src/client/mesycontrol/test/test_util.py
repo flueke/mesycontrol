@@ -30,15 +30,15 @@ def test_parse_connection_url():
             'example.com:foo', 'tcp://:', ':666', 'tcp://:666', ':', 'tcp://'):
         assert_raises(URLParseError, parse_connection_url, url)
 
-    d = parse_connection_url('mesycontrol://example.com:666')
-    assert_dict_equal(d, dict(mesycontrol_host='example.com', mesycontrol_port=666))
+    d = parse_connection_url('mc://example.com:666')
+    assert_dict_equal(d, dict(mc_host='example.com', mc_port=666))
 
-    d = parse_connection_url('mesycontrol://example.com')
-    assert_dict_equal(d, dict(mesycontrol_host='example.com', mesycontrol_port=23000))
+    d = parse_connection_url('mc://example.com')
+    assert_dict_equal(d, dict(mc_host='example.com', mc_port=23000))
 
-    for url in ('mesycontrol://example.com:', 'mesycontrol://example.com:foo',
-            'mesycontrol://:', 'mesycontrol://:666',
-            'mesycontrol://'):
+    for url in ('mc://example.com:', 'mc://example.com:foo',
+            'mc://:', 'mc://:666',
+            'mc://'):
         assert_raises(URLParseError, parse_connection_url, url)
 
     for url in ('://', 'fooproto://foo:bar'):
