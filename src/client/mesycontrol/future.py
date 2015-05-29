@@ -20,12 +20,18 @@ class Future(object):
         self._done = False
         self._result = None
         self._exception = None
+        self._exception_observed = False
         self._callbacks = list()
         self._progress_callbacks = list()
         self._progress_min = 0
         self._progress_max = 100
         self._progress = 0
         self._progress_text = None
+
+    def __del__(self):
+        if self._exception is not None and not self._exception_observed:
+            logging.getLogger().error("Unobserved exception in Future: %s %s",
+                    type(self._exception), self._exception)
 
     def done(self):
         return self._done
@@ -35,6 +41,7 @@ class Future(object):
             raise IncompleteFuture(self)
 
         if self._exception is not None:
+            self._exception_observed = True
             raise self._exception
 
         return self._result
@@ -43,6 +50,7 @@ class Future(object):
         if not self.done():
             raise IncompleteFuture(self)
 
+        self._exception_observed = True
         return self._exception
 
     def set_result(self, result):
@@ -53,6 +61,7 @@ class Future(object):
         self._set_done()
 
         return self
+
     def set_exception(self, exception):
         if self.done():
             raise FutureIsDone(self)
@@ -109,7 +118,7 @@ class Future(object):
         try:
             cb(self)
         except Exception:
-            logging.getLogger().exception("callback %s raised", cb)
+            logging.getLogger().exception("Callback %s raised", cb)
 
 def all_done(*futures):
     """Returns a future that completes once all of the given futures complete.
