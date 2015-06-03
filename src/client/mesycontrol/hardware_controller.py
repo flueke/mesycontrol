@@ -13,7 +13,7 @@ class ErrorResponse(Exception):
     pass
 
 class Controller(object):
-    """Link between MRC and MRCConnection."""
+    """Link between hardware_model.MRC and MRCConnection."""
     def __init__(self, mrc=None, connection=None):
         self.log        = util.make_logging_source_adapter(__name__, self)
         self.mrc        = mrc
@@ -92,9 +92,10 @@ class Controller(object):
                             self.log.debug("scanbus: creating device (%d, %d, %d)", bus, addr, idc)
                             device = hm.Device(bus, addr, idc)
                             self.mrc.add_device(device)
+
                         device.idc = idc
                         device.rc  = bool(rc) if rc in (0, 1) else False
-                        # TODO: address conflict
+                        device.address_conflict = rc not in (0, 1)
 
             except Exception:
                 self.log.exception("scanbus error")
