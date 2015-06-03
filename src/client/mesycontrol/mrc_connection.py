@@ -229,10 +229,6 @@ class LocalMRCConnection(AbstractConnection):
         return util.build_connection_url(
                 serial_port=self.server.serial_port, baud_rate=self.server.baud_rate,
                 host=self.server.tcp_host, port=self.server.tcp_port)
-        #if self.server.serial_port:
-        #    return "serial://%s:%d" % (self.server.serial_port, self.server.baud_rate)
-        #else:
-        #    return "tcp://%s:%d" % (self.server.tcp_host, self.server.tcp_port)
 
 def factory(**kwargs):
     """Connection factory.

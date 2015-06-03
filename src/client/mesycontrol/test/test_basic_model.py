@@ -27,7 +27,7 @@ def test_add_mrc():
     assert reg.get_mrc("the url") is mrc
     assert reg.get_mrc("foo") is None
     reg.mrc_added.emit.assert_called_once_with(mrc)
-    assert reg.mrc_removed.call_count == 0
+    assert reg.mrc_removed.emit.call_count == 0
 
     reg.mrc_added.reset_mock()
 

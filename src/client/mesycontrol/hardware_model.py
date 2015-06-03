@@ -3,6 +3,7 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 from qt import pyqtProperty
+from qt import pyqtSignal
 
 import basic_model as bm
 import util
@@ -59,8 +60,11 @@ class MRC(bm.MRC):
         return self.controller.scanbus(bus)
 
 class Device(bm.Device):
+    address_conflict_changed = pyqtSignal(bool)
+
     def __init__(self, bus, address, idc, parent=None):
         super(Device, self).__init__(bus, address, idc, parent)
+        self._address_conflict = False
 
     def read_parameter(self, address):
         def on_parameter_read(f):
@@ -87,4 +91,14 @@ class Device(bm.Device):
     def get_controller(self):
         return self.mrc.controller
 
+    def has_address_conflict(self):
+        return self._address_conflict
+
+    def set_address_conflict(self, conflict):
+        if self.address_conflict != conflict:
+            self._address_conflict = bool(conflict)
+            self.address_conflict_changed.emit(self.address_conflict)
+
     controller = pyqtProperty(object, get_controller)
+    address_conflict = pyqtProperty(bool, has_address_conflict, set_address_conflict,
+            notify=address_conflict_changed)

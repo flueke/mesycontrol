@@ -1,3 +1,8 @@
+Wed Jun  3 09:37:59 CEST 2015
+=============================
+* config saving/loading
+
+=============================
 * Config centric model
   - GUI inputs should first be written to the device config
   - Optionally config changes should be synced to the hardware

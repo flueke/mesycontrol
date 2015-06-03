@@ -70,8 +70,7 @@ class Context(QtCore.QObject):
     def get_profile_module(self, idc):
         return self.profile_modules[idc]
 
-    # FIXME: should this return a copy of the profile? if DeviceProfile becomes
-    # a QObject subclass can this still be copied?
+    # FIXME: should this return a copy of the profile?
     def get_profile(self, idc):
         return self.profiles[idc]
 
