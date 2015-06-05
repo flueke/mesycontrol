@@ -2,223 +2,218 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from .. import app_context
-from .. import config
-from .. import config_xml
-from nose.tools import assert_raises
-import xml.etree.ElementTree as ET
+import StringIO
 
-def test_device_config_xml():
-    context = app_context.Context(__file__)
+from .. import config_model as cm
+from .. import config_xml as cxml
 
-    cfg = config.DeviceConfig()
-    cfg.name        = 'foobar'
-    cfg.description = 'lorem ipsum'
-    cfg.idc         = 1
-    cfg.bus         = 0
-    cfg.address     = 15
-    cfg.rc          = False
+expected = """<?xml version="1.0" ?>
+<mesycontrol>
+  <device_config>
+    <idc>20</idc>
+    <bus>1</bus>
+    <address>15</address>
+    <name>my test thing</name>
+    <!--param 0-->
+    <parameter address="0" value="0"/>
+    <!--param 1-->
+    <parameter address="1" value="1"/>
+    <!--param 2-->
+    <parameter address="2" value="4"/>
+    <!--param 3-->
+    <parameter address="3" value="9"/>
+    <!--param 4-->
+    <parameter address="4" value="16"/>
+    <!--param 5-->
+    <parameter address="5" value="25"/>
+    <!--param 6-->
+    <parameter address="6" value="36"/>
+    <!--param 7-->
+    <parameter address="7" value="49"/>
+    <!--param 8-->
+    <parameter address="8" value="64"/>
+    <!--param 9-->
+    <parameter address="9" value="81"/>
+  </device_config>
+</mesycontrol>
+"""
 
-    for i in range(50, 100):
-        cfg.add_parameter(i, i*2, str(i*2))
+expected2 = """<?xml version="1.0" ?>
+<mesycontrol>
+  <setup>
+    <mrc_config>
+      <url>/dev/ttyUSB0</url>
+      <name>the_mrc</name>
+      <device_config>
+        <idc>1</idc>
+        <bus>0</bus>
+        <address>0</address>
+        <name>d1</name>
+        <!--idc=1, p=0-->
+        <parameter address="0" value="0"/>
+        <!--idc=1, p=1-->
+        <parameter address="1" value="1"/>
+        <!--idc=1, p=2-->
+        <parameter address="2" value="4"/>
+        <!--idc=1, p=3-->
+        <parameter address="3" value="9"/>
+        <!--idc=1, p=4-->
+        <parameter address="4" value="16"/>
+        <!--idc=1, p=5-->
+        <parameter address="5" value="25"/>
+        <!--idc=1, p=6-->
+        <parameter address="6" value="36"/>
+        <!--idc=1, p=7-->
+        <parameter address="7" value="49"/>
+        <!--idc=1, p=8-->
+        <parameter address="8" value="64"/>
+        <!--idc=1, p=9-->
+        <parameter address="9" value="81"/>
+        <parameter address="10" value="100"/>
+        <parameter address="11" value="121"/>
+      </device_config>
+      <device_config>
+        <idc>2</idc>
+        <bus>1</bus>
+        <address>5</address>
+        <name>d2</name>
+        <!--idc=2, p=0-->
+        <parameter address="0" value="0"/>
+        <!--idc=2, p=1-->
+        <parameter address="1" value="1"/>
+        <!--idc=2, p=2-->
+        <parameter address="2" value="8"/>
+        <!--idc=2, p=3-->
+        <parameter address="3" value="27"/>
+        <!--idc=2, p=4-->
+        <parameter address="4" value="64"/>
+        <!--idc=2, p=5-->
+        <parameter address="5" value="125"/>
+        <!--idc=2, p=6-->
+        <parameter address="6" value="216"/>
+        <!--idc=2, p=7-->
+        <parameter address="7" value="343"/>
+        <!--idc=2, p=8-->
+        <parameter address="8" value="512"/>
+        <!--idc=2, p=9-->
+        <parameter address="9" value="729"/>
+        <parameter address="10" value="1000"/>
+        <parameter address="11" value="1331"/>
+      </device_config>
+    </mrc_config>
+    <mrc_config>
+      <url>/dev/ttyUSB1</url>
+      <name>the_2nd_mrc</name>
+      <device_config>
+        <idc>2</idc>
+        <bus>0</bus>
+        <address>7</address>
+        <name>d3</name>
+        <!--idc=2, p=0-->
+        <parameter address="0" value="0"/>
+        <!--idc=2, p=1-->
+        <parameter address="1" value="1"/>
+        <!--idc=2, p=2-->
+        <parameter address="2" value="1"/>
+        <!--idc=2, p=3-->
+        <parameter address="3" value="1"/>
+        <!--idc=2, p=4-->
+        <parameter address="4" value="2"/>
+        <!--idc=2, p=5-->
+        <parameter address="5" value="2"/>
+        <!--idc=2, p=6-->
+        <parameter address="6" value="2"/>
+        <!--idc=2, p=7-->
+        <parameter address="7" value="2"/>
+        <!--idc=2, p=8-->
+        <parameter address="8" value="2"/>
+        <!--idc=2, p=9-->
+        <parameter address="9" value="3"/>
+        <parameter address="10" value="3"/>
+        <parameter address="11" value="3"/>
+      </device_config>
+    </mrc_config>
+  </setup>
+</mesycontrol>
+"""
 
-    xml_tree   = config_xml.device_config_to_etree(cfg, context)
+def test_write_device_config():
+    device = cm.Device(bus=1, address=15, idc=20)
+    device.name = 'my test thing'
+    dest   = StringIO.StringIO()
+    param_names = dict()
 
-    print
-    print '==============='
-    print config_xml.xml_tree_to_string(xml_tree)
-    print '==============='
+    for i in range(10):
+        device.set_parameter(i, i*i)
+        param_names[i] = 'param %i' % i
 
-    parsed_cfg = config_xml.parse_device_config(xml_tree.getroot())
+    cxml.write_device_config(device, dest, param_names)
 
-    assert cfg.name         == parsed_cfg.name
-    assert cfg.description  == parsed_cfg.description
-    assert cfg.idc          == parsed_cfg.idc
-    assert cfg.bus          == parsed_cfg.bus
-    assert cfg.address      == parsed_cfg.address
-    assert cfg.rc           == parsed_cfg.rc
+    assert dest.getvalue() == expected
 
-    for i in range(50, 100):
-        assert parsed_cfg.contains_parameter(i)
-        param_cfg = parsed_cfg.get_parameter(i)
-        assert param_cfg.address == i
-        assert param_cfg.value   == i*2
-        assert param_cfg.alias   == str(i*2)
+def test_read_device_config():
+    source = StringIO.StringIO(expected)
 
-def test_mrc_config_xml():
-    context = app_context.Context(__file__)
-
-    mrc_cfg             = config.MRCConfig()
-    mrc_cfg.name        = 'foobar'
-    mrc_cfg.description = 'lorem ipsum'
-
-    connection_config                  = config.MRCConnectionConfig()
-    connection_config.serial_device    = '/dev/null'
-    connection_config.serial_baud_rate = 115200
-
-    mrc_cfg.connection_config = connection_config
-
-    for i in range(2):
-        dev_cfg         = config.DeviceConfig()
-        dev_cfg.name    = 'device %d' % i
-        dev_cfg.idc     = 17
-        dev_cfg.bus     = i
-        dev_cfg.address = 7
-        dev_cfg.rc      = True
-
-        for j in range(10):
-            dev_cfg.add_parameter(j, j+42)
-
-        mrc_cfg.add_device_config(dev_cfg)
-
-    xml_tree = config_xml.mrc_config_to_etree(mrc_cfg, context)
-
-    print
-    print '==============='
-    print config_xml.xml_tree_to_string(xml_tree)
-    print '==============='
-
-    parsed_mrc_cfg = config_xml.parse_mrc_config(xml_tree.getroot())
+    device = cxml.read_device_config(source)
     
-    assert mrc_cfg.name == parsed_mrc_cfg.name
-    assert mrc_cfg.description == parsed_mrc_cfg.description
-    assert mrc_cfg.connection_config.serial_device == parsed_mrc_cfg.connection_config.serial_device
-    assert mrc_cfg.connection_config.serial_baud_rate == parsed_mrc_cfg.connection_config.serial_baud_rate
+    assert device.name == 'my test thing'
+    assert device.idc  == 20
+    assert device.bus  == 1
+    assert device.address == 15
 
-    for i in range(2):
-        dev_cfg = parsed_mrc_cfg.get_device_config(i, 7)
-        assert dev_cfg.idc == 17
-        assert dev_cfg.bus == i
-        assert dev_cfg.address == 7
-        assert dev_cfg.rc == True
+    for i in range(10):
+        assert device.get_cached_parameter(i) == i*i
 
-def test_setup_config_xml():
-    context = app_context.Context(__file__)
+    assert not device.modified
 
-    setup = config.Setup()
-    setup.name = 'foobar setup'
-    setup.description = 'lorem setup'
+def test_write_setup():
+    import math
 
-    # single top-level DeviceConfig
-    dev_cfg = config.DeviceConfig()
-    dev_cfg.name        = 'foobar'
-    dev_cfg.description = 'lorem ipsum'
-    dev_cfg.idc         = 1
-    dev_cfg.bus         = 0
-    dev_cfg.address     = 15
-    dev_cfg.rc          = False
+    idc_to_param_names = {1:{}, 2:{}}
 
-    for i in range(50, 100):
-        dev_cfg.add_parameter(i, i*2, str(i*2))
+    for i in range(10):
+        idc_to_param_names[1][i] = 'idc=1, p=%i' % i
+        idc_to_param_names[2][i] = 'idc=2, p=%i' % i
 
-    setup.add_device_config(dev_cfg)
+    d1 = cm.Device(bus=0, address=0, idc=1)
+    d1.name = 'd1'
 
-    # MRC config
-    mrc_cfg             = config.MRCConfig()
-    mrc_cfg.name        = 'foobar'
-    mrc_cfg.description = 'lorem ipsum'
+    d2 = cm.Device(bus=1, address=5, idc=2)
+    d2.name = 'd2'
 
-    connection_config                  = config.MRCConnectionConfig()
-    connection_config.serial_device    = '/dev/null'
-    connection_config.serial_baud_rate = 115200
+    d3 = cm.Device(bus=0, address=7, idc=2)
+    d3.name = 'd3'
 
-    mrc_cfg.connection_config = connection_config
+    for i in range(12):
+        d1.set_parameter(i, i*i)
+        d2.set_parameter(i, i*i*i)
+        d3.set_parameter(i, math.sqrt(i))
 
-    for i in range(2):
-        dev_cfg         = config.DeviceConfig()
-        dev_cfg.name    = 'device %d' % i
-        dev_cfg.idc     = 17
-        dev_cfg.bus     = i
-        dev_cfg.address = 7
-        dev_cfg.rc      = True
+    mrc1 = cm.MRC(url='/dev/ttyUSB0')
+    mrc1.name = 'the_mrc'
+    mrc1.add_device(d1)
+    mrc1.add_device(d2)
 
-        for j in range(10):
-            dev_cfg.add_parameter(j, j+42)
+    mrc2 = cm.MRC(url='/dev/ttyUSB1')
+    mrc2.name = 'the_2nd_mrc'
+    mrc2.add_device(d3)
 
-        mrc_cfg.add_device_config(dev_cfg)
+    setup = cm.Setup()
+    setup.add_mrc(mrc1)
+    setup.add_mrc(mrc2)
 
-    setup.add_mrc_config(mrc_cfg)
+    dest = StringIO.StringIO()
 
-    # to xml
-    xml_tree = config_xml.setup_to_etree(setup, context)
+    cxml.write_setup(setup, dest, idc_to_param_names)
 
-    print
-    print '==============='
-    print config_xml.xml_tree_to_string(xml_tree)
-    print '==============='
+    assert dest.getvalue() == expected2
 
-    parsed_setup = config_xml.parse_setup(xml_tree.getroot())
+def test_read_setup():
+    source = StringIO.StringIO(expected2)
 
-    assert parsed_setup.name == setup.name
-    assert parsed_setup.description == setup.description
-    assert len(parsed_setup.get_device_configs()) == 1
-    assert parsed_setup.get_device_configs()[0].address == 15
-    assert len(parsed_setup.get_mrc_configs()) == 1
+    setup = cxml.read_setup(source)
 
-    parsed_mrc_cfg = parsed_setup.get_mrc_configs()[0]
-
-    assert 'foobar'         == parsed_mrc_cfg.name
-    assert 'lorem ipsum'    == parsed_mrc_cfg.description
-    assert '/dev/null'      == parsed_mrc_cfg.connection_config.serial_device
-    assert 115200           == parsed_mrc_cfg.connection_config.serial_baud_rate
-
-    for i in range(2):
-        dev_cfg = mrc_cfg.get_device_config(i, 7)
-        assert dev_cfg.idc == 17
-        assert dev_cfg.bus == i
-        assert dev_cfg.address == 7
-        assert dev_cfg.rc == True
-
-def test_value2xml_simple_types():
-    tb = ET.TreeBuilder()
-    tb.start("test", {})
-    config_xml.value2xml(tb, 42)
-    config_xml.value2xml(tb, 42.0)
-    config_xml.value2xml(tb, "42.0")
-    tb.end("test")
-    assert ET.tostring(tb.close()) == '<test><value type="int">42</value><value type="float">42.0</value><value type="str">42.0</value></test>'
-
-def test_value2xml_list():
-    tb = ET.TreeBuilder()
-    tb.start("test", {})
-    config_xml.value2xml(tb, [1, '2', 3.0])
-    tb.end("test")
-    assert ET.tostring(tb.close()) == '<test><value type="list"><value type="int">1</value><value type="str">2</value><value type="float">3.0</value></value></test>'
-
-def test_value2xml_dict():
-    tb = ET.TreeBuilder()
-    tb.start("test", {})
-    config_xml.value2xml(tb, {'key1': 3.14, 'key2': "foobar", 'key3': 0})
-    tb.end("test")
-    assert ET.tostring(tb.close()) == '<test><value type="dict"><key name="key1"><value type="float">3.14</value></key><key name="key2"><value type="str">foobar</value></key><key name="key3"><value type="int">0</value></key></value></test>'
-
-def test_value2xml_nested():
-    tb = ET.TreeBuilder()
-    tb.start("test", {})
-    config_xml.value2xml(tb,
-            ['item1', {'i2k1': 'foo', 'i2k2': 0x42, 'i2k3': ['holy', 'moly']}, 'item3'])
-    tb.end("test")
-    assert ET.tostring(tb.close()) == '<test><value type="list"><value type="str">item1</value><value type="dict"><key name="i2k1"><value type="str">foo</value></key><key name="i2k2"><value type="int">66</value></key><key name="i2k3"><value type="list"><value type="str">holy</value><value type="str">moly</value></value></key></value><value type="str">item3</value></value></test>'
-
-def test_value2xml_type_error():
-    class MyClass(object):
-        pass
-
-    tb = ET.TreeBuilder()
-    tb.start("test", {})
-    assert_raises(TypeError, config_xml.value2xml, tb, MyClass())
-    tb.end("test")
-
-def test_xml2value():
-    def do_test(value):
-        tb = ET.TreeBuilder()
-        config_xml.value2xml(tb, value)
-        xml_value = config_xml.xml2value(tb.close())
-        assert value == xml_value
-
-    do_test(42)
-    do_test(42.0)
-    do_test("42.0")
-    do_test([1, 2, 3])
-    do_test({'key1': 3.14, 'key2': "foobar", 'key3': 0})
-    do_test(['item1', {'i2k1': 'foo', 'i2k2': 0x42, 'i2k3': ['holy', 'moly']}, 'item3'])
+    assert not setup.modified
+    assert len(setup.get_mrcs()) == 2
+    assert setup.get_mrc('/dev/ttyUSB0').get_device(0, 0).idc == 1
+    assert setup.get_mrc('/dev/ttyUSB1').get_device(0, 7).idc == 2
