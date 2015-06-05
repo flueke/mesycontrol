@@ -130,11 +130,11 @@ class Device(QtCore.QObject):
     mrc_changed         = pyqtSignal(object)
     parameter_changed   = pyqtSignal(int, object)   #: address, value
 
-    def __init__(self, bus, address, idc, parent=None):
+    def __init__(self, bus=None, address=None, idc=None, parent=None):
         super(Device, self).__init__(parent)
-        self._bus       = int(bus)
-        self._address   = int(address)
-        self._idc       = int(idc)
+        self._bus       = int(bus) if bus is not None else None
+        self._address   = int(address) if address is not None else None
+        self._idc       = int(idc) if idc is not None else None
         self._mrc       = None
         self._memory    = dict()
 
@@ -217,6 +217,7 @@ class Device(QtCore.QObject):
         return self._memory.get(address, None)
 
     def set_cached_parameter(self, address, value):
+        value = int(value)
         changed = self.get_cached_parameter(address) != value
         self._memory[address] = value
         if changed:
