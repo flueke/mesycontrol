@@ -137,6 +137,8 @@ expected2 = """<?xml version="1.0" ?>
 </mesycontrol>
 """
 
+print expected
+
 def test_write_device_config():
     device = cm.Device(bus=1, address=15, idc=20)
     device.name = 'my test thing'

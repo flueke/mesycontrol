@@ -35,10 +35,10 @@
 from xml.dom import minidom
 from xml.etree.ElementTree import TreeBuilder
 from xml.etree import ElementTree
-import logging
 
 import config_model as cm
-log = logging.getLogger(__name__)
+
+version = 1
 
 def read_setup(source):
     """Load a Setup from the given source.

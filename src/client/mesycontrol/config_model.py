@@ -9,8 +9,6 @@ from qt import pyqtSignal
 import basic_model as bm
 import future
 
-_version_ = 1
-
 def modifies(f):
     """Method decorator which executes `wrapped_object.set_modified(True)'
     if the wrapped method returns a non-false value."""
