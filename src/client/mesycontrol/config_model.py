@@ -9,6 +9,8 @@ from qt import pyqtSignal
 import basic_model as bm
 import future
 
+_version_ = 1
+
 def modifies(f):
     """Method decorator which executes `wrapped_object.set_modified(True)'
     if the wrapped method returns a non-false value."""
@@ -80,7 +82,7 @@ class MRC(bm.MRC):
     modified_changed    = pyqtSignal(bool)
     name_changed        = pyqtSignal(str)
 
-    def __init__(self, url, parent=None):
+    def __init__(self, url=None, parent=None):
         super(MRC, self).__init__(url, parent)
         self._modified = False
         self._name = str()
@@ -130,11 +132,15 @@ class MRC(bm.MRC):
 class Device(bm.Device):
     modified_changed    = pyqtSignal(bool)
     name_changed        = pyqtSignal(str)
+    extension_added     = pyqtSignal(str, object)
+    extension_changed   = pyqtSignal(str, object)
+    extension_removed   = pyqtSignal(str, object)
 
-    def __init__(self, bus, address, idc, parent=None):
+    def __init__(self, bus=None, address=None, idc=None, parent=None):
         super(Device, self).__init__(bus, address, idc, parent)
         self._modified = False
         self._name = str()
+        self._extensions = dict()
 
     set_modified = _set_modified
 
@@ -180,5 +186,32 @@ class Device(bm.Device):
 
         return bm.ResultFuture().set_result(result)
 
+    @modifies
+    def set_extension(self, name, value):
+        is_new = name not in self._extensions
+
+        if self._extensions.get(name, None) != value:
+            self._extensions[name] = value
+            if is_new:
+                self.extension_added.emit(name, value)
+            else:
+                self.extension_changed.emit(name, value)
+
+            return True
+
+    def get_extension(self, name):
+        return self._extensions[name]
+
+    def get_extensions(self):
+        return dict(self._extensions)
+
+    @modifies
+    def remove_extension(self, name):
+        value = self.get_extension(name)
+        del self._extensions[name]
+        self.extension_removed.emit(name, value)
+        return True
+
     modified    = pyqtProperty(bool, is_modified, set_modified, notify=modified_changed)
     name        = pyqtProperty(str, get_name, set_name, notify=name_changed)
+    extensions  = pyqtProperty(dict, get_extensions)
