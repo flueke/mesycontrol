@@ -9,10 +9,10 @@ import logging
 
 import util
 
-class IncompleteFuture(Exception):
+class IncompleteFuture(RuntimeError):
     pass
 
-class FutureIsDone(Exception):
+class FutureIsDone(RuntimeError):
     pass
 
 class Future(object):
