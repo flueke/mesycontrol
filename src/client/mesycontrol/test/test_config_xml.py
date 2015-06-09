@@ -2,13 +2,14 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
+import difflib
 import StringIO
 
 from .. import config_model as cm
 from .. import config_xml as cxml
 
 expected = """<?xml version="1.0" ?>
-<mesycontrol>
+<mesycontrol version="1">
   <device_config>
     <idc>20</idc>
     <bus>1</bus>
@@ -39,7 +40,7 @@ expected = """<?xml version="1.0" ?>
 """
 
 expected2 = """<?xml version="1.0" ?>
-<mesycontrol>
+<mesycontrol version="1">
   <setup>
     <mrc_config>
       <url>/dev/ttyUSB0</url>
@@ -137,8 +138,6 @@ expected2 = """<?xml version="1.0" ?>
 </mesycontrol>
 """
 
-print expected
-
 def test_write_device_config():
     device = cm.Device(bus=1, address=15, idc=20)
     device.name = 'my test thing'
@@ -151,7 +150,16 @@ def test_write_device_config():
 
     cxml.write_device_config(device, dest, param_names)
 
-    assert dest.getvalue() == expected
+    actual = dest.getvalue()
+
+    try:
+        assert actual == expected
+    except AssertionError:
+        print "test_write_device_config diff:"
+        for l in difflib.unified_diff(expected.splitlines(), actual.splitlines(),
+                "expected", "actual"):
+            print l
+        raise
 
 def test_read_device_config():
     source = StringIO.StringIO(expected)
@@ -208,7 +216,16 @@ def test_write_setup():
 
     cxml.write_setup(setup, dest, idc_to_param_names)
 
-    assert dest.getvalue() == expected2
+    actual = dest.getvalue()
+
+    try:
+        assert actual == expected2
+    except AssertionError:
+        print "test_write_device_config diff:"
+        for l in difflib.unified_diff(expected2.splitlines(), actual.splitlines(),
+                "expected", "actual"):
+            print l
+        raise
 
 def test_read_setup():
     source = StringIO.StringIO(expected2)

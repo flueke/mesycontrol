@@ -34,7 +34,7 @@
 
 from xml.dom import minidom
 from xml.etree.ElementTree import TreeBuilder
-from xml.etree import ElementTree
+from xml.etree import ElementTree as ET
 
 import config_model as cm
 
@@ -43,7 +43,7 @@ version = 1
 def read_setup(source):
     """Load a Setup from the given source.
     Source may be a filename or a file like object."""
-    et   = ElementTree.parse(source)
+    et   = ET.parse(source)
     root = et.getroot()
 
     if root.tag != 'mesycontrol':
@@ -65,10 +65,10 @@ def write_setup(setup, dest, idc_to_parameter_names=dict()):
     param_address -> param_name.
     """
     tb = CommentTreeBuilder()
-    tb.start('mesycontrol', {})
+    tb.start('mesycontrol', {'version': str(version)})
     _build_setup_tree(setup, idc_to_parameter_names, tb)
     tb.end('mesycontrol')
-    tree = ElementTree.ElementTree(tb.close())
+    tree = ET.ElementTree(tb.close())
     data = _xml_tree_to_string(tree)
 
     try:
@@ -78,7 +78,7 @@ def write_setup(setup, dest, idc_to_parameter_names=dict()):
             fp.write(data)
 
 def read_device_config(source):
-    et   = ElementTree.parse(source)
+    et   = ET.parse(source)
     root = et.getroot()
 
     if root.tag != 'mesycontrol':
@@ -92,23 +92,23 @@ def write_device_config(device_config, dest, parameter_names=dict()):
     parameter_name. These names will be added as comments in the resulting XML.
     """
     tb = CommentTreeBuilder()
-    tb.start('mesycontrol', {})
+    tb.start('mesycontrol', {'version': str(version)})
     _build_device_tree(device_config, parameter_names, tb)
     tb.end('mesycontrol')
-    tree = ElementTree.ElementTree(tb.close())
+    tree = ET.ElementTree(tb.close())
     data = _xml_tree_to_string(tree)
 
-    try:
+    if hasattr(dest, 'write') and callable(dest.write):
         dest.write(data)
-    except Exception:
+    else:
         with open(dest, 'w') as fp:
             fp.write(data)
 
 class CommentTreeBuilder(TreeBuilder):
     def comment(self, data):
-        self.start(ElementTree.Comment, {})
+        self.start(ET.Comment, {})
         self.data(data)
-        self.end(ElementTree.Comment)
+        self.end(ET.Comment)
 
 def _add_attribute_tags(tb, obj, attributes):
     for attr in attributes:
@@ -207,7 +207,7 @@ def _add_tag(tb, tag, text=None, attrs = {}):
     tb.end(tag)
 
 def _xml_tree_to_string(tree):
-    ugly   = ElementTree.tostring(tree.getroot())
+    ugly   = ET.tostring(tree.getroot())
     pretty = minidom.parseString(ugly).toprettyxml(indent='  ')
     return pretty
 
