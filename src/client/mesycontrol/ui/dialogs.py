@@ -16,13 +16,12 @@ class EatReturnCombo(QtGui.QComboBox):
         if e.key() in (Qt.Key_Enter, Qt.Key_Return):
             e.accept() # accept the event so it won't be propagated
 
-# TODO: check if resulting url is in urls_in_use
-# TODO: add name and connect fields (if connect is displayed should be selectable by the user)
 class AddMRCDialog(QtGui.QDialog):
-    Result = collections.namedtuple("Result", "url name connect")
+    Result = collections.namedtuple("Result", "url connect")
     SERIAL, TCP, MC = range(3)
 
-    def __init__(self, context, serial_ports, urls_in_use=list(), title="Add MRC", parent=None):
+    def __init__(self, context, serial_ports, urls_in_use=list(), url=None,
+            do_connect_default=False, title="Add MRC", parent=None):
         super(AddMRCDialog, self).__init__(parent)
         self.urls_in_use = urls_in_use
         uic.loadUi(context.find_data_file('mesycontrol/ui/connect_dialog.ui'), self)
@@ -33,6 +32,7 @@ class AddMRCDialog(QtGui.QDialog):
         self.le_mesycontrol_host.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+'), None))
         self.le_tcp_host.setText('localhost')
         self.le_mesycontrol_host.setText('localhost')
+        self.cb_connect.setChecked(do_connect_default)
 
         for port in serial_ports:
             self.combo_serial_port.addItem(port)
@@ -44,16 +44,25 @@ class AddMRCDialog(QtGui.QDialog):
             combo.currentIndexChanged.connect(self._validate_inputs)
             combo.editTextChanged.connect(self._validate_inputs)
 
+        for spin in self.findChildren(QtGui.QSpinBox):
+            spin.valueChanged.connect(self._validate_inputs)
+
         self.stacked_widget.currentChanged.connect(self._validate_inputs)
         self._validate_inputs()
 
         self._result = None
 
-    # TODO: check if resulting url is in use
+        if url is not None:
+            self._set_url(url)
+
     def _validate_inputs(self):
         page_widget = self.stacked_widget.currentWidget()
         is_ok = all(le.hasAcceptableInput() for le in page_widget.findChildren(QtGui.QLineEdit))
+        is_ok = is_ok and not self._is_url_in_use(self._get_current_url())
         self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(is_ok)
+
+    def _is_url_in_use(self, url):
+        return len(self.urls_in_use) and any(util.mrc_urls_match(url, u) for u in self.urls_in_use)
 
     def _get_current_url(self):
         idx = self.stacked_widget.currentIndex()
@@ -66,19 +75,53 @@ class AddMRCDialog(QtGui.QDialog):
 
         if idx == AddMRCDialog.TCP:
             return util.build_connection_url(
-                    host=self.le_tcp_host.text(),
+                    host=str(self.le_tcp_host.text()),
                     port=self.spin_tcp_port.value())
 
         if idx == AddMRCDialog.MC:
             return util.build_connection_url(
-                    mc_host=self.le_mesycontrol_host.text(),
+                    mc_host=str(self.le_mesycontrol_host.text()),
                     mc_port=self.spin_mesycontrol_port.value())
+
+    def _set_url(self, url):
+        d = util.parse_connection_url(url)
+
+        if 'serial_port' in d:
+            idx = self.combo_serial_port.findText(d['serial_port'])
+            if idx < 0:
+                self.combo_serial_port.addItem(d['serial_port'])
+                idx = self.combo_serial_port.count() - 1
+            self.combo_serial_port.setCurrentIndex(idx)
+
+            baud_text = str(d['baud_rate'])
+
+            if baud_text == '0':
+                baud_text = 'auto'
+
+            idx = self.combo_baud_rate.findText(baud_text)
+
+            if idx < 0:
+                self.combo_baud_rate.addItem(baud_text)
+                idx = self.combo_baud_rate.count() - 1
+
+            self.combo_baud_rate.setCurrentIndex(idx)
+
+            self.stacked_widget.setCurrentIndex(AddMRCDialog.SERIAL)
+
+        if 'host' in d:
+            self.le_tcp_host.setText(d['host'])
+            self.spin_tcp_port.setValue(d['port'])
+            self.stacked_widget.setCurrentIndex(AddMRCDialog.TCP)
+
+        if 'mc_host' in d:
+            self.le_mesycontrol_host.setText(d['mc_host'])
+            self.spin_mesycontrol_port.setValue(d['mc_port'])
+            self.stacked_widget.setCurrentIndex(AddMRCDialog.MC)
 
     def accept(self):
         url  = self._get_current_url()
-        name = None
-        connect = False
-        self._result = AddMRCDialog.Result(url, name, connect)
+        connect = self.cb_connect.isChecked()
+        self._result = AddMRCDialog.Result(url, connect)
         super(AddMRCDialog, self).accept()
 
     def result(self):
@@ -87,8 +130,7 @@ class AddMRCDialog(QtGui.QDialog):
 class AddDeviceDialog(QtGui.QDialog):
     Result = collections.namedtuple("Result", "bus address idc name")
 
-    def __init__(self, bus=None,
-            available_addresses=[(b, d) for b in bm.BUS_RANGE for d in bm.DEV_RANGE],
+    def __init__(self, bus=None, available_addresses=bm.ALL_DEVICE_ADDRESSES,
             known_idcs=list(), allow_custom_idcs=True, title="Add Device", parent=None):
         """
         Dialog constructor.
@@ -201,11 +243,10 @@ class AddDeviceDialog(QtGui.QDialog):
 
 if __name__ == "__main__":
     from functools import partial
+    import sys
 
-    #QtGui.QApplication.setDesktopSettingsAware(False)
-    a = QtGui.QApplication([])
-    #a.setStyle(QtGui.QStyleFactory.create("Cleanlooks"))
-    #a.setStyle(QtGui.QStyleFactory.create("Plastique"))
+    a = QtGui.QApplication(sys.argv)
+
     dialogs = list()
     d = AddDeviceDialog()
     dialogs.append(d)

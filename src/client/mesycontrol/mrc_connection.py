@@ -64,6 +64,8 @@ class AbstractConnection(QtCore.QObject):
     def get_status(self):
         raise NotImplementedError()
 
+    url = property(lambda self: self.get_url())
+
 class MRCConnection(AbstractConnection):
     def __init__(self, host, port, parent=None):
         super(MRCConnection, self).__init__(parent)

@@ -31,15 +31,21 @@ from mesycontrol.qt import uic
 from mesycontrol.ui.dialogs import AddDeviceDialog
 from mesycontrol.ui.dialogs import AddMRCDialog
 
+log = logging.getLogger('gui')
+
 def add_mrc_connection(registry, url, do_connect):
     """Adds an MRC connection using the given url to the application registry.
     If `do_connect' is True this function will start a connection attempt and
     return the corresponding Future object. Otherwise the newly added MRC will
     be in disconnected state and None is returned."""
-    mrc = hm.MRC(url)
-    mrc.connection = mrc_connection.factory(url=url)
-    mrc.controller = hardware_controller.Controller()
+
+    connection      = mrc_connection.factory(url=url)
+    controller      = hardware_controller.Controller(connection)
+    mrc             = hm.MRC(url)
+    mrc.controller  = controller
+
     registry.hw.add_mrc(mrc)
+
     if do_connect:
         return mrc.connect()
 
@@ -50,9 +56,8 @@ def run_add_mrc_config_dialog(context, registry, parent_widget=None):
     dialog.setModal(True)
 
     def accepted():
-        url, name, connect = dialog.result()
+        url, connect = dialog.result()
         mrc = cm.MRC(url)
-        mrc.name = name
         registry.cfg.add_mrc(mrc)
 
         if connect:
@@ -65,6 +70,32 @@ def run_add_mrc_config_dialog(context, registry, parent_widget=None):
     dialog.accepted.connect(accepted)
     dialog.show()
 
+def run_edit_mrc_config_dialog(context, registry, mrc, parent_widget=None):
+    urls_in_use = [_mrc.url for _mrc in registry.cfg.get_mrcs() if mrc.url != _mrc.url]
+    serial_ports = util.list_serial_ports()
+    dialog = AddMRCDialog(context, serial_ports=serial_ports, urls_in_use=urls_in_use,
+            url=mrc.url, parent=parent_widget)
+    dialog.setModal(True)
+
+    def accepted():
+        url, connect = dialog.result()
+
+        if url != mrc.url:
+            # The url is new. Update the config. After this step mrc.cfg should be
+            # None as the config should have been moved to a different
+            # app_model.MRC instance with the new URL.
+            mrc.cfg.url = url
+
+        if connect:
+            hw_mrc = registry.hw.get_mrc(url)
+            if not hw_mrc:
+                add_mrc_connection(registry, url, connect)
+            else:
+                hw_mrc.connect()
+
+    dialog.accepted.connect(accepted)
+    dialog.show()
+
 def run_add_mrc_connection_dialog(context, registry, parent_widget=None):
     urls_in_use = [mrc.url for mrc in registry.hw.get_mrcs()]
     serial_ports = util.list_serial_ports()
@@ -73,30 +104,34 @@ def run_add_mrc_connection_dialog(context, registry, parent_widget=None):
 
     def accepted():
         try:
-            url, name, connect = dialog.result()
+            url, connect = dialog.result()
             add_mrc_connection(registry, url, connect)
         except Exception as e:
+            log.exception("run_add_mrc_connection_dialog")
             QtGui.QMessageBox.critical(parent_widget, "Error", str(e))
 
     dialog.accepted.connect(accepted)
     dialog.show()
 
 def run_add_device_config_dialog(context, registry, mrc, bus=None, parent_widget=None):
-    aa = [(b, d) for b in bm.BUS_RANGE for d in bm.DEV_RANGE
-            if not mrc.cfg or not mrc.cfg.get_device(b, d)]
-    dialog = AddDeviceDialog(bus=bus, available_addresses=aa, known_idcs=context.get_device_names(), parent=parent_widget)
-    dialog.setModal(True)
+    try:
+        aa = [(b, d) for b in bm.BUS_RANGE for d in bm.DEV_RANGE
+                if not mrc.cfg or not mrc.cfg.get_device(b, d)]
+        dialog = AddDeviceDialog(bus=bus, available_addresses=aa, known_idcs=context.get_device_names(), parent=parent_widget)
+        dialog.setModal(True)
 
-    def accepted():
-        bus, address, idc, name = dialog.result()
-        device = cm.Device(bus, address, idc)
-        device.name = name
-        if not mrc.cfg:
-            registry.cfg.add_mrc(cm.MRC(mrc.url))
-        mrc.cfg.add_device(device)
+        def accepted():
+            bus, address, idc, name = dialog.result()
+            device = cm.Device(bus, address, idc)
+            device.name = name
+            if not mrc.cfg:
+                registry.cfg.add_mrc(cm.MRC(mrc.url))
+            mrc.cfg.add_device(device)
 
-    dialog.accepted.connect(accepted)
-    dialog.show()
+        dialog.accepted.connect(accepted)
+        dialog.show()
+    except RuntimeError as e:
+        QtGui.QMessageBox.critical(parent_widget, "Error", str(e))
 
 class GUIApplication(object):
     def __init__(self, mainwindow):
@@ -118,14 +153,25 @@ class GUIApplication(object):
         menu = QtGui.QMenu()
 
         if isinstance(node, ctm.SetupNode):
+            setup = node.ref.cfg
+            menu.addAction("Load Setup")
+            if len(setup):
+                if len(setup.filename):
+                    menu.addAction("Save")
+                menu.addAction("Save As")
             menu.addAction("Add MRC").triggered.connect(partial(run_add_mrc_config_dialog,
                 context=self.context, registry=self.registry, parent_widget=self.treeview))
-            menu.addAction("Save As")
 
         if isinstance(node, ctm.MRCNode):
             menu.addAction("Add Device").triggered.connect(partial(run_add_device_config_dialog,
                 context=self.context, registry=self.registry, mrc=node.ref, parent_widget=self.treeview))
-            menu.addAction("Remove MRC")
+
+            def remove_mrc():
+                self.registry.cfg.remove_mrc(node.ref.cfg)
+
+            menu.addAction("Edit MRC").triggered.connect(partial(run_edit_mrc_config_dialog,
+                context=self.context, registry=self.registry, mrc=node.ref, parent_widget=self.treeview))
+            menu.addAction("Remove MRC").triggered.connect(remove_mrc)
 
         if isinstance(node, ctm.BusNode):
             menu.addAction("Add Device").triggered.connect(partial(run_add_device_config_dialog,

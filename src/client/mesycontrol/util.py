@@ -240,6 +240,15 @@ def build_connection_url(serial_port=None, baud_rate=0, host=None, port=4001, mc
 
     raise ValueError("Invalid arguments given")
 
+def mrc_urls_match(url1, url2):
+    d1 = parse_connection_url(url1)
+    d2 = parse_connection_url(url2)
+
+    try:
+        return d1['serial_port'] == d2['serial_port']
+    except KeyError:
+        return d1 == d2
+
 def make_logging_source_adapter(module_name, object_instance):
     logger_name = "%s.%s" % (module_name, object_instance.__class__.__name__)
 

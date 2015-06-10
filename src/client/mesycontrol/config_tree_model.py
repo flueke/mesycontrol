@@ -15,8 +15,6 @@ class ConfigTreeModel(btm.BasicTreeModel):
         return 1
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return str(section)
         return None
 
     def data(self, idx, role=Qt.DisplayRole):
@@ -41,15 +39,22 @@ class SetupNode(btm.BasicTreeNode):
         if setup.cfg is not None:
             setup.cfg.filename_changed.connect(f)
             setup.cfg.modified_changed.connect(f)
+            setup.cfg.mrc_added.connect(f)
+            setup.cfg.mrc_removed.connect(f)
         f()
            
     def data(self, column, role):
-        setup = self.ref.cfg
         if column == 0 and role == Qt.DisplayRole:
-            ret = setup.filename if setup is not None and len(setup.filename) else "<unsaved setup>"
-            if setup is not None and setup.modified:
-                ret += "*"
-            return ret
+            setup = self.ref.cfg
+
+            if len(setup):
+                ret = setup.filename if len(setup.filename) else "<unsaved setup>"
+
+                if setup.modified:
+                    ret += "*"
+                return ret
+
+            return "<empty setup>"
 
 class MRCNode(btm.BasicTreeNode):
     def __init__(self, mrc, parent=None):
@@ -63,10 +68,10 @@ class MRCNode(btm.BasicTreeNode):
 
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:
-            if self.ref.cfg:
-                return "%s | cfg=%s" % (self.ref.url, bool(self.ref.cfg))
-            #mrc = self.ref
-            #has_cfg = bool(mrc.cfg)
+            mrc = self.ref
+            app_url = mrc.url
+            cfg_url = mrc.cfg.url if mrc.cfg else str()
+            return "app_url=%s | cfg_url=%s" % (app_url, cfg_url)
 
 class BusNode(btm.BasicTreeNode):
     def __init__(self, bus_number, parent=None):
@@ -94,6 +99,6 @@ class DeviceNode(btm.BasicTreeNode):
             #        self.ref.idc if self.ref is not None else "<not in config>")
             device = self.ref
             if device.cfg:
-                address = device.address
-                idc = device.idc
+                address = device.cfg.address
+                idc = device.cfg.idc
                 return "%X | idc=%d | cfg=%s" % (address, idc, bool(device.cfg))

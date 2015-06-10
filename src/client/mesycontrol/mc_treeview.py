@@ -2,8 +2,10 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from qt import QtGui
 from qt import pyqtSignal
+from qt import Qt
+from qt import QtCore
+from qt import QtGui
 from functools import partial
 
 import config_tree_model as ctm
@@ -119,6 +121,33 @@ class MCTreeDirector(object):
         hw_node  = self.hw_model.find_node_by_ref(device)
         self.hw_model.remove_node(hw_node)
 
+class DoubleClickSplitterHandle(QtGui.QSplitterHandle):
+    """Double click support for QSplitterHandle."""
+
+    doubleClicked = pyqtSignal()
+
+    def __init__(self, orientation, parent):
+        super(DoubleClickSplitterHandle, self).__init__(orientation, parent)
+        self.timer = QtCore.QTimer()
+        self.timer.setSingleShot(True)
+        self.timer.setInterval(200)
+
+    def mouseDoubleClickEvent(self, event):
+        self.timer.start()
+
+    def mouseReleaseEvent(self, event):
+        if self.timer.isActive():
+            self.timer.stop()
+            self.doubleClicked.emit()
+
+class DoubleClickSplitter(QtGui.QSplitter):
+    """QSplitter using DoubleClickSplitterHandles."""
+    def __init__(self, orientation=Qt.Horizontal, parent=None):
+        super(DoubleClickSplitter, self).__init__(orientation, parent)
+
+    def createHandle(self):
+        return DoubleClickSplitterHandle(self.orientation(), self)
+
 class MCTreeView(QtGui.QWidget):
     hw_context_menu_requested   = pyqtSignal(object, object, object, object) #: node, idx, position, view
     cfg_context_menu_requested  = pyqtSignal(object, object, object, object) #: node, idx, position, view
@@ -156,14 +185,36 @@ class MCTreeView(QtGui.QWidget):
         self.cfg_view.expandAll()
         self.hw_view.expandAll()
 
-        def on_splitter_moved(pos, index):
-            print "splitter moved: pos=%d, index=%d" % (pos, index)
+        self.splitter_buttons = QtGui.QWidget()
+        splitter_buttons_layout = QtGui.QVBoxLayout(self.splitter_buttons)
+        buttons = [QtGui.QPushButton("foo"), QtGui.QPushButton("bar")]
+        for b in buttons:
+            b.setMaximumSize(QtCore.QSize(16, 16))
+            policy = b.sizePolicy()
+            policy.setHorizontalPolicy(QtGui.QSizePolicy.Maximum)
+            b.setSizePolicy(policy)
+            b.setContentsMargins(0, 0, 0, 0)
+            splitter_buttons_layout.addWidget(b)
+        splitter_buttons_layout.addStretch()
+        splitter_buttons_layout.setContentsMargins(0, 0, 0, 0)
+        splitter_buttons_layout.setSizeConstraint(QtGui.QLayout.SetMaximumSize)
 
-        splitter = QtGui.QSplitter()
-        splitter.splitterMoved.connect(on_splitter_moved)
+        splitter = DoubleClickSplitter()
         splitter.setChildrenCollapsible(False)
         splitter.addWidget(self.hw_view)
+        splitter.addWidget(self.splitter_buttons)
         splitter.addWidget(self.cfg_view)
+
+        def on_handle_double_clicked():
+            # make hw and cfg views the same size which will result in the
+            # splitter buttons being centered
+            sizes = splitter.sizes()
+            size  = (sizes[0] + sizes[2]) / 2
+            sizes[0], sizes[2] = size, size
+            splitter.setSizes(sizes)
+
+        splitter.handle(1).doubleClicked.connect(on_handle_double_clicked)
+        splitter.handle(2).doubleClicked.connect(on_handle_double_clicked)
 
         layout = QtGui.QGridLayout(self)
         layout.addWidget(splitter, 0, 0)

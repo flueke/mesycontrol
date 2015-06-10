@@ -9,46 +9,78 @@ import basic_model as bm
 import util
 
 class MRC(bm.MRC):
+    connected                   = pyqtSignal()
+    connecting                  = pyqtSignal(object)
+    disconnected                = pyqtSignal()
+    connection_error            = pyqtSignal(object)    #: error object
+
+    #rc_changed                  = pyqtSignal(int, int, bool) #: bus, dev, rc 
+    #address_conflict_changed    = pyqtSignal(int, int, bool) #: bus, dev, conflict
+
     def __init__(self, url, parent=None):
         super(MRC, self).__init__(url, parent)
         self.log   = util.make_logging_source_adapter(__name__, self)
-        self.controller = None
-        self.connection = None
+        self._controller = None
 
-    def set_connection(self, connection):
-        self._connection = connection
-        if self.controller is not None:
-            self.controller.connection = self.connection
-
-    def get_connection(self):
-        return self._connection
+        self._connected  = False
+        self._connecting = False
+        self._disconnected = True
 
     def set_controller(self, controller):
+        """Set the hardware controller this MRC should use.
+        The MRC holds a strong reference to the controller."""
+        if self.controller is not None:
+            self.controller.mrc = None
+
         self._controller = controller
+
         if self.controller is not None:
             self.controller.mrc = self
-            self.controller.connection = self.connection
 
     def get_controller(self):
         return self._controller
 
-    connection = pyqtProperty(object, get_connection, set_connection)
-    controller = pyqtProperty(object, get_controller, set_controller)
+    def get_connection(self):
+        return self.controller.connection
 
     def connect(self):
-        return self.connection.connect()
+        return self.controller.connect()
 
     def disconnect(self):
-        return self.connection.disconnect()
+        return self.controller.disconnect()
 
     def is_connected(self):
-        return self.connection.is_connected()
+        return self._connected
+
+    def set_connected(self):
+        self._connected = True
+        self._connecting = False
+        self._disconnected = False
+        self.connected.emit()
 
     def is_connecting(self):
-        return self.connection.is_connecting()
+        return self._connecting
+
+    def set_connecting(self, the_future):
+        self._connected = False
+        self._connecting = True
+        self._disconnected = False
+        self.connecting.emit(the_future)
 
     def is_disconnected(self):
-        return self.connection.is_disconnected()
+        return self._disconnected
+
+    def set_disconnected(self):
+        self._connected = False
+        self._connecting = False
+        self._disconnected = True
+        self.disconnected.emit()
+
+    def set_connection_error(self, error):
+        self._connected = False
+        self._connecting = False
+        self._disconnected = True
+        self.connection_error.emit(error)
 
     def read_parameter(self, bus, device, address):
         return self.controller.read_parameter(bus, device, address)
@@ -59,12 +91,24 @@ class MRC(bm.MRC):
     def scanbus(self, bus):
         return self.controller.scanbus(bus)
 
+    connection = pyqtProperty(object, get_connection)
+    controller = pyqtProperty(object, get_controller, set_controller)
+
+
 class Device(bm.Device):
-    address_conflict_changed = pyqtSignal(bool)
+    connected                   = pyqtSignal()
+    connecting                  = pyqtSignal(object)
+    disconnected                = pyqtSignal()
+    connection_error            = pyqtSignal(object)    #: error object
+
+    address_conflict_changed    = pyqtSignal(bool)
+    rc_changed                  = pyqtSignal(bool)
 
     def __init__(self, bus, address, idc, parent=None):
         super(Device, self).__init__(bus, address, idc, parent)
+
         self._address_conflict = False
+        self._rc = False
 
     def read_parameter(self, address):
         def on_parameter_read(f):
@@ -95,10 +139,23 @@ class Device(bm.Device):
         return self._address_conflict
 
     def set_address_conflict(self, conflict):
+        conflict = bool(conflict)
         if self.address_conflict != conflict:
-            self._address_conflict = bool(conflict)
+            self._address_conflict = conflict
             self.address_conflict_changed.emit(self.address_conflict)
 
+    def get_rc(self):
+        return self._rc
+
+    def set_rc(self, rc):
+        rc = bool(rc)
+        if self.rc != rc:
+            self._rc = rc
+            self.rc_changed.emit(self.rc)
+
     controller = pyqtProperty(object, get_controller)
+
     address_conflict = pyqtProperty(bool, has_address_conflict, set_address_conflict,
             notify=address_conflict_changed)
+
+    rc = pyqtProperty(bool, get_rc, set_rc, notify=rc_changed)

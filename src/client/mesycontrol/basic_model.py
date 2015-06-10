@@ -12,9 +12,13 @@ import weakref
 import future
 import util
 
-BUS_RANGE   = range(2)
-DEV_RANGE   = range(16)
-PARAM_RANGE = range(256)
+# TODO: add value range but take negative values returned by the MRC command
+# line into account
+
+BUS_RANGE   = xrange(2)
+DEV_RANGE   = xrange(16)
+PARAM_RANGE = xrange(256)
+ALL_DEVICE_ADDRESSES = [(bus, dev) for bus in BUS_RANGE for dev in DEV_RANGE]
 
 class MRCRegistry(QtCore.QObject):
     """Manages MRC instances"""
@@ -48,6 +52,12 @@ class MRCRegistry(QtCore.QObject):
 
     def get_mrcs(self):
         return list(self._mrcs)
+
+    def __len__(self):
+        return len(self._mrcs)
+
+    def __iter__(self):
+        return iter(self._mrcs)
 
     mrcs = pyqtProperty(list, lambda self: self.get_mrcs())
 
@@ -102,16 +112,22 @@ class MRC(QtCore.QObject):
             return list(self._devices)
         return [d for d in self._devices if d.bus == bus]
 
+    def __iter__(self):
+        return iter(self._devices)
+
     url = pyqtProperty(str,
             fget=lambda self: self.get_url(),
             fset=lambda self, v: self.set_url(v),
             notify=url_changed)
 
 class ReadResult(collections.namedtuple("ReadResult", "bus device address value")):
+    """The result type for a read operation. A namedtuple with added conversion to int."""
     def __int__(self):
         return self.value
 
 class SetResult(collections.namedtuple("SetResult", ReadResult._fields + ('requested_value',))):
+    """The result type for a set operation. Adds requested_value to the fields
+    of ReadResult. A namedtuple with added conversion to int."""
     def __int__(self):
         return self.value
 
@@ -121,7 +137,7 @@ class ResultFuture(future.Future):
     adds an int() conversion method to easily obtain the result value.
     """
     def __int__(self):
-        return int(self.result().value)
+        return int(self.result())
 
 class Device(QtCore.QObject):
     bus_changed         = pyqtSignal(int)
@@ -139,9 +155,11 @@ class Device(QtCore.QObject):
         self._memory    = dict()
 
     def get_bus(self):
+        """Returns the devices bus number."""
         return self._bus
 
     def set_bus(self, bus):
+        """Set the devices bus number. Bus must be in BUS_RANGE."""
         if self.bus != bus:
             bus       = int(bus)
             if bus not in BUS_RANGE:
@@ -151,9 +169,11 @@ class Device(QtCore.QObject):
             return True
 
     def get_address(self):
+        """Get the devices address on the bus."""
         return self._address
 
     def set_address(self, address):
+        """Set the devices address. address must be within DEV_RANGE."""
         if self.address != address:
             address       = int(address)
             if address not in DEV_RANGE:
@@ -163,18 +183,24 @@ class Device(QtCore.QObject):
             return True
 
     def get_idc(self):
+        """Get the devices identifier code."""
         return self._idc
 
     def set_idc(self, idc):
+        """Set the devices identifier code."""
         if self.idc != idc:
             self._idc = int(idc)
             self.idc_changed.emit(self.idc)
             return True
 
     def get_mrc(self):
+        """Get the MRC the device is connected to. Returns None if no MRC has
+        been set."""
         return None if self._mrc is None else self._mrc()
 
     def set_mrc(self, mrc):
+        """Set the MRC the device is connected to. Pass None to clear the
+        current MRC."""
         if self.mrc != mrc:
             self._mrc = None if mrc is None else weakref.ref(mrc)
             self.mrc_changed.emit(self.mrc)
@@ -212,28 +238,49 @@ class Device(QtCore.QObject):
         raise NotImplementedError()
 
     def get_cached_parameter(self, address):
+        """Returns the integer value of the cached parameter at the given
+        address or None if the parameter is not present in the cache.
+        address must be within PARAM_RANGE, otherwise a ValueError will be
+        raised."""
         if address not in PARAM_RANGE:
             raise ValueError("Parameter address out of range")
+
         return self._memory.get(address, None)
 
     def set_cached_parameter(self, address, value):
+        """Set the memory cache at the given address to the given value.
+        Emits parameter_changed and returns True if the value changes.
+        Otherwise no signal is emitted and False is returned.
+        Raises ValueError if address is out of range."""
+
+        if address not in PARAM_RANGE:
+            raise ValueError("Parameter address out of range")
+
         value = int(value)
-        changed = self.get_cached_parameter(address) != value
-        self._memory[address] = value
-        if changed:
+        if self.get_cached_parameter(address) != value:
+            self._memory[address] = value
             self.parameter_changed.emit(address, value)
             return True
 
+        return False
+
     def clear_cached_parameter(self, address):
+        """Removes the cached memory value at the given address.
+        Emits parameter_changed and returns True if the parameter was present
+        in the memory cache. Otherwise False is returned."""
         if self.has_cached_parameter(address):
             del self._memory[address]
             self.parameter_changed.emit(address, None)
             return True
 
+        return False
+
     def has_cached_parameter(self, address):
+        """Returns True if the given address is in the memory cache."""
         return address in self._memory
 
     def get_cached_memory(self):
+        """Returns the memory cache in the form of a dict."""
         return dict(self._memory)
 
     def __str__(self):

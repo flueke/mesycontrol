@@ -13,28 +13,50 @@ class ErrorResponse(Exception):
     pass
 
 class Controller(object):
-    """Link between hardware_model.MRC and MRCConnection."""
-    def __init__(self, mrc=None, connection=None):
+    """Link between hardware_model.MRC and MRCConnection.
+    Reacts to changes to the connection state and updates the hardware model
+    accordingly.
+    """
+    def __init__(self, connection):
         self.log        = util.make_logging_source_adapter(__name__, self)
-        self.mrc        = mrc
         self.connection = connection
+        self._mrc       = None
 
     def set_mrc(self, mrc):
+        """Set the hardware_model.MRC instance this controller should work with."""
+        if self.mrc is not None:
+            self.mrc.set_disconnected()
+            self.connection.disconnect(self.mrc)
+
         self._mrc = weakref.ref(mrc) if mrc is not None else None
         self.log.debug("set_mrc: %s", self.mrc)
+
+        if self.mrc is not None:
+            self.mrc.url = self.connection.url
+            if self.connection.is_connected():
+                self.mrc.set_connected()
+
+            if self.connection.is_connecting():
+                self.mrc.set_connecting()
+
+            if self.connection.is_disconnected():
+                self.mrc.set_disconnected()
+
+            self.connection.connected.connect(self.mrc.set_connected)
+            self.connection.connecting.connect(self.mrc.set_connecting)
+            self.connection.disconnected.connect(self.mrc.set_disconnected)
+            self.connection.connection_error.connect(self.mrc.set_connection_error)
 
     def get_mrc(self):
         return self._mrc() if self._mrc is not None else None
 
-    def set_connection(self, connection):
-        self._connection = weakref.ref(connection) if connection is not None else None
-        self.log.debug("set_connection: %s", self.connection)
-
-    def get_connection(self):
-        return self._connection() if self._connection is not None else None
-
     mrc = property(get_mrc, set_mrc)
-    connection = property(get_connection, set_connection)
+
+    def connect(self):
+        return self.connection.connect()
+
+    def disconnect(self):
+        return self.connection.disconnect()
 
     def read_parameter(self, bus, device, address):
         """Read the parameter at (bus, device address).

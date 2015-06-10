@@ -15,8 +15,6 @@ class HardwareTreeModel(btm.BasicTreeModel):
         return 1
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return str(section)
         return None
 
     def data(self, idx, role=Qt.DisplayRole):
@@ -37,18 +35,20 @@ class MRCNode(btm.BasicTreeNode):
     def __init__(self, mrc, parent=None):
         """mrc should be an instance of app_model.MRC"""
         super(MRCNode, self).__init__(ref=mrc, parent=parent)
-        mrc.hardware_model_set.connect(self._model_set)
+        mrc.hardware_model_set.connect(self._hw_mrc_set)
+        if mrc.hw:
+            self._hw_mrc_set(mrc)
 
-    def _model_set(self, mrc):
+    def _hw_mrc_set(self, mrc):
         f = partial(self.model.notify_data_changed, self, 0, self.model.columnCount())
         f()
 
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:
             mrc = self.ref
-            has_hw = bool(mrc.hw)
-            is_connected = has_hw and mrc.hw.is_connected()
-            return "%s | hw=%s | c=%s" % (mrc.url, has_hw, is_connected)
+            app_url = mrc.url
+            hw_url  = mrc.hw.url if mrc.hw else str()
+            return "app_url=%s | hw_url=%s" % (app_url, hw_url)
 
 class BusNode(btm.BasicTreeNode):
     def __init__(self, bus_number, parent=None):
@@ -62,15 +62,18 @@ class BusNode(btm.BasicTreeNode):
 class DeviceNode(btm.BasicTreeNode):
     def __init__(self, device, parent=None):
         super(DeviceNode, self).__init__(ref=device, parent=parent)
-        device.hardware_model_set.connect(self._model_set)
+        device.hardware_model_set.connect(self._hw_device_set)
 
-    def _model_set(self, mrc):
+    def _hw_device_set(self, mrc):
         f = partial(self.model.notify_data_changed, self, 0, self.model.columnCount())
         f()
 
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:
             device = self.ref
+            hw     = device.hw
+
             address = device.address
-            idc = device.idc
-            return "%X | idc=%d | hw=%s" % (address, idc, bool(device.hw))
+            idc     = str(hw.idc) if hw is not None else str()
+
+            return "%X | idc=%s" % (address, idc)
