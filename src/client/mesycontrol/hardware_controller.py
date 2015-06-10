@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
+from qt import QtCore
 import weakref
 
 import basic_model as bm
@@ -9,18 +10,37 @@ import hardware_model as hm
 import protocol
 import util
 
+# Periodic scanbus
+# Wie? timer
+# Polling, poll sets
+# Read Range
+
 class ErrorResponse(Exception):
     pass
+
+SCANBUS_INTERVAL_MSEC  = 5000
+POLL_MIN_INTERVAL_MSEC =  500
 
 class Controller(object):
     """Link between hardware_model.MRC and MRCConnection.
     Reacts to changes to the connection state and updates the hardware model
     accordingly.
     """
-    def __init__(self, connection):
+    def __init__(self, connection,
+            scanbus_interval_msec=SCANBUS_INTERVAL_MSEC,
+            poll_min_interval_msec=POLL_MIN_INTERVAL_MSEC):
+
         self.log        = util.make_logging_source_adapter(__name__, self)
+
         self.connection = connection
         self._mrc       = None
+        self._scanbus_timer = QtCore.QTimer()
+        self._scanbus_timer.timeout.connect(self._on_scanbus_timer_timeout)
+        self.set_scanbus_interval(scanbus_interval_msec)
+
+        self._poll_timer   = QtCore.QTimer()
+        self._poll_entries = weakref.WeakKeyDictionary()
+        self.set_poll_min_interval(poll_min_interval_msec)
 
     def set_mrc(self, mrc):
         """Set the hardware_model.MRC instance this controller should work with."""
@@ -46,6 +66,20 @@ class Controller(object):
             self.connection.connecting.connect(self.mrc.set_connecting)
             self.connection.disconnected.connect(self.mrc.set_disconnected)
             self.connection.connection_error.connect(self.mrc.set_connection_error)
+
+            def on_connected():
+                for i in bm.BUS_RANGE:
+                    self.scanbus(i)
+
+                self._scanbus_timer.start()
+                self._poll_timer.start()
+
+            def on_disconnected():
+                self._scanbus_timer.stop()
+                self._poll_timer_stop()
+
+            self.connection.connected.connect(on_connected)
+            self.connection.disconnected.connect(on_disconnected)
 
     def get_mrc(self):
         return self._mrc() if self._mrc is not None else None
@@ -124,3 +158,14 @@ class Controller(object):
 
         m = protocol.Message('request_scanbus', bus=bus)
         return self.connection.queue_request(m).add_done_callback(on_bus_scanned)
+
+    def set_scanbus_interval(self, msec):
+        self._scanbus_timer.setInterval(msec)
+
+    def _on_scanbus_timer_timeout(self):
+        if self.connection.is_connected():
+            for i in bm.BUS_RANGE:
+                self.scanbus(i)
+
+    def set_poll_min_interval(self, msec):
+        self._poll_timer.setInterval(msec)

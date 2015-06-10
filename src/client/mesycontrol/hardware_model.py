@@ -14,8 +14,11 @@ class MRC(bm.MRC):
     disconnected                = pyqtSignal()
     connection_error            = pyqtSignal(object)    #: error object
 
-    #rc_changed                  = pyqtSignal(int, int, bool) #: bus, dev, rc 
-    #address_conflict_changed    = pyqtSignal(int, int, bool) #: bus, dev, conflict
+    rc_changed                  = pyqtSignal(int, int, bool) #: bus, dev, rc 
+    address_conflict_changed    = pyqtSignal(int, int, bool) #: bus, dev, conflict
+
+    polling_changed             = pyqtSignal(bool)
+
 
     def __init__(self, url, parent=None):
         super(MRC, self).__init__(url, parent)
@@ -25,6 +28,7 @@ class MRC(bm.MRC):
         self._connected  = False
         self._connecting = False
         self._disconnected = True
+        self._polling = True
 
     def set_controller(self, controller):
         """Set the hardware controller this MRC should use.
@@ -53,33 +57,25 @@ class MRC(bm.MRC):
         return self._connected
 
     def set_connected(self):
-        self._connected = True
-        self._connecting = False
-        self._disconnected = False
+        self._connected, self._connecting, self._disconnected = (True, False, False)
         self.connected.emit()
 
     def is_connecting(self):
         return self._connecting
 
     def set_connecting(self, the_future):
-        self._connected = False
-        self._connecting = True
-        self._disconnected = False
+        self._connected, self._connecting, self._disconnected = (False, True, False)
         self.connecting.emit(the_future)
 
     def is_disconnected(self):
         return self._disconnected
 
     def set_disconnected(self):
-        self._connected = False
-        self._connecting = False
-        self._disconnected = True
+        self._connected, self._connecting, self._disconnected = (False, False, True)
         self.disconnected.emit()
 
     def set_connection_error(self, error):
-        self._connected = False
-        self._connecting = False
-        self._disconnected = True
+        self._connected, self._connecting, self._disconnected = (False, False, True)
         self.connection_error.emit(error)
 
     def read_parameter(self, bus, device, address):
@@ -91,8 +87,18 @@ class MRC(bm.MRC):
     def scanbus(self, bus):
         return self.controller.scanbus(bus)
 
-    connection = pyqtProperty(object, get_connection)
-    controller = pyqtProperty(object, get_controller, set_controller)
+    def should_poll(self):
+        return self._polling
+
+    def set_polling(self, on_off):
+        on_off = bool(on_off)
+        if self._polling != on_off:
+            self._polling = on_off
+            self.polling_changed.emit(on_off)
+
+    connection  = pyqtProperty(object, get_connection)
+    controller  = pyqtProperty(object, get_controller, set_controller)
+    polling     = pyqtProperty(bool, should_poll, set_polling, notify=polling_changed)
 
 
 class Device(bm.Device):
@@ -103,6 +109,7 @@ class Device(bm.Device):
 
     address_conflict_changed    = pyqtSignal(bool)
     rc_changed                  = pyqtSignal(bool)
+    polling_changed             = pyqtSignal(bool)
 
     def __init__(self, bus, address, idc, parent=None):
         super(Device, self).__init__(bus, address, idc, parent)
@@ -153,9 +160,26 @@ class Device(bm.Device):
             self._rc = rc
             self.rc_changed.emit(self.rc)
 
+    def should_poll(self):
+        return self.mrc.polling and self._polling
+
+    def set_polling(self, on_off):
+        on_off = bool(on_off)
+        if self._polling != on_off:
+            self._polling = on_off
+            self.polling_changed.emit(on_off)
+
+    def add_poll_parameter(self, subscriber,  address):
+        pass
+
+    def add_poll_range(self, subscriber, lower, upper):
+        pass
+
     controller = pyqtProperty(object, get_controller)
 
     address_conflict = pyqtProperty(bool, has_address_conflict, set_address_conflict,
             notify=address_conflict_changed)
 
     rc = pyqtProperty(bool, get_rc, set_rc, notify=rc_changed)
+    polling = pyqtProperty(bool, should_poll, set_polling, notify=polling_changed)
+

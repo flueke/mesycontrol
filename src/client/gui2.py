@@ -99,7 +99,8 @@ def run_edit_mrc_config_dialog(context, registry, mrc, parent_widget=None):
 def run_add_mrc_connection_dialog(context, registry, parent_widget=None):
     urls_in_use = [mrc.url for mrc in registry.hw.get_mrcs()]
     serial_ports = util.list_serial_ports()
-    dialog = AddMRCDialog(context, serial_ports=serial_ports, urls_in_use=urls_in_use, parent=parent_widget)
+    dialog = AddMRCDialog(context, serial_ports=serial_ports, urls_in_use=urls_in_use,
+            do_connect_default=True, parent=parent_widget)
     dialog.setModal(True)
 
     def accepted():
@@ -169,8 +170,8 @@ class GUIApplication(object):
             def remove_mrc():
                 self.registry.cfg.remove_mrc(node.ref.cfg)
 
-            menu.addAction("Edit MRC").triggered.connect(partial(run_edit_mrc_config_dialog,
-                context=self.context, registry=self.registry, mrc=node.ref, parent_widget=self.treeview))
+            #menu.addAction("Edit MRC").triggered.connect(partial(run_edit_mrc_config_dialog,
+            #    context=self.context, registry=self.registry, mrc=node.ref, parent_widget=self.treeview))
             menu.addAction("Remove MRC").triggered.connect(remove_mrc)
 
         if isinstance(node, ctm.BusNode):
