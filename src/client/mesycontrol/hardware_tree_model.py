@@ -40,8 +40,8 @@ class MRCNode(btm.BasicTreeNode):
             self._hw_mrc_set(mrc)
 
     def _hw_mrc_set(self, mrc):
-        f = partial(self.model.notify_data_changed, self, 0, self.model.columnCount())
-        f()
+        if self.model is not None:
+            self.model.notify_data_changed(self, 0, self.model.columnCount())
 
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:

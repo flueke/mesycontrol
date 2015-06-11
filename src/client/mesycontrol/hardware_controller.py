@@ -24,7 +24,8 @@ POLL_MIN_INTERVAL_MSEC =  500
 class Controller(object):
     """Link between hardware_model.MRC and MRCConnection.
     Reacts to changes to the connection state and updates the hardware model
-    accordingly.
+    accordingly. Also takes requests from the hardware model and forwards them
+    to the connection.
     """
     def __init__(self, connection,
             scanbus_interval_msec=SCANBUS_INTERVAL_MSEC,
@@ -38,9 +39,24 @@ class Controller(object):
         self._scanbus_timer.timeout.connect(self._on_scanbus_timer_timeout)
         self.set_scanbus_interval(scanbus_interval_msec)
 
-        self._poll_timer   = QtCore.QTimer()
-        self._poll_entries = weakref.WeakKeyDictionary()
+        self._poll_timer = QtCore.QTimer()
+        self._poll_timer.timeout.connect(self._on_poll_timer_timeout)
+        self._poll_items = weakref.WeakKeyDictionary()
         self.set_poll_min_interval(poll_min_interval_msec)
+
+        def on_connected():
+            for i in bm.BUS_RANGE:
+                self.scanbus(i)
+
+            self._scanbus_timer.start()
+            self._poll_timer.start()
+
+        def on_disconnected():
+            self._scanbus_timer.stop()
+            self._poll_timer.stop()
+
+        self.connection.connected.connect(on_connected)
+        self.connection.disconnected.connect(on_disconnected)
 
     def set_mrc(self, mrc):
         """Set the hardware_model.MRC instance this controller should work with."""
@@ -66,20 +82,6 @@ class Controller(object):
             self.connection.connecting.connect(self.mrc.set_connecting)
             self.connection.disconnected.connect(self.mrc.set_disconnected)
             self.connection.connection_error.connect(self.mrc.set_connection_error)
-
-            def on_connected():
-                for i in bm.BUS_RANGE:
-                    self.scanbus(i)
-
-                self._scanbus_timer.start()
-                self._poll_timer.start()
-
-            def on_disconnected():
-                self._scanbus_timer.stop()
-                self._poll_timer_stop()
-
-            self.connection.connected.connect(on_connected)
-            self.connection.disconnected.connect(on_disconnected)
 
     def get_mrc(self):
         return self._mrc() if self._mrc is not None else None
@@ -142,16 +144,20 @@ class Controller(object):
                     device  = self.mrc.get_device(bus, addr)
 
                     if idc <= 0 and device is not None:
+                        self.log.debug("scanbus: removing device (%d, %d)", bus, addr)
                         self.mrc.remove_device(device)
                     elif idc > 0:
                         if device is None:
-                            self.log.debug("scanbus: creating device (%d, %d, %d)", bus, addr, idc)
+                            self.log.debug("scanbus: creating device (%d, %d, idc=%d)", bus, addr, idc)
                             device = hm.Device(bus, addr, idc)
                             self.mrc.add_device(device)
 
                         device.idc = idc
                         device.rc  = bool(rc) if rc in (0, 1) else False
                         device.address_conflict = rc not in (0, 1)
+
+                        if device.address_conflict:
+                            self.log.debug("scanbus: address conflict on (%d, %d)", bus, addr)
 
             except Exception:
                 self.log.exception("scanbus error")
@@ -162,6 +168,9 @@ class Controller(object):
     def set_scanbus_interval(self, msec):
         self._scanbus_timer.setInterval(msec)
 
+    def get_scanbus_interval(self):
+        return self._scanbus_timer.interval()
+
     def _on_scanbus_timer_timeout(self):
         if self.connection.is_connected():
             for i in bm.BUS_RANGE:
@@ -169,3 +178,33 @@ class Controller(object):
 
     def set_poll_min_interval(self, msec):
         self._poll_timer.setInterval(msec)
+
+    def get_poll_min_interval(self):
+        return self._poll_timer.interval()
+
+    def _on_poll_timer_timeout(self):
+        if not self.connection.is_connected():
+            return
+
+        if self.connection.get_queue_size() > 0:
+            return
+
+        # Merge all poll items into one set.
+        # Note: This does not try to merge any overlapping ranges. Those will
+        # lead to parameters being read multiple times.
+        items = reduce(lambda x, y: x.union(y), self._poll_items.values(), set())
+
+        for bus, dev, item in items:
+            device = self.mrc.get_device(bus, dev)
+            if not device or not device.polling:
+                continue
+            try:
+                lower, upper = item
+                for param in xrange(lower, upper+1):
+                    self.read_parameter(bus, dev, param)
+            except TypeError:
+                self.read_parameter(bus, dev, item)
+
+    def add_poll_item(self, subscriber, bus, address, item):
+        items = self._poll_items.setdefault(subscriber, set())
+        items.add((bus, address, item))

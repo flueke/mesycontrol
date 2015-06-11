@@ -25,6 +25,9 @@ class BasicTreeModel(QtCore.QAbstractItemModel):
             return QModelIndex()
 
     def index_for_node(self, node):
+        if node is None:
+            return QModelIndex()
+
         return self.createIndex(node.row, 0, node)
 
     def index_for_ref(self, ref):
@@ -87,6 +90,12 @@ class BasicTreeModel(QtCore.QAbstractItemModel):
 
     def find_node_by_ref(self, ref):
         return self.root.find_node_by_ref(ref)
+
+    def clear(self):
+        self.beginResetModel()
+        self.root = BasicTreeNode()
+        self.root.model = self
+        self.endResetModel()
 
 class BasicTreeNode(object):
     """Support class for implementing the nodes of a Qt tree model."""

@@ -58,6 +58,9 @@ class AbstractConnection(QtCore.QObject):
     def queue_request(self, request):
         raise NotImplementedError()
 
+    def get_queue_size(self):
+        raise NotImplementedError()
+
     def get_url(self):
         raise NotImplementedError()
 
@@ -138,6 +141,9 @@ class MRCConnection(AbstractConnection):
 
     def queue_request(self, request):
         return self.client.queue_request(request)
+
+    def get_queue_size(self):
+        return self.client.get_queue_size()
 
     def get_url(self):
         return util.build_connection_url(mc_host=self.host, mc_port=self.port)
@@ -226,6 +232,9 @@ class LocalMRCConnection(AbstractConnection):
 
     def queue_request(self, request):
         return self.connection.queue_request(request)
+
+    def get_queue_size(self):
+        return self.connection.get_queue_size()
 
     def get_url(self):
         return util.build_connection_url(

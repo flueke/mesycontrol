@@ -100,7 +100,6 @@ class MRC(bm.MRC):
     controller  = pyqtProperty(object, get_controller, set_controller)
     polling     = pyqtProperty(bool, should_poll, set_polling, notify=polling_changed)
 
-
 class Device(bm.Device):
     connected                   = pyqtSignal()
     connecting                  = pyqtSignal(object)
@@ -169,11 +168,16 @@ class Device(bm.Device):
             self._polling = on_off
             self.polling_changed.emit(on_off)
 
-    def add_poll_parameter(self, subscriber,  address):
-        pass
-
-    def add_poll_range(self, subscriber, lower, upper):
-        pass
+    def add_poll_item(self, subscriber, item):
+        """Add parameters that should be polled repeatedly.
+        As long as the given subscriber object is alive and polling is enabled
+        for this device and the device is connected, the given item will be
+        polled.
+        Item may be a single parameter address or a tuple of (lower, upper)
+        addresses to poll.
+        If the server supports reading parameter ranges and a tuple is given,
+        the read range command will be used."""
+        self.controller.add_poll_item(subscriber, self.bus, self.address, item)
 
     controller = pyqtProperty(object, get_controller)
 
