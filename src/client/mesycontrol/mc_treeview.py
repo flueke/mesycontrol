@@ -36,28 +36,18 @@ def find_insertion_index(items, test_fun):
     return items.index(prev_item) if prev_item is not None else len(items)
 
 class MCTreeDirector(object):
-    def __init__(self, app_registry, linked_mode_on=False):
+    def __init__(self, app_registry, find_data_file, linked_mode_on=False):
         self.log       = util.make_logging_source_adapter(__name__, self)
 
         self.app_registry = app_registry
         self.app_registry.mrc_added.connect(self._mrc_added)
-        self.app_registry.mrc_removed.connect(self._mrc_removed)
+        self.app_registry.mrc_about_to_be_removed.connect(self._mrc_about_to_be_removed)
 
         self.cfg_model = ctm.ConfigTreeModel()
-        self.hw_model  = htm.HardwareTreeModel()
+        self.hw_model  = htm.HardwareTreeModel(find_data_file)
 
         self._linked_mode = linked_mode_on
         self._populate_models()
-
-    def _populate_models(self):
-        self.setup_node = ctm.SetupNode(self.app_registry)
-        self.cfg_model.add_node(self.setup_node, self.cfg_model.root, 0)
-
-        self.hw_registry_node = htm.RegistryNode(self.app_registry)
-        self.hw_model.add_node(self.hw_registry_node, self.hw_model.root, 0)
-
-        for mrc in self.app_registry.get_mrcs():
-            self._mrc_added(mrc)
 
     def set_linked_mode(self, on_off):
         if self._linked_mode == on_off:
@@ -66,6 +56,20 @@ class MCTreeDirector(object):
         self._linked_mode = on_off
         self.cfg_model.clear()
         self.hw_model.clear()
+
+        # Disconnect app_model signals before repopulating the model to avoid
+        # duplicating connections. Quite ugly :(
+        for mrc in self.app_registry:
+
+            mrc.device_added.disconnect(self._device_added)
+            mrc.device_about_to_be_removed.disconnect(self._device_about_to_be_removed)
+            mrc.hardware_set.disconnect(self._mrc_hardware_set)
+            mrc.config_set.disconnect(self._mrc_config_set)
+
+            for device in mrc:
+                device.hardware_set.disconnect(self._device_hardware_set)
+                device.config_set.disconnect(self._device_config_set)
+
         self._populate_models()
 
     def get_linked_mode(self):
@@ -95,34 +99,84 @@ class MCTreeDirector(object):
 
         return self.hw_model.index_for_ref(cfg_node.ref)
 
+    def _populate_models(self):
+        self.setup_node = ctm.SetupNode(self.app_registry)
+        self.cfg_model.add_node(self.setup_node, self.cfg_model.root, 0)
+
+        self.hw_registry_node = htm.RegistryNode(self.app_registry)
+        self.hw_model.add_node(self.hw_registry_node, self.hw_model.root, 0)
+
+        for mrc in self.app_registry.get_mrcs():
+            self._mrc_added(mrc)
+
+    ########## MRC ########## 
+    def _add_hw_mrc_node(self, mrc):
+        if self.hw_model.find_node_by_ref(mrc) is not None:
+            raise RuntimeError("Node exists")
+
+        node = htm.MRCNode(mrc)
+        for i in range(2):
+            node.append_child(htm.BusNode(i))
+
+        # keep mrcs sorted by url
+        idx = find_insertion_index(self.hw_registry_node.children, lambda c: mrc.url < c.ref.url)
+        self.hw_model.add_node(node, self.hw_registry_node, idx)
+
+    def _add_cfg_mrc_node(self, mrc):
+        if self.cfg_model.find_node_by_ref(mrc) is not None:
+            raise RuntimeError("Node exists")
+
+        node = ctm.MRCNode(mrc)
+        for i in range(2):
+            node.append_child(ctm.BusNode(i))
+
+        # keep mrcs sorted by url
+        idx = find_insertion_index(self.setup_node.children, lambda c: mrc.url < c.ref.url)
+        self.cfg_model.add_node(node, self.setup_node, idx)
+
     def _mrc_added(self, mrc):
         self.log.debug("_mrc_added: %s, url=%s, hw=%s, cfg=%s", mrc, mrc.url, mrc.hw, mrc.cfg)
 
         cfg_node = self.cfg_model.find_node_by_ref(mrc)
         if cfg_node is None and (self.linked_mode or mrc.cfg is not None):
-            cfg_node = ctm.MRCNode(mrc)
-            for i in range(2):
-                cfg_node.append_child(ctm.BusNode(i))
-
-            # keep mrcs sorted by url
-            idx = find_insertion_index(self.setup_node.children, lambda c: mrc.url < c.ref.url)
-            self.cfg_model.add_node(cfg_node, self.setup_node, idx)
+            self._add_cfg_mrc_node(mrc)
 
         hw_node = self.hw_model.find_node_by_ref(mrc)
         if hw_node is None and (self.linked_mode or mrc.hw is not None):
-            hw_node = htm.MRCNode(mrc)
-            for i in range(2):
-                hw_node.append_child(htm.BusNode(i))
+            self._add_hw_mrc_node(mrc)
 
-            # keep mrcs sorted by url
-            idx = find_insertion_index(self.hw_registry_node.children, lambda c: mrc.url < c.ref.url)
-            self.hw_model.add_node(hw_node, self.hw_registry_node, idx)
+        for device in mrc:
+            self._device_added(device)
 
         mrc.device_added.connect(self._device_added)
-        mrc.device_removed.connect(self._device_removed)
+        mrc.device_about_to_be_removed.connect(self._device_about_to_be_removed)
+        mrc.hardware_set.connect(self._mrc_hardware_set)
+        mrc.config_set.connect(self._mrc_config_set)
 
-    def _mrc_removed(self, mrc):
-        self.log.debug("_mrc_removed: %s, url=%s, hw=%s, cfg=%s", mrc, mrc.url, mrc.hw, mrc.cfg)
+    def _mrc_hardware_set(self, mrc, old_hw, new_hw):
+        self.log.debug("_mrc_hardware_set: %s, %s, %s", mrc, old_hw, new_hw)
+
+        node = self.hw_model.find_node_by_ref(mrc)
+
+        if new_hw is None and not self.linked_mode:
+            assert node is not None
+            self.hw_model.remove_node(node)
+        elif new_hw is not None and node is None:
+            self._add_hw_mrc_node(mrc)
+
+    def _mrc_config_set(self, mrc, old_cfg, new_cfg):
+        self.log.debug("mrc_config_set: %s, %s, %s", mrc, old_cfg, new_cfg)
+
+        node = self.cfg_model.find_node_by_ref(mrc)
+
+        if new_cfg is None and not self.linked_mode:
+            assert node is not None
+            self.cfg_model.remove_node(node)
+        elif new_cfg is not None and node is None:
+            self._add_cfg_mrc_node(mrc)
+
+    def _mrc_about_to_be_removed(self, mrc):
+        self.log.debug("_mrc_about_to_be_removed: %s, url=%s, hw=%s, cfg=%s", mrc, mrc.url, mrc.hw, mrc.cfg)
 
         cfg_node = self.cfg_model.find_node_by_ref(mrc)
         if cfg_node is not None:
@@ -132,25 +186,59 @@ class MCTreeDirector(object):
         if hw_node is not None:
             self.hw_model.remove_node(hw_node)
 
+    ########## Device ########## 
+    def _add_hw_device_node(self, device):
+        if self.hw_model.find_node_by_ref(device) is not None:
+            raise RuntimeError("Node exists")
+
+        hw_node     = htm.DeviceNode(device)
+        parent_node = self.hw_model.find_node_by_ref(device.mrc).children[device.bus]
+        row = find_insertion_index(parent_node.children, lambda c: device.address < c.ref.address)
+        self.hw_model.add_node(hw_node, parent_node, row)
+
+    def _add_cfg_device_node(self, device):
+        if self.cfg_model.find_node_by_ref(device) is not None:
+            raise RuntimeError("Node exists")
+
+        cfg_node    = ctm.DeviceNode(device)
+        parent_node = self.cfg_model.find_node_by_ref(device.mrc).children[device.bus]
+        row = find_insertion_index(parent_node.children, lambda c: device.address < c.ref.address)
+        self.cfg_model.add_node(cfg_node, parent_node, row)
+
     def _device_added(self, device):
         self.log.debug("_device_added: %s", device)
 
         cfg_node = self.cfg_model.find_node_by_ref(device)
         if cfg_node is None and (self.linked_mode or device.cfg is not None):
-            cfg_node    = ctm.DeviceNode(device)
-            parent_node = self.cfg_model.find_node_by_ref(device.mrc).children[device.bus]
-            row = find_insertion_index(parent_node.children, lambda c: device.address < c.ref.address)
-            self.cfg_model.add_node(cfg_node, parent_node, row)
+            self._add_cfg_device_node(device)
 
         hw_node = self.hw_model.find_node_by_ref(device)
         if hw_node is None and (self.linked_mode or device.hw is not None):
-            hw_node     = htm.DeviceNode(device)
-            parent_node = self.hw_model.find_node_by_ref(device.mrc).children[device.bus]
-            row = find_insertion_index(parent_node.children, lambda c: device.address < c.ref.address)
-            self.hw_model.add_node(hw_node, parent_node, row)
+            self._add_hw_device_node(device)
 
-    def _device_removed(self, device):
-        self.log.debug("_device_removed: %s", device)
+        device.hardware_set.connect(self._device_hardware_set)
+        device.config_set.connect(self._device_config_set)
+
+    def _device_hardware_set(self, device, old_hw, new_hw):
+        node = self.hw_model.find_node_by_ref(device)
+
+        if new_hw is None and not self.linked_mode:
+            assert node is not None
+            self.hw_model.remove_node(node)
+        elif new_hw is not None and node is None:
+            self._add_hw_device_node(device)
+
+    def _device_config_set(self, device, old_cfg, new_cfg):
+        node = self.cfg_model.find_node_by_ref(device)
+
+        if new_cfg is None and not self.linked_mode:
+            assert node is not None
+            self.cfg_model.remove_node(node)
+        elif new_cfg is not None and node is None:
+            self._add_cfg_device_node(device)
+
+    def _device_about_to_be_removed(self, device):
+        self.log.debug("_device_about_to_be_removed: %s", device)
         cfg_node = self.cfg_model.find_node_by_ref(device)
         if cfg_node is not None:
             self.cfg_model.remove_node(cfg_node)
@@ -182,6 +270,9 @@ class DoubleClickSplitterHandle(QtGui.QSplitterHandle):
             self.timer.stop()
             self.doubleClicked.emit()
 
+    def sizeHint(self):
+        return QtCore.QSize(2, 4)
+
 class DoubleClickSplitter(QtGui.QSplitter):
     """QSplitter using DoubleClickSplitterHandles."""
     def __init__(self, orientation=Qt.Horizontal, parent=None):
@@ -199,11 +290,12 @@ class MCTreeView(QtGui.QWidget):
 
     linked_mode_changed         = pyqtSignal(bool)
 
-    def __init__(self, app_director, linked_mode_on=False, parent=None):
+    def __init__(self, app_director, find_data_file, linked_mode_on=False, parent=None):
         super(MCTreeView, self).__init__(parent)
+        self.log = util.make_logging_source_adapter(__name__, self)
 
         self.app_director = app_director
-        self._director  = MCTreeDirector(app_director.registry, linked_mode_on)
+        self._director  = MCTreeDirector(app_director.registry, find_data_file, linked_mode_on)
 
         self.cfg_model = self._director.cfg_model
         self.hw_model  = self._director.hw_model
@@ -233,18 +325,30 @@ class MCTreeView(QtGui.QWidget):
         splitter_buttons_layout = QtGui.QVBoxLayout(self.splitter_buttons)
 
         def add_splitter_button(b):
-            b.setMaximumSize(QtCore.QSize(16, 16))
+            # keeps buttons from expanding horizontally
             policy = b.sizePolicy()
             policy.setHorizontalPolicy(QtGui.QSizePolicy.Maximum)
             b.setSizePolicy(policy)
-            b.setContentsMargins(0, 0, 0, 0)
             splitter_buttons_layout.addWidget(b)
             return b
 
+        link_icons = {
+                True: QtGui.QIcon(QtGui.QPixmap(find_data_file('mesycontrol/ui/link-intact-2x.png'))),
+                False: QtGui.QIcon(QtGui.QPixmap(find_data_file('mesycontrol/ui/link-broken-2x.png')))
+                }
+
+        link_button = QtGui.QPushButton(link_icons[self.linked_mode], str())
+        link_button.setCheckable(True)
+        link_button.setChecked(self.linked_mode)
+
         def toggle_linked_mode():
             self.linked_mode = not self.linked_mode
+            link_button.setIcon(link_icons[self.linked_mode])
 
-        add_splitter_button(QtGui.QPushButton("lnk")).clicked.connect(toggle_linked_mode)
+        link_button.toggled.connect(toggle_linked_mode)
+        link_button.setToolTip("Link Hardware & Config Views")
+
+        add_splitter_button(link_button)
 
         splitter_buttons_layout.addStretch()
         splitter_buttons_layout.setContentsMargins(0, 0, 0, 0)
@@ -269,6 +373,12 @@ class MCTreeView(QtGui.QWidget):
 
         layout = QtGui.QGridLayout(self)
         layout.addWidget(splitter, 0, 0)
+
+        # XXX
+        def log_node_selected(node, idx, view):
+            self.log.debug("node selected: node=%s, ref=%s", node, node.ref)
+
+        self.node_selected.connect(log_node_selected)
 
     def set_linked_mode(self, on_off):
         if self.linked_mode != on_off:
@@ -297,25 +407,29 @@ class MCTreeView(QtGui.QWidget):
         return self._director.hw_idx_for_cfg_idx(cfg_idx)
 
     def _cfg_expanded(self, idx):
-        if idx.internalPointer() is not self.cfg_model.root:
+        if self.linked_mode and idx.internalPointer() is not self.cfg_model.root:
             self.hw_view.expand(self.hw_idx_for_cfg_idx(idx))
 
     def _cfg_collapsed(self, idx):
-        self.hw_view.collapse(self.hw_idx_for_cfg_idx(idx))
+        if self.linked_mode:
+            self.hw_view.collapse(self.hw_idx_for_cfg_idx(idx))
 
     def _cfg_selection_current_changed(self, current, previous):
-        self.hw_view.setCurrentIndex(self.hw_idx_for_cfg_idx(current))
+        if self.linked_mode:
+            self.hw_view.setCurrentIndex(self.hw_idx_for_cfg_idx(current))
         self.node_selected.emit(current.internalPointer(), current, self.cfg_view)
         self.cfg_node_selected.emit(current.internalPointer(), current, self.cfg_view)
 
     def _hw_expanded(self, idx):
-        if idx.internalPointer() is not self.hw_model.root:
+        if self.linked_mode and idx.internalPointer() is not self.hw_model.root:
             self.cfg_view.expand(self.cfg_idx_for_hw_idx(idx))
 
     def _hw_collapsed(self, idx):
-        self.cfg_view.collapse(self.cfg_idx_for_hw_idx(idx))
+        if self.linked_mode:
+            self.cfg_view.collapse(self.cfg_idx_for_hw_idx(idx))
 
     def _hw_selection_current_changed(self, current, previous):
-        self.cfg_view.setCurrentIndex(self.cfg_idx_for_hw_idx(current))
+        if self.linked_mode:
+            self.cfg_view.setCurrentIndex(self.cfg_idx_for_hw_idx(current))
         self.node_selected.emit(current.internalPointer(), current, self.hw_view)
         self.hw_node_selected.emit(current.internalPointer(), current, self.hw_view)

@@ -210,6 +210,10 @@ class Device(bm.Device):
         self.extension_removed.emit(name, value)
         return True
 
+    def __str__(self):
+        return "%s.Device(id=%s, b=%d, a=%d, idc=%d, mrc=%s)" % (
+                __name__, hex(id(self)), self.bus, self.address, self.idc, self.mrc)
+
     modified    = pyqtProperty(bool, is_modified, set_modified, notify=modified_changed)
     name        = pyqtProperty(str, get_name, set_name, notify=name_changed)
     extensions  = pyqtProperty(dict, get_extensions)

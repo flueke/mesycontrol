@@ -53,6 +53,11 @@ class BasicTreeModel(QtCore.QAbstractItemModel):
                 pass
         return super(BasicTreeModel, self).flags(idx)
 
+    def data(self, idx, role=Qt.DisplayRole):
+        if not idx.isValid():
+            return None
+        return idx.internalPointer().data(idx.column(), role)
+
     def setData(self, idx, value, role = Qt.EditRole):
         if idx.isValid():
             try:
@@ -89,6 +94,9 @@ class BasicTreeModel(QtCore.QAbstractItemModel):
         self.dataChanged.emit(idx1, idx2)
 
     def find_node_by_ref(self, ref):
+        """Find and return the node pointing to the given ref.
+        If no node can be found None is returned.
+        """
         return self.root.find_node_by_ref(ref)
 
     def clear(self):
@@ -147,6 +155,9 @@ class BasicTreeNode(object):
         self._model = weakref.ref(model) if model is not None else None
 
     def find_node_by_ref(self, ref):
+        """Find and return the node pointing to the given ref.
+        If no node can be found None is returned.
+        """
         if ref is None:
             return None
 
@@ -172,6 +183,24 @@ class BasicTreeNode(object):
 
     def set_data(self, column, value, role):
         raise NotImplementedError()
+
+    def notify_data_changed(self, col1=0, col2=None):
+        """Calls notify_data_changed on the nodes model if a model is set.
+        col1 and col2 specify the first and last column that changed. If col2 is
+        None it will be set to the models column count.
+        If the node has no model this method does nothing.
+        """
+        if self.model is not None:
+            if col2 is None:
+                col2 = self.model.columnCount()
+            self.model.notify_data_changed(self, col1, col2)
+
+    def notify_all_columns_changed(self):
+        """No argument variant of notify_data_changed(). Useful to connect to
+        signals whose arguments are to be discarded (the args would take the
+        place of col1 and col2 which is not desired).
+        """
+        self.notify_data_changed()
 
     ref     = property(get_ref, set_ref)
     parent  = property(get_parent, set_parent)

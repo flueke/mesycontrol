@@ -4,7 +4,6 @@
 
 from qt import QtCore
 from qt import Qt
-from functools import partial
 
 import basic_tree_model as btm
 
@@ -17,32 +16,40 @@ class ConfigTreeModel(btm.BasicTreeModel):
     def headerData(self, section, orientation, role=Qt.DisplayRole):
         return None
 
-    def data(self, idx, role=Qt.DisplayRole):
-        if not idx.isValid():
-            return None
-        return idx.internalPointer().data(idx.column(), role)
-
 # Node types and displayed data
 # SetupNode     filename, modified (*); <unsaved setup> if not filename
 # MRCNode       name, url
 # BusNode       bus number
 # DeviceNode    address, name, type, 
 
-class SetupNode(btm.BasicTreeNode):
+class ConfigTreeNode(btm.BasicTreeNode):
+    def __init__(self, ref, parent):
+        super(ConfigTreeNode, self).__init__(ref=ref, parent=parent)
+        ref.config_set.connect(self._on_config_set)
+
+        if ref.cfg is not None:
+            self._on_config_set(None, ref.cfg)
+
+    def _on_config_set(self, old_cfg, new_cfg):
+        raise NotImplementedError()
+
+class SetupNode(ConfigTreeNode):
     def __init__(self, setup, parent=None):
         """setup should be an instance of app_model.MRCRegistry."""
         super(SetupNode, self).__init__(ref=setup, parent=parent)
-        setup.config_model_set.connect(self._model_set)
 
-    def _model_set(self, setup):
-        f = partial(self.model.notify_data_changed, self, 0, self.model.columnCount())
-        if setup.cfg is not None:
-            setup.cfg.filename_changed.connect(f)
-            setup.cfg.modified_changed.connect(f)
-            setup.cfg.mrc_added.connect(f)
-            setup.cfg.mrc_removed.connect(f)
-        f()
-           
+    def _on_config_set(self, old_setup, new_setup):
+        if old_setup is not None:
+            old_setup.disconnect(self)
+
+        if new_setup is not None:
+            new_setup.filename_changed.connect(self.notify_all_columns_changed)
+            new_setup.modified_changed.connect(self.notify_all_columns_changed)
+            new_setup.mrc_added.connect(self.notify_all_columns_changed)
+            new_setup.mrc_removed.connect(self.notify_all_columns_changed)
+
+        self.notify_all_columns_changed()
+
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:
             setup = self.ref.cfg
@@ -56,15 +63,14 @@ class SetupNode(btm.BasicTreeNode):
 
             return "<empty setup>"
 
-class MRCNode(btm.BasicTreeNode):
+class MRCNode(ConfigTreeNode):
     def __init__(self, mrc, parent=None):
         """mrc should be an instance of app_model.MRC"""
         super(MRCNode, self).__init__(ref=mrc, parent=parent)
-        mrc.config_model_set.connect(self._model_set)
 
-    def _model_set(self, mrc):
-        f = partial(self.model.notify_data_changed, self, 0, self.model.columnCount())
-        f()
+    def _on_config_set(self, old_mrc, new_mrc):
+        # TODO: connect mrc signals here
+        self.notify_all_columns_changed()
 
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:
@@ -84,14 +90,13 @@ class BusNode(btm.BasicTreeNode):
             if mrc.cfg:
                 return str(self.bus_number)
 
-class DeviceNode(btm.BasicTreeNode):
+class DeviceNode(ConfigTreeNode):
     def __init__(self, device, parent=None):
         super(DeviceNode, self).__init__(ref=device, parent=parent)
-        device.config_model_set.connect(self._model_set)
 
-    def _model_set(self, device):
-        f = partial(self.model.notify_data_changed, self, 0, self.model.columnCount())
-        f()
+    def _on_config_set(self, old_device, new_device):
+        # TODO: connect device signals here
+        self.notify_all_columns_changed()
 
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:

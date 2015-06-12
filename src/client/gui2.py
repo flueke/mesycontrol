@@ -63,35 +63,9 @@ def run_add_mrc_config_dialog(context, registry, parent_widget=None):
         if connect:
             mrc = registry.hw.get_mrc(url)
             if not mrc:
-                add_mrc_connection(registry, url, connect)
+                add_mrc_connection(registry, url, True)
             elif mrc.is_disconnected():
                 mrc.connect()
-
-    dialog.accepted.connect(accepted)
-    dialog.show()
-
-def run_edit_mrc_config_dialog(context, registry, mrc, parent_widget=None):
-    urls_in_use = [_mrc.url for _mrc in registry.cfg.get_mrcs() if mrc.url != _mrc.url]
-    serial_ports = util.list_serial_ports()
-    dialog = AddMRCDialog(context, serial_ports=serial_ports, urls_in_use=urls_in_use,
-            url=mrc.url, parent=parent_widget)
-    dialog.setModal(True)
-
-    def accepted():
-        url, connect = dialog.result()
-
-        if url != mrc.url:
-            # The url is new. Update the config. After this step mrc.cfg should be
-            # None as the config should have been moved to a different
-            # app_model.MRC instance with the new URL.
-            mrc.cfg.url = url
-
-        if connect:
-            hw_mrc = registry.hw.get_mrc(url)
-            if not hw_mrc:
-                add_mrc_connection(registry, url, connect)
-            else:
-                hw_mrc.connect()
 
     dialog.accepted.connect(accepted)
     dialog.show()
@@ -143,7 +117,7 @@ class GUIApplication(object):
         self.treeview = self.mainwindow.treeview
         self.treeview.cfg_context_menu_requested.connect(self._cfg_context_menu)
         self.treeview.hw_context_menu_requested.connect(self._hw_context_menu)
-        self.treeview.node_selected.connect(self._node_selected)
+        #self.treeview.node_selected.connect(self._node_selected)
 
     def get_mainwindow(self):
         return self._mainwindow()
@@ -243,8 +217,8 @@ class GUIApplication(object):
         if not menu.isEmpty():
             menu.exec_(view.mapToGlobal(pos))
 
-    def _node_selected(self, node, idx, view):
-        print "_node_selected", node, idx, view
+    #def _node_selected(self, node, idx, view):
+    #    print "_node_selected", node, idx, view
 
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, context, parent=None):
@@ -256,7 +230,7 @@ class MainWindow(QtGui.QMainWindow):
         uic.loadUi(context.find_data_file('mesycontrol/ui/mainwin.ui'), self)
 
         # Treeview
-        self.treeview = MCTreeView(context.director)
+        self.treeview = MCTreeView(app_director=context.director, find_data_file=context.find_data_file)
         dw_tree = QtGui.QDockWidget("Device tree", self)
         dw_tree.setObjectName("dw_treeview")
         dw_tree.setWidget(self.treeview)

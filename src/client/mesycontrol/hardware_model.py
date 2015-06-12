@@ -29,6 +29,7 @@ class MRC(bm.MRC):
         self._connecting = False
         self._disconnected = True
         self._polling = True
+        self.last_connection_error = None
 
     def set_controller(self, controller):
         """Set the hardware controller this MRC should use.
@@ -58,6 +59,7 @@ class MRC(bm.MRC):
 
     def set_connected(self):
         self._connected, self._connecting, self._disconnected = (True, False, False)
+        self.last_connection_error = None
         self.connected.emit()
 
     def is_connecting(self):
@@ -76,6 +78,7 @@ class MRC(bm.MRC):
 
     def set_connection_error(self, error):
         self._connected, self._connecting, self._disconnected = (False, False, True)
+        self.last_connection_error = error
         self.connection_error.emit(error)
 
     def read_parameter(self, bus, device, address):
@@ -178,6 +181,10 @@ class Device(bm.Device):
         If the server supports reading parameter ranges and a tuple is given,
         the read range command will be used."""
         self.controller.add_poll_item(subscriber, self.bus, self.address, item)
+
+    def __str__(self):
+        return "%s.Device(id=%s, b=%d, a=%d, idc=%d, mrc=%s)" % (
+                __name__, hex(id(self)), self.bus, self.address, self.idc, self.mrc)
 
     controller = pyqtProperty(object, get_controller)
 

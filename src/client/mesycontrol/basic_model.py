@@ -24,6 +24,7 @@ class MRCRegistry(QtCore.QObject):
     """Manages MRC instances"""
 
     mrc_added   = pyqtSignal(object)
+    mrc_about_to_be_removed = pyqtSignal(object)
     mrc_removed = pyqtSignal(object)
 
     def __init__(self, parent=None):
@@ -42,6 +43,9 @@ class MRCRegistry(QtCore.QObject):
 
     def remove_mrc(self, mrc):
         try:
+            if mrc not in self._mrcs:
+                raise ValueError()
+            self.mrc_about_to_be_removed.emit(mrc)
             self._mrcs.remove(mrc)
             self.mrc_removed.emit(mrc)
         except ValueError:
@@ -64,6 +68,7 @@ class MRCRegistry(QtCore.QObject):
 class MRC(QtCore.QObject):
     url_changed     = pyqtSignal(str)
     device_added    = pyqtSignal(object)
+    device_about_to_be_removed = pyqtSignal(object)
     device_removed  = pyqtSignal(object)
 
     def __init__(self, url, parent=None):
@@ -95,6 +100,9 @@ class MRC(QtCore.QObject):
 
     def remove_device(self, device):
         try:
+            if device not in self._devices:
+                raise ValueError()
+            self.device_about_to_be_removed.emit(device)
             self._devices.remove(device)
             device.mrc = None
             self.log.debug("remove_device: %s", device)
@@ -282,10 +290,6 @@ class Device(QtCore.QObject):
     def get_cached_memory(self):
         """Returns the memory cache in the form of a dict."""
         return dict(self._memory)
-
-    def __str__(self):
-        return 'Device(bus=%d, address=%d, idc=%d, mrc=%s)' % (
-                self.bus, self.address, self.idc, self.mrc)
 
     # Using lambdas here to allow overriding property accessors.
     bus     = pyqtProperty(int,
