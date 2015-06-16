@@ -36,15 +36,17 @@ def find_insertion_index(items, test_fun):
     return items.index(prev_item) if prev_item is not None else len(items)
 
 class MCTreeDirector(object):
-    def __init__(self, app_registry, find_data_file, linked_mode_on=False):
+    def __init__(self, app_registry, device_registry, find_data_file, linked_mode_on=False):
         self.log       = util.make_logging_source_adapter(__name__, self)
 
         self.app_registry = app_registry
         self.app_registry.mrc_added.connect(self._mrc_added)
         self.app_registry.mrc_about_to_be_removed.connect(self._mrc_about_to_be_removed)
 
-        self.cfg_model = ctm.ConfigTreeModel()
-        self.hw_model  = htm.HardwareTreeModel(find_data_file)
+        self.cfg_model = ctm.ConfigTreeModel(device_registry=device_registry)
+
+        self.hw_model  = htm.HardwareTreeModel(device_registry=device_registry,
+                find_data_file=find_data_file)
 
         self._linked_mode = linked_mode_on
         self._populate_models()
@@ -290,12 +292,14 @@ class MCTreeView(QtGui.QWidget):
 
     linked_mode_changed         = pyqtSignal(bool)
 
-    def __init__(self, app_director, find_data_file, linked_mode_on=False, parent=None):
+    def __init__(self, app_director, find_data_file, device_registry, linked_mode_on=False, parent=None):
         super(MCTreeView, self).__init__(parent)
         self.log = util.make_logging_source_adapter(__name__, self)
 
         self.app_director = app_director
-        self._director  = MCTreeDirector(app_director.registry, find_data_file, linked_mode_on)
+        self._director  = MCTreeDirector(app_registry=app_director.registry,
+                device_registry=device_registry, find_data_file=find_data_file,
+                linked_mode_on=linked_mode_on)
 
         self.cfg_model = self._director.cfg_model
         self.hw_model  = self._director.hw_model

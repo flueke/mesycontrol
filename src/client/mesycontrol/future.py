@@ -82,9 +82,15 @@ class Future(object):
     def progress_range(self):
         return (self._progress_min, self._progress_max)
 
-    def set_progress_range(self, progress_min, progress_max):
-        self._progress_min = progress_min
-        self._progress_max = progress_max
+    def progress_min(self):
+        return self._progress_min
+
+    def progress_max(self):
+        return self._progress_max
+
+    def set_progress_range(self, min_or_tuple, max_or_none=None):
+        self._progress_min = min_or_tuple[0] if max_or_none is None else min_or_tuple
+        self._progress_max = min_or_tuple[1] if max_or_none is None else max_or_none
 
     def progress_text(self):
         return self._progress_text
@@ -99,6 +105,7 @@ class Future(object):
             self._exec_callback(fn)
         else:
             self._callbacks.append(fn)
+
         return self
 
     def add_progress_callback(self, fn):
@@ -106,6 +113,8 @@ class Future(object):
             self._exec_callback(fn)
         else:
             self._progress_callbacks.append(fn)
+
+        return self
 
     def _set_done(self):
         self._done = True
@@ -142,6 +151,13 @@ def all_done(*futures):
         ret.set_result(list())
 
     return ret
+
+def progress_forwarder(source, dest):
+    def callback(f):
+        dest.set_progress_range(source.progress_range())
+        dest.set_progress_text(source.progress_text())
+
+    source.add_progress_callback(callback)
 
 class FutureObserver(QtCore.QObject):
     """Qt wrapper around a Future object using Qt signals to notify about state

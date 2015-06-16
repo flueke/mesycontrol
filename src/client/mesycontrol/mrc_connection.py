@@ -6,6 +6,7 @@ from qt import QtCore
 from qt import pyqtSignal
 
 from future import Future
+from future import progress_forwarder
 from protocol import MRCStatus
 from tcp_client import MCTCPClient
 import server_process
@@ -185,7 +186,8 @@ class LocalMRCConnection(AbstractConnection):
         def on_connect_timer_expired():
             self.connection.host = self.server.listen_address
             self.connection.port = self.server.listen_port
-            self.connection.connect().add_done_callback(on_connection_connected)
+            f = self.connection.connect().add_done_callback(on_connection_connected)
+            progress_forwarder(f, ret)
 
         def on_server_started(f):
             if f.exception() is None:
@@ -199,7 +201,8 @@ class LocalMRCConnection(AbstractConnection):
 
         self._is_connected = False
         self._is_connecting = True
-        self.server.start().add_done_callback(on_server_started)
+        f = self.server.start().add_done_callback(on_server_started)
+        progress_forwarder(f, ret)
 
         return ret
 

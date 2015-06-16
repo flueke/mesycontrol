@@ -159,6 +159,8 @@ class Controller(object):
                         if device.address_conflict:
                             self.log.debug("scanbus: address conflict on (%d, %d)", bus, addr)
 
+                self.mrc.address_conflict = any((d.address_conflict for d in self.mrc))
+
             except Exception:
                 self.log.exception("scanbus error")
 

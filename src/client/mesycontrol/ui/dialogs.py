@@ -20,11 +20,11 @@ class AddMRCDialog(QtGui.QDialog):
     Result = collections.namedtuple("Result", "url connect")
     SERIAL, TCP, MC = range(3)
 
-    def __init__(self, context, serial_ports, urls_in_use=list(), url=None,
+    def __init__(self, find_data_file, serial_ports, urls_in_use=list(), url=None,
             do_connect_default=False, title="Add MRC", parent=None):
         super(AddMRCDialog, self).__init__(parent)
         self.urls_in_use = urls_in_use
-        uic.loadUi(context.find_data_file('mesycontrol/ui/connect_dialog.ui'), self)
+        uic.loadUi(find_data_file('mesycontrol/ui/connect_dialog.ui'), self)
 
         self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(False)
         self.combo_serial_port.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+'), None))
@@ -170,7 +170,7 @@ class AddDeviceDialog(QtGui.QDialog):
         self.address_combos = [QtGui.QComboBox() for i in bm.BUS_RANGE]
 
         for b, a in sorted(available_addresses):
-            self.address_combos[b].addItem(str(a), a)
+            self.address_combos[b].addItem("%X" % a, a)
 
         self.address_combo_stack = QtGui.QStackedWidget()
         

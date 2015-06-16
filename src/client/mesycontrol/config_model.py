@@ -165,7 +165,7 @@ class Device(bm.Device):
     set_cached_parameter = modifies(bm.Device.set_cached_parameter)
     clear_cached_parameter = modifies(bm.Device.clear_cached_parameter)
 
-    def read_parameter(self, address):
+    def _read_parameter(self, address):
         # This is either called directly or by bm.Device.get_parameter in case
         # the parameter is not cached. Let's re-check the cache here to make
         # the first case succeed and not force the user to use get_parameter
@@ -176,7 +176,7 @@ class Device(bm.Device):
             return bm.ResultFuture().set_result(result)
         return future.Future().set_exception(KeyError("Parameter %d not in Device config" % address))
 
-    def set_parameter(self, address, value):
+    def _set_parameter(self, address, value):
         self.set_cached_parameter(address, value)
 
         result = bm.SetResult(self.bus, self.address, address,

@@ -160,7 +160,8 @@ class Device(QtCore.QObject):
         self._address   = int(address) if address is not None else None
         self._idc       = int(idc) if idc is not None else None
         self._mrc       = None
-        self._memory    = dict()
+        self._memory    = dict() # address -> value
+        self._read_futures = dict() # address -> future
 
     def get_bus(self):
         """Returns the devices bus number."""
@@ -220,29 +221,70 @@ class Device(QtCore.QObject):
         hardware.
         Returns a ResultFuture whose result is a ReadResult instance.
         """
+        # Return from the cache if available.
         if self.has_cached_parameter(address):
             result = ReadResult(self.bus, self.address, address,
                     self.get_cached_parameter(address))
             return ResultFuture().set_result(result)
 
+        # Return the future of a pending read.
+        if address in self._read_futures:
+            return self._read_futures[address]
+
+        # Neither cached nor read in progress -> start a read
         return self.read_parameter(address)
 
     def read_parameter(self, address):
         """Read a parameter from the device.
-        Subclass implementations must call Device.set_cached_parameter() on
-        read success to update the local memory cache.
-        This method is expected to return a ResultFuture whose result is a
-        ReadResult instance.
+        This method returns a ResultFuture whose result is a ReadResult
+        instance.
+        On read success the local memory cache is updated with the newly read
+        value.
         """
+        # Update cache on read success
+        def on_parameter_read(f):
+            try:
+                self.set_cached_parameter(address, int(f))
+            except Exception:
+                self.log.exception("read_parameter")
+
+        ret = self._read_parameter(address).add_done_callback(on_parameter_read)
+
+        # Store future to satisfy get_parameter() requests while the read is in
+        # progress.
+        if address not in self._read_futures:
+            def done(f):
+                del self._read_futures[address]
+
+            self._read_futures[address] = ret
+            ret.add_done_callback(done)
+
+        return ret
+
+    def _read_parameter(self, address):
+        """Read implementation. Subclasses must return a ResultFuture whose
+        result is a ReadResult object."""
         raise NotImplementedError()
 
     def set_parameter(self, address, value):
         """Set the parameter at the given address to the given value.
-        Subclasses must call Device.set_cached_parameter() on success to update
-        the local memory cache with the newly set value.
-        This method is expected to return a ResultFuture whose result is a
-        SetResult instance.
+        Updates the local memory cache on success.
+        This method returns a ResultFuture whose result is a SetResult
+        instance.
         """
+        def on_parameter_set(f):
+            try:
+                self.set_cached_parameter(address, int(f))
+            except Exception:
+                self.log.exception("set_parameter")
+
+        ret = self._set_parameter(address, value)
+        ret.add_done_callback(on_parameter_set)
+        return ret
+
+    def _set_parameter(self, address, value):
+        """Set implementation. Subclasses must return a ResultFuture whose
+        result is a SetResult instance."""
         raise NotImplementedError()
 
     def get_cached_parameter(self, address):

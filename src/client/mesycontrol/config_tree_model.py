@@ -10,6 +10,10 @@ import basic_tree_model as btm
 QModelIndex = QtCore.QModelIndex
 
 class ConfigTreeModel(btm.BasicTreeModel):
+    def __init__(self, device_registry, parent=None):
+        super(ConfigTreeModel, self).__init__(parent)
+        self.device_registry = device_registry
+
     def columnCount(self, parent=QModelIndex()):
         return 1
 
@@ -100,6 +104,24 @@ class DeviceNode(ConfigTreeNode):
 
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:
+            device = self.ref   # app_model.Device
+            cfg    = device.cfg # config_model.Device
+
+            if cfg is None:
+                return "%X: <not present>" % device.address
+
+            try:
+                name = self.model.device_registry.get_device_name(cfg.idc)
+                data = "%s" % name
+            except KeyError:
+                data = "idc=%d" % cfg.idc
+
+            if cfg.modified:
+                data += "*"
+
+            return "%X %s" % (device.address, data)
+
+
             #return "%s %s" % (self.ref.address,
             #        self.ref.idc if self.ref is not None else "<not in config>")
             device = self.ref
