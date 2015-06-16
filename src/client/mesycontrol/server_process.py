@@ -115,6 +115,7 @@ class ServerProcess(QtCore.QObject):
                 self._startup_delay_timer.timeout.disconnect(on_startup_delay_expired)
                 if self.process.state() == QProcess.Running:
                     self.started.emit()
+                    ret.set_progress_text("Started %s" % cmd_line)
                     ret.set_result(True)
                 else:
                     if self.process.error() != QProcess.UnknownError:
@@ -127,6 +128,8 @@ class ServerProcess(QtCore.QObject):
 
             self.log.debug("Starting %s", cmd_line)
             self.process.start(program, args, QtCore.QIODevice.ReadOnly)
+
+            ret.set_progress_text("Starting %s" % cmd_line)
 
         except Exception as e:
             self.log.exception("ServerProcess")
