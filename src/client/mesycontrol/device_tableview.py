@@ -37,7 +37,12 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         if self.device is not None:
             self.device.config_set.disconnect(self._on_device_config_set)
             self.device.hardware_set.disconnect(self._on_device_hardware_set)
-        self._device = weakref.ref(device)
+        def on_device_finalized(ref):
+            print "device finalized", ref
+            print "device finalized", ref
+            print "device finalized", ref
+            print "device finalized", ref
+        self._device = weakref.ref(device, on_device_finalized)
         if self.device is not None:
             self.device.config_set.connect(self._on_device_config_set)
             self.device.hardware_set.connect(self._on_device_hardware_set)
@@ -51,18 +56,18 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
     device = pyqtProperty(object, get_device, set_device)
 
     def _on_device_hardware_set(self, app_device, old_hw, new_hw):
-        if old_hw:
+        if old_hw is not None:
             old_hw.parameter_changed.disconnect(self._on_hw_parameter_changed)
-        if new_hw:
+        if new_hw is not None:
             new_hw.parameter_changed.connect(self._on_hw_parameter_changed)
 
         self.beginResetModel()
         self.endResetModel()
 
     def _on_device_config_set(self, app_device, old_cfg, new_cfg):
-        if old_cfg:
+        if old_cfg is not None:
             old_cfg.parameter_changed.disconnect(self._on_cfg_parameter_changed)
-        if new_cfg:
+        if new_cfg is not None:
             new_cfg.parameter_changed.connect(self._on_cfg_parameter_changed)
 
         self.beginResetModel()
@@ -122,6 +127,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         if role == Qt.DisplayRole:
             if column_name == 'address':
                 return row
+
             elif column_name == 'hw_value' and hw is not None:
                 try:
                     return int(hw.get_parameter(row))
@@ -133,6 +139,8 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                     return int(cfg.get_parameter(row))
                 except future.IncompleteFuture:
                     return None
+                except KeyError:
+                    return "<not in config>"
 
         return None
 
@@ -217,7 +225,7 @@ class DeviceTableItemDelegate(QtGui.QStyledItemDelegate):
     def createEditor(self, parent, options, idx):
         editor = super(DeviceTableItemDelegate, self).createEditor(parent, options, idx)
 
-        if column_name(idx.column()) == 'set_value':
+        if column_name(idx.column()) in ('hw_value', 'cfg_value'):
             editor.setMinimum(0)
             editor.setMaximum(65535)
 

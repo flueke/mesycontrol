@@ -120,14 +120,14 @@ class MRCConnection(AbstractConnection):
             if msg.status == MRCStatus.RUNNING:
                 self._is_connecting = False
                 self._is_connected  = True
-                self._connecting_future.set_progress_text("Ready")
+                self._connecting_future.set_progress_text("%s:%d: Ready" % (self.host, self.port))
                 self._connecting_future.set_result(True)
                 self._connecting_future = None
                 self.connected.emit()
-                self.log.debug("%s: connected", self.get_url())
+                self.log.debug("%s: connected & running", self.url)
             else:
-                self._connecting_future.set_progress_text("MRC: %s" %
-                        (MRCStatus.by_code[msg.status]['description']))
+                self._connecting_future.set_progress_text("%s:%d: %s" %
+                        (self.host, self.port, MRCStatus.by_code[msg.status]['description']))
 
     def disconnect(self):
         self._is_connected = False
@@ -154,7 +154,13 @@ class LocalMRCConnection(AbstractConnection):
 
     def __init__(self, server_options=dict(), parent=None):
         super(LocalMRCConnection, self).__init__(parent)
-        self.server = server_process.pool.create_process(server_options)
+        self.log = util.make_logging_source_adapter(__name__, self)
+        print server_options
+        print server_options
+        print server_options
+        print server_options
+        self.server = server_process.ServerProcess(**server_options)
+        #self.server = server_process.pool.create_process(server_options)
         self.connection = MRCConnection(self.server.listen_address, self.server.listen_port)
 
         self.connection.connected.connect(self.connected)
@@ -180,6 +186,8 @@ class LocalMRCConnection(AbstractConnection):
             try:
                 ret.set_result(f.result())
                 self._is_connected  = True
+                self.log.debug("Connected to %s", self.url)
+
             except Exception as e:
                 ret.set_exception(e)
 
@@ -240,6 +248,9 @@ class LocalMRCConnection(AbstractConnection):
         return self.connection.get_queue_size()
 
     def get_url(self):
+        d = dict(serial_port=self.server.serial_port, baud_rate=self.server.baud_rate,
+                host=self.server.tcp_host, port=self.server.tcp_port)
+        print d
         return util.build_connection_url(
                 serial_port=self.server.serial_port, baud_rate=self.server.baud_rate,
                 host=self.server.tcp_host, port=self.server.tcp_port)

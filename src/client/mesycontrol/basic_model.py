@@ -156,6 +156,7 @@ class Device(QtCore.QObject):
 
     def __init__(self, bus=None, address=None, idc=None, parent=None):
         super(Device, self).__init__(parent)
+        self.log        = util.make_logging_source_adapter(__name__, self)
         self._bus       = int(bus) if bus is not None else None
         self._address   = int(address) if address is not None else None
         self._idc       = int(idc) if idc is not None else None

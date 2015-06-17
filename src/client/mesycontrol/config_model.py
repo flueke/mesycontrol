@@ -7,7 +7,6 @@ from qt import pyqtProperty
 from qt import pyqtSignal
 
 import basic_model as bm
-import future
 
 def modifies(f):
     """Method decorator which executes `wrapped_object.set_modified(True)'
@@ -174,7 +173,8 @@ class Device(bm.Device):
             result = bm.ReadResult(self.bus, self.address, address,
                     self.get_cached_parameter(address))
             return bm.ResultFuture().set_result(result)
-        return future.Future().set_exception(KeyError("Parameter %d not in Device config" % address))
+        return bm.ResultFuture().set_exception(
+                KeyError("Parameter %d not in Device config" % address))
 
     def _set_parameter(self, address, value):
         self.set_cached_parameter(address, value)

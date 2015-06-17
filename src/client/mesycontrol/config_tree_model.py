@@ -108,7 +108,7 @@ class DeviceNode(ConfigTreeNode):
             cfg    = device.cfg # config_model.Device
 
             if cfg is None:
-                return "%X: <not present>" % device.address
+                return "%X <not present>" % device.address
 
             try:
                 name = self.model.device_registry.get_device_name(cfg.idc)
@@ -120,12 +120,3 @@ class DeviceNode(ConfigTreeNode):
                 data += "*"
 
             return "%X %s" % (device.address, data)
-
-
-            #return "%s %s" % (self.ref.address,
-            #        self.ref.idc if self.ref is not None else "<not in config>")
-            device = self.ref
-            if device.cfg:
-                address = device.cfg.address
-                idc = device.cfg.idc
-                return "%X | idc=%d | cfg=%s" % (address, idc, bool(device.cfg))

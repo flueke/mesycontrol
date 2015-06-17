@@ -17,6 +17,7 @@ from mesycontrol.app_context import Context
 from mesycontrol import basic_model as bm
 from mesycontrol import config_model as cm
 from mesycontrol import config_tree_model as ctm
+from mesycontrol import device_tableview
 from mesycontrol import hardware_controller
 from mesycontrol import hardware_model as hm
 from mesycontrol import hardware_tree_model as htm
@@ -47,12 +48,17 @@ def add_mrc_connection(registry, url, do_connect):
     registry.hw.add_mrc(mrc)
 
     if do_connect:
-        return mrc.connect()
+        def connect_done(f):
+            print "connect done:", f.result()
+        return mrc.connect().add_done_callback(connect_done)
 
-def run_add_mrc_config_dialog(context, registry, parent_widget=None):
+    return None
+
+def run_add_mrc_config_dialog(find_data_file, registry, parent_widget=None):
     urls_in_use = [mrc.url for mrc in registry.cfg.get_mrcs()]
     serial_ports = util.list_serial_ports()
-    dialog = AddMRCDialog(context, serial_ports=serial_ports, urls_in_use=urls_in_use, parent=parent_widget)
+    dialog = AddMRCDialog(find_data_file=find_data_file, serial_ports=serial_ports,
+            urls_in_use=urls_in_use, parent=parent_widget)
     dialog.setModal(True)
 
     def accepted():
@@ -70,10 +76,10 @@ def run_add_mrc_config_dialog(context, registry, parent_widget=None):
     dialog.accepted.connect(accepted)
     dialog.show()
 
-def run_add_mrc_connection_dialog(context, registry, parent_widget=None):
+def run_add_mrc_connection_dialog(find_data_file, registry, parent_widget=None):
     urls_in_use = [mrc.url for mrc in registry.hw.get_mrcs()]
     serial_ports = util.list_serial_ports()
-    dialog = AddMRCDialog(context, serial_ports=serial_ports, urls_in_use=urls_in_use,
+    dialog = AddMRCDialog(find_data_file, serial_ports=serial_ports, urls_in_use=urls_in_use,
             do_connect_default=True, parent=parent_widget)
     dialog.setModal(True)
 
@@ -88,11 +94,11 @@ def run_add_mrc_connection_dialog(context, registry, parent_widget=None):
     dialog.accepted.connect(accepted)
     dialog.show()
 
-def run_add_device_config_dialog(context, registry, mrc, bus=None, parent_widget=None):
+def run_add_device_config_dialog(device_registry, registry, mrc, bus=None, parent_widget=None):
     try:
         aa = [(b, d) for b in bm.BUS_RANGE for d in bm.DEV_RANGE
                 if not mrc.cfg or not mrc.cfg.get_device(b, d)]
-        dialog = AddDeviceDialog(bus=bus, available_addresses=aa, known_idcs=context.get_device_names(), parent=parent_widget)
+        dialog = AddDeviceDialog(bus=bus, available_addresses=aa, known_idcs=device_registry.get_device_names(), parent=parent_widget)
         dialog.setModal(True)
 
         def accepted():
@@ -110,6 +116,7 @@ def run_add_device_config_dialog(context, registry, mrc, bus=None, parent_widget
 
 class GUIApplication(object):
     def __init__(self, mainwindow):
+        self.log = util.make_logging_source_adapter(__name__, self)
         self._mainwindow = weakref.ref(mainwindow)
         self.context  = mainwindow.context
         self.registry = self.context.app_registry
@@ -117,7 +124,32 @@ class GUIApplication(object):
         self.treeview = self.mainwindow.treeview
         self.treeview.cfg_context_menu_requested.connect(self._cfg_context_menu)
         self.treeview.hw_context_menu_requested.connect(self._hw_context_menu)
-        #self.treeview.node_selected.connect(self._node_selected)
+
+        self.logview = self.mainwindow.logview
+
+        self.registry.hw.mrc_added.connect(self._hw_mrc_added)
+
+        self._device_table_windows = dict()
+
+    def _hw_mrc_added(self, mrc):
+        mrc.connecting.connect(partial(self._hw_mrc_connecting, mrc=mrc))
+
+    def _hw_mrc_connecting(self, f, mrc):
+        self.logview.append("Connecting to %s" % mrc.url)
+        def done(f):
+            try:
+                f.result()
+                self.logview.append("Connected to %s" % mrc.url)
+                self.log.debug("Connected to %s", mrc.url)
+            except Exception as e:
+                self.logview.append("Error connecting to %s: %s" % (mrc.url, e))
+                self.log.error("Error connecting to %s: %s", mrc.url, e)
+
+        def progress(f):
+            self.logview.append("%s" % (f.progress_text(),))
+            self.log.debug("Connection progress: %s", f.progress_text())
+
+        f.add_done_callback(done).add_progress_callback(progress)
 
     def get_mainwindow(self):
         return self._mainwindow()
@@ -135,11 +167,13 @@ class GUIApplication(object):
                     menu.addAction("Save")
                 menu.addAction("Save As")
             menu.addAction("Add MRC").triggered.connect(partial(run_add_mrc_config_dialog,
-                context=self.context, registry=self.registry, parent_widget=self.treeview))
+                find_data_file=self.context.find_data_file, registry=self.registry,
+                parent_widget=self.treeview))
 
         if isinstance(node, ctm.MRCNode):
             menu.addAction("Add Device").triggered.connect(partial(run_add_device_config_dialog,
-                context=self.context, registry=self.registry, mrc=node.ref, parent_widget=self.treeview))
+                device_registry=self.context.device_registry, registry=self.registry,
+                mrc=node.ref, parent_widget=self.treeview))
 
             def remove_mrc():
                 self.registry.cfg.remove_mrc(node.ref.cfg)
@@ -150,11 +184,18 @@ class GUIApplication(object):
 
         if isinstance(node, ctm.BusNode):
             menu.addAction("Add Device").triggered.connect(partial(run_add_device_config_dialog,
-                context=self.context, registry=self.registry, mrc=node.parent.ref, bus=node.bus_number, 
+                device_registry=self.context.device_registry, registry=self.registry,
+                mrc=node.parent.ref, bus=node.bus_number, 
                 parent_widget=self.treeview))
 
         if isinstance(node, ctm.DeviceNode):
-            menu.addAction("Open")
+            def add_device_table_window():
+                widget = device_tableview.DeviceTableWidget(device=node.ref, find_data_file=self.context.find_data_file)
+                subwin = self.mainwindow.mdiArea.addSubWindow(widget)
+                subwin.show()
+                return subwin
+
+            menu.addAction("Open").triggered.connect(add_device_table_window)
             menu.addAction("Load From File")
             menu.addAction("Save To File")
             menu.addAction("Remove Device from Config")
@@ -162,13 +203,14 @@ class GUIApplication(object):
         if not menu.isEmpty():
             menu.exec_(view.mapToGlobal(pos))
 
+
     def _hw_context_menu(self, node, idx, pos, view):
         print "_hw_context_menu", node, idx, pos, view
         menu = QtGui.QMenu()
 
         if isinstance(node, htm.RegistryNode):
             menu.addAction("Add MRC Connection").triggered.connect(partial(run_add_mrc_connection_dialog,
-                context=self.context, registry=self.registry, parent_widget=self.treeview))
+                find_data_file=self.context.find_data_file, registry=self.registry, parent_widget=self.treeview))
 
         if isinstance(node, htm.MRCNode):
             mrc = node.ref
@@ -212,13 +254,15 @@ class GUIApplication(object):
                 menu.addAction("Scanbus").triggered.connect(partial(mrc.hw.scanbus, bus))
 
         if isinstance(node, htm.DeviceNode):
-            pass
+            def add_device_table_window():
+                widget = device_tableview.DeviceTableWidget(device=node.ref, find_data_file=self.context.find_data_file)
+                subwin = self.mainwindow.mdiArea.addSubWindow(widget)
+                subwin.show()
+                return subwin
+            menu.addAction("Open").triggered.connect(add_device_table_window)
 
         if not menu.isEmpty():
             menu.exec_(view.mapToGlobal(pos))
-
-    #def _node_selected(self, node, idx, view):
-    #    print "_node_selected", node, idx, view
 
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, context, parent=None):
@@ -230,7 +274,10 @@ class MainWindow(QtGui.QMainWindow):
         uic.loadUi(context.find_data_file('mesycontrol/ui/mainwin.ui'), self)
 
         # Treeview
-        self.treeview = MCTreeView(app_director=context.director, find_data_file=context.find_data_file)
+        self.treeview = MCTreeView(app_director=context.director,
+                find_data_file=context.find_data_file,
+                device_registry=context.device_registry)
+
         dw_tree = QtGui.QDockWidget("Device tree", self)
         dw_tree.setObjectName("dw_treeview")
         dw_tree.setWidget(self.treeview)
@@ -300,10 +347,12 @@ if __name__ == "__main__":
     # Confine garbage collection to the main thread to avoid crashes.
     garbage_collector = util.GarbageCollector()
 
-    # Update the environments path to easily find the mesycontrol_server binary.
+    # Path setup
     main_file = sys.executable if getattr(sys, 'frozen', False) else __file__
     bin_dir   = os.path.abspath(os.path.dirname(main_file))
     data_dir  = util.find_data_dir(main_file)
+
+    # Update the environments path to easily find the mesycontrol_server binary.
     os.environ['PATH'] = bin_dir + os.pathsep + os.environ['PATH']
 
     logging.debug("main_file=%s, bin_dir=%s, data_dir=%s", main_file, bin_dir, data_dir)
