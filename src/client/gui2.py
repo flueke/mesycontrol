@@ -48,9 +48,7 @@ def add_mrc_connection(registry, url, do_connect):
     registry.hw.add_mrc(mrc)
 
     if do_connect:
-        def connect_done(f):
-            print "connect done:", f.result()
-        return mrc.connect().add_done_callback(connect_done)
+        return mrc.connect()
 
     return None
 
@@ -132,9 +130,13 @@ class GUIApplication(object):
         self._device_table_windows = dict()
 
     def _hw_mrc_added(self, mrc):
+        self.log.debug("hw mrc added: %s", mrc.url)
         mrc.connecting.connect(partial(self._hw_mrc_connecting, mrc=mrc))
+        mrc.disconnected.connect(partial(self._hw_mrc_disconnected, mrc=mrc))
+        mrc.connection_error.connect(partial(self._hw_mrc_connection_error, mrc=mrc))
 
     def _hw_mrc_connecting(self, f, mrc):
+        self.log.debug("_hw_mrc_connecting: f=%s, mrc=%s, mrc.url=%s", f, mrc, mrc.url)
         self.logview.append("Connecting to %s" % mrc.url)
         def done(f):
             try:
@@ -146,10 +148,18 @@ class GUIApplication(object):
                 self.log.error("Error connecting to %s: %s", mrc.url, e)
 
         def progress(f):
-            self.logview.append("%s" % (f.progress_text(),))
-            self.log.debug("Connection progress: %s", f.progress_text())
+            txt = f.progress_text()
+            if txt:
+                self.logview.append("%s: %s" % (mrc.url, txt))
+                self.log.debug("Connection progress: %s: %s", mrc.url, txt)
 
         f.add_done_callback(done).add_progress_callback(progress)
+
+    def _hw_mrc_disconnected(self, mrc):
+        self.logview.append("Disconnected from %s" % mrc.url)
+
+    #def _hw_mrc_connection_error(self, error, mrc):
+    #    self.logview.append("%s: Connection error: %s" % (mrc.url, error))
 
     def get_mainwindow(self):
         return self._mainwindow()
