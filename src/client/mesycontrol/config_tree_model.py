@@ -32,9 +32,9 @@ class ConfigTreeNode(btm.BasicTreeNode):
         ref.config_set.connect(self._on_config_set)
 
         if ref.cfg is not None:
-            self._on_config_set(None, ref.cfg)
+            self._on_config_set(ref, None, ref.cfg)
 
-    def _on_config_set(self, old_cfg, new_cfg):
+    def _on_config_set(self, app_model, old_cfg, new_cfg):
         raise NotImplementedError()
 
 class SetupNode(ConfigTreeNode):
@@ -42,9 +42,12 @@ class SetupNode(ConfigTreeNode):
         """setup should be an instance of app_model.MRCRegistry."""
         super(SetupNode, self).__init__(ref=setup, parent=parent)
 
-    def _on_config_set(self, old_setup, new_setup):
+    def _on_config_set(self, app_setup, old_setup, new_setup):
         if old_setup is not None:
-            old_setup.disconnect(self)
+            old_setup.filename_changed.disconnect(self.notify_all_columns_changed)
+            old_setup.modified_changed.disconnect(self.notify_all_columns_changed)
+            old_setup.mrc_added.disconnect(self.notify_all_columns_changed)
+            old_setup.mrc_removed.disconnect(self.notify_all_columns_changed)
 
         if new_setup is not None:
             new_setup.filename_changed.connect(self.notify_all_columns_changed)
@@ -72,7 +75,7 @@ class MRCNode(ConfigTreeNode):
         """mrc should be an instance of app_model.MRC"""
         super(MRCNode, self).__init__(ref=mrc, parent=parent)
 
-    def _on_config_set(self, old_mrc, new_mrc):
+    def _on_config_set(self, app_mrc, old_mrc, new_mrc):
         # TODO: connect mrc signals here
         self.notify_all_columns_changed()
 
@@ -98,7 +101,7 @@ class DeviceNode(ConfigTreeNode):
     def __init__(self, device, parent=None):
         super(DeviceNode, self).__init__(ref=device, parent=parent)
 
-    def _on_config_set(self, old_device, new_device):
+    def _on_config_set(self, app_device, old_device, new_device):
         # TODO: connect device signals here
         self.notify_all_columns_changed()
 

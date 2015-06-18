@@ -24,6 +24,9 @@ class SocketError(Exception):
     def __int__(self):
         return self.error_code
 
+class Disconnected(Exception):
+    pass
+
 RequestResult = collections.namedtuple("RequestResult", "request response")
 
 class MCTCPClient(QtCore.QObject):
@@ -50,14 +53,11 @@ class MCTCPClient(QtCore.QObject):
         self._queue = util.OrderedSet()
         self._socket = QtNetwork.QTcpSocket()
         self._socket.connected.connect(self.connected)
-        self._socket.disconnected.connect(self.disconnected)
+        self._socket.disconnected.connect(self._socket_disconnected)
         self._socket.error.connect(self._socket_error)
         self._socket.readyRead.connect(self._socket_readyRead)
-        self._reset_state()
-
-    def _reset_state(self):
         self._current_request = None
-        self._read_size = 0
+        self._reset_state()
 
     def connect(self, host, port):
         """Connect to the given host and port.
@@ -123,14 +123,12 @@ class MCTCPClient(QtCore.QObject):
         def socket_disconnected():
             self.log.debug("Disconnected from %s:%d", host, port)
             dc()
-            self._reset_state()
             ret.set_result(True)
 
         def socket_error(socket_error):
             self.log.error("Socket error from %s:%d: %s", host, port,
                     self._socket.errorString())
             dc()
-            self._reset_state()
             ret.set_exception(SocketError(socket_error, self._socket.errorString()))
 
         self._socket.disconnected.connect(socket_disconnected)
@@ -163,8 +161,13 @@ class MCTCPClient(QtCore.QObject):
     def queue_request(self, request):
         """Adds the given request to the outgoing queue. Returns a Future that
         fullfills once a response is received or an error occurs."""
-        was_empty = self.get_queue_size() == 0
         ret = Future()
+
+        if not self.is_connected():
+            ret.set_exception(Disconnected())
+            return ret
+
+        was_empty = self.get_queue_size() == 0
         self._queue.add((request, ret))
         self.log.debug("Queueing request %s, queue size=%d", request, self.get_queue_size())
         self.request_queued.emit(request, ret)
@@ -208,6 +211,7 @@ class MCTCPClient(QtCore.QObject):
                 self.log.debug("_socket_readyRead: received %s", message)
             except protocol.MessageError as e:
                 self.log.error("Could not deserialize incoming message: %s.", e)
+                self.disconnect()
                 return
 
             self._read_size = 0
@@ -239,9 +243,31 @@ class MCTCPClient(QtCore.QObject):
                 # Handle additional available data.
                 self._socket_readyRead()
 
-    def _socket_error(self, socket_error):
-        self.socket_error.emit(SocketError(socket_error, self._socket.errorString()))
+    def _socket_disconnected(self):
+        self._reset_state(Disconnected())
         self.disconnected.emit()
+
+    def _socket_error(self, socket_error):
+        error = SocketError(socket_error, self._socket.errorString())
+        self._reset_state(error)
+        self.socket_error.emit(error)
+        self.disconnected.emit()
+
+    def _reset_state(self, exception_object=RuntimeError()):
+        if self._current_request is not None:
+            self.log.debug("_reset_state: aborting current request")
+            request, future = self._current_request
+            future.set_exception(exception_object)
+            self._current_request = None
+
+        self._read_size = 0
+
+        if self.get_queue_size() > 0:
+            self.log.debug("_reset_state: aborting %d requests", self.get_queue_size())
+
+            while self.get_queue_size() > 0:
+                request, future = self._queue.pop(False)
+                future.set_exception(exception_object)
 
     def get_host(self):
         return self._socket.peerName()

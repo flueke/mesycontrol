@@ -44,6 +44,22 @@ class MRC(bm.MRC):
     def get_controller(self):
         return self._controller
 
+    def add_device(self, device):
+        super(MRC, self).add_device(device)
+
+        self.connected.connect(device.connected)
+        self.connecting.connect(device.connecting)
+        self.disconnected.connect(device.disconnected)
+        self.connection_error.connect(device.connection_error)
+
+    def remove_device(self, device):
+        super(MRC, self).remove_device(device)
+
+        self.connected.disconnect(device.connected)
+        self.connecting.disconnect(device.connecting)
+        self.disconnected.disconnect(device.disconnected)
+        self.connection_error.disconnect(device.connection_error)
+
     def get_connection(self):
         return self.controller.connection
 
@@ -182,6 +198,18 @@ class Device(bm.Device):
         If the server supports reading parameter ranges and a tuple is given,
         the read range command will be used."""
         self.controller.add_poll_item(subscriber, self.bus, self.address, item)
+
+    def is_connected(self):
+        return self.mrc.is_connected()
+
+    def is_connecting(self):
+        return self.mrc.is_connecting()
+
+    def is_disconnected(self):
+        return self.mrc.is_disconnected()
+
+    def get_last_connection_error(self):
+        return self.mrc.last_connection_error
 
     def __str__(self):
         return "%s.Device(id=%s, b=%d, a=%d, idc=%d, mrc=%s)" % (

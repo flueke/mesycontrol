@@ -96,6 +96,9 @@ class ParameterProfile(object):
                                                 #: Used to convert between raw and human readable parameter
                                                 #: values.
 
+        self._default       = None              #: Default value of the parameter. If not set the minimum of the
+                                                #  parameters range will be used. If no range is set defaults to 0.
+
         self.units.append(raw_unit)
 
     def should_be_stored(self):
@@ -119,6 +122,18 @@ class ParameterProfile(object):
     def has_index(self):
         return self.index is not None
 
+    def set_default(self, value):
+        self._default = int(value)
+
+    def get_default(self):
+        if self._default is not None:
+            return self._default
+
+        if self.range is not None:
+            return self.range[0]
+
+        return 0
+
     def __eq__(self, o):
         if isinstance(o, int):
             return self.address == o
@@ -135,6 +150,7 @@ class ParameterProfile(object):
         return "ParameterProfile(address=%d)" % self.address
 
     name = property(get_name, set_name)
+    default = property(get_default, set_default)
 
     @staticmethod
     def fromDict(d):

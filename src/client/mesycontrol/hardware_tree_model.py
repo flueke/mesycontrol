@@ -39,7 +39,7 @@ class RegistryNode(HardwareTreeNode):
         super(RegistryNode, self).__init__(ref=registry, parent=parent)
 
     def _on_hardware_set(self, app_reg, old_reg, new_reg):
-        self.notify_all_columns_changed()
+        pass # Right now the hardware registry should not change
 
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:

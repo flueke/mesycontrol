@@ -244,10 +244,8 @@ class Device(QtCore.QObject):
         """
         # Update cache on read success
         def on_parameter_read(f):
-            try:
+            if f.exception() is None:
                 self.set_cached_parameter(address, int(f))
-            except Exception:
-                self.log.exception("read_parameter")
 
         ret = self._read_parameter(address).add_done_callback(on_parameter_read)
 
@@ -274,10 +272,8 @@ class Device(QtCore.QObject):
         instance.
         """
         def on_parameter_set(f):
-            try:
+            if f.exception() is None:
                 self.set_cached_parameter(address, int(f))
-            except Exception:
-                self.log.exception("set_parameter")
 
         ret = self._set_parameter(address, value)
         ret.add_done_callback(on_parameter_set)

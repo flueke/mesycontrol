@@ -37,12 +37,9 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         if self.device is not None:
             self.device.config_set.disconnect(self._on_device_config_set)
             self.device.hardware_set.disconnect(self._on_device_hardware_set)
-        def on_device_finalized(ref):
-            print "device finalized", ref
-            print "device finalized", ref
-            print "device finalized", ref
-            print "device finalized", ref
-        self._device = weakref.ref(device, on_device_finalized)
+
+        self._device = device
+
         if self.device is not None:
             self.device.config_set.connect(self._on_device_config_set)
             self.device.hardware_set.connect(self._on_device_hardware_set)
@@ -51,7 +48,8 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         self.endResetModel()
 
     def get_device(self):
-        return self._device() if self._device is not None else None
+        #return self._device() if self._device is not None else None
+        return self._device
 
     device = pyqtProperty(object, get_device, set_device)
 
@@ -123,24 +121,46 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
 
         hw  = self.device.hw
         cfg = self.device.cfg
+        profile = self.device.profile
 
         if role == Qt.DisplayRole:
             if column_name == 'address':
                 return row
 
-            elif column_name == 'hw_value' and hw is not None:
+            elif column_name == 'name':
+                try:
+                    pp = profile[row]
+                    return pp.name
+                except (KeyError, AttributeError):
+                    pass
+
+            elif column_name == 'hw_value':
+                if hw is None:
+                    return "<not connected>"
                 try:
                     return int(hw.get_parameter(row))
                 except future.IncompleteFuture:
-                    return None
+                    return "<reading>"
 
-            elif column_name == 'cfg_value' and cfg is not None:
+            elif column_name == 'cfg_value':
+                if cfg is None:
+                    return "<not in config>"
+
                 try:
                     return int(cfg.get_parameter(row))
                 except future.IncompleteFuture:
-                    return None
+                    return "<reading>"
                 except KeyError:
                     return "<not in config>"
+
+            elif column_name in ('hw_unit_value', 'cfg_unit_value'):
+                try:
+                    raw   = int(hw.get_parameter(row) if column_name == 'hw_unit_value' else cfg.get_parameter(row))
+                    unit  = profile[row].units[1] # skip the 'raw' unit at index 0
+                    value = unit.unit_value(raw)
+                    return QtCore.QString.fromUtf8("%f %s" % (value, unit.label))
+                except Exception:
+                    pass
 
         return None
 
@@ -280,23 +300,22 @@ class DeviceTableSortFilterProxyModel(QtGui.QSortFilterProxyModel):
         return self._filter_static
 
     def filterAcceptsRow(self, src_row, src_parent):
-        return True
-        #device  = self.sourceModel().device
-        #profile = device.profile[src_row]
+        device  = self.sourceModel().device
+        profile = device.profile[src_row]
 
-        #if self.filter_unknown and profile is None:
-        #    return False
+        if self.filter_unknown and profile is None:
+            return False
 
-        #if self.filter_readonly and profile is not None and profile.read_only:
-        #    return False
+        if self.filter_readonly and profile is not None and profile.read_only:
+            return False
 
-        #if self.filter_volatile and profile is not None and profile.poll:
-        #    return False
+        if self.filter_volatile and profile is not None and profile.poll:
+            return False
 
-        #if self.filter_static and profile is not None and not profile.poll:
-        #    return False
+        if self.filter_static and profile is not None and not profile.poll:
+            return False
 
-        #return super(DeviceTableSortFilterProxyModel, self).filterAcceptsRow(src_row, src_parent)
+        return super(DeviceTableSortFilterProxyModel, self).filterAcceptsRow(src_row, src_parent)
 
     filter_unknown  = pyqtProperty(bool, get_filter_unknown, set_filter_unknown)
     filter_readonly = pyqtProperty(bool, get_filter_readonly, set_filter_readonly)

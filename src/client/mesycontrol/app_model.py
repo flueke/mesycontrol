@@ -8,6 +8,7 @@ from qt import pyqtProperty
 from qt import pyqtSignal
 
 import basic_model as bm
+import device_profile
 import util
 
 """Mesycontrol application model.
@@ -161,12 +162,13 @@ class MRC(AppObject):
 class Device(AppObject):
     mrc_changed = pyqtSignal(object)
 
-    def __init__(self, bus, address, mrc=None, hw_device=None, cfg_device=None, parent=None):
+    def __init__(self, bus, address, mrc=None, hw_device=None, cfg_device=None, profile=None, parent=None):
         super(Device, self).__init__(hardware=hw_device, config=cfg_device, parent=parent)
         self.bus        = int(bus)
         self.address    = int(address)
         self._mrc       = None
         self.mrc        = mrc
+        self.profile    = profile
 
         if self.bus not in bm.BUS_RANGE:
             raise ValueError("Bus out of range")
@@ -192,23 +194,41 @@ class Device(AppObject):
     mrc = pyqtProperty(object, get_mrc, set_mrc, notify=mrc_changed)
 
 class Director(object):
-    def __init__(self, hw_registry, cfg_registry):
-        self.registry = MRCRegistry(hw_registry, cfg_registry)
-        self.log      = util.make_logging_source_adapter(__name__, self)
+    def __init__(self, app_registry, device_registry):
+        self.log                = util.make_logging_source_adapter(__name__, self)
+        self.registry           = app_registry
+        self.device_registry    = device_registry
 
-        for mrc in hw_registry.mrcs:
-            self._hw_mrc_added(mrc)
+        self._hw_registry_set(app_registry, None, app_registry.hw)
+        self._cfg_registry_set(app_registry, None, app_registry.cfg)
 
-        for mrc in cfg_registry.mrcs:
-            self._cfg_mrc_added(mrc)
+    def _make_device(self, bus, address, hw_device=None, cfg_device=None):
+        idc = hw_device.idc if hw_device is not None else cfg_device.idc
 
-        hw_registry.mrc_added.connect(self._hw_mrc_added)
-        hw_registry.mrc_about_to_be_removed.connect(self._hw_mrc_about_to_be_removed)
+        try:
+            profile = self.device_registry.get_profile(idc)
+        except KeyError:
+            profile = device_profile.make_generic_profile(idc)
 
-        cfg_registry.mrc_added.connect(self._cfg_mrc_added)
-        cfg_registry.mrc_about_to_be_removed.connect(self._cfg_mrc_about_to_be_removed)
+        return Device(bus=bus, address=address, hw_device=hw_device, cfg_device=cfg_device, profile=profile)
 
     # hardware side
+    def _hw_registry_set(self, app_registry, old_hw_reg, new_hw_reg):
+        if old_hw_reg is not None:
+            old_hw_reg.mrc_added.disconnect(self._hw_mrc_added)
+            old_hw_reg.mrc_about_to_be_removed.disconnect(self._hw_mrc_about_to_be_removed)
+
+            for mrc in old_hw_reg.mrcs:
+                self._hw_mrc_about_to_be_removed(mrc)
+
+
+        if new_hw_reg is not None:
+            new_hw_reg.mrc_added.connect(self._hw_mrc_added)
+            new_hw_reg.mrc_about_to_be_removed.connect(self._hw_mrc_about_to_be_removed)
+
+            for mrc in new_hw_reg.mrcs:
+                self._hw_mrc_added(mrc)
+
     def _hw_mrc_added(self, mrc):
         self.log.debug("_hw_mrc_added: %s", mrc)
 
@@ -242,7 +262,7 @@ class Director(object):
         app_mrc = self.registry.find_mrc_by_hardware(device.mrc)
         app_device = app_mrc.get_device(device.bus, device.address)
         if app_device is None:
-            app_device = Device(bus=device.bus, address=device.address, hw_device=device)
+            app_device = self._make_device(bus=device.bus, address=device.address, hw_device=device)
             app_mrc.add_device(app_device)
         else:
             app_device.hw = device
@@ -256,6 +276,21 @@ class Director(object):
             app_mrc.remove_device(app_device)
 
     # config side
+    def _cfg_registry_set(self, app_registry, old_cfg_reg, new_cfg_reg):
+        if old_cfg_reg is not None:
+            old_cfg_reg.mrc_added.disconnect(self._cfg_mrc_added)
+            old_cfg_reg.mrc_about_to_be_removed.disconnect(self._cfg_mrc_about_to_be_removed)
+
+            for mrc in old_cfg_reg.mrcs:
+                self._cfg_mrc_about_to_be_removed(mrc)
+
+        if new_cfg_reg is not None:
+            new_cfg_reg.mrc_added.connect(self._cfg_mrc_added)
+            new_cfg_reg.mrc_about_to_be_removed.connect(self._cfg_mrc_about_to_be_removed)
+
+            for mrc in new_cfg_reg.mrcs:
+                self._cfg_mrc_added(mrc)
+
     def _cfg_mrc_added(self, mrc):
         self.log.debug("_cfg_mrc_added: %s", mrc)
 
@@ -289,7 +324,7 @@ class Director(object):
         app_mrc = self.registry.find_mrc_by_config(device.mrc)
         app_device = app_mrc.get_device(device.bus, device.address)
         if app_device is None:
-            app_device = Device(bus=device.bus, address=device.address, cfg_device=device)
+            app_device = self._make_device(bus=device.bus, address=device.address, cfg_device=device)
             app_mrc.add_device(app_device)
         else:
             app_device.cfg = device

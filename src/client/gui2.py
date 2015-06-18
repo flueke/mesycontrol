@@ -17,6 +17,7 @@ from mesycontrol.app_context import Context
 from mesycontrol import basic_model as bm
 from mesycontrol import config_model as cm
 from mesycontrol import config_tree_model as ctm
+from mesycontrol import config_xml
 from mesycontrol import device_tableview
 from mesycontrol import hardware_controller
 from mesycontrol import hardware_model as hm
@@ -110,7 +111,30 @@ def run_add_device_config_dialog(device_registry, registry, mrc, bus=None, paren
         dialog.accepted.connect(accepted)
         dialog.show()
     except RuntimeError as e:
+        log.exception(e)
         QtGui.QMessageBox.critical(parent_widget, "Error", str(e))
+
+def run_open_setup_dialog(context, parent_widget):
+    directory_hint = os.path.dirname(str(context.make_qsettings().value(
+            'Files/last_setup_file', QtCore.QString()).toString()))
+
+    filename = QtGui.QFileDialog.getOpenFileName(parent_widget, "Open setup file",
+            directory=directory_hint, filter="XML files (*.xml);; *")
+
+    if not len(filename):
+        return
+
+    try:
+        setup = config_xml.read_setup(filename)
+        
+        if not len(setup):
+            raise RuntimeError("No MRC configurations found in %s" % filename)
+
+        context.app_registry.cfg = setup
+
+    except Exception as e:
+        log.exception(e)
+        QtGui.QMessageBox.critical(parent_widget, "Error", "Opening setup %s failed: %s" % (filename, e))
 
 class GUIApplication(object):
     def __init__(self, mainwindow):
@@ -133,7 +157,6 @@ class GUIApplication(object):
         self.log.debug("hw mrc added: %s", mrc.url)
         mrc.connecting.connect(partial(self._hw_mrc_connecting, mrc=mrc))
         mrc.disconnected.connect(partial(self._hw_mrc_disconnected, mrc=mrc))
-        mrc.connection_error.connect(partial(self._hw_mrc_connection_error, mrc=mrc))
 
     def _hw_mrc_connecting(self, f, mrc):
         self.log.debug("_hw_mrc_connecting: f=%s, mrc=%s, mrc.url=%s", f, mrc, mrc.url)
@@ -171,11 +194,17 @@ class GUIApplication(object):
 
         if isinstance(node, ctm.SetupNode):
             setup = node.ref.cfg
-            menu.addAction("Load Setup")
+
+            menu.addAction("Open Setup").triggered.connect(partial(run_open_setup_dialog,
+                context=self.context, parent_widget=self.treeview))
+
+            #menu.addAction("Load Setup")
+
             if len(setup):
                 if len(setup.filename):
-                    menu.addAction("Save")
-                menu.addAction("Save As")
+                    menu.addAction("Save Setup")
+                menu.addAction("Save Setup As")
+
             menu.addAction("Add MRC").triggered.connect(partial(run_add_mrc_config_dialog,
                 find_data_file=self.context.find_data_file, registry=self.registry,
                 parent_widget=self.treeview))

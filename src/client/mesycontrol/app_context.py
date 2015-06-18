@@ -24,16 +24,16 @@ class Context(QtCore.QObject):
         self.device_registry.load_system_deviceprofile_modules()
         self.device_registry.load_system_device_modules()
 
-        self.hw_registry    = bm.MRCRegistry()  # Root of the hardware model tree
-        self.setup          = cm.Setup()        # Root of the config model tree
-        self.director       = am.Director(self.hw_registry, self.setup)
-        self.app_registry   = self.director.registry
+        hw_registry         = bm.MRCRegistry()  # Root of the hardware model tree
+        setup               = cm.Setup()        # Root of the config model tree
+        self.app_registry   = am.MRCRegistry(hw_registry, setup) # Root of the app model tree
+        self.director       = am.Director(self.app_registry, self.device_registry)
 
     def shutdown(self):
         observer = future.FutureObserver()
 
         def do_disconnect():
-            futures = [mrc.disconnect() for mrc in self.hw_registry.get_mrcs()]
+            futures = [mrc.disconnect() for mrc in self.app_registry.hw.get_mrcs()]
             observer.set_future(future.all_done(*futures))
 
         util.wait_for_signal(signal=observer.done, emitting_callable=do_disconnect, timeout_ms=5000)
