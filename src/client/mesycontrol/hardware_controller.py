@@ -60,12 +60,15 @@ class Controller(object):
 
     def set_mrc(self, mrc):
         """Set the hardware_model.MRC instance this controller should work with."""
+        self.log.debug("set_mrc: old=%s, new=%s", self.mrc, mrc)
         if self.mrc is not None:
             self.mrc.set_disconnected()
-            self.connection.disconnect(self.mrc)
+            self.connection.connected.disconnect(self.mrc.set_connected)
+            self.connection.connecting.disconnect(self.mrc.set_connecting)
+            self.connection.disconnected.disconnect(self.mrc.set_disconnected)
+            self.connection.connection_error.disconnect(self.mrc.set_connection_error)
 
         self._mrc = weakref.ref(mrc) if mrc is not None else None
-        self.log.debug("set_mrc: %s", self.mrc)
 
         if self.mrc is not None:
             self.mrc.url = self.connection.url
