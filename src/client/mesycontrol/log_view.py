@@ -6,6 +6,7 @@ from qt import QtCore
 from qt import QtGui
 import logging
 import sys
+import time
 import traceback
 
 import util
@@ -23,9 +24,16 @@ class LogView(QtGui.QTextEdit):
         self._mutex = QtCore.QMutex()
         self._original_text_color = self.textColor()
 
+    def append(self, text, prepend_time=True):
+        if prepend_time:
+            str_time = time.strftime("%H:%M:%S")
+            super(LogView, self).append(str_time + ": " + text)
+        else:
+            super(LogView, self).append(text)
+
     def handle_log_record(self, log_record):
         with QtCore.QMutexLocker(self._mutex):
-            self.append(self.formatter.format(log_record))
+            self.append(self.formatter.format(log_record), prepend_time=False)
 
     def handle_exception(self, exc_type, exc_value, exc_trace):
         with QtCore.QMutexLocker(self._mutex):
