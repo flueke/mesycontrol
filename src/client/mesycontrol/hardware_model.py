@@ -59,6 +59,7 @@ class MRC(bm.MRC):
         return self._connected
 
     def set_connected(self):
+        self.log.debug("%s: set_connected", self.url)
         self._connected, self._connecting, self._disconnected = (True, False, False)
         self.last_connection_error = None
         self.connected.emit()
@@ -67,17 +68,21 @@ class MRC(bm.MRC):
         return self._connecting
 
     def set_connecting(self, the_future):
+        self.log.debug("%s: set_connecting", self.url)
         self._connected, self._connecting, self._disconnected = (False, True, False)
+        self.last_connection_error = None
         self.connecting.emit(the_future)
 
     def is_disconnected(self):
         return self._disconnected
 
     def set_disconnected(self):
+        self.log.debug("%s: set_disconnected", self.url)
         self._connected, self._connecting, self._disconnected = (False, False, True)
         self.disconnected.emit()
 
     def set_connection_error(self, error):
+        self.log.debug("%s: set_connection_error", self.url)
         self._connected, self._connecting, self._disconnected = (False, False, True)
         self.last_connection_error = error
         self.connection_error.emit(error)
