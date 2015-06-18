@@ -49,7 +49,7 @@ class ServerIsStopped(ServerError):
 def get_exit_code_string(exit_code):
     return EXIT_CODES.get(exit_code, "exit_unknown_error")
 
-class ServerProcess(QtCore.QObject):
+class ServerProcessNG(QtCore.QObject):
     starting = pyqtSignal(object)
     started  = pyqtSignal()             #: Emitted once the process is running and ready.
     stopping = pyqtSignal(object)
@@ -282,12 +282,24 @@ class ServerProcess(QtCore.QObject):
 # Just scrap the code recording used ports and start the server until a free
 # base port for the address is found or we run out of ports.
 
-class ServerProcess2(QtCore.QObject):
+class ServerProcess(QtCore.QObject):
     started  = pyqtSignal()
     stopped  = pyqtSignal()
     error    = pyqtSignal(QProcess.ProcessError, str, int, str)
     finished = pyqtSignal(QProcess.ExitStatus, int, str)
     output   = pyqtSignal(str)
+
+    exit_codes = {
+            0:   "exit_success",
+            1:   "exit_options_error",
+            2:   "exit_address_in_use",
+            3:   "exit_address_not_available",
+            4:   "exit_permission_denied",
+            5:   "exit_bad_listen_address",
+            127: "exit_unknown_error"
+            }
+
+    startup_delay_ms = 200
 
     def __init__(self, binary='mesycontrol_server', listen_address='0.0.0.0', listen_port=BASE_PORT,
             serial_port=None, baud_rate=0, tcp_host=None, tcp_port=4001, verbosity=3, parent=None):
@@ -457,47 +469,47 @@ class ServerProcess2(QtCore.QObject):
         data = str(self.process.readAllStandardOutput())
         self.output.emit(data)
 
-#class ServerProcessPool(QtCore.QObject):
-#    """Keeps track of running ServerProcesses and the listen ports they use."""
-#    def __init__(self, parent=None):
-#        super(ServerProcessPool, self).__init__(parent)
-#        self.log                = util.make_logging_source_adapter(__name__, self)
-#        self._procs_by_port     = weakref.WeakValueDictionary()
-#        self._unavailable_ports = set()
-#
-#    def create_process(self, options={}, parent=None):
-#        proc = ServerProcess(parent=parent)
-#
-#        for attr, value in options.iteritems():
-#            setattr(proc, attr, value)
-#
-#        proc.listen_port = self._get_free_port()
-#        self._procs_by_port[proc.listen_port] = proc
-#        proc.finished.connect(partial(self._on_process_finished, process=proc))
-#
-#        return proc
-#
-#    def _get_free_port(self):
-#        in_use = set(self._procs_by_port.keys())
-#        in_use = in_use.union(self._unavailable_ports)
-#
-#        for p in xrange(BASE_PORT, 65535):
-#            if p not in in_use:
-#                return p
-#
-#        raise RuntimeError("No listen ports available")
-#
-#    def _on_process_finished(self, qt_exit_status, exit_code, exit_code_string, process):
-#        if exit_code_string == 'exit_address_in_use':
-#            self.log.warning('listen_port %d in use by an external process', process.listen_port)
-#            self._unavailable_ports.add(process.listen_port)
-#            del self._procs_by_port[process.listen_port]
-#            process.listen_port = self._get_free_port()
-#            self._procs_by_port[process.listen_port] = process
-#            process.start()
-#
-#pool = ServerProcessPool()
-#
+class ServerProcessPool(QtCore.QObject):
+    """Keeps track of running ServerProcesses and the listen ports they use."""
+    def __init__(self, parent=None):
+        super(ServerProcessPool, self).__init__(parent)
+        self.log                = util.make_logging_source_adapter(__name__, self)
+        self._procs_by_port     = weakref.WeakValueDictionary()
+        self._unavailable_ports = set()
+
+    def create_process(self, options={}, parent=None):
+        proc = ServerProcess(parent=parent)
+
+        for attr, value in options.iteritems():
+            setattr(proc, attr, value)
+
+        proc.listen_port = self._get_free_port()
+        self._procs_by_port[proc.listen_port] = proc
+        proc.finished.connect(partial(self._on_process_finished, process=proc))
+
+        return proc
+
+    def _get_free_port(self):
+        in_use = set(self._procs_by_port.keys())
+        in_use = in_use.union(self._unavailable_ports)
+
+        for p in xrange(BASE_PORT, 65535):
+            if p not in in_use:
+                return p
+
+        raise RuntimeError("No listen ports available")
+
+    def _on_process_finished(self, qt_exit_status, exit_code, exit_code_string, process):
+        if exit_code_string == 'exit_address_in_use':
+            self.log.warning('listen_port %d in use by an external process', process.listen_port)
+            self._unavailable_ports.add(process.listen_port)
+            del self._procs_by_port[process.listen_port]
+            process.listen_port = self._get_free_port()
+            self._procs_by_port[process.listen_port] = process
+            process.start()
+
+pool = ServerProcessPool()
+
 if __name__ == "__main__":
     import logging
     import signal

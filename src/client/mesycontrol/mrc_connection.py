@@ -159,8 +159,8 @@ class LocalMRCConnection(AbstractConnection):
         print server_options
         print server_options
         print server_options
-        self.server = server_process.ServerProcess(**server_options)
-        #self.server = server_process.pool.create_process(server_options)
+        #self.server = server_process.ServerProcess(**server_options)
+        self.server = server_process.pool.create_process(server_options)
         self.connection = MRCConnection(self.server.listen_address, self.server.listen_port)
 
         self.connection.connected.connect(self.connected)
