@@ -12,6 +12,9 @@ from tcp_client import MCTCPClient
 import server_process
 import util
 
+# FIXME: disconnected signal of MRCConnection emitted multiple times when
+# mesycontrol_server is killed
+
 class IsConnecting(Exception):
     pass
 
@@ -31,7 +34,7 @@ class AbstractConnection(QtCore.QObject):
     message_received        = pyqtSignal(object)         #: Message
     response_received       = pyqtSignal(object, object, object) #: request, response, Future
     notification_received   = pyqtSignal(object) #: Message
-    error_received          = pyqtSignal(object) #: Message
+    error_message_received  = pyqtSignal(object) #: Message
 
     queue_empty             = pyqtSignal()
     queue_size_changed      = pyqtSignal(int)
@@ -78,8 +81,8 @@ class MRCConnection(AbstractConnection):
         self.port   = port
         self.client = MCTCPClient()
 
-        self.client.disconnected.connect(self.disconnected)
-        self.client.socket_error.connect(self.connection_error)
+        self.client.disconnected.connect(self._on_client_disconnected)
+        self.client.socket_error.connect(self._on_client_socket_error)
 
         self.client.request_queued.connect(self.request_queued)
         self.client.request_sent.connect(self.request_sent)
@@ -87,7 +90,7 @@ class MRCConnection(AbstractConnection):
         self.client.response_received.connect(self.response_received)
         self.client.notification_received.connect(self.notification_received)
         self.client.notification_received.connect(self._on_client_notification_received)
-        self.client.error_received.connect(self.error_received)
+        self.client.error_received.connect(self.error_message_received)
 
         self.client.queue_empty.connect(self.queue_empty)
         self.client.queue_size_changed.connect(self.queue_size_changed)
@@ -96,6 +99,9 @@ class MRCConnection(AbstractConnection):
         self._is_connected  = False
 
     def connect(self):
+        self.log.debug("connect() is_connecting=%s, is_connected=%s",
+                self.is_connecting(), self.is_connected())
+
         if self.is_connecting():
             raise IsConnecting()
 
@@ -106,13 +112,16 @@ class MRCConnection(AbstractConnection):
         ret = self._connecting_future = Future()
 
         def on_client_connect_done(f):
-            if f.exception() is not None:
-                ret.set_exception(f.exception())
-            else:
-                ret.set_progress_text("Connected to %s:%d" % (self.host, self.port))
+            #self.log.debug("connect: on_client_connect_done: ret.done()=%s", ret.done())
+            if self._connecting_future is not None and f.exception() is not None:
+                self._connecting_future.set_exception(f.exception())
+            #else:
+            #    ret.set_progress_text("Connected to %s:%d" % (self.host, self.port))
 
         self.client.connect(self.host, self.port).add_done_callback(on_client_connect_done)
-        self.connecting.emit(ret)
+        # FIXME: emitting this causes the gui to see it twice
+        #self.log.debug("connect: emitting connecting")
+        #self.connecting.emit(ret)
         return ret
 
     def _on_client_notification_received(self, msg):
@@ -120,18 +129,36 @@ class MRCConnection(AbstractConnection):
             if msg.status == MRCStatus.RUNNING:
                 self._is_connecting = False
                 self._is_connected  = True
-                self._connecting_future.set_progress_text("%s:%d: Ready" % (self.host, self.port))
                 self._connecting_future.set_result(True)
                 self._connecting_future = None
                 self.connected.emit()
                 self.log.debug("%s: connected & running", self.url)
             else:
-                self._connecting_future.set_progress_text("%s:%d: %s" %
-                        (self.host, self.port, MRCStatus.by_code[msg.status]['description']))
+                self._connecting_future.set_progress_text("MRC status: %s" %
+                        (MRCStatus.by_code[msg.status]['description'],))
 
-    def disconnect(self):
+    def _on_client_disconnected(self):
+        self.log.debug("_on_client_disconnected: connecting_future=%s", self._connecting_future)
         self._is_connected = False
         self._is_connecting = False
+        if self._connecting_future is not None:
+            self._connecting_future.set_exception(RuntimeError("Socket disconnected"))
+            self._connecting_future = None
+        self.disconnected.emit()
+
+    def _on_client_socket_error(self, error):
+        self.log.debug("_on_client_socket_error: error=%s, connecting_future=%s", error, self._connecting_future)
+        self._is_connected = False
+        self._is_connecting = False
+        if self._connecting_future is not None:
+            self._connecting_future.set_exception(error)
+            self._connecting_future = None
+        self.connection_error.emit(error)
+
+    def disconnect(self):
+        self.log.debug("disconnect")
+        #self._is_connected = False
+        #self._is_connecting = False
         return self.client.disconnect()
 
     def is_connected(self):
@@ -155,10 +182,6 @@ class LocalMRCConnection(AbstractConnection):
     def __init__(self, server_options=dict(), parent=None):
         super(LocalMRCConnection, self).__init__(parent)
         self.log = util.make_logging_source_adapter(__name__, self)
-        print server_options
-        print server_options
-        print server_options
-        print server_options
         #self.server = server_process.ServerProcess(**server_options)
         self.server = server_process.pool.create_process(server_options)
         self.connection = MRCConnection(self.server.listen_address, self.server.listen_port)
@@ -170,7 +193,7 @@ class LocalMRCConnection(AbstractConnection):
         self.connection.request_sent.connect(self.request_sent)
         self.connection.message_received.connect(self.message_received)
         self.connection.notification_received.connect(self.notification_received)
-        self.connection.error_received.connect(self.error_received)
+        self.connection.error_message_received.connect(self.error_message_received)
         self.connection.queue_empty.connect(self.queue_empty)
         self.connection.queue_size_changed.connect(self.queue_size_changed)
 
@@ -215,15 +238,19 @@ class LocalMRCConnection(AbstractConnection):
         return ret
 
     def disconnect(self):
+        self.log.debug("disconnect")
+
         ret = Future()
 
         def on_server_stopped(f):
+            self.log.debug("disconnect: on_server_stopped")
             try:
                 ret.set_result(f.result())
             except Exception as e:
                 ret.set_exception(e)
 
         def on_connection_disconnected(f):
+            self.log.debug("disconnect: on_connection_disconnected")
             self._is_connected = False
             self._is_connecting = False
             if self.server.is_running():

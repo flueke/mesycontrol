@@ -66,6 +66,8 @@ class MCTCPClient(QtCore.QObject):
         Disconnects if the client currently is connected.
         """
 
+        self.log.debug("connect(): %s:%d", host, port)
+
         ret = Future()
 
         def do_connect():
@@ -91,6 +93,7 @@ class MCTCPClient(QtCore.QObject):
             self._socket.connected.connect(socket_connected)
             self._socket.error.connect(socket_error)
             self._socket.connectToHost(host, port)
+            self.log.debug("connect: emitting connecting")
             self.connecting.emit(host, port)
 
         if self.is_connected() or self.is_connecting():
@@ -103,6 +106,9 @@ class MCTCPClient(QtCore.QObject):
     def disconnect(self):
         """Disconnect. Returns a Future that fullfills once the connection has
         been disconnected or an error occurs."""
+
+        self.log.debug("disconnect()")
+
         if self.is_disconnected():
             return Future().set_result(True)
 
