@@ -32,6 +32,8 @@
 
 # TODO: implement ability to add device profiles to device configs (later)
 
+from qt import QtCore
+
 from xml.dom import minidom
 from xml.etree.ElementTree import TreeBuilder
 from xml.etree import ElementTree as ET
@@ -51,7 +53,7 @@ def read_setup(source):
 
     ret = _setup_from_node(root.find('setup'))
 
-    if isinstance(source, (str, unicode)):
+    if isinstance(source, (str, unicode, QtCore.QString)):
         ret.filename = source
 
     ret.modified = False

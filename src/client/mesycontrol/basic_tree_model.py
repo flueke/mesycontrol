@@ -206,3 +206,8 @@ class BasicTreeNode(object):
     parent  = property(get_parent, set_parent)
     row     = property(get_row)
     model   = property(get_model, set_model)
+
+def display_url(url):
+    if url.startswith("serial://"):
+        return url[len("serial://"):]
+    return url

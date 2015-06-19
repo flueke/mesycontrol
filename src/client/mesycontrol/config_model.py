@@ -163,6 +163,7 @@ class Device(bm.Device):
     set_idc     = modifies(bm.Device.set_idc)
     set_cached_parameter = modifies(bm.Device.set_cached_parameter)
     clear_cached_parameter = modifies(bm.Device.clear_cached_parameter)
+    clear_cached_memory = modifies(bm.Device.clear_cached_memory)
 
     def _read_parameter(self, address):
         # This is either called directly or by bm.Device.get_parameter in case

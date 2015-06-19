@@ -202,6 +202,9 @@ class Director(object):
         self._hw_registry_set(app_registry, None, app_registry.hw)
         self._cfg_registry_set(app_registry, None, app_registry.cfg)
 
+        app_registry.hardware_set.connect(self._hw_registry_set)
+        app_registry.config_set.connect(self._cfg_registry_set)
+
     def _make_device(self, bus, address, hw_device=None, cfg_device=None):
         idc = hw_device.idc if hw_device is not None else cfg_device.idc
 
@@ -220,7 +223,6 @@ class Director(object):
 
             for mrc in old_hw_reg.mrcs:
                 self._hw_mrc_about_to_be_removed(mrc)
-
 
         if new_hw_reg is not None:
             new_hw_reg.mrc_added.connect(self._hw_mrc_added)

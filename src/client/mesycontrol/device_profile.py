@@ -73,6 +73,15 @@ class Range(object):
     def to_tuple(self):
         return (self.min_value, self.max_value)
 
+    def __getitem__(self, key):
+        if key == 0:
+            return self.min_value
+
+        if key == 1:
+            return self.max_value
+
+        raise KeyError(key)
+
 @functools.total_ordering
 class ParameterProfile(object):
     def __init__(self, address):
@@ -130,7 +139,7 @@ class ParameterProfile(object):
             return self._default
 
         if self.range is not None:
-            return self.range[0]
+            return self.range.min_value
 
         return 0
 
@@ -204,13 +213,18 @@ class DeviceProfile(object):
         if isinstance(key, (str, unicode, QtCore.QString)):
             return self.get_parameter_by_name(str(key))
 
-        if isinstance(key, ParameterProfile):
-            return self.get_parameter_by_address(key.address)
+        #if isinstance(key, ParameterProfile):
+        #    return self.get_parameter_by_address(key.address)
+
+        #try:
+        #    return self.get_parameter_by_address(int(key))
+        #except ValueError:
+        #    raise TypeError("ParameterProfile indexes must be strings or integers, not %s", type(key).__name__)
 
         try:
             return self.get_parameter_by_address(int(key))
         except ValueError:
-            raise TypeError("ParameterProfile indexes must be strings or integers, not %s", type(key).__name__)
+            raise KeyError(key)
 
     def get_critical_parameters(self):
         return filter(lambda p: p.critical, self.parameters)

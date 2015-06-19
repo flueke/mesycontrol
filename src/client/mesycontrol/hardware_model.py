@@ -96,18 +96,22 @@ class MRC(bm.MRC):
         self.log.debug("%s: set_disconnected", self.url)
         self._connected, self._connecting, self._disconnected = (False, False, True)
         self.disconnected.emit()
+        #for device in self: # FIXME: is this a good idea? no way to get the last known values once a device is disconnected
+        #    device.clear_cached_memory()
 
     def set_connection_error(self, error):
         self.log.debug("%s: set_connection_error", self.url)
         self._connected, self._connecting, self._disconnected = (False, False, True)
         self.last_connection_error = error
         self.connection_error.emit(error)
+        #for device in self: # FIXME: is this a good idea? no way to get the last known values once a device is disconnected
+        #    device.clear_cached_memory()
 
     def read_parameter(self, bus, device, address):
         return self.controller.read_parameter(bus, device, address)
 
     def set_parameter(self, bus, device, address, value):
-        return self.controller.set_parameter(self, bus, device, address, value)
+        return self.controller.set_parameter(bus, device, address, value)
 
     def scanbus(self, bus):
         return self.controller.scanbus(bus)
@@ -151,6 +155,7 @@ class Device(bm.Device):
 
         self._address_conflict = False
         self._rc = False
+        self._polling = True
 
     def _read_parameter(self, address):
         return self.mrc.read_parameter(self.bus, self.address, address)

@@ -13,6 +13,8 @@ import config_tree_model as ctm
 import hardware_tree_model as htm
 import util
 
+# TODO: context menu and display for virtual items
+
 class ConfigTreeView(QtGui.QTreeView):
     def __init__(self, parent=None):
         super(ConfigTreeView, self).__init__(parent)

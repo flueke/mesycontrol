@@ -9,6 +9,8 @@ import basic_tree_model as btm
 
 QModelIndex = QtCore.QModelIndex
 
+# TODO: handle the case where no config is present. it should be easy to create the config.
+
 class ConfigTreeModel(btm.BasicTreeModel):
     def __init__(self, device_registry, parent=None):
         super(ConfigTreeModel, self).__init__(parent)
@@ -76,15 +78,42 @@ class MRCNode(ConfigTreeNode):
         super(MRCNode, self).__init__(ref=mrc, parent=parent)
 
     def _on_config_set(self, app_mrc, old_mrc, new_mrc):
-        # TODO: connect mrc signals here
+        if old_mrc is not None:
+            old_mrc.name_changed.disconnect(self.notify_all_columns_changed)
+
+        if new_mrc is not None:
+            new_mrc.name_changed.connect(self.notify_all_columns_changed)
+
         self.notify_all_columns_changed()
+
+    def flags(self, column):
+        if column == 0:
+            ret = Qt.ItemIsEnabled | Qt.ItemIsSelectable
+            if self.ref.cfg is not None:
+                ret |= Qt.ItemIsEditable
+            return ret
 
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:
             mrc = self.ref
-            app_url = mrc.url
-            cfg_url = mrc.cfg.url if mrc.cfg else str()
-            return "app_url=%s | cfg_url=%s" % (app_url, cfg_url)
+            cfg = mrc.cfg
+
+            if cfg is None:
+                return btm.display_url(mrc.url)
+
+            if len(cfg.name):
+                return "%s (%s)" % (cfg.name, btm.display_url(mrc.url))
+
+            return btm.display_url(mrc.url)
+
+        if column == 0 and role == Qt.EditRole:
+            return self.ref.cfg.name
+
+    def set_data(self, column, value, role):
+        if role == Qt.EditRole and column == 0:
+            self.ref.cfg.name = str(value.toString())
+            return True
+        return False
 
 class BusNode(btm.BasicTreeNode):
     def __init__(self, bus_number, parent=None):
@@ -93,17 +122,27 @@ class BusNode(btm.BasicTreeNode):
 
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:
-            mrc = self.parent.ref
-            if mrc.cfg:
-                return str(self.bus_number)
+            return str(self.bus_number)
 
 class DeviceNode(ConfigTreeNode):
     def __init__(self, device, parent=None):
         super(DeviceNode, self).__init__(ref=device, parent=parent)
 
     def _on_config_set(self, app_device, old_device, new_device):
-        # TODO: connect device signals here
+        if old_device is not None:
+            old_device.name_changed.disconnect(self.notify_all_columns_changed)
+
+        if new_device is not None:
+            new_device.name_changed.connect(self.notify_all_columns_changed)
+
         self.notify_all_columns_changed()
+
+    def flags(self, column):
+        if column == 0:
+            ret = Qt.ItemIsEnabled | Qt.ItemIsSelectable
+            if self.ref.cfg is not None:
+                ret |= Qt.ItemIsEditable
+            return ret
 
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:
@@ -111,15 +150,25 @@ class DeviceNode(ConfigTreeNode):
             cfg    = device.cfg # config_model.Device
 
             if cfg is None:
-                return "%X <not present>" % device.address
+                return "%X <not present in setup>" % device.address
 
             try:
-                name = self.model.device_registry.get_device_name(cfg.idc)
-                data = "%s" % name
+                type_name = self.model.device_registry.get_device_name(cfg.idc)
             except KeyError:
-                data = "idc=%d" % cfg.idc
+                type_name = "idc=%d" % cfg.idc
+
+            if len(cfg.name):
+                data = "%s (%s)" % (cfg.name, type_name)
+            else:
+                data = type_name
 
             if cfg.modified:
                 data += "*"
 
             return "%X %s" % (device.address, data)
+
+    def set_data(self, column, value, role):
+        if role == Qt.EditRole and column == 0:
+            self.ref.cfg.name = str(value.toString())
+            return True
+        return False

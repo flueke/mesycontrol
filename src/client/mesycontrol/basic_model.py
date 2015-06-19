@@ -12,12 +12,16 @@ import weakref
 import future
 import util
 
-# TODO: add value range but take negative values returned by the MRC command
-# line into account
 
-BUS_RANGE   = xrange(2)
-DEV_RANGE   = xrange(16)
-PARAM_RANGE = xrange(256)
+BUS_RANGE   = xrange(2)     # Valid bus numbers
+DEV_RANGE   = xrange(16)    # Valid device addresses
+PARAM_RANGE = xrange(256)   # Valid parameter addresses
+SET_VALUE_MIN = 0           # minimum settable parameter value
+SET_VALUE_MAX = 65535       # maximum settable parameter value
+# Note: read values are in range (-32767, 32768) as the MRC displays larger
+# values as negative numbers (a feature implemented for MHV-4 voltage output).
+
+# List of valid bus and device address pairs
 ALL_DEVICE_ADDRESSES = [(bus, dev) for bus in BUS_RANGE for dev in DEV_RANGE]
 
 class MRCRegistry(QtCore.QObject):
@@ -316,6 +320,7 @@ class Device(QtCore.QObject):
         Emits parameter_changed and returns True if the parameter was present
         in the memory cache. Otherwise False is returned."""
         if self.has_cached_parameter(address):
+            print "clearing", address
             del self._memory[address]
             self.parameter_changed.emit(address, None)
             return True
@@ -329,6 +334,16 @@ class Device(QtCore.QObject):
     def get_cached_memory(self):
         """Returns the memory cache in the form of a dict."""
         return dict(self._memory)
+
+    def clear_cached_memory(self):
+        """Clears the memory cache.
+        Returns True if any parameters where cleared. Otherwise False is
+        returned. """
+        ret = False
+        for address in sorted(self._memory.keys()):
+            if self.clear_cached_parameter(address):
+                ret = True
+        return ret
 
     # Using lambdas here to allow overriding property accessors.
     bus     = pyqtProperty(int,

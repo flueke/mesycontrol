@@ -201,6 +201,7 @@ class Controller(object):
 
         for bus, dev, item in items:
             device = self.mrc.get_device(bus, dev)
+            print device
             if not device or not device.polling:
                 continue
             try:
