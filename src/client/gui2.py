@@ -97,16 +97,17 @@ def run_add_device_config_dialog(device_registry, registry, mrc, bus=None, paren
     try:
         aa = [(b, d) for b in bm.BUS_RANGE for d in bm.DEV_RANGE
                 if not mrc.cfg or not mrc.cfg.get_device(b, d)]
-        dialog = AddDeviceDialog(bus=bus, available_addresses=aa, known_idcs=device_registry.get_device_names(), parent=parent_widget)
+
+        dialog = AddDeviceDialog(bus=bus, available_addresses=aa,
+                known_idcs=device_registry.get_device_names(), parent=parent_widget)
         dialog.setModal(True)
 
         def accepted():
             bus, address, idc, name = dialog.result()
-            device = cm.Device(bus, address, idc)
-            device.name = name
+            device_config = cm.make_device_config(bus, address, idc, name, device_registry.get_profile(idc))
             if not mrc.cfg:
                 registry.cfg.add_mrc(cm.MRC(mrc.url))
-            mrc.cfg.add_device(device)
+            mrc.cfg.add_device(device_config)
 
         dialog.accepted.connect(accepted)
         dialog.show()
@@ -114,6 +115,46 @@ def run_add_device_config_dialog(device_registry, registry, mrc, bus=None, paren
         log.exception(e)
         QtGui.QMessageBox.critical(parent_widget, "Error", str(e))
 
+def run_save_setup(context, parent_widget):
+    setup = context.app_registry.cfg
+
+    if not len(setup.filename):
+        return run_save_setup_as_dialog(context, parent_widget)
+
+    try:
+        config_xml.write_setup(setup=setup, dest=setup.filename,
+                idc_to_parameter_names=context.device_registry.get_parameter_name_mapping())
+
+        setup.modified = False
+    except Exception as e:
+        log.exception(e)
+        QtGui.QMessageBox.critical(parent_widget, "Error", "Saving setup %s failed: %s" % (setup.filename, e))
+
+def run_save_setup_as_dialog(context, parent_widget):
+    setup = context.app_registry.cfg
+
+    if len(setup.filename):
+        directory_hint = setup.filename
+    else:
+        directory_hint = os.path.dirname(str(context.make_qsettings().value(
+                'Files/last_setup_file', QtCore.QString()).toString()))
+
+    filename = QtGui.QFileDialog.getSaveFileName(parent_widget, "Save setup",
+            directory=directory_hint, filter="XML files (*.xml);; *")
+
+    if not len(filename):
+        return
+
+    try:
+        config_xml.write_setup(setup=setup, dest=filename,
+                idc_to_parameter_names=context.device_registry.get_parameter_name_mapping())
+
+        setup.filename = filename
+        setup.modified = False
+    except Exception as e:
+        log.exception(e)
+        QtGui.QMessageBox.critical(parent_widget, "Error", "Saving setup %s failed: %s" % (setup.filename, e))
+    
 def run_open_setup_dialog(context, parent_widget):
     directory_hint = os.path.dirname(str(context.make_qsettings().value(
             'Files/last_setup_file', QtCore.QString()).toString()))
@@ -189,6 +230,13 @@ class GUIApplication(object):
 
     mainwindow = property(get_mainwindow)
 
+    def _add_device_table_window(self, device):
+        widget = device_tableview.DeviceTableWidget(device=device, find_data_file=self.context.find_data_file)
+        subwin = self.mainwindow.mdiArea.addSubWindow(widget)
+        subwin.resize(800, 600)
+        subwin.show()
+        return subwin
+
     def _cfg_context_menu(self, node, idx, pos, view):
         menu = QtGui.QMenu()
 
@@ -202,8 +250,11 @@ class GUIApplication(object):
 
             if len(setup):
                 if len(setup.filename):
-                    menu.addAction("Save Setup")
-                menu.addAction("Save Setup As")
+                    menu.addAction("Save Setup").triggered.connect(partial(run_save_setup,
+                        context=self.context, parent_widget=self.treeview))
+
+                menu.addAction("Save Setup As").triggered.connect(partial(run_save_setup_as_dialog,
+                    context=self.context, parent_widget=self.treeview))
 
             menu.addAction("Add MRC").triggered.connect(partial(run_add_mrc_config_dialog,
                 find_data_file=self.context.find_data_file, registry=self.registry,
@@ -228,13 +279,7 @@ class GUIApplication(object):
                 parent_widget=self.treeview))
 
         if isinstance(node, ctm.DeviceNode):
-            def add_device_table_window():
-                widget = device_tableview.DeviceTableWidget(device=node.ref, find_data_file=self.context.find_data_file)
-                subwin = self.mainwindow.mdiArea.addSubWindow(widget)
-                subwin.show()
-                return subwin
-
-            menu.addAction("Open").triggered.connect(add_device_table_window)
+            menu.addAction("Open").triggered.connect(partial(self._add_device_table_window, device=node.ref))
             menu.addAction("Load From File")
             menu.addAction("Save To File")
             menu.addAction("Remove Device from Config")
@@ -293,12 +338,7 @@ class GUIApplication(object):
                 menu.addAction("Scanbus").triggered.connect(partial(mrc.hw.scanbus, bus))
 
         if isinstance(node, htm.DeviceNode):
-            def add_device_table_window():
-                widget = device_tableview.DeviceTableWidget(device=node.ref, find_data_file=self.context.find_data_file)
-                subwin = self.mainwindow.mdiArea.addSubWindow(widget)
-                subwin.show()
-                return subwin
-            menu.addAction("Open").triggered.connect(add_device_table_window)
+            menu.addAction("Open").triggered.connect(partial(self._add_device_table_window, device=node.ref))
 
         if not menu.isEmpty():
             menu.exec_(view.mapToGlobal(pos))
@@ -353,6 +393,7 @@ if __name__ == "__main__":
                 format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
         logging.getLogger("PyQt4.uic").setLevel(logging.INFO)
+        logging.getLogger("mesycontrol.tcp_client.MCTCPClient").setLevel(logging.INFO)
 
     logging.info("Starting up...")
 

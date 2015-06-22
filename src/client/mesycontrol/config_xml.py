@@ -75,7 +75,7 @@ def write_setup(setup, dest, idc_to_parameter_names=dict()):
 
     try:
         dest.write(data)
-    except Exception:
+    except AttributeError:
         with open(dest, 'w') as fp:
             fp.write(data)
 
@@ -100,9 +100,9 @@ def write_device_config(device_config, dest, parameter_names=dict()):
     tree = ET.ElementTree(tb.close())
     data = _xml_tree_to_string(tree)
 
-    if hasattr(dest, 'write') and callable(dest.write):
+    try:
         dest.write(data)
-    else:
+    except AttributeError:
         with open(dest, 'w') as fp:
             fp.write(data)
 

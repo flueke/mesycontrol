@@ -108,7 +108,7 @@ class Controller(object):
             try:
                 ret.set_result(bm.ReadResult(bus, device, address, f.result().response.val))
             except Exception as e:
-                self.log.exception("read_parameter")
+                #self.log.exception("read_parameter")
                 ret.set_exception(e)
 
         m = protocol.Message('request_read', bus=bus, dev=device, par=address)
@@ -127,7 +127,7 @@ class Controller(object):
             try:
                 ret.set_result(bm.SetResult(bus, device, address, f.result().response.val, value))
             except Exception as e:
-                self.log.exception("set_parameter")
+                #self.log.exception("set_parameter")
                 ret.set_exception(e)
 
         m = protocol.Message('request_set', bus=bus, dev=device, par=address, val=value)
@@ -201,7 +201,6 @@ class Controller(object):
 
         for bus, dev, item in items:
             device = self.mrc.get_device(bus, dev)
-            print device
             if not device or not device.polling:
                 continue
             try:

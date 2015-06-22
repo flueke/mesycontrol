@@ -62,7 +62,7 @@ class MCTreeDirector(object):
         self.hw_model.clear()
 
         # Disconnect app_model signals before repopulating the model to avoid
-        # duplicating connections. Quite ugly :(
+        # duplicating signal/slot connections. Quite ugly :(
         for mrc in self.app_registry:
 
             mrc.device_added.disconnect(self._device_added)
@@ -251,40 +251,6 @@ class MCTreeDirector(object):
         if hw_node is not None:
             self.hw_model.remove_node(hw_node)
 
-class DoubleClickSplitterHandle(QtGui.QSplitterHandle):
-    """Double click support for QSplitterHandle.
-    Emits the doubleClicked signal if a double click occured on the handle and
-    the mouse button is released within 200ms (if the mouse button is not
-    released the user is most likely dragging the handle).
-    """
-
-    doubleClicked = pyqtSignal()
-
-    def __init__(self, orientation, parent):
-        super(DoubleClickSplitterHandle, self).__init__(orientation, parent)
-        self.timer = QtCore.QTimer()
-        self.timer.setSingleShot(True)
-        self.timer.setInterval(200)
-
-    def mouseDoubleClickEvent(self, event):
-        self.timer.start()
-
-    def mouseReleaseEvent(self, event):
-        if self.timer.isActive():
-            self.timer.stop()
-            self.doubleClicked.emit()
-
-    def sizeHint(self):
-        return QtCore.QSize(2, 4)
-
-class DoubleClickSplitter(QtGui.QSplitter):
-    """QSplitter using DoubleClickSplitterHandles."""
-    def __init__(self, orientation=Qt.Horizontal, parent=None):
-        super(DoubleClickSplitter, self).__init__(orientation, parent)
-
-    def createHandle(self):
-        return DoubleClickSplitterHandle(self.orientation(), self)
-
 class MCTreeView(QtGui.QWidget):
     hw_context_menu_requested   = pyqtSignal(object, object, object, object) #: node, idx, position, view
     cfg_context_menu_requested  = pyqtSignal(object, object, object, object) #: node, idx, position, view
@@ -380,12 +346,6 @@ class MCTreeView(QtGui.QWidget):
         layout = QtGui.QGridLayout(self)
         layout.addWidget(splitter, 0, 0)
 
-        # XXX
-        def log_node_selected(node, idx, view):
-            self.log.debug("node selected: node=%s, ref=%s", node, node.ref)
-
-        self.node_selected.connect(log_node_selected)
-
     def set_linked_mode(self, on_off):
         if self.linked_mode != on_off:
             self._director.set_linked_mode(on_off)
@@ -416,26 +376,72 @@ class MCTreeView(QtGui.QWidget):
         if self.linked_mode and idx.internalPointer() is not self.cfg_model.root:
             self.hw_view.expand(self.hw_idx_for_cfg_idx(idx))
 
-    def _cfg_collapsed(self, idx):
-        if self.linked_mode:
-            self.hw_view.collapse(self.hw_idx_for_cfg_idx(idx))
-
-    def _cfg_selection_current_changed(self, current, previous):
-        if self.linked_mode:
-            self.hw_view.setCurrentIndex(self.hw_idx_for_cfg_idx(current))
-        self.node_selected.emit(current.internalPointer(), current, self.cfg_view)
-        self.cfg_node_selected.emit(current.internalPointer(), current, self.cfg_view)
-
     def _hw_expanded(self, idx):
         if self.linked_mode and idx.internalPointer() is not self.hw_model.root:
             self.cfg_view.expand(self.cfg_idx_for_hw_idx(idx))
+
+    def _cfg_collapsed(self, idx):
+        if self.linked_mode:
+            self.hw_view.collapse(self.hw_idx_for_cfg_idx(idx))
 
     def _hw_collapsed(self, idx):
         if self.linked_mode:
             self.cfg_view.collapse(self.cfg_idx_for_hw_idx(idx))
 
+    def _cfg_selection_current_changed(self, current, previous):
+        node = current.internalPointer()
+        idc_conflict = isinstance(node, ctm.DeviceNode) and node.ref.idc_conflict
+
+        if self.linked_mode and not idc_conflict:
+            self.hw_view.setCurrentIndex(self.hw_idx_for_cfg_idx(current))
+        else:
+            self.hw_view.clearSelection()
+        self.node_selected.emit(node, current, self.cfg_view)
+        self.cfg_node_selected.emit(node, current, self.cfg_view)
+
     def _hw_selection_current_changed(self, current, previous):
-        if self.linked_mode:
+        node = current.internalPointer()
+        idc_conflict = isinstance(node, htm.DeviceNode) and node.ref.idc_conflict
+
+        if self.linked_mode and not idc_conflict:
             self.cfg_view.setCurrentIndex(self.cfg_idx_for_hw_idx(current))
-        self.node_selected.emit(current.internalPointer(), current, self.hw_view)
-        self.hw_node_selected.emit(current.internalPointer(), current, self.hw_view)
+        else:
+            self.cfg_view.clearSelection()
+
+        self.node_selected.emit(node, current, self.hw_view)
+        self.hw_node_selected.emit(node, current, self.hw_view)
+
+class DoubleClickSplitterHandle(QtGui.QSplitterHandle):
+    """Double click support for QSplitterHandle.
+    Emits the doubleClicked signal if a double click occured on the handle and
+    the mouse button is released within 200ms (if the mouse button is not
+    released the user is most likely dragging the handle).
+    """
+
+    doubleClicked = pyqtSignal()
+
+    def __init__(self, orientation, parent):
+        super(DoubleClickSplitterHandle, self).__init__(orientation, parent)
+        self.timer = QtCore.QTimer()
+        self.timer.setSingleShot(True)
+        self.timer.setInterval(200)
+
+    def mouseDoubleClickEvent(self, event):
+        self.timer.start()
+
+    def mouseReleaseEvent(self, event):
+        if self.timer.isActive():
+            self.timer.stop()
+            self.doubleClicked.emit()
+
+    def sizeHint(self):
+        return QtCore.QSize(2, 4)
+
+class DoubleClickSplitter(QtGui.QSplitter):
+    """QSplitter using DoubleClickSplitterHandles."""
+    def __init__(self, orientation=Qt.Horizontal, parent=None):
+        super(DoubleClickSplitter, self).__init__(orientation, parent)
+
+    def createHandle(self):
+        return DoubleClickSplitterHandle(self.orientation(), self)
+

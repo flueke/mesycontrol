@@ -164,13 +164,20 @@ class ParameterProfile(object):
     @staticmethod
     def fromDict(d):
         ret = ParameterProfile(d['address'])
-        if 'name' in d: ret.name = d['name']
-        if 'index' in d: ret.index = int(d['index'])
-        if 'poll' in d: ret.poll = bool(d['poll'])
-        if 'read_only' in d: ret.read_only = bool(d['read_only'])
-        if 'critical' in d: ret.critical = bool(d['critical'])
-        if 'safe_value' in d: ret.safe_value = int(d['safe_value'])
-        if 'do_not_store' in d: ret.do_not_store = bool(d['do_not_store'])
+        #if 'name' in d: ret.name = d['name']
+        #if 'index' in d: ret.index = int(d['index'])
+        #if 'poll' in d: ret.poll = bool(d['poll'])
+        #if 'read_only' in d: ret.read_only = bool(d['read_only'])
+        #if 'critical' in d: ret.critical = bool(d['critical'])
+        #if 'safe_value' in d: ret.safe_value = int(d['safe_value'])
+        #if 'do_not_store' in d: ret.do_not_store = bool(d['do_not_store'])
+
+
+        attributes = (a for a in d.keys() if a not in ('address', 'range', 'units'))
+
+        for attr in attributes:
+            setattr(ret, attr, d[attr])
+
         if 'range' in d: ret.range = Range(d['range'][0], d['range'][1])
         if 'units' in d:
             for unit_def in d['units']:
@@ -186,6 +193,7 @@ class DeviceProfile(object):
         self.parameters             = list()
         self.address_parameter_map  = dict()
         self.name_parameter_map     = dict()
+        self._extensions            = dict()
 
     def __str__(self):
         return "DeviceProfile(name=%s, idc=%d)" % (self.name, self.idc)
@@ -213,18 +221,13 @@ class DeviceProfile(object):
         if isinstance(key, (str, unicode, QtCore.QString)):
             return self.get_parameter_by_name(str(key))
 
-        #if isinstance(key, ParameterProfile):
-        #    return self.get_parameter_by_address(key.address)
-
-        #try:
-        #    return self.get_parameter_by_address(int(key))
-        #except ValueError:
-        #    raise TypeError("ParameterProfile indexes must be strings or integers, not %s", type(key).__name__)
-
         try:
             return self.get_parameter_by_address(int(key))
         except ValueError:
             raise KeyError(key)
+
+    def get_parameters(self):
+        return list(self.parameters)
 
     def get_critical_parameters(self):
         return filter(lambda p: p.critical, self.parameters)
@@ -238,11 +241,25 @@ class DeviceProfile(object):
     def get_volatile_addresses(self):
         return map(lambda p: p.address, filter(lambda p: p.poll, self.parameters))
 
+    def set_extension(self, name, value):
+        self._extensions[name] = value
+
+    def get_extension(self, name):
+        return self._extensions[name]
+
+    def get_extensions(self):
+        return dict(self._extensions)
+
 def from_dict(d):
     ret = DeviceProfile(d['idc'])
     ret.name = str(d.get('name', None))
-    for pd in d['parameters']:
+
+    for pd in d.get('parameters', list()):
         ret.add_parameter(ParameterProfile.fromDict(pd))
+
+    for ext in d.get('extensions', list()):
+        ret.set_extension(ext['name'], ext['value'])
+
     return ret
 
 

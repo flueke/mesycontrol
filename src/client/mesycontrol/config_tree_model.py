@@ -167,6 +167,9 @@ class DeviceNode(ConfigTreeNode):
 
             return "%X %s" % (device.address, data)
 
+        if column == 0 and role == Qt.EditRole:
+            return self.ref.cfg.name
+
     def set_data(self, column, value, role):
         if role == Qt.EditRole and column == 0:
             self.ref.cfg.name = str(value.toString())

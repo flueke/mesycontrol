@@ -1,365 +1,78 @@
-=============================
-* Config centric model
-  - GUI inputs should first be written to the device config
-  - Optionally config changes should be synced to the hardware
-  - The GUI must be able to react to the case where cfg_value != hw_value (after set)
-    -> set_param(addr, value) -> response(addr, actual_value) with value != actual_value
-
-* Connection error handling
-* Anderungen an Geraeten nur im RC zulassen -> Panel deaktivieren wenn RC aus.
-  Braucht scanbus polling um aenderungen zu erkennen.
-* Meldung wenn RC wechsel ("dip switches can not be set via software", etc)
-* Periodic scanbus to detect disconnected devices, address conflicts and RC changes
-
-* Make spinboxes delay their valueChanged signal. Use pg.SignalProxy to achieve
-  this. Probably will need GUI code changes.
-
-* Fetch device memory before opening device widgets
-  - What should be fetched?
-  - When should it be fetched?
-  - Should DeviceModel or Device initiate the fetch?
-  - How is completion signaled?
-  - Completion access method?
-
-  * Motivation and Purpose
-  The MSCF-16 gui needs to figure out the specific version of the device. To do
-  this multiple memory cells are accessed. What happens right now is:
-  MSCF16Widget is created and calls
-    device.add_default_parameter_subscription(self)
-    device.propagate_state()
-  The first line will initiate a fetch of all required parameters, the second
-  line will tell the device to propagate its current state using
-  parameter_changed() and specific signals. The second line is needed for the
-  case where the device memory is present and thus no change signals will be
-  emitted at Widget creation time. propagate_state() forces change signals to
-  be re-emitted.
-  As parameters arrive change signals are emitted which cause widget logic code
-  to run which has to manually get additional memory values. If those values
-  are not present exceptions will occur and UI elements will be left empty or
-  in an incorrect state.
-
-  Solution:
-  Fetch memory before GUI initialization code runs.
-
-  - What to fetch? Full memory or subscription only?
-  - When to fetch? On DeviceModel creation (full mem only as subscriptions are
-    only known by the Device class on Device creation, on method invocation
-    ("ensure_memory_complete()")
-    If fetching on DeviceModel creation the behaviour is built into the the
-    core and thus will also take place in e.g. a CLI client. Is this desired?
-    Otherwise fetching will happen when the user opens the widget for the first
-    time even if it could have been done earlier while the bus was idle.
-  - What to do if the device is disconnected during the fetch? 'ready' will
-    never be emitted (but 'disconnected' will).
-  - What if the server is in silenced mode? Device memory can't be fetched at
-    all.
-
-  Alternatives:
-  - Init memory to a certain value (0,-inf,None). This value might be out of
-    range for a certain parameter and thus cause weird behaviour and other
-    exceptions to occur! In the case of None clients using the memory would
-    _always_ have to check for a param being None.
-  - Init memory to parameters min value. => Not all params have a range...
-
-  Tons of problems:
-  widget with subwidgets is created
-  -> widget and subwidgets immediately listen to parameter_changed
-  -> during initial fetch paramter_changed is emitted
-  -> same problem as before: gui code runs, wants memory values, gets exceptions
-  -> memory fetch completes
-  -> state is propagated again
-
-  => delay creation of the actual widget
-  -> create a dummy widget that checks if fetching needs to be done. if true it
-  initiates the fetch and waits, possibly displaying a progress indicator
-  -> once memory is present the real device widget is created and now has the
-  full device memory present
-  again a problem: restoring the subwindow state as it is done right now
-  _slt_open_device_window -> _add_subwindow -> restore_subwindow_state will
-  resize the temporary widget too.
-
-* Scripting:
-  - Standalone vs. running inside the GUI
-  - Wrapper documentation
-
-============================================================================================================
-
-* GUI plan:
-== MRCController and DeviceController 
-Starts and keeps track of async operations.
-
-controller.read_parameter(bus=0, dev=1, address=32, started=self._read_started, stopped=self._read_stopped)
-
--> Controller creates a read_parameter message and asks the connection to send
-it. At a later point the connection calls back on the controller with the
-result. The controller then modifies the DeviceModel if needed -> GUI gets
-updated.
-The controller should know about outstanding commands and should keep track of
-failed commands.
-On error a flag on the DeviceModel could be set.
-The user should be able to specify a callback to be called on request completion.
-
-Higher level:
-Device has DeviceModel and DeviceConfig. User issues a "load config" action via context menu.
--> Multiple parameters have to be loaded.
--> Progress should be reported
--> Command class needed!
-
-controller.load_config(bus=0, dev=1, config=self.config,
-    started=self._load_started, stopped=self._load_stopped, progress_changed=self._load_progress_changed)
-
-xxx: From an application view loading a config needs more action than just
-applying the config values to the device: Device.config needs to be updated.
-The new config might have a different Setup root than the old config. -> Node
-needs to move in a tree view.
-
-dev1.config is config1 from setup1
-action: load config2 from setup2 into dev1
--> set dev1.config to config2
--> config2 has a different root than config1 (new: setup2, old: setup1)
--> config loader to actually apply the values
--> UI needs move the node representing dev1.
-
-
-* scanbus result handling
-  if device_model.idc != result.idc:
-      device_model.idc = result.idc # device_model emits idc_changed
-      device reacts on device_model.idc_changed and triggers a refresh (asks
-      the controller to refresh the device memory).
-      Other parts of the GUI have to react aswell: an open widget for the old
-      idc should display an error as it is not intended for the new idc.
-      
-
-== object ownership ==
-* SetupModel is a root
-  SetupModel owns child configs
-
-* MRCModel owns child DeviceModels (and creates them on scanbus_result)
-
-* Setup
-  owns MRC instances
-
-* MRC
-    owns MRCModel
-    owns MRCController
-    ref on MRCConfig
-  
-* Device
-    ref on DeviceModel (it's owned by the parent MRCModel)
-    ref on DeviceConfig (it's owned by the the containing setup) XXX: what if there's no setup?
-
-=== Ablauf scanbus ===
-- gui scanbus click handler:
-  node.ref.scanbus(1)
-  node.ref.scanbus(2)
-
-- MRC.scanbus(self, bus):
-  self.controller.scanbus(bus)
-
-- MesycontrolMRCController.scanbus(self, bus):
-  self.connection.send_message(Message('request_scanbus', bus=bus),
-    self._handle_response)
-
-- MesycontrolMRCController.handle_response(self, request, response):
-  if response.is_scanbus_response():
-      self.mrc_model.set_scanbus_data(response.bus, response.data)
-
-- MRCModel.set_scanbus_result(self, bus, data):
-  # Bus logic here. In this example a new device is added.
-  _add_device() -> device_added.emit()
-
-- MRC receives device_added from MRCModel
-  in the handler:
-  device_controller = DeviceController(self.mrc_controller, device_model)
-  device_config     = self.mrc_config.get_device_config(
-        device_model.bus, device_model.address)
-  device_description = self.mrc_config.get_device_description(device_model.bus,
-        device_model.address, device_model.idc)
-  device = Device(device_model, device_config, device_description, device_controller)
-  self.devices.add_device(device)
-*** Ende Ablauf scanbus ***
-
-=== Ablauf manual connect ===
-- gui -> MRCConfig mrc_config
-  if has_connection(mrc_config):
-      display_error_message("Connection exists")
-      
-  mrc_controller = factory(mrc_config)
-  mrc_model      = MRCModel()
-  mrc_controller.set_model(mrc_model)
-  mrc            = MRC(mrc_model, mrc_controller, mrc_config)
-  mrc.connect()
-
--> MRC.connect(self):
-   return self.controller.connect()
-
-
-===== Tue Jul 22 12:49:40 CEST 2014 =====
-* Commands:
-  - Connect, Disconnect (MRC)
-  - WaitForReady (mrc and device versions)
-  - Refresh (mrc (scanbus) and device (all params) versions)
-  - ReadParameter, SetParameter, ReadMirror, SetMirror, Copy, SetRC, Reset
-  - LoadSetup, LoadConfig, SaveSetup, SaveConfig
-
-* Structure
-  - Hardware Model:
-    MRCModel with DeviceModel children. Read-only view of the hardware.
-    MRCModel has a controller which handles requests and their replies. One
-    controller per MRCModel.
-  - Controller:
-    Gateway between MRCConnection and MRCModel.
-    Keeps a queue of pending requests. Receives replies and updates the model accordingly.
-    The interface is callback based: read_parameter(bus, dev, par, response_handler).
-    The response_handler is invoked once the response has been received and the
-    model has been updated. It is passed a Response object.
-    Response objects comply to an interface: is_error_response(), get_result()
-    A controller needs to be implemented for different connection types. E.g. MesycontrolController, VirtualController, ...
-    MesycontrolController just invokes MRCConnection.send_message() with the
-    appropriate Message and passing itself as the callback. Once the response
-    is received the model is updated and the original response handler is
-    invoked.
-    The controller also has to deal with notifications and connection state changes and update the model accordingly.
-
-  - Commands:
-    Implemented in terms of the controller interface only. E.g.:
-    class ReadParameter(Command):
-        def start():
-            self._cmd_id = self.mrc.controller.read_parameter(self.bus, self.dev, self.addr, self._handle_response)
-        def _handle_response(self, response):
-            self.response = response
-        def get_result(self):
-            if self.response.is_error_response():
-                raise ErrorResponse(self.response)
-            return response.get_result()
-
-    class Refresh(SequentialCommandGroup):
-        def __init__(self, device):
-            self.device = device
-            for i in range(256):
-                self.add(ReadParameter(self.device, i))
-
-        def start(self):
-            super(Refresh, self).start() # Runs each of the subcommands
-
-    class Connect(Command):
-       def __init__(self, mrc):
-          self.mrc = mrc
-
-       def start():
-          if not self.mrc.controller.is_connected():
-              self.mrc.controller.state_changed.connect(self._controller_state_changed)
-              # More state change listening here...
-              self.mrc.controller.connect() # Calls self.connection.connect()
-           else:
-               self.finished(True) # success! :)
-
-            
-
-
-  - Problems:
-    * How to cancel commands once they've been started?
-        From the controllers perspective: on_disconnect():
-            for (request_message, response_handler) in self.queue:
-                response_handler(ErrorResponse("disconnected"))
-            self.queue.clear()
-
-        From the command perspective:
-            If not yet started and cancel() is called: Mark the command as finished and canceled -> that's all.
-            If it has been started: controller.cancel(something that identifies this request)
-            Solution: the controllers methods must return a handle that identifies
-            a particular request. This allows canceling of request and thus
-            canceling of commands.
-
-    * Who starts commands?
-    -> The client that created the command. Queues can easily be implemented.
-    Those queues can also take commands that are not MRC or Device related.
-    Global command registry is needed for very high level commands like
-    LoadSetup and SaveSetup.
-
-
-==== Steps to take when a new connection should be made ====
-* HW Model
-    - create connection using the factory
-    - create MRCModel
-    - create MRCController using connection and model
-    - register MRCModel
-    - connect
-
-* App Model
-  Who creates the MRC object?
-    - create MRC using MRCModel (no Config)
-    - register MRC
-
-
-===== Plan Tue Aug  5 10:11:10 CEST 2014 =====
-- HW vs. Config:
-
-
-Use cases:
-- Connect to an MRC
-  * Creates a new connection using the supplied information (serial device, baud rate, ...)
-  * connect
-  * scan both busses
-  -> user gets a tree with connected devices as leaves
-
-- List and edit device parameters
-  * Table view of the device parameters
-  * refresh memory / mirror memory / single parameter
-  * set param to value
-
-- Save device config to file
-  * Dump device memory to file
-  * No connection information stored in the file
-- Load device config from file
-- Save setup to file
-- Load setup from file
-
-#def observe_property_change(prop_name):
-#    def the_decorator(method):
-#        def inner(self, *args, **kwargs):
-#            old_prop_value = getattr(self, prop_name)
-#            method(self, *args, **kwargs)
-#            new_prop_value = getattr(self, prop_name)
-#            if old_prop_value != new_prop_value:
-#                print "emitting!"
-#                self.changed.emit()
-#        return inner
-#    return the_decorator
-#
-#    @observe_property_change('name')
-#    def set_name(self, name):
-#        self._name = name
-
-
-==========================================================
-===== mesycontrol plan Wed Aug 13 12:22:38 CEST 2014 =====
-==========================================================
-
-* Use cases and how to implement them. Focus on interaction of objects!
-
-* Define hardware, config and setup models and their interactions
-  - When is a config for a device created? Which values does it contain? When
-    and how is the config modified? Who keeps track of the filename if any?
-  - Is the hw_model, app_model, config separation good? Keep it? Modify it?
-    How does support for offline editing work with this?
-
-    -> Offline editing:
-    The hw_model uses ???
-
-  - How and where to implement device specific functionality? E.g. MHV4:
-    disableAllChannels().
-
-    This functionality should be available to the GUI and to scripts -> Command
-    pattern needed but I don't want to implement MHV4.disable_all_channels()
-    and a DisableAllChannelsCommand.
-
-    Another approach: cmd = mhv4.disable_all_channels(); cmd.start()
-    But this is exactly opposite to how the Device class behaves right now.
-
-    -> Implementation inside the command:
-    class DisableAllChannels(Command):
-      def __init__(self, device):
-        assert device.idc in get_valid_idcs()
-        for i in range(4):
-          self.add.SetParameter(self.device, i+4, 0)
+* TreeView display & actions:
+  - create setup/config from hardware
+  - check/apply setup/config
+  - rc on/off
+  - polling
+  - silent mode
+  - prompts on close/overwrite/...
+
+* Table view:
+  - link cfg & hw
+  - create config
+  - idc & address conflicts
+  - edit config
+
+* Device support
+  - Update device classes
+  - Default values for parameters and extensions when creating a config
+  - RC handling (memory refresh needed?)
+  - Update GUIs (idc conflicts, address conflict, disconnect, param could not
+    be set, delayed spinboxes, parameter bindings)
+
+* Window management
+  - close if app_model.Device disappears completely (hw and cfg missing)
+
+
+* Specialized device classes: how? when? case for unknown devices?
+  * device profile:
+     depends on device idc
+     contains parameter descriptions which contain
+      - address
+      - name
+      - TODO: basename for indexed parameters (why did i not add this before? problems? problem if basename == some_other_param_name!)
+      - index number for indexed parameters
+      - flags (ro, no_store, poll, critical)
+      - safe_value for critical params
+      - range limiting the value range
+      - units: list of unit definitions
+      - default value used when creating a device config (if none given should default to min value, if neither given default to 0)
+      - read/write addresses
+
+ * device class:
+    - depends on device idc and the corresponding profile
+    - provides device specific functionality (accessors, complex functions, limits, ...)
+    - may use config extensions for calculations and enabling of features
+    - may set config extensions
+    - creation: when? once instance only or multiple instances?
+
+* Config/Profile creation: when to create, how to initialize? where to store? extension init
+
+* Device table view
+    - columns
+    - editing
+    - display of values that are not available (yet)
+    - hw connect/disconnect
+    - cfg empty, loaded, ...
+    - hw/cfg set
+    - idc changes!
+
+* TreeView sorting by MRC name (needs logic to keep hardware tree in sync in linked mode)
+  - app_model -> row mapping?
+
+* TreeView columns and displayed data
+    * TreeView actions (apply cfg, dev to config, check config, polling, rc)
+        - open/load/save/check setup
+        - open/load/save/check config
+        - (re)name mrc, device
+        - edit mrc connection config
+    * Better connection status display
+        - Animated icon while connecting
+        - Display last_connection_error in tooltip.
+
+* Connection handling:
+  - More robust and testable and tested implementation (it works for now). -> ServerProcess2
+
+* User friendly action logging
+    - Separate from normal application logging or introduce a new 'user' log
+      level and user specific log records (e.g. carrying icon info to show next
+      to a logged message)

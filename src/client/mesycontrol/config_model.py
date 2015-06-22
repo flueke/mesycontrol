@@ -166,10 +166,10 @@ class Device(bm.Device):
     clear_cached_memory = modifies(bm.Device.clear_cached_memory)
 
     def _read_parameter(self, address):
-        # This is either called directly or by bm.Device.get_parameter in case
-        # the parameter is not cached. Let's re-check the cache here to make
-        # the first case succeed and not force the user to use get_parameter
-        # for device config objects.
+        # This is either called by bm.Device.read_parameter() or by
+        # bm.Device.get_parameter() in case the parameter is not cached. Let's
+        # re-check the cache here to make the first case succeed and not force
+        # the user to use get_parameter for device config objects.
         if self.has_cached_parameter(address):
             result = bm.ReadResult(self.bus, self.address, address,
                     self.get_cached_parameter(address))
@@ -218,3 +218,21 @@ class Device(bm.Device):
     modified    = pyqtProperty(bool, is_modified, set_modified, notify=modified_changed)
     name        = pyqtProperty(str, get_name, set_name, notify=name_changed)
     extensions  = pyqtProperty(dict, get_extensions)
+
+def make_device_config(bus, address, idc, name=str(), device_profile=None):
+    if device_profile is not None and device_profile.idc != idc:
+        raise ValueError("idc does not match device profile idc")
+
+    ret = Device(bus, address, idc)
+    ret.name = name
+
+    if device_profile is not None:
+        for pp in device_profile.get_parameters():
+            ret.set_parameter(pp.address, pp.default)
+
+        for name, value in device_profile.get_extensions():
+            ret.set_extension(name, value)
+
+    ret.modified = False
+
+    return ret

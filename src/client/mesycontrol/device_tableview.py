@@ -4,7 +4,6 @@ from PyQt4 import uic
 from PyQt4.QtCore import pyqtProperty
 from PyQt4.QtCore import QModelIndex
 from PyQt4.QtCore import Qt
-import weakref
 
 import future
 import basic_model as bm
@@ -135,15 +134,12 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         except (IndexError, AttributeError):
             pp = None
 
-        if col == COL_HW_VALUE and hw is not None and hw.is_connected():
-            try:
-                if pp is not None and not pp.read_only:
-                    hw.get_parameter(row)
-                    flags |= Qt.ItemIsEditable
-            except future.IncompleteFuture:
-                pass
+        if (col == COL_HW_VALUE and hw is not None and hw.is_connected() and
+                pp is not None and not pp.read_only and hw.has_cached_parameter(row)):
+            flags |= Qt.ItemIsEditable
 
-        if col == COL_CFG_VALUE:
+        if (col == COL_CFG_VALUE and pp is not None and not pp.read_only and
+                not pp.do_not_store):
             flags |= Qt.ItemIsEditable
 
         return flags
@@ -174,9 +170,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 return pp.name
 
             elif col == COL_HW_VALUE:
-                if hw is None:
-                    return "<device missing>"
-                if hw.is_disconnected():
+                if hw is None or hw.is_disconnected():
                     return "<not connected>"
                 if hw.is_connecting():
                     return "<connecting>"
@@ -226,7 +220,8 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 return int(cfg.get_parameter(row))
 
         if role == Qt.BackgroundRole:
-            if col == COL_HW_VALUE and pp is not None and pp.read_only:
+            if col in (COL_HW_VALUE, COL_CFG_VALUE) and (
+                    pp is None or pp.read_only or pp.do_not_store):
                 return QtGui.QColor("lightgray")
         return None
 
@@ -374,38 +369,39 @@ class DeviceTableView(QtGui.QTableView):
         self.resizeRowsToContents()
 
     def contextMenuEvent(self, event):
-        selection_model = self.selectionModel()
+        pass
+        #selection_model = self.selectionModel()
 
-        menu = QtGui.QMenu()
-        if selection_model.hasSelection():
-            menu.addAction("Refresh selected").triggered.connect(self._slt_refresh_selected)
+        #menu = QtGui.QMenu()
+        #if selection_model.hasSelection():
+        #    menu.addAction("Refresh selected").triggered.connect(self._slt_refresh_selected)
 
-        menu.addAction("Refresh visible").triggered.connect(self._slt_refresh_visible)
+        #menu.addAction("Refresh visible").triggered.connect(self._slt_refresh_visible)
 
-        menu.exec_(event.globalPos())
+        #menu.exec_(event.globalPos())
 
-    def _slt_refresh_selected(self):
-        selection   = self.selectionModel().selection()
-        indexes     = self.sort_model.mapSelectionToSource(selection).indexes()
-        addresses   = set((idx.row() for idx in indexes))
+    #def _slt_refresh_selected(self):
+    #    selection   = self.selectionModel().selection()
+    #    indexes     = self.sort_model.mapSelectionToSource(selection).indexes()
+    #    addresses   = set((idx.row() for idx in indexes))
 
-        #seq_cmd     = command.SequentialCommandGroup()
+    #    #seq_cmd     = command.SequentialCommandGroup()
 
-        #for addr in addresses:
-        #    seq_cmd.add(mrc_command.ReadParameter(self.table_model.device, addr))
+    #    #for addr in addresses:
+    #    #    seq_cmd.add(mrc_command.ReadParameter(self.table_model.device, addr))
 
-        #seq_cmd.start()
+    #    #seq_cmd.start()
 
-    def _slt_refresh_visible(self):
-        f = lambda a: self.sort_model.filterAcceptsRow(a, QtCore.QModelIndex())
-        addresses = filter(f, xrange(256))
+    #def _slt_refresh_visible(self):
+    #    f = lambda a: self.sort_model.filterAcceptsRow(a, QtCore.QModelIndex())
+    #    addresses = filter(f, xrange(256))
 
-        #seq_cmd     = command.SequentialCommandGroup()
+    #    #seq_cmd     = command.SequentialCommandGroup()
 
-        #for addr in addresses:
-        #    seq_cmd.add(mrc_command.ReadParameter(self.table_model.device, addr))
+    #    #for addr in addresses:
+    #    #    seq_cmd.add(mrc_command.ReadParameter(self.table_model.device, addr))
 
-        #seq_cmd.start()
+    #    #seq_cmd.start()
 
 # TODO: change Hide to Show to make it easier to understand which params are shown...
 class DeviceTableWidget(QtGui.QWidget):

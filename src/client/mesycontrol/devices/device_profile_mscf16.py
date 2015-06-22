@@ -69,7 +69,7 @@ profile_dict = {
             { 'address': 44, 'name': 'multiplicity_hi', 'range': (1, 8) },
             { 'address': 45, 'name': 'multiplicity_lo', 'range': (1, 8) },
             { 'address': 46, 'name': 'monitor_channel', 'range': (1, 16)},
-            { 'address': 47, 'name': 'single_channel_mode', 'range': (0, 1) },
+            { 'address': 47, 'name': 'single_channel_mode', 'range': (0, 1), 'default': 1 },
             { 'address': 48, 'name': 'rc_enable', 'read_only': True, 'poll': True },
             { 'address': 49, 'name': 'version', 'read_only': True },                    # hw version >= 4, 16*major+minor
             { 'address': 50, 'name': 'blr_threshold', 'range': (0, 255) },              # hw version >= 4

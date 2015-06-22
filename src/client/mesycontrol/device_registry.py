@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
+import copy
 import importlib
 
 import device_profile
@@ -49,9 +50,11 @@ class DeviceRegistry(object):
     def get_profile_module(self, idc):
         return self.profile_modules[idc]
 
-    # FIXME: should this return a copy of the profile?
     def get_profile(self, idc):
-        return self.profiles[idc]
+        try:
+            return copy.deepcopy(self.profiles[idc])
+        except KeyError:
+            return device_profile.make_generic_profile(idc)
 
     def get_device_module(self, idc):
         return self.device_modules[idc]
@@ -68,3 +71,13 @@ class DeviceRegistry(object):
 
     def get_device_name(self, idc):
         return self.get_profile(idc).name
+
+    def get_parameter_name_mapping(self):
+        """Returns a mapping of device_idc to a dictionary of param_address ->
+        param_name. Basically the known parameter names for each device."""
+        ret = dict()
+        for idc, profile in self.profiles.iteritems():
+            d = ret.setdefault(idc, dict())
+            for pp in profile.parameters:
+                d[pp.address] = pp.name
+        return ret

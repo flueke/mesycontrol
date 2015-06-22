@@ -157,6 +157,8 @@ class Device(QtCore.QObject):
     idc_changed         = pyqtSignal(int)
     mrc_changed         = pyqtSignal(object)
     parameter_changed   = pyqtSignal(int, object)   #: address, value
+    memory_about_to_be_cleared = pyqtSignal(object) #: memory
+    memory_cleared = pyqtSignal()
 
     def __init__(self, bus=None, address=None, idc=None, parent=None):
         super(Device, self).__init__(parent)
@@ -320,7 +322,6 @@ class Device(QtCore.QObject):
         Emits parameter_changed and returns True if the parameter was present
         in the memory cache. Otherwise False is returned."""
         if self.has_cached_parameter(address):
-            print "clearing", address
             del self._memory[address]
             self.parameter_changed.emit(address, None)
             return True
@@ -339,10 +340,12 @@ class Device(QtCore.QObject):
         """Clears the memory cache.
         Returns True if any parameters where cleared. Otherwise False is
         returned. """
+        self.memory_about_to_be_cleared.emit(self.get_cached_memory())
         ret = False
         for address in sorted(self._memory.keys()):
             if self.clear_cached_parameter(address):
                 ret = True
+        self.memory_cleared.emit()
         return ret
 
     # Using lambdas here to allow overriding property accessors.

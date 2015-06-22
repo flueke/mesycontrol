@@ -8,7 +8,6 @@ from qt import pyqtProperty
 from qt import pyqtSignal
 
 import basic_model as bm
-import device_profile
 import util
 
 """Mesycontrol application model.
@@ -50,6 +49,9 @@ class AppObject(QtCore.QObject):
 
     hw  = pyqtProperty(object, get_hardware, set_hardware, notify=hardware_set)
     cfg = pyqtProperty(object, get_config, set_config, notify=config_set)
+
+    has_hw  = property(lambda self: self.hw is not None)
+    has_cfg = property(lambda self: self.cfg is not None)
 
 class MRCRegistry(AppObject):
     mrc_added   = pyqtSignal(object)
@@ -161,20 +163,28 @@ class MRC(AppObject):
 
 class Device(AppObject):
     mrc_changed = pyqtSignal(object)
+    idc_conflict_changed = pyqtSignal(bool)
 
     def __init__(self, bus, address, mrc=None, hw_device=None, cfg_device=None, profile=None, parent=None):
-        super(Device, self).__init__(hardware=hw_device, config=cfg_device, parent=parent)
         self.bus        = int(bus)
         self.address    = int(address)
-        self._mrc       = None
-        self.mrc        = mrc
-        self.profile    = profile
 
         if self.bus not in bm.BUS_RANGE:
             raise ValueError("Bus out of range")
 
         if self.address not in bm.DEV_RANGE:
             raise ValueError("Device address out of range")
+
+        super(Device, self).__init__(hardware=hw_device, config=cfg_device, parent=parent)
+
+        self._mrc       = None
+        self.mrc        = mrc
+        self.profile    = profile
+        self._idc_conflict = False
+
+        self.hardware_set.connect(self._update_idc_conflict)
+        self.config_set.connect(self._update_idc_conflict)
+        self._update_idc_conflict()
 
     def get_mrc(self):
         return None if self._mrc is None else self._mrc()
@@ -191,7 +201,17 @@ class Device(AppObject):
         return "%s.Device(id=%s, b=%d, a=%d, mrc=%s, hw=%s, cfg=%s)" % (
                 __name__, hex(id(self)), self.bus, self.address, self.mrc, self.hw, self.cfg)
 
+    def _update_idc_conflict(self):
+        conflict = self.has_hw and self.has_cfg and self.hw.idc != self.cfg.idc
+        if conflict != self._idc_conflict:
+            self._idc_conflict = conflict
+            self.idc_conflict_changed.emit(self.idc_conflict)
+
+    def has_idc_conflict(self):
+        return self._idc_conflict
+
     mrc = pyqtProperty(object, get_mrc, set_mrc, notify=mrc_changed)
+    idc_conflict = pyqtProperty(bool, has_idc_conflict, notify=idc_conflict_changed)
 
 class Director(object):
     def __init__(self, app_registry, device_registry):
@@ -206,12 +226,10 @@ class Director(object):
         app_registry.config_set.connect(self._cfg_registry_set)
 
     def _make_device(self, bus, address, hw_device=None, cfg_device=None):
+        # hardware idc has precedence
         idc = hw_device.idc if hw_device is not None else cfg_device.idc
 
-        try:
-            profile = self.device_registry.get_profile(idc)
-        except KeyError:
-            profile = device_profile.make_generic_profile(idc)
+        profile = self.device_registry.get_profile(idc)
 
         return Device(bus=bus, address=address, hw_device=hw_device, cfg_device=cfg_device, profile=profile)
 
