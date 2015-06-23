@@ -226,6 +226,11 @@ def parse_connection_url(url):
 
     raise URLParseError("Invalid protocol '%s'" % proto)
 
+def display_url(url):
+    if url.startswith("serial://"):
+        return url[len("serial://"):]
+    return url
+
 def build_connection_url(serial_port=None, baud_rate=0, host=None, port=4001, mc_host=None, mc_port=23000):
     if serial_port:
         if baud_rate != 0:
@@ -252,9 +257,14 @@ def mrc_urls_match(url1, url2):
 def make_logging_source_adapter(module_name, object_instance):
     logger_name = "%s.%s" % (module_name, object_instance.__class__.__name__)
 
-    return logging.LoggerAdapter(
+    # Add the findCaller method to LoggerAdapter
+    logging.LoggerAdapter.findCaller = lambda self: self.logger.findCaller()
+
+    ret = logging.LoggerAdapter(
             logging.getLogger(logger_name),
             dict(source=id(object_instance)))
+
+    return ret
 
 def list_serial_ports():
     if sys.platform.startswith('linux'):
@@ -319,6 +329,19 @@ class CallbackHandler(logging.Handler):
                     pass
         finally:
             self.release()
+
+class MinimumLevelFilter(object):
+    """Log records with a level greater or equal to minimum_level will pass
+    through this filter."""
+    def __init__(self, minimum_level):
+        self.minimum_level = minimum_level
+
+    def filter(self, log_record):
+        return log_record.levelno >= self.minimum_level
+
+class HasExceptionFilter(object):
+    def filter(self, log_record):
+        return log_record.exc_info is not None
 
 class QtLoggingBridge(QObject):
     log_record = pyqtSignal(object)

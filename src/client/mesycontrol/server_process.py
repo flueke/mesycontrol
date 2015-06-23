@@ -491,7 +491,9 @@ class ServerProcessPool(QtCore.QObject):
 
     def _get_free_port(self):
         in_use = set(self._procs_by_port.keys())
+        self.log.debug("in_use=%s, unavail=%s", in_use, self._unavailable_ports)
         in_use = in_use.union(self._unavailable_ports)
+
 
         for p in xrange(BASE_PORT, 65535):
             if p not in in_use:

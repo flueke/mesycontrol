@@ -10,7 +10,8 @@ import devices
 import util
 
 class DeviceRegistry(object):
-    def __init__(self):
+    """Provides access to DeviceProfile and Device modules and classes."""
+    def __init__(self, auto_load_modules=False):
         self.log = util.make_logging_source_adapter(__name__, self)
         self.profile_modules        = dict()
         self.profiles               = dict()    # DeviceProfile instances
@@ -18,7 +19,16 @@ class DeviceRegistry(object):
         self.device_classes         = dict()
         self.device_ui_classes      = dict()
 
+        if auto_load_modules:
+            self.load_system_modules()
+
+    def load_system_modules(self):
+        """Load all built-in device modules."""
+        self.load_system_deviceprofile_modules()
+        self.load_system_device_modules()
+
     def load_system_deviceprofile_modules(self):
+        """Loads the built-in DeviceProfiles."""
         for mod_name in devices.profile_modules:
             try:
                 self.load_device_profile_module("mesycontrol.devices." + mod_name)
@@ -26,6 +36,7 @@ class DeviceRegistry(object):
                 self.log.exception("Error loading device profile module '%s'", mod_name)
 
     def load_system_device_modules(self):
+        """Loads the build-in Device modules."""
         for mod_name in devices.device_modules:
             try:
                 self.load_device_module("mesycontrol.devices." + mod_name)
@@ -33,6 +44,10 @@ class DeviceRegistry(object):
                 self.log.exception("Error loading device module '%s'", mod_name)
 
     def load_device_profile_module(self, module_name):
+        """Load a DeviceProfile from the module named `module_name'.
+        The module has to define two variables: `idc' and `profile_dict'
+        containing the device idc and a dictionary representation of the
+        profile."""
         module = importlib.import_module(module_name)
         idc    = module.idc
         self.profile_modules[idc] = module
@@ -40,6 +55,11 @@ class DeviceRegistry(object):
         self.log.debug("Loaded device profile from '%s' for idc=%d", module_name, idc)
 
     def load_device_module(self, module_name):
+        """Load device class and device UI class from the module specified by
+        `module_name'.
+        The module has to define three variables: `idc', `device_class' and
+        `device_ui_class' containing the device idc, dthe evice class and the
+        device UI class to use."""
         module = importlib.import_module(module_name)
         idc    = module.idc
         self.device_modules[idc]    = module

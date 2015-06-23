@@ -51,7 +51,12 @@ def read_setup(source):
     if root.tag != 'mesycontrol':
         raise ValueError("invalid root tag '%s', expected 'mesycontrol'" % root.tag)
 
-    ret = _setup_from_node(root.find('setup'))
+    setup_node = root.find('setup')
+
+    if setup_node is None:
+        raise ValueError("No Setup found.")
+
+    ret = _setup_from_node(setup_node)
 
     if isinstance(source, (str, unicode, QtCore.QString)):
         ret.filename = source

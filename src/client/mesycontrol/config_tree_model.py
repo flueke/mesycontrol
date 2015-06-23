@@ -99,12 +99,12 @@ class MRCNode(ConfigTreeNode):
             cfg = mrc.cfg
 
             if cfg is None:
-                return btm.display_url(mrc.url)
+                return mrc.get_display_url()
 
             if len(cfg.name):
-                return "%s (%s)" % (cfg.name, btm.display_url(mrc.url))
+                return "%s (%s)" % (cfg.name, mrc.get_display_url())
 
-            return btm.display_url(mrc.url)
+            return mrc.get_display_url()
 
         if column == 0 and role == Qt.EditRole:
             return self.ref.cfg.name

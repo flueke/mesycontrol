@@ -1,3 +1,35 @@
+=== GUI from the top ===
+* Linked Mode
+  - Defaults to off: hw and cfg views are not linked. Editing a device happens
+    either on the hardware _or_ the _config_ side, not both at the same time.
+    This means the table view displays and edits either a config or a hardware
+    device.
+  - If the user enables linked mode the tree view links both trees together,
+    matching hw and cfg nodes and creating nodes for missing devices and
+    non-existing device configs. IDC mismatches should be highlighted.
+    Table view should go into hw+cfg mode, showing both columns and
+    highlighting differences.
+  - Device GUIs and linked mode (XXX WIP):
+    GUI should work with only hardware (+hidden cfg for extensions?), only
+    config (no read only params in config, no polling) and both (syncing cfg &
+    hw; possibly toggleable).
+  - Session state should be saved:
+    - Last opened setup
+    - Active connections
+    - Open windows
+    - Mainwindow state (docks, size, position)
+    - Linked mode
+
+* Window management
+  - it is possible to open multiple table views for the same device
+  - double click on a device should open new a device tableview if none exists yet.
+    otherwise the existing table views for the device should be raised to the front
+  - treeview single clicks should raise existing table views to the front
+  - ctrl-click should open a new tableview even if one exists
+  
+    * Window management
+      - close if app_model.Device disappears completely (hw and cfg missing)
+
 * TreeView display & actions:
   - create setup/config from hardware
   - check/apply setup/config
@@ -5,12 +37,23 @@
   - polling
   - silent mode
   - prompts on close/overwrite/...
+    * TreeView sorting by MRC name (needs logic to keep hardware tree in sync in linked mode)
+      - app_model -> row mapping?
 
 * Table view:
-  - link cfg & hw
+  - hw centric & config centric mode
   - create config
   - idc & address conflicts
   - edit config
+  - copy paste of values
+
+    - columns
+    - editing
+    - display of values that are not available (yet)
+    - hw connect/disconnect
+    - cfg empty, loaded, ...
+    - hw/cfg set
+    - idc changes!
 
 * Device support
   - Update device classes
@@ -18,10 +61,6 @@
   - RC handling (memory refresh needed?)
   - Update GUIs (idc conflicts, address conflict, disconnect, param could not
     be set, delayed spinboxes, parameter bindings)
-
-* Window management
-  - close if app_model.Device disappears completely (hw and cfg missing)
-
 
 * Specialized device classes: how? when? case for unknown devices?
   * device profile:
@@ -44,20 +83,6 @@
     - may use config extensions for calculations and enabling of features
     - may set config extensions
     - creation: when? once instance only or multiple instances?
-
-* Config/Profile creation: when to create, how to initialize? where to store? extension init
-
-* Device table view
-    - columns
-    - editing
-    - display of values that are not available (yet)
-    - hw connect/disconnect
-    - cfg empty, loaded, ...
-    - hw/cfg set
-    - idc changes!
-
-* TreeView sorting by MRC name (needs logic to keep hardware tree in sync in linked mode)
-  - app_model -> row mapping?
 
 * TreeView columns and displayed data
     * TreeView actions (apply cfg, dev to config, check config, polling, rc)

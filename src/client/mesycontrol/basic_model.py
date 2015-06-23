@@ -90,6 +90,9 @@ class MRC(QtCore.QObject):
     def get_url(self):
         return self._url
 
+    def get_display_url(self):
+        return util.display_url(self.url)
+
     def add_device(self, device):
         if self.get_device(device.bus, device.address) is not None:
             raise ValueError("Device at (%d, %d) exists", device.bus, device.address)

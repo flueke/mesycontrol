@@ -101,7 +101,10 @@ class MRCRegistry(AppObject):
         return "%s.MRCRegistry(id=%s, hw=%s, cfg=%s)" % (
                 __name__, hex(id(self)), self.hw, self.cfg)
 
-    mrcs = pyqtProperty(list, get_mrcs)
+    setup = pyqtProperty(object,
+            fget=lambda s: s.cfg,
+            fset=lambda s, v: s.set_config(v))
+    mrcs  = pyqtProperty(list, get_mrcs)
 
 class MRC(AppObject):
     device_added    = pyqtSignal(object)
@@ -150,6 +153,9 @@ class MRC(AppObject):
 
     def get_url(self):
         return self._url
+
+    def get_display_url(self):
+        return util.display_url(self.url)
 
     def __iter__(self):
         return iter(self._devices)
@@ -226,7 +232,7 @@ class Director(object):
         app_registry.config_set.connect(self._cfg_registry_set)
 
     def _make_device(self, bus, address, hw_device=None, cfg_device=None):
-        # hardware idc has precedence
+        # hardware idc has precedence for profile selection
         idc = hw_device.idc if hw_device is not None else cfg_device.idc
 
         profile = self.device_registry.get_profile(idc)

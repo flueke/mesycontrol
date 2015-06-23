@@ -254,18 +254,18 @@ class MCTreeDirector(object):
 class MCTreeView(QtGui.QWidget):
     hw_context_menu_requested   = pyqtSignal(object, object, object, object) #: node, idx, position, view
     cfg_context_menu_requested  = pyqtSignal(object, object, object, object) #: node, idx, position, view
-    node_selected               = pyqtSignal(object, object, object) #: node, idx, view
-    hw_node_selected            = pyqtSignal(object, object, object) #: node, idx, view
-    cfg_node_selected           = pyqtSignal(object, object, object) #: node, idx, view
+
+    #node_selected               = pyqtSignal(object, object, object) #: node, idx, view
+    #hw_node_selected            = pyqtSignal(object, object, object) #: node, idx, view
+    #cfg_node_selected           = pyqtSignal(object, object, object) #: node, idx, view
 
     linked_mode_changed         = pyqtSignal(bool)
 
-    def __init__(self, app_director, find_data_file, device_registry, linked_mode_on=False, parent=None):
+    def __init__(self, app_registry, device_registry, find_data_file, linked_mode_on=False, parent=None):
         super(MCTreeView, self).__init__(parent)
         self.log = util.make_logging_source_adapter(__name__, self)
 
-        self.app_director = app_director
-        self._director  = MCTreeDirector(app_registry=app_director.registry,
+        self._director  = MCTreeDirector(app_registry=app_registry,
                 device_registry=device_registry, find_data_file=find_data_file,
                 linked_mode_on=linked_mode_on)
 
@@ -279,7 +279,12 @@ class MCTreeView(QtGui.QWidget):
         self.cfg_view.customContextMenuRequested.connect(self._cfg_context_menu)
         self.cfg_view.expanded.connect(self._cfg_expanded)
         self.cfg_view.collapsed.connect(self._cfg_collapsed)
+
         self.cfg_view.selectionModel().currentChanged.connect(self._cfg_selection_current_changed)
+        self.cfg_view.selectionModel().selectionChanged.connect(self._cfg_selection_changed)
+        self.cfg_view.clicked.connect(self._cfg_view_clicked)
+        self.cfg_view.activated.connect(self._cfg_view_activated)
+        self.cfg_view.pressed.connect(self._cfg_view_pressed)
 
         self.hw_view   = HardwareTreeView()
         self.hw_view.setModel(self.hw_model)
@@ -288,7 +293,12 @@ class MCTreeView(QtGui.QWidget):
         self.hw_view.customContextMenuRequested.connect(self._hw_context_menu)
         self.hw_view.expanded.connect(self._hw_expanded)
         self.hw_view.collapsed.connect(self._hw_collapsed)
+
         self.hw_view.selectionModel().currentChanged.connect(self._hw_selection_current_changed)
+        self.hw_view.selectionModel().selectionChanged.connect(self._hw_selection_changed)
+        self.hw_view.clicked.connect(self._hw_view_clicked)
+        self.hw_view.activated.connect(self._hw_view_activated)
+        self.hw_view.pressed.connect(self._hw_view_pressed)
 
         self.cfg_view.expandAll()
         self.hw_view.expandAll()
@@ -388,28 +398,79 @@ class MCTreeView(QtGui.QWidget):
         if self.linked_mode:
             self.cfg_view.collapse(self.cfg_idx_for_hw_idx(idx))
 
-    def _cfg_selection_current_changed(self, current, previous):
-        node = current.internalPointer()
+    # ===== Node selection and activation ===== #
+    # ========================================= #
+
+    def _cfg_index_becomes_active(self, idx):
+        node = idx.internalPointer()
         idc_conflict = isinstance(node, ctm.DeviceNode) and node.ref.idc_conflict
 
         if self.linked_mode and not idc_conflict:
-            self.hw_view.setCurrentIndex(self.hw_idx_for_cfg_idx(current))
+            self.hw_view.setCurrentIndex(self.hw_idx_for_cfg_idx(idx))
         else:
             self.hw_view.clearSelection()
-        self.node_selected.emit(node, current, self.cfg_view)
-        self.cfg_node_selected.emit(node, current, self.cfg_view)
 
-    def _hw_selection_current_changed(self, current, previous):
-        node = current.internalPointer()
+        #self.node_selected.emit(node, idx, self.cfg_view)
+        #self.cfg_node_selected.emit(node, idx, self.cfg_view)
+
+    def _hw_index_becomes_active(self, idx):
+        node = idx.internalPointer()
         idc_conflict = isinstance(node, htm.DeviceNode) and node.ref.idc_conflict
 
         if self.linked_mode and not idc_conflict:
-            self.cfg_view.setCurrentIndex(self.cfg_idx_for_hw_idx(current))
+            self.cfg_view.setCurrentIndex(self.cfg_idx_for_hw_idx(idx))
         else:
             self.cfg_view.clearSelection()
 
-        self.node_selected.emit(node, current, self.hw_view)
-        self.hw_node_selected.emit(node, current, self.hw_view)
+        #self.node_selected.emit(node, idx, self.hw_view)
+        #self.hw_node_selected.emit(node, idx, self.hw_view)
+
+    # selection current changed
+    def _cfg_selection_current_changed(self, current, previous):
+        print "_cfg_selection_current_changed", current
+        self._cfg_index_becomes_active(current)
+
+    def _hw_selection_current_changed(self, current, previous):
+        print "_hw_selection_current_changed", current
+        self._hw_index_becomes_active(current)
+
+    # selection changed
+    def _cfg_selection_changed(self, selected, deselected):
+        print "_cfg_selection_changed", selected.indexes()
+        if len(selected.indexes()):
+            self._cfg_index_becomes_active(selected.indexes()[0])
+
+    def _hw_selection_changed(self, selected, deselected):
+        print "_hw_selection_changed", selected.indexes()
+        if len(selected.indexes()):
+            self._hw_index_becomes_active(selected.indexes()[0])
+
+    # clicked
+    def _cfg_view_clicked(self, idx):
+        print "_cfg_view_clicked", idx
+        self._cfg_index_becomes_active(idx)
+
+    def _hw_view_clicked(self, idx):
+        print "_hw_view_clicked", idx
+        self._hw_index_becomes_active(idx)
+
+    # activated
+    def _cfg_view_activated(self, idx):
+        print "_cfg_view_activated"
+        self._cfg_index_becomes_active(idx)
+
+    def _hw_view_activated(self, idx):
+        print "_hw_view_activated"
+        self._hw_index_becomes_active(idx)
+
+    # pressed
+    def _cfg_view_pressed(self, idx):
+        print "_cfg_view_pressed"
+        self._cfg_index_becomes_active(idx)
+
+    def _hw_view_pressed(self, idx):
+        print "_hw_view_pressed"
+        self._hw_index_becomes_active(idx)
 
 class DoubleClickSplitterHandle(QtGui.QSplitterHandle):
     """Double click support for QSplitterHandle.

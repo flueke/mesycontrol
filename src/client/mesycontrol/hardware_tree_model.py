@@ -69,7 +69,7 @@ class MRCNode(HardwareTreeNode):
         mrc = self.ref
 
         if column == 0 and role == Qt.DisplayRole:
-            return btm.display_url(mrc.url)
+            return mrc.get_display_url()
 
         if column == 0 and role == Qt.DecorationRole:
             if mrc.hw is not None and not mrc.hw.is_connected() and mrc.hw.last_connection_error is not None:
@@ -129,9 +129,11 @@ class DeviceNode(HardwareTreeNode):
         hw      = device.hw  # hardware_model.Device
         mrc     = device.mrc # app_model.MRC
 
+        # XXX: leftoff
         if column == 0 and role == Qt.DisplayRole:
             if hw is None:
-                return "%X <not present>" % device.address
+                if mrc.hw is None or not mrc.hw.is_connected():
+                    return "%X <no mrc connection>" % device.address
 
             try:
                 name = self.model.device_registry.get_device_name(hw.idc)

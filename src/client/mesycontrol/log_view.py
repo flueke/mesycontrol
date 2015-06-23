@@ -19,7 +19,8 @@ class LogView(QtGui.QTextEdit):
         self.document().setMaximumBlockCount(max_lines)
 
         self.formatter = logging.Formatter(
-                '[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
+                fmt='%(asctime)s: %(message)s',
+                datefmt='%H:%M:%S')
 
         self._mutex = QtCore.QMutex()
         self._original_text_color = self.textColor()
@@ -33,15 +34,19 @@ class LogView(QtGui.QTextEdit):
 
     def handle_log_record(self, log_record):
         with QtCore.QMutexLocker(self._mutex):
-            self.append(self.formatter.format(log_record), prepend_time=False)
+            try:
+                if log_record.levelno >= logging.ERROR:
+                    self.setTextColor(QtGui.QColor("#ff0000"))
+
+                self.append(self.formatter.format(log_record), prepend_time=False)
+            finally:
+                self.setTextColor(self._original_text_color)
 
     def handle_exception(self, exc_type, exc_value, exc_trace):
         with QtCore.QMutexLocker(self._mutex):
             try:
                 self.setTextColor(QtGui.QColor("#ff0000"))
-
-                for line in traceback.format_exception(exc_type, exc_value, exc_trace):
-                    self.append(line)
+                self.append(("".join(traceback.format_exception(exc_type, exc_value, exc_trace)).strip()))
             finally:
                 self.setTextColor(self._original_text_color)
 
