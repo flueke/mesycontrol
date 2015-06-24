@@ -8,6 +8,7 @@ from qt import pyqtProperty
 from qt import pyqtSignal
 
 import basic_model as bm
+import config_model as cm
 import util
 
 """Mesycontrol application model.
@@ -215,6 +216,42 @@ class Device(AppObject):
 
     def has_idc_conflict(self):
         return self._idc_conflict
+
+    def create_config(self, name=str(), init_from_hardware=False):
+        """Creates a config for this device.
+        Name is the optional device name set.
+        If init_from_hardware is True the known(!) hardware values will be used
+        to fill the config. Unknown values will not be read, instead the config
+        will contain default values as defined by the device profile.
+        Preconditions:
+          - self.cfg must be None: device must not have a config yet
+          - self.profile must be set: a device profile is needed to create the
+            config with the proper idc and initial values
+          - self.mrc.cfg must be set: there needs to be a MRC config present to
+            register the new device config with.
+        """
+        if self.cfg is not None:
+            raise RuntimeError("device config exists")
+
+        if self.profile is None:
+            raise RuntimeError("device profile not set")
+
+        if self.mrc.cfg is None:
+            raise RuntimeError("mrc config missing")
+
+        cfg = cm.make_device_config(bus=self.bus, address=self.address,
+                idc=self.profile.idc, name=name, device_profile=self.profile)
+
+        if init_from_hardware:
+            pps = filter(lambda pp: pp.should_be_stored(), self.profile.get_parameters())
+            for pp in pps:
+                if self.hw.has_cached_parameter(pp.address):
+                    value = self.hw.get_cached_parameter(pp.address)
+                    cfg.set_parameter(pp.address, value)
+
+        self.mrc.cfg.add_device(cfg)
+
+        return cfg
 
     mrc = pyqtProperty(object, get_mrc, set_mrc, notify=mrc_changed)
     idc_conflict = pyqtProperty(bool, has_idc_conflict, notify=idc_conflict_changed)

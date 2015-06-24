@@ -138,20 +138,21 @@ class Controller(object):
     def scanbus(self, bus):
         def on_bus_scanned(f):
             try:
+                bus  = f.result().response.bus
                 data = f.result().response.bus_data
 
-                self.log.debug("scanbus: received response: %s", data)
+                self.log.debug("%s: received scanbus response %d: %s", self, bus, data)
 
                 for addr in bm.DEV_RANGE:
                     idc, rc = data[addr]
                     device  = self.mrc.get_device(bus, addr)
 
                     if idc <= 0 and device is not None:
-                        self.log.debug("scanbus: removing device (%d, %d)", bus, addr)
+                        self.log.debug("%s: scanbus: removing device (%d, %d)", self, bus, addr)
                         self.mrc.remove_device(device)
                     elif idc > 0:
                         if device is None:
-                            self.log.debug("scanbus: creating device (%d, %d, idc=%d)", bus, addr, idc)
+                            self.log.debug("%s: scanbus: creating device (%d, %d, idc=%d)", self, bus, addr, idc)
                             device = hm.Device(bus, addr, idc)
                             self.mrc.add_device(device)
 
@@ -160,12 +161,12 @@ class Controller(object):
                         device.address_conflict = rc not in (0, 1)
 
                         if device.address_conflict:
-                            self.log.debug("scanbus: address conflict on (%d, %d)", bus, addr)
+                            self.log.debug("%s: scanbus: address conflict on (%d, %d)", self, bus, addr)
 
                 self.mrc.address_conflict = any((d.address_conflict for d in self.mrc))
 
             except Exception:
-                self.log.exception("scanbus error")
+                self.log.exception("%s: scanbus error" % self)
 
         m = protocol.Message('request_scanbus', bus=bus)
         return self.connection.queue_request(m).add_done_callback(on_bus_scanned)
@@ -199,17 +200,34 @@ class Controller(object):
         # lead to parameters being read multiple times.
         items = reduce(lambda x, y: x.union(y), self._poll_items.values(), set())
 
+        polled_items_by_device = dict()
+
         for bus, dev, item in items:
             device = self.mrc.get_device(bus, dev)
             if not device or not device.polling:
                 continue
+
+            polled_items = polled_items_by_device.setdefault((bus, dev), set())
+
             try:
                 lower, upper = item
+                polled_items.add((lower, upper))
                 for param in xrange(lower, upper+1):
                     self.read_parameter(bus, dev, param)
             except TypeError:
+                polled_items.add(item)
                 self.read_parameter(bus, dev, item)
+
+        for bus, dev in sorted(polled_items_by_device.keys()):
+            self.log.debug("%s: polled (%d, %d): %s", self, bus, dev,
+                    sorted(polled_items_by_device[(bus, dev)]))
 
     def add_poll_item(self, subscriber, bus, address, item):
         items = self._poll_items.setdefault(subscriber, set())
         items.add((bus, address, item))
+
+    def remove_polling_subscriber(self, subscriber):
+        del self._poll_items[subscriber]
+
+    def __str__(self):
+        return "Controller(%s)" % util.display_url(self.connection.url)

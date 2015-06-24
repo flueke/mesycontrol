@@ -16,6 +16,7 @@ import util
 # created. The table view will not know about this new object and remain in a
 # "dead" state. -> close the window? store (url, bus, dev) -> window somewhere
 # and update the table models device once a new device is created?
+# => probably best to just close the window for now
 
 # TODO: handle the case where there's no device config present yet -> create one
 # TODO: handle failed sets. maybe display red background for a few seconds
@@ -55,26 +56,52 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
     device = pyqtProperty(object, get_device, set_device)
 
     def _on_device_hardware_set(self, app_device, old_hw, new_hw):
+        signal_slot_map = {
+                'parameter_changed': self._on_hw_parameter_changed,
+                'connected': self._on_hw_device_connection_state_changed,
+                'connecting': self._on_hw_device_connection_state_changed,
+                'disconnected': self._on_hw_device_connection_state_changed,
+                'connection_error': self._on_hw_device_connection_state_changed,
+                }
+
         if old_hw is not None:
-            old_hw.parameter_changed.disconnect(self._on_hw_parameter_changed)
-            old_hw.connected.disconnect(self._on_hw_device_connection_state_changed)
-            old_hw.connecting.disconnect(self._on_hw_device_connection_state_changed)
-            old_hw.disconnected.disconnect(self._on_hw_device_connection_state_changed)
-            old_hw.connection_error.disconnect(self._on_hw_device_connection_state_changed)
+            for signal, slot in signal_slot_map.iteritems():
+                getattr(old_hw, signal).disconnect(slot)
+
+            try:
+                old_hw.remove_polling_subscriber(self)
+            except KeyError:
+                pass
 
         if new_hw is not None:
-            new_hw.parameter_changed.connect(self._on_hw_parameter_changed)
-            new_hw.connected.connect(self._on_hw_device_connection_state_changed)
-            new_hw.connecting.connect(self._on_hw_device_connection_state_changed)
-            new_hw.disconnected.connect(self._on_hw_device_connection_state_changed)
-            new_hw.connection_error.connect(self._on_hw_device_connection_state_changed)
+            for signal, slot in signal_slot_map.iteritems():
+                getattr(new_hw, signal).connect(slot)
 
             if app_device.profile is not None:
                 for addr in app_device.profile.get_volatile_addresses():
                     new_hw.add_poll_item(self, addr)
 
-        self.beginResetModel()
-        self.endResetModel()
+        #if old_hw is not None:
+        #    old_hw.parameter_changed.disconnect(self._on_hw_parameter_changed)
+        #    old_hw.connected.disconnect(self._on_hw_device_connection_state_changed)
+        #    old_hw.connecting.disconnect(self._on_hw_device_connection_state_changed)
+        #    old_hw.disconnected.disconnect(self._on_hw_device_connection_state_changed)
+        #    old_hw.connection_error.disconnect(self._on_hw_device_connection_state_changed)
+
+        #if new_hw is not None:
+        #    new_hw.parameter_changed.connect(self._on_hw_parameter_changed)
+        #    new_hw.connected.connect(self._on_hw_device_connection_state_changed)
+        #    new_hw.connecting.connect(self._on_hw_device_connection_state_changed)
+        #    new_hw.disconnected.connect(self._on_hw_device_connection_state_changed)
+        #    new_hw.connection_error.connect(self._on_hw_device_connection_state_changed)
+
+        self.dataChanged.emit(
+                self.createIndex(0, 0),
+                self.createIndex(self.rowCount(), self.columnCount()))
+
+
+        #self.beginResetModel()
+        #self.endResetModel()
 
     def _on_device_config_set(self, app_device, old_cfg, new_cfg):
         if old_cfg is not None:
@@ -83,8 +110,12 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         if new_cfg is not None:
             new_cfg.parameter_changed.connect(self._on_cfg_parameter_changed)
 
-        self.beginResetModel()
-        self.endResetModel()
+        self.dataChanged.emit(
+                self.createIndex(0, 0),
+                self.createIndex(self.rowCount(), self.columnCount()))
+
+        #self.beginResetModel()
+        #self.endResetModel()
 
     def _on_hw_parameter_changed(self, address, value):
         self.dataChanged.emit(
@@ -97,8 +128,11 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 self.createIndex(address, self.columnCount()))
 
     def _on_hw_device_connection_state_changed(self):
-        self.beginResetModel()
-        self.endResetModel()
+        #self.beginResetModel()
+        #self.endResetModel()
+        self.dataChanged.emit(
+                self.createIndex(0, 0),
+                self.createIndex(self.rowCount(), self.columnCount()))
 
     # ===== QAbstractItemModel implementation =====
     def columnCount(self, parent=QModelIndex()):
@@ -145,20 +179,17 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         return flags
 
     def data(self, idx, role=Qt.DisplayRole):
-        if not idx.isValid():
+        if not idx.isValid() or self.device is None:
             return None
 
-        row             = idx.row()
-        col             = idx.column()
-
-        if self.device is None:
-            return None
-
+        row = idx.row()
+        col = idx.column()
         hw  = self.device.hw
         cfg = self.device.cfg
         profile = self.device.profile
+
         try:
-            pp = profile[row]
+            pp = profile[row] # parameter profile
         except (IndexError, AttributeError):
             pp = None
 
@@ -181,6 +212,9 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                     return "<reading>"
 
             elif col == COL_CFG_VALUE:
+                if pp is None or not pp.should_be_stored():
+                    return None
+
                 if cfg is None:
                     return "<config not present>"
 
@@ -189,11 +223,11 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 except future.IncompleteFuture:
                     return "<reading>"
                 except KeyError:
-                    return "<not in config>"
+                    return "<not set>"
 
             elif col in (COL_HW_UNIT_VALUE, COL_CFG_UNIT_VALUE):
                 try:
-                    unit = profile[row].units[1] # skip the 'raw' unit at index 0
+                    unit = pp.units[1] # skip the 'raw' unit at index 0
                 except (IndexError, AttributeError):
                     return None
 
@@ -215,14 +249,25 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
 
         if role == Qt.EditRole:
             if col == COL_HW_VALUE:
+                # should succeed as otherwise the editable flag would not be set
                 return int(hw.get_parameter(row))
+
             if col == COL_CFG_VALUE:
-                return int(cfg.get_parameter(row))
+                try:
+                # fails if no config exists or the parameter is not set
+                    return int(cfg.get_parameter(row))
+                except (IndexError, AttributeError):
+                    if pp is not None:
+                        return pp.default
+                    return 0
 
         if role == Qt.BackgroundRole:
-            if col in (COL_HW_VALUE, COL_CFG_VALUE) and (
-                    pp is None or pp.read_only or pp.do_not_store):
+            if col == COL_HW_VALUE and pp is not None and pp.read_only:
                 return QtGui.QColor("lightgray")
+
+            if col == COL_CFG_VALUE and pp is not None and not pp.should_be_stored():
+                return QtGui.QColor("lightgray")
+
         return None
 
     def setData(self, idx, value, role = Qt.EditRole):
@@ -237,6 +282,8 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
             if not ok:
                 return False
 
+            print row, value
+
             self.device.hw.set_parameter(row, value)
 
             return True
@@ -246,7 +293,12 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
             if not ok:
                 return False
 
-            self.device.cfg.set_parameter(row, value)
+            cfg = self.device.cfg
+
+            if cfg is None:
+                cfg = self.device.create_config(init_from_hardware=True)
+                
+            cfg.set_parameter(row, value)
 
             return True
 
@@ -259,7 +311,9 @@ class DeviceTableItemDelegate(QtGui.QStyledItemDelegate):
 
         idx = proxy_idx.model().mapToSource(proxy_idx)
 
-        if idx.column() in (COL_HW_VALUE, COL_CFG_VALUE):
+        if (idx.column() in (COL_HW_VALUE, COL_CFG_VALUE)
+                and isinstance(editor, QtGui.QSpinBox)):
+
             min_, max_ = bm.SET_VALUE_MIN, bm.SET_VALUE_MAX
 
             try:
@@ -347,7 +401,7 @@ class DeviceTableSortFilterProxyModel(QtGui.QSortFilterProxyModel):
     filter_static   = pyqtProperty(bool, get_filter_static, set_filter_static)
 
 class DeviceTableView(QtGui.QTableView):
-    def __init__(self, model, parent=None):
+    def __init__(self, model, show_hw=True, show_cfg=True, parent=None):
         super(DeviceTableView, self).__init__(parent)
         self.table_model = model
         self.sort_model  = DeviceTableSortFilterProxyModel(self)
@@ -367,6 +421,23 @@ class DeviceTableView(QtGui.QTableView):
         self.setWordWrap(False)
         self.resizeColumnsToContents()
         self.resizeRowsToContents()
+
+        self.set_show_hardware(show_hw)
+        self.set_show_config(show_cfg)
+
+    def set_show_hardware(self, show_hardware):
+        self.setColumnHidden(COL_HW_VALUE, not show_hardware)
+        self.setColumnHidden(COL_HW_UNIT_VALUE, not show_hardware)
+
+    def does_show_hardware(self):
+        return self.isColumnHidden(COL_HW_VALUE)
+
+    def set_show_config(self, show_config):
+        self.setColumnHidden(COL_CFG_VALUE, not show_config)
+        self.setColumnHidden(COL_CFG_UNIT_VALUE, not show_config)
+
+    def does_show_config(self):
+        return self.isColumnHidden(COL_CFG_VALUE)
 
     def contextMenuEvent(self, event):
         pass
@@ -405,12 +476,14 @@ class DeviceTableView(QtGui.QTableView):
 
 # TODO: change Hide to Show to make it easier to understand which params are shown...
 class DeviceTableWidget(QtGui.QWidget):
-    def __init__(self, device, find_data_file, parent=None):
+    def __init__(self, device, find_data_file, show_hw=True, show_cfg=True, parent=None):
         super(DeviceTableWidget, self).__init__(parent)
 
         settings   = uic.loadUi(find_data_file(
             'mesycontrol/ui/device_tableview_settings.ui'))
-        view       = DeviceTableView(DeviceTableModel(device))
+
+        model = DeviceTableModel(device)
+        view  = DeviceTableView(model=model, show_hw=show_hw, show_cfg=show_cfg)
         sort_model = view.sort_model
 
         menu   = QtGui.QMenu('Filter options', self)

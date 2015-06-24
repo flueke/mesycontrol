@@ -277,10 +277,8 @@ class LocalMRCConnection(AbstractConnection):
     def get_url(self):
         d = dict(serial_port=self.server.serial_port, baud_rate=self.server.baud_rate,
                 host=self.server.tcp_host, port=self.server.tcp_port)
-        print d
-        return util.build_connection_url(
-                serial_port=self.server.serial_port, baud_rate=self.server.baud_rate,
-                host=self.server.tcp_host, port=self.server.tcp_port)
+
+        return util.build_connection_url(**d)
 
 def factory(**kwargs):
     """Connection factory.

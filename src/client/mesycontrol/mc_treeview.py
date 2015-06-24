@@ -23,6 +23,7 @@ class ConfigTreeView(QtGui.QTreeView):
         self.setTextElideMode(Qt.ElideNone)
         self.setRootIsDecorated(False)
         self.setExpandsOnDoubleClick(False)
+        self.setEditTriggers(QtGui.QAbstractItemView.EditKeyPressed)
 
 class HardwareTreeView(QtGui.QTreeView):
     def __init__(self, parent=None):
@@ -32,6 +33,7 @@ class HardwareTreeView(QtGui.QTreeView):
         self.setTextElideMode(Qt.ElideNone)
         self.setRootIsDecorated(False)
         self.setExpandsOnDoubleClick(False)
+        self.setEditTriggers(QtGui.QAbstractItemView.EditKeyPressed)
 
 def find_insertion_index(items, test_fun):
     prev_item = next((o for o in items if test_fun(o)), None)
@@ -255,6 +257,10 @@ class MCTreeView(QtGui.QWidget):
     hw_context_menu_requested   = pyqtSignal(object, object, object, object) #: node, idx, position, view
     cfg_context_menu_requested  = pyqtSignal(object, object, object, object) #: node, idx, position, view
 
+    cfg_node_activated  = pyqtSignal(object) # the config_tree_model node
+    hw_node_activated   = pyqtSignal(object) # the hardware_tree_model node
+    node_activated      = pyqtSignal(object) # config or hardware node
+
     #node_selected               = pyqtSignal(object, object, object) #: node, idx, view
     #hw_node_selected            = pyqtSignal(object, object, object) #: node, idx, view
     #cfg_node_selected           = pyqtSignal(object, object, object) #: node, idx, view
@@ -458,10 +464,14 @@ class MCTreeView(QtGui.QWidget):
     def _cfg_view_activated(self, idx):
         print "_cfg_view_activated"
         self._cfg_index_becomes_active(idx)
+        self.cfg_node_activated.emit(idx.internalPointer())
+        self.node_activated.emit(idx.internalPointer())
 
     def _hw_view_activated(self, idx):
         print "_hw_view_activated"
         self._hw_index_becomes_active(idx)
+        self.hw_node_activated.emit(idx.internalPointer())
+        self.node_activated.emit(idx.internalPointer())
 
     # pressed
     def _cfg_view_pressed(self, idx):

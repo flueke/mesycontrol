@@ -200,9 +200,12 @@ class Device(bm.Device):
         polled.
         Item may be a single parameter address or a tuple of (lower, upper)
         addresses to poll.
-        If the server supports reading parameter ranges and a tuple is given,
-        the read range command will be used."""
+        If the server and mrc support reading parameter ranges and a tuple is
+        given, the read range command will be used."""
         self.controller.add_poll_item(subscriber, self.bus, self.address, item)
+
+    def remove_polling_subscriber(self, subscriber):
+        return self.controller.remove_polling_subscriber(subscriber)
 
     def is_connected(self):
         return self.mrc.is_connected()

@@ -227,7 +227,8 @@ def make_device_config(bus, address, idc, name=str(), device_profile=None):
     ret.name = name
 
     if device_profile is not None:
-        for pp in device_profile.get_parameters():
+        pps = filter(lambda pp: pp.should_be_stored(), device_profile.get_parameters())
+        for pp in pps:
             ret.set_parameter(pp.address, pp.default)
 
         for name, value in device_profile.get_extensions():
