@@ -257,9 +257,11 @@ class MCTreeView(QtGui.QWidget):
     hw_context_menu_requested   = pyqtSignal(object, object, object, object) #: node, idx, position, view
     cfg_context_menu_requested  = pyqtSignal(object, object, object, object) #: node, idx, position, view
 
-    cfg_node_activated  = pyqtSignal(object) # the config_tree_model node
-    hw_node_activated   = pyqtSignal(object) # the hardware_tree_model node
+    #cfg_node_activated  = pyqtSignal(object) # the config_tree_model node
+    #hw_node_activated   = pyqtSignal(object) # the hardware_tree_model node
     node_activated      = pyqtSignal(object) # config or hardware node
+    node_selected       = pyqtSignal(object)
+    node_clicked        = pyqtSignal(object)
 
     #node_selected               = pyqtSignal(object, object, object) #: node, idx, view
     #hw_node_selected            = pyqtSignal(object, object, object) #: node, idx, view
@@ -443,34 +445,44 @@ class MCTreeView(QtGui.QWidget):
     # selection changed
     def _cfg_selection_changed(self, selected, deselected):
         print "_cfg_selection_changed", selected.indexes()
-        if len(selected.indexes()):
-            self._cfg_index_becomes_active(selected.indexes()[0])
+        try:
+            idx = selected.indexes()[0]
+            self._cfg_index_becomes_active(idx)
+            self.node_selected.emit(idx.internalPointer())
+        except IndexError:
+            pass
 
     def _hw_selection_changed(self, selected, deselected):
         print "_hw_selection_changed", selected.indexes()
-        if len(selected.indexes()):
-            self._hw_index_becomes_active(selected.indexes()[0])
+        try:
+            idx = selected.indexes()[0]
+            self._hw_index_becomes_active(idx)
+            self.node_selected.emit(idx.internalPointer())
+        except IndexError:
+            pass
 
     # clicked
     def _cfg_view_clicked(self, idx):
         print "_cfg_view_clicked", idx
         self._cfg_index_becomes_active(idx)
+        self.node_clicked.emit(idx.internalPointer())
 
     def _hw_view_clicked(self, idx):
         print "_hw_view_clicked", idx
         self._hw_index_becomes_active(idx)
+        self.node_clicked.emit(idx.internalPointer())
 
     # activated
     def _cfg_view_activated(self, idx):
         print "_cfg_view_activated"
         self._cfg_index_becomes_active(idx)
-        self.cfg_node_activated.emit(idx.internalPointer())
+        #self.cfg_node_activated.emit(idx.internalPointer())
         self.node_activated.emit(idx.internalPointer())
 
     def _hw_view_activated(self, idx):
         print "_hw_view_activated"
         self._hw_index_becomes_active(idx)
-        self.hw_node_activated.emit(idx.internalPointer())
+        #self.hw_node_activated.emit(idx.internalPointer())
         self.node_activated.emit(idx.internalPointer())
 
     # pressed

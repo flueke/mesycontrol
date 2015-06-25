@@ -4,16 +4,27 @@
     either on the hardware _or_ the _config_ side, not both at the same time.
     This means the table view displays and edits either a config or a hardware
     device.
+
   - If the user enables linked mode the tree view links both trees together,
     matching hw and cfg nodes and creating nodes for missing devices and
     non-existing device configs. IDC mismatches should be highlighted.
     Table view should go into hw+cfg mode, showing both columns and
     highlighting differences.
+  - If the user now disables linked mode combined table views should be closed.
+
+  - If a combined view is open and an IDC mismatch is detected (due to changes
+    to the hardware): disable the table view or close it?
+
+  - If a non-combined view is open and the underlying device IDC changes:
+    repopulate the view, redo polling subscriptions, etc. so that the view now
+    works on the changed device.
+
   - Device GUIs and linked mode (XXX WIP):
     GUI should work with only hardware (+hidden cfg for extensions?), only
     config (no read only params in config, no polling) and both (syncing cfg &
     hw; possibly toggleable).
-  - Session state should be saved:
+
+  - Session state should be saved and restored:
     - Last opened setup
     - Active connections
     - Open windows
@@ -56,6 +67,23 @@
     - idc changes!
 
 * Device support
+  - XXX: Device classes as subclasses of app_model.Device or as a decorator?
+  - XXX: Device classes may need extensions to have full functionality. In the
+    current model extensions are only available on device config objects, not
+    on device hardware objects. Maybe the extension mechanism should also be
+    available on hardware devices.
+  - XXX: Profiles: right now a profile is only carried around in the
+    app_model.Device. In case of an IDC conflict this profile is valid for only
+    one of hw and cfg devices. This should not be a huge problem as no actions
+    should be performed on the device while it has an IDC conflict. But editing
+    the hardware or the config part only should probably be possible and in
+    this case the correct profile for each part is needed.
+  - XXX: it is odd to add a new device config to the tree. Instead of just
+    assigning to app_model.Device.cfg one has to use:
+    device.mrc.cfg.add_device(the_new_config)
+    This will trigger Director._cfg_device_added() which in turn will set the
+    config object on the app_model.
+
   - Update device classes
   - Default values for parameters and extensions when creating a config
   - RC handling (memory refresh needed?)

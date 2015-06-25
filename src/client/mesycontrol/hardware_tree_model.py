@@ -77,11 +77,11 @@ class MRCNode(HardwareTreeNode):
             elif mrc.hw is not None and mrc.hw.is_connecting():
                 return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/loop-circular-2x.png'))
             elif mrc.hw is None or mrc.hw.is_disconnected():
-                return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/bolt-2x.png'))
+                return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/disconnected.png')).scaled(16, 16, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
             elif mrc.hw is not None and mrc.hw.is_connected() and any(d.address_conflict for d in mrc.hw):
                 return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/warning-2x.png'))
             elif mrc.hw is not None and mrc.hw.is_connected():
-                return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/check-2x.png'))
+                return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/connected.png')).scaled(16, 16, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
 
             return None
 
@@ -115,24 +115,6 @@ class DeviceNode(HardwareTreeNode):
             for signal in signals:
                 getattr(new_device, signal).connect(self.notify_all_columns_changed)
 
-        #if old_device is not None:
-        #    old_device.connected.disconnect(self.notify_all_columns_changed)
-        #    old_device.connecting.disconnect(self.notify_all_columns_changed)
-        #    old_device.disconnected.disconnect(self.notify_all_columns_changed)
-        #    old_device.connection_error.disconnect(self.notify_all_columns_changed)
-        #    old_device.address_conflict_changed.disconnect(self.notify_all_columns_changed)
-        #    old_device.rc_changed.disconnect(self.notify_all_columns_changed)
-        #    old_device.polling_changed.disconnect(self.notify_all_columns_changed)
-
-        #if new_device is not None:
-        #    new_device.connected.connect(self.notify_all_columns_changed)
-        #    new_device.connecting.connect(self.notify_all_columns_changed)
-        #    new_device.disconnected.connect(self.notify_all_columns_changed)
-        #    new_device.connection_error.connect(self.notify_all_columns_changed)
-        #    new_device.address_conflict_changed.connect(self.notify_all_columns_changed)
-        #    new_device.rc_changed.connect(self.notify_all_columns_changed)
-        #    new_device.polling_changed.connect(self.notify_all_columns_changed)
-
         self.notify_all_columns_changed()
 
     def data(self, column, role):
@@ -164,12 +146,12 @@ class DeviceNode(HardwareTreeNode):
                     return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/loop-circular-2x.png'))
 
                 if (mrc.hw.is_connected() and not hw) or mrc.hw.is_disconnected():
-                    return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/bolt-2x.png'))
+                    return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/disconnected.png')).scaled(16, 16, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
 
                 if not mrc.hw.is_connected() and mrc.hw.last_connection_error is not None:
                     return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/warning-2x.png'))
 
                 if mrc.hw.is_connected() and hw is not None:
-                    return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/check-2x.png'))
+                    return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/connected.png')).scaled(16, 16, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
 
-            return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/bolt-2x.png'))
+            return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/disconnected.png')).scaled(16, 16, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)

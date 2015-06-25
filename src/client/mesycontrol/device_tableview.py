@@ -23,7 +23,12 @@ import util
 
 column_titles = ('Address', 'Name', 'HW Value', 'Config Value', 'HW Unit Value', 'Config Unit Value')
 
+# Column indexes
 COL_ADDRESS, COL_NAME, COL_HW_VALUE, COL_CFG_VALUE, COL_HW_UNIT_VALUE, COL_CFG_UNIT_VALUE = range(6)
+
+# View mode
+SHOW_HW, SHOW_CFG = (1, 2)
+COMBINED = SHOW_HW | SHOW_CFG
 
 class DeviceTableModel(QtCore.QAbstractTableModel):
     def __init__(self, device, parent=None):
@@ -58,10 +63,10 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
     def _on_device_hardware_set(self, app_device, old_hw, new_hw):
         signal_slot_map = {
                 'parameter_changed': self._on_hw_parameter_changed,
-                'connected': self._on_hw_device_connection_state_changed,
-                'connecting': self._on_hw_device_connection_state_changed,
-                'disconnected': self._on_hw_device_connection_state_changed,
-                'connection_error': self._on_hw_device_connection_state_changed,
+                'connected': self._all_fields_changed,
+                'connecting': self._all_fields_changed,
+                'disconnected': self._all_fields_changed,
+                'connection_error': self._all_fields_changed,
                 }
 
         if old_hw is not None:
@@ -81,27 +86,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 for addr in app_device.profile.get_volatile_addresses():
                     new_hw.add_poll_item(self, addr)
 
-        #if old_hw is not None:
-        #    old_hw.parameter_changed.disconnect(self._on_hw_parameter_changed)
-        #    old_hw.connected.disconnect(self._on_hw_device_connection_state_changed)
-        #    old_hw.connecting.disconnect(self._on_hw_device_connection_state_changed)
-        #    old_hw.disconnected.disconnect(self._on_hw_device_connection_state_changed)
-        #    old_hw.connection_error.disconnect(self._on_hw_device_connection_state_changed)
-
-        #if new_hw is not None:
-        #    new_hw.parameter_changed.connect(self._on_hw_parameter_changed)
-        #    new_hw.connected.connect(self._on_hw_device_connection_state_changed)
-        #    new_hw.connecting.connect(self._on_hw_device_connection_state_changed)
-        #    new_hw.disconnected.connect(self._on_hw_device_connection_state_changed)
-        #    new_hw.connection_error.connect(self._on_hw_device_connection_state_changed)
-
-        self.dataChanged.emit(
-                self.createIndex(0, 0),
-                self.createIndex(self.rowCount(), self.columnCount()))
-
-
-        #self.beginResetModel()
-        #self.endResetModel()
+        self._all_fields_changed()
 
     def _on_device_config_set(self, app_device, old_cfg, new_cfg):
         if old_cfg is not None:
@@ -110,12 +95,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         if new_cfg is not None:
             new_cfg.parameter_changed.connect(self._on_cfg_parameter_changed)
 
-        self.dataChanged.emit(
-                self.createIndex(0, 0),
-                self.createIndex(self.rowCount(), self.columnCount()))
-
-        #self.beginResetModel()
-        #self.endResetModel()
+        self._all_fields_changed()
 
     def _on_hw_parameter_changed(self, address, value):
         self.dataChanged.emit(
@@ -127,9 +107,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 self.createIndex(address, 0),
                 self.createIndex(address, self.columnCount()))
 
-    def _on_hw_device_connection_state_changed(self):
-        #self.beginResetModel()
-        #self.endResetModel()
+    def _all_fields_changed(self):
         self.dataChanged.emit(
                 self.createIndex(0, 0),
                 self.createIndex(self.rowCount(), self.columnCount()))
@@ -401,7 +379,7 @@ class DeviceTableSortFilterProxyModel(QtGui.QSortFilterProxyModel):
     filter_static   = pyqtProperty(bool, get_filter_static, set_filter_static)
 
 class DeviceTableView(QtGui.QTableView):
-    def __init__(self, model, show_hw=True, show_cfg=True, parent=None):
+    def __init__(self, model, mode=COMBINED, parent=None):
         super(DeviceTableView, self).__init__(parent)
         self.table_model = model
         self.sort_model  = DeviceTableSortFilterProxyModel(self)
@@ -422,22 +400,25 @@ class DeviceTableView(QtGui.QTableView):
         self.resizeColumnsToContents()
         self.resizeRowsToContents()
 
-        self.set_show_hardware(show_hw)
-        self.set_show_config(show_cfg)
+        self.mode = mode
 
-    def set_show_hardware(self, show_hardware):
-        self.setColumnHidden(COL_HW_VALUE, not show_hardware)
-        self.setColumnHidden(COL_HW_UNIT_VALUE, not show_hardware)
+    def set_mode(self, mode):
+        self._mode = mode
+
+        self.setColumnHidden(COL_HW_VALUE, not self.does_show_hardware())
+        self.setColumnHidden(COL_HW_UNIT_VALUE, not self.does_show_hardware())
+
+        self.setColumnHidden(COL_CFG_VALUE, not self.does_show_config())
+        self.setColumnHidden(COL_CFG_UNIT_VALUE, not self.does_show_config())
+
+    def get_mode(self):
+        return self._mode
 
     def does_show_hardware(self):
-        return self.isColumnHidden(COL_HW_VALUE)
-
-    def set_show_config(self, show_config):
-        self.setColumnHidden(COL_CFG_VALUE, not show_config)
-        self.setColumnHidden(COL_CFG_UNIT_VALUE, not show_config)
+        return self.mode & SHOW_HW
 
     def does_show_config(self):
-        return self.isColumnHidden(COL_CFG_VALUE)
+        return self.mode & SHOW_CFG
 
     def contextMenuEvent(self, event):
         pass
@@ -474,17 +455,23 @@ class DeviceTableView(QtGui.QTableView):
 
     #    #seq_cmd.start()
 
+    device = property(
+            fget=lambda self: self.table_model.device,
+            fset=lambda self, device: self.table_model.set_device(device))
+    mode   = property(fget=get_mode, fset=set_mode)
+
 # TODO: change Hide to Show to make it easier to understand which params are shown...
+
 class DeviceTableWidget(QtGui.QWidget):
-    def __init__(self, device, find_data_file, show_hw=True, show_cfg=True, parent=None):
+    def __init__(self, device, find_data_file, view_mode=COMBINED, parent=None):
         super(DeviceTableWidget, self).__init__(parent)
 
         settings   = uic.loadUi(find_data_file(
             'mesycontrol/ui/device_tableview_settings.ui'))
 
         model = DeviceTableModel(device)
-        view  = DeviceTableView(model=model, show_hw=show_hw, show_cfg=show_cfg)
-        sort_model = view.sort_model
+        self.view  = DeviceTableView(model=model, mode=view_mode)
+        sort_model = self.view.sort_model
 
         menu   = QtGui.QMenu('Filter options', self)
         action = menu.addAction("Hide unknown")
@@ -510,8 +497,8 @@ class DeviceTableWidget(QtGui.QWidget):
         menu.addSeparator()
 
         action = menu.addAction("Resize table cells")
-        action.triggered.connect(view.resizeColumnsToContents)
-        action.triggered.connect(view.resizeRowsToContents)
+        action.triggered.connect(self.view.resizeColumnsToContents)
+        action.triggered.connect(self.view.resizeRowsToContents)
 
         settings.pb_settings.setMenu(menu)
 
@@ -519,5 +506,16 @@ class DeviceTableWidget(QtGui.QWidget):
 
         layout = QtGui.QVBoxLayout()
         layout.addWidget(settings)
-        layout.addWidget(view)
+        layout.addWidget(self.view)
         self.setLayout(layout)
+
+    def set_view_mode(self, mode):
+        self.view.set_mode(mode)
+
+    def get_view_mode(self):
+        return self.view.get_mode()
+
+    view_mode = property(fget=get_view_mode, fset=set_view_mode)
+    device    = property(
+            fget=lambda self: self.model.get_device(),
+            fset=lambda self, device: self.model.set_device())

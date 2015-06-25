@@ -186,6 +186,10 @@ class ParameterProfile(object):
         return ret;
 
 
+# TODO: add get_poll_items() and use it for polling instead of get_volatile_addresses().
+# difference: get_poll_items() returns a combination of single parameters and
+# parameter ranges whereas get_volatile_addresses() returns a list of parameter
+# addresses
 class DeviceProfile(object):
     def __init__(self, idc):
         self.idc        = int(idc)  #: Device Identifier Code
