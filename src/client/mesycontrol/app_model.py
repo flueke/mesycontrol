@@ -268,7 +268,7 @@ class Device(AppObject):
         cfg = cm.make_device_config(bus=self.bus, address=self.address,
                 idc=self.profile.idc, name=name, device_profile=self.profile)
 
-        if init_from_hardware:
+        if init_from_hardware and self.hw is not None:
             pps = filter(lambda pp: pp.should_be_stored(), self.profile.get_parameters())
             for pp in pps:
                 if self.hw.has_cached_parameter(pp.address):

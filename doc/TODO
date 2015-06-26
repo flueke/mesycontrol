@@ -133,3 +133,9 @@
 * Better data file support! Maybe just use a Qt resource file as it will make
   find_data_file obsolete for icons and it also provides aliases which makes
   swapping icons easy.
+
+* Ctrl-C quit handling: it should trigger asking about unsaved changes
+* Edit MRC config! -> url change!
+* Major: device profile bugs with IDC conflicts! Maybe hw and cfg models should
+  carry their own profiles with them.
+* Tableview: Hide 'name' column for generic devices. Later: make the profile editable.

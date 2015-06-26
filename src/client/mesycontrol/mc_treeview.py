@@ -447,16 +447,13 @@ class MCTreeView(QtGui.QWidget):
 
     # selection current changed
     def _cfg_selection_current_changed(self, current, previous):
-        print "_cfg_selection_current_changed", current
         self._cfg_index_becomes_active(current)
 
     def _hw_selection_current_changed(self, current, previous):
-        print "_hw_selection_current_changed", current
         self._hw_index_becomes_active(current)
 
     # selection changed
     def _cfg_selection_changed(self, selected, deselected):
-        print "_cfg_selection_changed", selected.indexes()
         try:
             idx = selected.indexes()[0]
             self._cfg_index_becomes_active(idx)
@@ -465,7 +462,6 @@ class MCTreeView(QtGui.QWidget):
             pass
 
     def _hw_selection_changed(self, selected, deselected):
-        print "_hw_selection_changed", selected.indexes()
         try:
             idx = selected.indexes()[0]
             self._hw_index_becomes_active(idx)
@@ -475,35 +471,27 @@ class MCTreeView(QtGui.QWidget):
 
     # clicked
     def _cfg_view_clicked(self, idx):
-        print "_cfg_view_clicked", idx
         self._cfg_index_becomes_active(idx)
         self.node_clicked.emit(idx.internalPointer())
 
     def _hw_view_clicked(self, idx):
-        print "_hw_view_clicked", idx
         self._hw_index_becomes_active(idx)
         self.node_clicked.emit(idx.internalPointer())
 
     # activated
     def _cfg_view_activated(self, idx):
-        print "_cfg_view_activated"
         self._cfg_index_becomes_active(idx)
-        #self.cfg_node_activated.emit(idx.internalPointer())
         self.node_activated.emit(idx.internalPointer())
 
     def _hw_view_activated(self, idx):
-        print "_hw_view_activated"
         self._hw_index_becomes_active(idx)
-        #self.hw_node_activated.emit(idx.internalPointer())
         self.node_activated.emit(idx.internalPointer())
 
     # pressed
     def _cfg_view_pressed(self, idx):
-        print "_cfg_view_pressed"
         self._cfg_index_becomes_active(idx)
 
     def _hw_view_pressed(self, idx):
-        print "_hw_view_pressed"
         self._hw_index_becomes_active(idx)
 
 class DoubleClickSplitterHandle(QtGui.QSplitterHandle):

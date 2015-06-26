@@ -70,6 +70,7 @@ def make(*args, **kwargs):
 
 @contextlib.contextmanager
 def use(context):
+    """Same as make() but takes a Context instance instead of creating one."""
     try:
         yield context
     finally:

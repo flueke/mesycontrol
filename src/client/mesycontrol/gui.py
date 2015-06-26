@@ -3,6 +3,7 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 from functools import partial
+import copy
 import logging
 import os
 import weakref
@@ -131,6 +132,21 @@ def run_save_setup(context, parent_widget):
         QtGui.QMessageBox.critical(parent_widget, "Error", "Saving setup %s failed:\n%s" % (setup.filename, e))
         return False
 
+# XXX: leftoff
+#def run_save_device_config(device, context, parent_widget):
+#    directory_hint = os.path.dirname(str(context.make_qsettings().value(
+#            'Files/last_config_file', QtCore.QString()).toString()))
+#
+#    filename = str(QtGui.QFileDialog.getSaveFileName(parent_widget, "Save Device config as",
+#        directory_hint=directory_hint, filter="XML files (*.xml);;"))
+#
+#    if not len(filename):
+#        return False
+#
+#    try:
+#        config_xml.write_device_config(device_config=device.cfg, dest=filename,
+#                parameter_names=context.device_registry.get_parameter_name_mapping().get(device.cfg.idc))
+
 def run_save_setup_as_dialog(context, parent_widget):
     setup = context.app_registry.cfg
 
@@ -160,7 +176,7 @@ def run_save_setup_as_dialog(context, parent_widget):
         return False
     
 def run_open_setup_dialog(context, parent_widget):
-    if context.setup.modified:
+    if context.setup.modified and len(context.setup):
         do_save = QtGui.QMessageBox.question(parent_widget,
                 "Setup modified",
                 "The current setup is modified. Do you want to save it?",
@@ -195,7 +211,7 @@ def run_open_setup_dialog(context, parent_widget):
         return False
 
 def run_close_setup(context, parent_widget):
-    if context.setup.modified:
+    if context.setup.modified and len(context.setup):
         do_save = QtGui.QMessageBox.question(parent_widget,
                 "Setup modified",
                 "The current setup is modified. Do you want to save it?",
@@ -215,6 +231,8 @@ class GUIApplication(QtCore.QObject):
         self.context        = context
         self._linked_mode   = False
         self._device_window_map = dict() # app_model.Device -> list of QMdiSubWindow
+
+        self.mainwindow.installEventFilter(self)
 
         # Treeview
         self.treeview = self.mainwindow.treeview
@@ -244,33 +262,15 @@ class GUIApplication(QtCore.QObject):
         self.mainwindow.mdiArea.subWindowActivated.connect(self._on_subwindow_activated)
 
     def _on_subwindow_activated(self, window):
-        # TODO:
-        # is it a device window? does it show cfg or hw or both?
-        # if it shows cfg: find node in cfg model and select it
-        # if it shows hw: find node in hw model and select it
-        # do not raise all windows for this device!
-        # move the subwindow to the front of the list of subwindow for the
-        # selected device
-
         if hasattr(window, 'device') and hasattr(window, 'view_mode'):
             device = window.device
             view_mode = window.view_mode
+            # Note: combined mode will be handled internally by the treeview
+            # upon node selection
             if view_mode & device_tableview.SHOW_CFG:
                 self.treeview.select_config_node_by_ref(device)
             elif view_mode & device_tableview.SHOW_HW:
                 self.treeview.select_hardware_node_by_ref(device)
-            # combined mode will be handled by the treeview internally
-
-
-
-        print "subwindow activated", window
-        if window is not None:
-            print "window widget", window.widget()
-            print "window title", window.windowTitle()
-        print "current subwindow", self.mainwindow.mdiArea.currentSubWindow()
-        print "active subwindow", self.mainwindow.mdiArea.activeSubWindow()
-        print "subwindow list", self.mainwindow.mdiArea.subWindowList()
-        print "================"
 
     def _show_device_windows(self, device, show_cfg, show_hw):
         """Shows existing device windows. Return True if at least one window
@@ -296,25 +296,30 @@ class GUIApplication(QtCore.QObject):
 
         return len(windows) > 0
 
-    def _tree_node_activated(self, node):
-        # TODO: double click and click support at the same time needs help of a
-        # QTimer to ignore the first click and wait if it becomes a double
-        # click. if it doesnt act on the first click
+    def _close_device_windows(self, device):
+        for window in copy.copy(self._device_window_map.get(device, set())):
+            window.close()
 
+    def _tree_node_activated(self, node):
         is_device_cfg = isinstance(node, ctm.DeviceNode)
         is_device_hw  = isinstance(node, htm.DeviceNode)
 
         if is_device_cfg or is_device_hw:
             device = node.ref
 
-            if self._show_device_windows(device, is_device_cfg, is_device_hw):
+            self._show_or_create_device_window(device, is_device_cfg, is_device_hw)
+
+    def _show_or_create_device_window(self, device, from_config_side, from_hw_side):
+        if from_config_side or from_hw_side:
+
+            if self._show_device_windows(device, from_config_side, from_hw_side):
                 return
 
             if self.linked_mode and not device.idc_conflict:
                 view_mode = device_tableview.COMBINED
-            elif is_device_cfg:
+            elif from_config_side:
                 view_mode = device_tableview.SHOW_CFG
-            elif is_device_hw:
+            elif from_hw_side:
                 view_mode = device_tableview.SHOW_HW
 
             subwin = self._add_device_table_window(device, view_mode)
@@ -323,16 +328,7 @@ class GUIApplication(QtCore.QObject):
                 subwin.showNormal()
 
     def _tree_node_selected(self, node):
-        # If not a device node: return
-        # If in linked_mode and not node.ref.idc_conflict
-        #   raise all windows for this device
-        # else if node is config node
-        #   raise all windows which have a DeviceTableWidget widget in SHOW_CFG mode
-        # else if node is hw node
-        #   raise all windows which have a DeviceTableWidget widget in SHOW_HW mode
-        # if no windows where raised:
-        #   deselect any active QMdiSubWindow
-
+        # For now only mouse clicks are used
         pass
 
     def _tree_node_clicked(self, node):
@@ -414,31 +410,6 @@ class GUIApplication(QtCore.QObject):
         self._device_window_map.setdefault(device, set()).add(subwin)
         return subwin
 
-    #def _add_subwindow(self, widget, title=str(), name=str()):
-    #    # Note: Calling addSubWindow(widget) directly caused QMdiArea to
-    #    # somehow "recycle" subwindows. On activating a subwindow the subwindow
-    #    # pointer stayed the same but the subwindows widget() changed to the
-    #    # correct widget. This makes it impossible to e.g. keep a mapping of
-    #    # subwindow to widget. Manually creating the subwindow, setting the
-    #    # widget and then adding the subwindow to the MDI area fixes the
-    #    # problem.
-    #    subwin = QtGui.QMdiSubWindow()
-    #    subwin.setWidget(widget)
-    #    subwin.setWindowTitle(title)
-    #    subwin.setObjectName(name)
-    #    subwin.setAttribute(Qt.WA_DeleteOnClose)
-    #    self.mainwindow.mdiArea.addSubWindow(subwin)
-
-    #    subwin.installEventFilter(self)
-    #    restore_subwindow_state(subwin, self.context.make_qsettings())
-    #    subwin.show()
-
-    #    # TODO
-    #    #action = QtGui.QAction(title, self, triggered=self._menu_window_action_triggered)
-    #    #action.setData(name)
-    #    #self.menu_Window.addAction(action)
-    #    return subwin
-
     def _cfg_context_menu(self, node, idx, pos, view):
         menu = QtGui.QMenu()
 
@@ -447,8 +418,6 @@ class GUIApplication(QtCore.QObject):
 
             menu.addAction("Open Setup").triggered.connect(partial(run_open_setup_dialog,
                 context=self.context, parent_widget=self.treeview))
-
-            #menu.addAction("Load Setup")
 
             if len(setup):
                 if len(setup.filename):
@@ -460,6 +429,8 @@ class GUIApplication(QtCore.QObject):
 
                 menu.addAction("Close Setup").triggered.connect(partial(run_close_setup,
                     context=self.context, parent_widget=self.treeview))
+
+            menu.addSeparator()
 
             menu.addAction("Add MRC").triggered.connect(partial(run_add_mrc_config_dialog,
                 find_data_file=self.context.find_data_file, registry=self.app_registry,
@@ -473,8 +444,6 @@ class GUIApplication(QtCore.QObject):
             def remove_mrc():
                 self.app_registry.cfg.remove_mrc(node.ref.cfg)
 
-            #menu.addAction("Edit MRC").triggered.connect(partial(run_edit_mrc_config_dialog,
-            #    context=self.context, registry=self.registry, mrc=node.ref, parent_widget=self.treeview))
             menu.addAction("Remove MRC").triggered.connect(remove_mrc)
 
         if isinstance(node, ctm.BusNode):
@@ -484,10 +453,20 @@ class GUIApplication(QtCore.QObject):
                 parent_widget=self.treeview))
 
         if isinstance(node, ctm.DeviceNode):
-            menu.addAction("Open").triggered.connect(partial(self._add_device_table_window, device=node.ref))
+            menu.addAction("Open").triggered.connect(
+                    partial(self._show_or_create_device_window,
+                        device=node.ref, from_config_side=True, from_hw_side=False))
+
             menu.addAction("Load From File")
+
             menu.addAction("Save To File")
-            menu.addAction("Remove Device from Config")
+
+            def remove_device():
+                device = node.ref
+                self._close_device_windows(device)
+                device.mrc.cfg.remove_device(device.cfg)
+
+            menu.addAction("Remove Device from Setup").triggered.connect(remove_device)
 
         if not menu.isEmpty():
             menu.exec_(view.mapToGlobal(pos))
@@ -549,21 +528,6 @@ class GUIApplication(QtCore.QObject):
         if not menu.isEmpty():
             menu.exec_(view.mapToGlobal(pos))
 
-    #def _show_or_create_device_table_window(self, device, mode):
-    #    subwin = None
-
-    #    if subwin is None:
-    #        subwin = self._add_device_table_window(
-    #                device   = device,
-    #                mode     = mode)
-
-    #        subwin.device = device
-
-    #    if subwin.isMinimized():
-    #        subwin.showNormal()
-
-    #    self.mainwindow.mdiArea.setActiveSubWindow(subwin)
-
     def eventFilter(self, watched_object, event):
         if (event.type() == QtCore.QEvent.Close
                 and isinstance(watched_object, QtGui.QMdiSubWindow)):
@@ -575,8 +539,11 @@ class GUIApplication(QtCore.QObject):
                 # Remove the subwindow from the set of device windows
                 self._device_window_map[watched_object.device].remove(watched_object)
 
-        return False
+        elif (event.type() == QtCore.QEvent.Close
+                and watched_object is self.mainwindow):
+            run_close_setup(self.context, self.mainwindow)
 
+        return False
 
 def store_subwindow_state(subwin, settings):
     name = str(subwin.objectName())
@@ -728,7 +695,17 @@ class DeviceTableSubWindow(QtGui.QMdiSubWindow):
         # TODO: display IDC conflict and address conflict in title
         device      = self.widget().device
         view_mode   = self.widget().view_mode
-        idc         = device.hw.idc if device.hw is not None else device.cfg.idc
+        idc         = None
+        if device.hw is not None:
+            idc = device.hw.idc
+        elif device.cfg is not None:
+            idc = device.cfg.idc
+
+        if idc is None:
+            # The device is about to disappear and this window should close. Do
+            # not attempt to update the title as no idc is known and device.mrc
+            # will not be set.
+            return
 
         if view_mode == device_tableview.COMBINED:
             prefix = 'combined'
@@ -737,9 +714,10 @@ class DeviceTableSubWindow(QtGui.QMdiSubWindow):
         elif view_mode & device_tableview.SHOW_CFG:
             prefix = 'cfg'
 
-        name   = "%s_(%s, %d, %d)" % (prefix, device.mrc.url, device.bus, device.address)
-        title  = "%s @ (%s, %d, %d)" % (self.device_registry.get_device_name(idc),
-                device.mrc.get_display_url(), device.bus, device.address)
+        device_name = self.device_registry.get_device_name(idc)
+        name        = "%s_(%s, %d, %d)" % (prefix, device.mrc.url, device.bus, device.address)
+        title       = "%s @ (%s, %d, %d)" % (device_name, device.mrc.get_display_url(),
+                device.bus, device.address)
 
         if ((view_mode & device_tableview.SHOW_CFG)
                 and device.cfg is not None

@@ -216,8 +216,14 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                         return "<reading>"
 
                 elif col == COL_CFG_UNIT_VALUE and cfg is not None:
-                    raw = int(cfg.get_parameter(row))
-
+                    if pp is None or not pp.should_be_stored() or cfg is None:
+                        return None
+                    try:
+                        raw = int(cfg.get_parameter(row))
+                    except future.IncompleteFuture:
+                        return "<reading>"
+                    except KeyError:
+                        return None
                 else:
                     return None
 
