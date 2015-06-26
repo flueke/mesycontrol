@@ -111,12 +111,27 @@ class MRC(AppObject):
     device_added    = pyqtSignal(object)
     device_about_to_be_removed = pyqtSignal(object)
     device_removed  = pyqtSignal(object)
+    mrc_registry_changed = pyqtSignal(object)
 
-    def __init__(self, url, hw_mrc=None, cfg_mrc=None, parent=None):
+    def __init__(self, url, mrc_registry=None, hw_mrc=None, cfg_mrc=None, parent=None):
         super(MRC, self).__init__(hardware=hw_mrc, config=cfg_mrc, parent=parent)
         self.log  = util.make_logging_source_adapter(__name__, self)
         self._url = str(url)
         self._devices = list()
+        self._mrc_registry = None
+        self.mrc_registry = mrc_registry
+
+    def get_mrc_registry(self):
+        return self._mrc_registry() if self._mrc_registry is not None else None
+
+    def set_mrc_registry(self, registry):
+        if self.mrc_registry != registry:
+            self._mrc_registry = None if registry is None else weakref.ref(registry)
+            self.mrc_registry_changed.emit(self.mrc_registry)
+
+            return True
+
+        return False
 
     def add_device(self, device):
         if self.get_device(device.bus, device.address) is not None:
@@ -158,6 +173,14 @@ class MRC(AppObject):
     def get_display_url(self):
         return util.display_url(self.url)
 
+    def create_config(self):
+        if self.cfg is not None:
+            raise RuntimeError("device config exists")
+
+        self.mrc_registry.cfg.add_mrc(cm.MRC(self.url))
+
+        return self.cfg
+
     def __iter__(self):
         return iter(self._devices)
 
@@ -167,6 +190,8 @@ class MRC(AppObject):
 
     url     = pyqtProperty(str, get_url)
     devices = pyqtProperty(list, get_devices)
+    mrc_registry = pyqtProperty(object, get_mrc_registry, set_mrc_registry, notify=mrc_registry_changed)
+    
 
 class Device(AppObject):
     mrc_changed = pyqtSignal(object)
@@ -217,9 +242,9 @@ class Device(AppObject):
     def has_idc_conflict(self):
         return self._idc_conflict
 
-    def create_config(self, name=str(), init_from_hardware=False):
+    def create_config(self, name=str(), init_from_hardware=False, create_mrc_config=True):
         """Creates a config for this device.
-        Name is the optional device name set.
+        Name is the optional device name to use.
         If init_from_hardware is True the known(!) hardware values will be used
         to fill the config. Unknown values will not be read, instead the config
         will contain default values as defined by the device profile.
@@ -227,8 +252,9 @@ class Device(AppObject):
           - self.cfg must be None: device must not have a config yet
           - self.profile must be set: a device profile is needed to create the
             config with the proper idc and initial values
-          - self.mrc.cfg must be set: there needs to be a MRC config present to
-            register the new device config with.
+          - create_mrc_config must be True or self.mrc.cfg must be set:
+            there needs to be a MRC config present to register the new device
+            config with.
         """
         if self.cfg is not None:
             raise RuntimeError("device config exists")
@@ -236,7 +262,7 @@ class Device(AppObject):
         if self.profile is None:
             raise RuntimeError("device profile not set")
 
-        if self.mrc.cfg is None:
+        if not create_mrc_config and self.mrc.cfg is None:
             raise RuntimeError("mrc config missing")
 
         cfg = cm.make_device_config(bus=self.bus, address=self.address,
@@ -248,6 +274,9 @@ class Device(AppObject):
                 if self.hw.has_cached_parameter(pp.address):
                     value = self.hw.get_cached_parameter(pp.address)
                     cfg.set_parameter(pp.address, value)
+
+        if not self.mrc.cfg:
+            self.mrc.create_config()
 
         self.mrc.cfg.add_device(cfg)
 
@@ -300,7 +329,7 @@ class Director(object):
         app_mrc = self.registry.get_mrc(mrc.url)
 
         if app_mrc is None:
-            app_mrc = MRC(mrc.url, hw_mrc=mrc)
+            app_mrc = MRC(url=mrc.url, mrc_registry=self.registry, hw_mrc=mrc)
             self.registry.add_mrc(app_mrc)
         else:
             app_mrc.hw = mrc
@@ -362,7 +391,7 @@ class Director(object):
         app_mrc = self.registry.get_mrc(mrc.url)
 
         if app_mrc is None:
-            app_mrc = MRC(mrc.url, cfg_mrc=mrc)
+            app_mrc = MRC(url=mrc.url, mrc_registry=self.registry, cfg_mrc=mrc)
             self.registry.add_mrc(app_mrc)
         else:
             app_mrc.cfg = mrc

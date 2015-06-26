@@ -95,7 +95,7 @@ class MRC(QtCore.QObject):
 
     def add_device(self, device):
         if self.get_device(device.bus, device.address) is not None:
-            raise ValueError("Device at (%d, %d) exists", device.bus, device.address)
+            raise ValueError("Device at (%d, %d) exists" % (device.bus, device.address))
 
         self.log.debug("add_device: %s", device)
 

@@ -252,6 +252,15 @@ class GUIApplication(QtCore.QObject):
         # move the subwindow to the front of the list of subwindow for the
         # selected device
 
+        if hasattr(window, 'device') and hasattr(window, 'view_mode'):
+            device = window.device
+            view_mode = window.view_mode
+            if view_mode & device_tableview.SHOW_CFG:
+                self.treeview.select_config_node_by_ref(device)
+            elif view_mode & device_tableview.SHOW_HW:
+                self.treeview.select_hardware_node_by_ref(device)
+            # combined mode will be handled by the treeview internally
+
 
 
         print "subwindow activated", window
@@ -332,7 +341,9 @@ class GUIApplication(QtCore.QObject):
 
         if is_device_cfg or is_device_hw:
             device = node.ref
-            self._show_device_windows(device, is_device_cfg, is_device_hw)
+            if not self._show_device_windows(device, is_device_cfg, is_device_hw):
+                # No window for the clicked node: make no window active in the mdi area
+                self.mainwindow.mdiArea.setActiveSubWindow(None)
 
     def get_mainwindow(self):
         return self._mainwindow()
@@ -396,6 +407,10 @@ class GUIApplication(QtCore.QObject):
         subwin.installEventFilter(self)
         restore_subwindow_state(subwin, self.context.make_qsettings())
         subwin.show()
+        # TODO: use a list or queue instead of a set and update the order to
+        # reflect the window activation order. then raise the windows in the
+        # correct order so that the last active window for the device is at the
+        # top.
         self._device_window_map.setdefault(device, set()).add(subwin)
         return subwin
 
@@ -555,8 +570,10 @@ class GUIApplication(QtCore.QObject):
 
             store_subwindow_state(watched_object, self.context.make_qsettings())
 
-            if hasattr(watched_object, 'device') and hasattr(watched_object, 'table_dict'):
-                del watched_object.table_dict[watched_object.device]
+            if (hasattr(watched_object, 'device')
+                    and watched_object.device in self._device_window_map):
+                # Remove the subwindow from the set of device windows
+                self._device_window_map[watched_object.device].remove(watched_object)
 
         return False
 
@@ -672,18 +689,53 @@ class DeviceTableSubWindow(QtGui.QMdiSubWindow):
         self.device_registry = device_registry
         widget = device_tableview.DeviceTableWidget(device, find_data_file, view_mode)
         self.setWidget(widget)
+        self.setAttribute(Qt.WA_DeleteOnClose)
+        self.update_title_and_name()
 
-        idc = device.hw.idc if device.hw is not None else device.cfg.idc
+        device.config_set.connect(self._on_device_config_set)
+        device.hardware_set.connect(self._on_device_hardware_set)
+        device.idc_conflict_changed.connect(self.update_title_and_name)
+        device.mrc_changed.connect(self.update_title_and_name)
+        self._on_device_config_set(device, None, device.cfg)
+        self._on_device_hardware_set(device, None, device.cfg)
 
-        if view_mode & device_tableview.COMBINED:
+    def _on_device_config_set(self, app_device, old_cfg, new_cfg):
+        signals = ['modified_changed', 'name_changed']
+
+        if old_cfg is not None:
+            for signal in signals:
+                getattr(old_cfg, signal).disconnect(self.update_title_and_name)
+
+        if new_cfg is not None:
+            for signal in signals:
+                getattr(new_cfg, signal).connect(self.update_title_and_name)
+
+    def _on_device_hardware_set(self, app_device, old_hw, new_hw):
+        pass
+
+    def get_device(self):
+        return self.widget().device
+
+    def get_view_mode(self):
+        return self.widget().view_mode
+
+    device = property(fget=get_device)
+    view_mode = property(fget=get_view_mode)
+
+    def update_title_and_name(self):
+        """Updates the window title and the object name taking into account the
+        view_mode and the device state."""
+        # TODO: display IDC conflict and address conflict in title
+        device      = self.widget().device
+        view_mode   = self.widget().view_mode
+        idc         = device.hw.idc if device.hw is not None else device.cfg.idc
+
+        if view_mode == device_tableview.COMBINED:
             prefix = 'combined'
         elif view_mode & device_tableview.SHOW_HW:
             prefix = 'hw'
         elif view_mode & device_tableview.SHOW_CFG:
             prefix = 'cfg'
-
-        # XXX: leftoff. bug as hw windows get combined prefix!
-        print "prefix=", prefix
 
         name   = "%s_(%s, %d, %d)" % (prefix, device.mrc.url, device.bus, device.address)
         title  = "%s @ (%s, %d, %d)" % (self.device_registry.get_device_name(idc),
@@ -696,7 +748,3 @@ class DeviceTableSubWindow(QtGui.QMdiSubWindow):
 
         self.setWindowTitle(title)
         self.setObjectName(name)
-        self.setAttribute(Qt.WA_DeleteOnClose)
-
-    def get_device(self):
-        return self.widget().device

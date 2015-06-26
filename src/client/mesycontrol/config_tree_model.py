@@ -3,6 +3,7 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 from qt import QtCore
+from qt import QtGui
 from qt import Qt
 
 import basic_tree_model as btm
@@ -15,6 +16,7 @@ class ConfigTreeModel(btm.BasicTreeModel):
     def __init__(self, device_registry, parent=None):
         super(ConfigTreeModel, self).__init__(parent)
         self.device_registry = device_registry
+        self.linked_mode = False
 
     def columnCount(self, parent=QModelIndex()):
         return 1
@@ -99,12 +101,17 @@ class MRCNode(ConfigTreeNode):
             cfg = mrc.cfg
 
             if cfg is None:
-                return mrc.get_display_url()
+                return "<not present in setup>"
 
             if len(cfg.name):
-                return "%s (%s)" % (cfg.name, mrc.get_display_url())
+                data = "%s (%s)" % (cfg.name, mrc.get_display_url())
+            else:
+                data = mrc.get_display_url()
 
-            return mrc.get_display_url()
+            if cfg.modified:
+                data += "*"
+
+            return data
 
         if column == 0 and role == Qt.EditRole:
             return self.ref.cfg.name
@@ -145,9 +152,10 @@ class DeviceNode(ConfigTreeNode):
             return ret
 
     def data(self, column, role):
+        device = self.ref   # app_model.Device
+        cfg    = device.cfg # config_model.Device
+
         if column == 0 and role == Qt.DisplayRole:
-            device = self.ref   # app_model.Device
-            cfg    = device.cfg # config_model.Device
 
             if cfg is None:
                 return "%X <not present in setup>" % device.address
@@ -169,6 +177,10 @@ class DeviceNode(ConfigTreeNode):
 
         if column == 0 and role == Qt.EditRole:
             return self.ref.cfg.name
+
+        if column == 0 and role == Qt.BackgroundRole:
+            if device.idc_conflict and self.model.linked_mode:
+                return QtGui.QColor('red')
 
     def set_data(self, column, value, role):
         if role == Qt.EditRole and column == 0:

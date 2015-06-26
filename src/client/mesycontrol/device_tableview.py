@@ -201,7 +201,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 except future.IncompleteFuture:
                     return "<reading>"
                 except KeyError:
-                    return "<not set>"
+                    return "<not set>" # FIXME: editing this yiels a QLineEdit editor!
 
             elif col in (COL_HW_UNIT_VALUE, COL_CFG_UNIT_VALUE):
                 try:
@@ -234,7 +234,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 try:
                 # fails if no config exists or the parameter is not set
                     return int(cfg.get_parameter(row))
-                except (IndexError, AttributeError):
+                except (IndexError, AttributeError, KeyError):
                     if pp is not None:
                         return pp.default
                     return 0
@@ -515,7 +515,11 @@ class DeviceTableWidget(QtGui.QWidget):
     def get_view_mode(self):
         return self.view.get_mode()
 
+    def set_device(self, device):
+        self.view.table_model.set_device(device)
+
+    def get_device(self):
+        return self.view.table_model.get_device()
+
     view_mode = property(fget=get_view_mode, fset=set_view_mode)
-    device    = property(
-            fget=lambda self: self.model.get_device(),
-            fset=lambda self, device: self.model.set_device())
+    device    = property(fget=get_device, fset=set_device)

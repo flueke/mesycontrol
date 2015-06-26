@@ -129,3 +129,7 @@
     - Separate from normal application logging or introduce a new 'user' log
       level and user specific log records (e.g. carrying icon info to show next
       to a logged message)
+
+* Better data file support! Maybe just use a Qt resource file as it will make
+  find_data_file obsolete for icons and it also provides aliases which makes
+  swapping icons easy.

@@ -15,6 +15,7 @@ class HardwareTreeModel(btm.BasicTreeModel):
         super(HardwareTreeModel, self).__init__(parent)
         self.find_data_file = find_data_file
         self.device_registry = device_registry
+        self.linked_mode = False
 
     def columnCount(self, parent=QModelIndex()):
         return 1
@@ -155,3 +156,9 @@ class DeviceNode(HardwareTreeNode):
                     return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/connected.png')).scaled(16, 16, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
 
             return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/disconnected.png')).scaled(16, 16, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+
+        if column == 0 and role == Qt.BackgroundRole:
+            if hw is not None and hw.address_conflict:
+                return QtGui.QColor('red')
+            if device.idc_conflict and self.model.linked_mode:
+                return QtGui.QColor('red')

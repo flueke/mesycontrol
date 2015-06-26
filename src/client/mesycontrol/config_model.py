@@ -152,7 +152,7 @@ class Device(bm.Device):
 
     @modifies
     def set_name(self, name):
-        name = str(name)
+        name = str(name) if name is not None else str()
         if self.name != name:
             self._name = name
             self.name_changed.emit(self.name)
