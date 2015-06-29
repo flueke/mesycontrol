@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>241</width>
-    <height>38</height>
+    <height>44</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -32,8 +32,8 @@
       <item>
        <widget class="QPushButton" name="pb_settings">
         <property name="icon">
-         <iconset>
-          <normaloff>preferences-system.png</normaloff>preferences-system.png</iconset>
+         <iconset resource="../resources.qrc">
+          <normaloff>:/ui/preferences-system.png</normaloff>:/ui/preferences-system.png</iconset>
         </property>
        </widget>
       </item>
@@ -63,8 +63,8 @@
          <string>Clear filter</string>
         </property>
         <property name="icon">
-         <iconset>
-          <normaloff>process-stop.png</normaloff>process-stop.png</iconset>
+         <iconset resource="../resources.qrc">
+          <normaloff>:/ui/process-stop.png</normaloff>:/ui/process-stop.png</iconset>
         </property>
        </widget>
       </item>
@@ -73,7 +73,9 @@
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="../resources.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>pb_clear_filter</sender>

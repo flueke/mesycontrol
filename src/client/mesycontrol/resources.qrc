@@ -1,0 +1,47 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource>
+    <file alias="connected.png">ui/connected.png</file>
+    <file alias="connecting.png">ui/loop-circular-2x.png</file>
+    <file alias="connection-error.png">ui/warning-2x.png</file>
+    <file alias="disconnected.png">ui/disconnected.png</file>
+    <file alias="linked.png">ui/link-broken-2x.png</file>
+    <file alias="unlinked.png">ui/link-intact-2x.png</file>
+    <file>ui/applications-utilities.png</file>
+    <file>ui/arrow-bottom-2x.png</file>
+    <file>ui/arrow-circle-left-2x.png</file>
+    <file>ui/arrow-circle-right-2x.png</file>
+    <file>ui/ban-2x.png</file>
+    <file>ui/bolt-2x.png</file>
+    <file>ui/check-2x.png</file>
+    <file>ui/circle-x-2x.png</file>
+    <file>ui/cog-2x.png</file>
+    <file>ui/data-transfer-download-2x.png</file>
+    <file>ui/data-transfer-upload-2x.png</file>
+    <file>ui/flash-2x.png</file>
+    <file>ui/list-add.png</file>
+    <file>ui/list-remove.png</file>
+    <file>ui/lock-locked-2x.png</file>
+    <file>ui/lock-unlocked-2x.png</file>
+    <file>ui/loop-2x.png</file>
+    <file>ui/loop-square-2x.png</file>
+    <file>ui/preferences-system.png</file>
+    <file>ui/process-stop.png</file>
+    <file>ui/reload-2x.png</file>
+    <file>ui/task-2x.png</file>
+    <file>ui/timer-2x.png</file>
+    <file>ui/wrench-2x.png</file>
+    <file>ui/x-2x.png</file>
+
+    <file>ui/connect_dialog.ui</file>
+    <file>ui/device_tableview_settings.ui</file>
+    <file>ui/mainwin.ui</file>
+    <file>ui/mhv4_channel_settings.ui</file>
+    <file>ui/mhv4_channel.ui</file>
+    <file>ui/mhv4_channel_without_settings.ui</file>
+    <file>ui/mhv4_global_settings.ui</file>
+    <file>ui/mhv4_settings_times_four.ui</file>
+    <file>ui/mscf16_channel_settings.ui</file>
+    <file>ui/mscf16_global_settings.ui</file>
+    <file>ui/mscf16_panel.ui</file>
+</qresource>
+</RCC>

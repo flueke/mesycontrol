@@ -6,6 +6,7 @@ from qt import QtGui
 from qt import pyqtProperty
 from qt import pyqtSignal
 from qt import Qt
+from qt import uic
 
 QObject = QtCore.QObject
 QTimer  = QtCore.QTimer
@@ -612,3 +613,11 @@ def find_data_dir(main_file):
         else:
             main_file = os.path.abspath(os.path.join(os.path.dirname(main_file), lnk))
     return os.path.dirname(os.path.abspath(main_file))
+
+def loadUi(filename, baseinstance=None, package='', resource_suffix=''):
+    """This version of PyQts loadUi() adds support for loading from resource
+    files."""
+    f = QtCore.QFile(filename)
+    if not f.open(QtCore.QIODevice.ReadOnly | QtCore.QIODevice.Text):
+        raise RuntimeError(str(f.errorString()))
+    return uic.loadUi(f, baseinstance, package, resource_suffix)

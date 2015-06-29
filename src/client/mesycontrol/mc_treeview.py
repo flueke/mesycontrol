@@ -325,8 +325,8 @@ class MCTreeView(QtGui.QWidget):
             return b
 
         link_icons = {
-                True: QtGui.QIcon(QtGui.QPixmap(find_data_file('mesycontrol/ui/link-intact-2x.png'))),
-                False: QtGui.QIcon(QtGui.QPixmap(find_data_file('mesycontrol/ui/link-broken-2x.png')))
+                True:  QtGui.QIcon(QtGui.QPixmap(":/linked.png")),
+                False: QtGui.QIcon(QtGui.QPixmap(":/unlinked.png"))
                 }
 
         link_button = QtGui.QPushButton(link_icons[self.linked_mode], str())

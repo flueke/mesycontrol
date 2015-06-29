@@ -472,8 +472,7 @@ class DeviceTableWidget(QtGui.QWidget):
     def __init__(self, device, find_data_file, view_mode=COMBINED, parent=None):
         super(DeviceTableWidget, self).__init__(parent)
 
-        settings   = uic.loadUi(find_data_file(
-            'mesycontrol/ui/device_tableview_settings.ui'))
+        settings = util.loadUi(":/ui/device_tableview_settings.ui")
 
         model = DeviceTableModel(device)
         self.view  = DeviceTableView(model=model, mode=view_mode)

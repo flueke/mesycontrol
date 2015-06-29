@@ -74,15 +74,15 @@ class MRCNode(HardwareTreeNode):
 
         if column == 0 and role == Qt.DecorationRole:
             if mrc.hw is not None and not mrc.hw.is_connected() and mrc.hw.last_connection_error is not None:
-                return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/warning-2x.png'))
+                return QtGui.QPixmap(":/connection-error.png")
             elif mrc.hw is not None and mrc.hw.is_connecting():
-                return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/loop-circular-2x.png'))
+                return QtGui.QPixmap(":/connecting.png")
             elif mrc.hw is None or mrc.hw.is_disconnected():
-                return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/disconnected.png')).scaled(16, 16, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+                return QtGui.QPixmap(":/disconnected.png")
             elif mrc.hw is not None and mrc.hw.is_connected() and any(d.address_conflict for d in mrc.hw):
-                return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/warning-2x.png'))
+                return QtGui.QPixmap(":/connection-error.png")
             elif mrc.hw is not None and mrc.hw.is_connected():
-                return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/connected.png')).scaled(16, 16, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+                return QtGui.QPixmap(":/connected.png")
 
             return None
 
@@ -97,8 +97,8 @@ class BusNode(btm.BasicTreeNode):
 
         if column == 0 and role == Qt.DecorationRole:
             mrc = self.parent.ref.hw
-            if mrc is not None and any(device.address_conflict for device in mrc.get_devices(self.bus_number)):
-                return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/warning-2x.png'))
+            if mrc is not None and any(d.address_conflict for d in mrc.get_devices(self.bus_number)):
+                return QtGui.QPixmap(":/connection-error.png")
 
 class DeviceNode(HardwareTreeNode):
     def __init__(self, device, parent=None):
@@ -140,22 +140,22 @@ class DeviceNode(HardwareTreeNode):
 
         if column == 0 and role == Qt.DecorationRole:
             if hw is not None and hw.address_conflict:
-                return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/warning-2x.png'))
+                return QtGui.QPixmap(":/connection-error.png")
         
             if mrc.hw is not None:
                 if mrc.hw.is_connecting():
-                    return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/loop-circular-2x.png'))
+                    return QtGui.QPixmap(":/connecting.png")
 
                 if (mrc.hw.is_connected() and not hw) or mrc.hw.is_disconnected():
-                    return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/disconnected.png')).scaled(16, 16, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+                    return QtGui.QPixmap(":/disconnected.png")
 
                 if not mrc.hw.is_connected() and mrc.hw.last_connection_error is not None:
-                    return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/warning-2x.png'))
+                    return QtGui.QPixmap(":/connection-error.png")
 
                 if mrc.hw.is_connected() and hw is not None:
-                    return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/connected.png')).scaled(16, 16, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+                    return QtGui.QPixmap(":/connected.png")
 
-            return QtGui.QPixmap(self.model.find_data_file('mesycontrol/ui/disconnected.png')).scaled(16, 16, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+            return QtGui.QPixmap(":/disconnected.png")
 
         if column == 0 and role == Qt.BackgroundRole:
             if hw is not None and hw.address_conflict:

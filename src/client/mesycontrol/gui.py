@@ -31,6 +31,7 @@ import hardware_model as hm
 import hardware_tree_model as htm
 import log_view
 import mrc_connection
+import resources
 import util
 
 log = logging.getLogger('gui')
@@ -582,7 +583,7 @@ class MainWindow(QtGui.QMainWindow):
         super(MainWindow, self).__init__(parent)
         self.log = util.make_logging_source_adapter(__name__, self)
         self.context = context
-        uic.loadUi(context.find_data_file('mesycontrol/ui/mainwin.ui'), self)
+        util.loadUi(":/ui/mainwin.ui", self)
 
         # Treeview
         self.treeview = MCTreeView(app_registry=context.app_registry,
