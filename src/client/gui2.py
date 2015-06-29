@@ -76,7 +76,7 @@ if __name__ == "__main__":
     logging.debug("main_file=%s, bin_dir=%s", main_file, bin_dir)
 
     # Application setup
-    context = app_context.Context(main_file, auto_load_modules=False)
+    context = app_context.Context(main_file, auto_load_device_modules=False)
 
     with app_context.use(context):
         mainwindow      = gui.MainWindow(context)
