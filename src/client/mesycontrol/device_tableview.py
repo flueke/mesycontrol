@@ -1,6 +1,5 @@
 from PyQt4 import QtCore
 from PyQt4 import QtGui
-from PyQt4 import uic
 from PyQt4.QtCore import pyqtProperty
 from PyQt4.QtCore import QModelIndex
 from PyQt4.QtCore import Qt
@@ -405,6 +404,8 @@ class DeviceTableView(QtGui.QTableView):
         self.setWordWrap(False)
         self.resizeColumnsToContents()
         self.resizeRowsToContents()
+        if not len(self.device.profile.get_parameter_names()):
+            self.setColumnHidden(COL_NAME, True)
 
         self.mode = mode
 
