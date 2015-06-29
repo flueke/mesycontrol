@@ -16,7 +16,6 @@ from qt import pyqtSlot
 from qt import Qt
 from qt import QtCore
 from qt import QtGui
-from qt import uic
 
 from mc_treeview import MCTreeView
 from ui.dialogs import AddDeviceDialog
@@ -34,7 +33,7 @@ import mrc_connection
 import resources
 import util
 
-log = logging.getLogger('gui')
+log = logging.getLogger(__name__)
 
 def add_mrc_connection(registry, url, do_connect):
     """Adds an MRC connection using the given url to the application registry.

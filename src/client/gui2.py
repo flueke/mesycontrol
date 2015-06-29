@@ -69,15 +69,14 @@ if __name__ == "__main__":
     # Path setup
     main_file = sys.executable if getattr(sys, 'frozen', False) else __file__
     bin_dir   = os.path.abspath(os.path.dirname(main_file))
-    data_dir  = util.find_data_dir(main_file)
 
     # Update the environments path to easily find the mesycontrol_server binary.
     os.environ['PATH'] = bin_dir + os.pathsep + os.environ['PATH']
 
-    logging.debug("main_file=%s, bin_dir=%s, data_dir=%s", main_file, bin_dir, data_dir)
+    logging.debug("main_file=%s, bin_dir=%s", main_file, bin_dir)
 
     # Application setup
-    context = app_context.Context(main_file, bin_dir, data_dir, auto_load_modules=False)
+    context = app_context.Context(main_file, auto_load_modules=False)
 
     with app_context.use(context):
         mainwindow      = gui.MainWindow(context)

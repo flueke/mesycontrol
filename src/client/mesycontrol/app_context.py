@@ -13,13 +13,11 @@ import future
 import util
 
 class Context(QtCore.QObject):
-    def __init__(self, main_file, bin_dir, data_dir, auto_load_modules=True, parent=None):
+    def __init__(self, main_file, auto_load_device_modules=True, parent=None):
         super(Context, self).__init__(parent)
         self.log                = util.make_logging_source_adapter(__name__, self)
         self.main_file          = main_file
-        self.bin_dir            = bin_dir
-        self.data_dir           = data_dir
-        self.device_registry    = device_registry.DeviceRegistry(auto_load_modules)
+        self.device_registry    = device_registry.DeviceRegistry(auto_load_device_modules)
 
         hw_registry         = bm.MRCRegistry()  # Root of the hardware model tree
         setup               = cm.Setup()        # Root of the config model tree

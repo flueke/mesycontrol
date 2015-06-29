@@ -601,19 +601,6 @@ class OrderedSet(collections.MutableSet):
             return len(self) == len(other) and list(self) == list(other)
         return set(self) == set(other)
 
-def find_data_dir(main_file):
-    """Locates the directory used for data files.
-    Recursively follows symlinks until the location of main_file is known.
-    Returns the name of the directory of the location of the main file.
-    """
-    while os.path.islink(main_file):
-        lnk = os.readlink(main_file)
-        if os.path.isabs(lnk):
-            main_file = lnk
-        else:
-            main_file = os.path.abspath(os.path.join(os.path.dirname(main_file), lnk))
-    return os.path.dirname(os.path.abspath(main_file))
-
 def loadUi(filename, baseinstance=None, package='', resource_suffix=''):
     """This version of PyQts loadUi() adds support for loading from resource
     files."""
