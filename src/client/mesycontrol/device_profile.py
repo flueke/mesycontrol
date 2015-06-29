@@ -254,6 +254,10 @@ class DeviceProfile(object):
     def get_extensions(self):
         return dict(self._extensions)
 
+    def get_parameter_names(self):
+        return dict((pp.address, pp.name)
+                for pp in filter(lambda pp: pp.is_named(), self.parameters))
+
 def from_dict(d):
     ret = DeviceProfile(d['idc'])
     ret.name = str(d.get('name', None))
