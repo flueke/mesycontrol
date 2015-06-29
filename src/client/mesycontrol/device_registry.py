@@ -92,12 +92,22 @@ class DeviceRegistry(object):
     def get_device_name(self, idc):
         return self.get_profile(idc).name
 
+    def get_parameter_names(self, idc):
+        profile = self.profiles.get(idc, None)
+        ret = dict()
+
+        if profile is not None:
+            for pp in profile.parameters:
+                ret[pp.address] = pp.name
+
+        return ret
+
     def get_parameter_name_mapping(self):
         """Returns a mapping of device_idc to a dictionary of param_address ->
         param_name. Basically the known parameter names for each device."""
         ret = dict()
-        for idc, profile in self.profiles.iteritems():
-            d = ret.setdefault(idc, dict())
-            for pp in profile.parameters:
-                d[pp.address] = pp.name
+
+        for idc in self.profiles.keys():
+            ret[idc] = self.get_parameter_names(idc)
+
         return ret
