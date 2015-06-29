@@ -7,6 +7,7 @@ import logging
 import os
 import signal
 import sys
+import weakref
 
 from mesycontrol import app_context
 from mesycontrol import gui
@@ -40,12 +41,33 @@ if __name__ == "__main__":
     signal.signum_to_name = dict((getattr(signal, n), n)
             for n in dir(signal) if n.startswith('SIG') and '_' not in n)
 
-    def signal_handler(signum, frame):
-        logging.info("Received signal %s. Quitting...",
-                signal.signum_to_name.get(signum, "%d" % signum))
-        QtGui.QApplication.quit()
+    class SignalHandler(object):
+        def __init__(self):
+            self._called = False
+            self._app = None
 
-    signal.signal(signal.SIGINT, signal_handler)
+        def set_app(self, app):
+            self._app = weakref.ref(app)
+
+        def get_app(self):
+            return self._app() if self._app is not None else None
+
+        def __call__(self, signum, frame):
+
+            if not self._called and self.get_app() is not None:
+                logging.info("Received signal %s. Quitting...",
+                        signal.signum_to_name.get(signum, "%d" % signum))
+
+                self._called = True
+                self.get_app().quit()
+            else:
+                logging.info("Received signal %s. Forcing quit...",
+                        signal.signum_to_name.get(signum, "%d" % signum))
+
+                QtGui.QApplication.quit()
+
+    sigint_handler = SignalHandler()
+    signal.signal(signal.SIGINT, sigint_handler)
 
     # Create an exception hook registry and register the original handler with
     # it.
@@ -81,6 +103,7 @@ if __name__ == "__main__":
     with app_context.use(context):
         mainwindow      = gui.MainWindow(context)
         gui_application = gui.GUIApplication(context, mainwindow)
+        sigint_handler.set_app(gui_application)
         mainwindow.show()
 
         ret = app.exec_()

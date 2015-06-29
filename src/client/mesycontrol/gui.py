@@ -261,6 +261,11 @@ class GUIApplication(QtCore.QObject):
 
         self.mainwindow.mdiArea.subWindowActivated.connect(self._on_subwindow_activated)
 
+    def quit(self):
+        """Non-blocking method to quit the application. Needs a running event
+        loop."""
+        QtCore.QMetaObject.invokeMethod(self.mainwindow, "close", Qt.QueuedConnection)
+
     def _on_subwindow_activated(self, window):
         if hasattr(window, 'device') and hasattr(window, 'view_mode'):
             device = window.device
