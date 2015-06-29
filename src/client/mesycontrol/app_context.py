@@ -24,6 +24,8 @@ class Context(QtCore.QObject):
         self.app_registry   = am.MRCRegistry(hw_registry, setup) # Root of the app model tree
         self.director       = am.Director(self.app_registry, self.device_registry)
 
+        self._shutdown_callbacks = list()
+
     def init_device_registry(self):
         self.device_registry.load_system_deviceprofile_modules()
         self.device_registry.load_system_device_modules()
@@ -36,6 +38,15 @@ class Context(QtCore.QObject):
             observer.set_future(future.all_done(*futures))
 
         util.wait_for_signal(signal=observer.done, emitting_callable=do_disconnect, timeout_ms=5000)
+
+        for cb in self._shutdown_callbacks:
+            try:
+                cb()
+            except Exception:
+                self.log.exception("shutdown callback %s raised", cb)
+
+    def add_shutdown_callback(self, cb):
+        self._shutdown_callbacks.append(cb)
 
     def make_qsettings(self):
         return QtCore.QSettings("mesytec", "mesycontrol")

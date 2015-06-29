@@ -91,7 +91,12 @@ def read_device_config(source):
     if root.tag != 'mesycontrol':
         raise ValueError("invalid root tag '%s', expected 'mesycontrol'" % root.tag)
 
-    return _device_config_from_node(root.find('device_config'))
+    node = root.find('device_config')
+
+    if node is None:
+        raise ValueError("No Device config found.")
+
+    return _device_config_from_node(node)
 
 def write_device_config(device_config, dest, parameter_names=dict()):
     """Write the given device config to destination.

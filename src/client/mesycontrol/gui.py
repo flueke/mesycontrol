@@ -35,6 +35,7 @@ import util
 
 log = logging.getLogger(__name__)
 
+# ===== MRC =====
 def add_mrc_connection(registry, url, do_connect):
     """Adds an MRC connection using the given url to the application registry.
     If `do_connect' is True this function will start a connection attempt and
@@ -93,6 +94,7 @@ def run_add_mrc_connection_dialog(registry, parent_widget=None):
     dialog.accepted.connect(accepted)
     dialog.show()
 
+# ===== Device =====
 def run_add_device_config_dialog(device_registry, registry, mrc, bus=None, parent_widget=None):
     try:
         aa = [(b, d) for b in bm.BUS_RANGE for d in bm.DEV_RANGE
@@ -115,6 +117,56 @@ def run_add_device_config_dialog(device_registry, registry, mrc, bus=None, paren
         log.exception(e)
         QtGui.QMessageBox.critical(parent_widget, "Error", str(e))
 
+def run_load_device_config(device, context, parent_widget):
+    directory_hint = os.path.dirname(str(context.make_qsettings().value(
+            'Files/last_config_file', QtCore.QString()).toString()))
+
+    filename = str(QtGui.QFileDialog.getOpenFileName(parent_widget, "Load Device config",
+        directory=directory_hint, filter="XML files (*.xml);;"))
+
+    if not len(filename):
+        return False
+
+    try:
+        # FIXME: it would nice to just having to call device.cfg = config. This
+        # would also keep the app_model alive in case there's no hardware
+        # present.
+        config = config_xml.read_device_config(filename)
+        config.bus = device.bus
+        config.address = device.address
+        mrc = device.mrc.cfg
+        mrc.remove_device(device.cfg)
+        mrc.add_device(config)
+        context.make_qsettings().setValue('Files/last_config_file', filename)
+        return True
+    except Exception as e:
+        log.exception(e)
+        QtGui.QMessageBox.critical(parent_widget, "Error",
+                "Loading device config from %s failed:\n%s" % (filename, e))
+        return False
+
+def run_save_device_config(device, context, parent_widget):
+    directory_hint = os.path.dirname(str(context.make_qsettings().value(
+            'Files/last_config_file', QtCore.QString()).toString()))
+
+    filename = str(QtGui.QFileDialog.getSaveFileName(parent_widget, "Save Device config as",
+        directory=directory_hint, filter="XML files (*.xml);;"))
+
+    if not len(filename):
+        return False
+
+    try:
+        config_xml.write_device_config(device_config=device.cfg, dest=filename,
+                parameter_names=context.device_registry.get_parameter_names(device.cfg.idc))
+        context.make_qsettings().setValue('Files/last_config_file', filename)
+        return True
+    except Exception as e:
+        log.exception(e)
+        QtGui.QMessageBox.critical(parent_widget, "Error",
+                "Saving device config to %s failed:\n%s" % (filename, e))
+        return False
+
+# ===== Setup =====
 def run_save_setup(context, parent_widget):
     setup = context.setup
 
@@ -131,21 +183,6 @@ def run_save_setup(context, parent_widget):
         log.exception(e)
         QtGui.QMessageBox.critical(parent_widget, "Error", "Saving setup %s failed:\n%s" % (setup.filename, e))
         return False
-
-# XXX: leftoff
-#def run_save_device_config(device, context, parent_widget):
-#    directory_hint = os.path.dirname(str(context.make_qsettings().value(
-#            'Files/last_config_file', QtCore.QString()).toString()))
-#
-#    filename = str(QtGui.QFileDialog.getSaveFileName(parent_widget, "Save Device config as",
-#        directory_hint=directory_hint, filter="XML files (*.xml);;"))
-#
-#    if not len(filename):
-#        return False
-#
-#    try:
-#        config_xml.write_device_config(device_config=device.cfg, dest=filename,
-#                parameter_names=context.device_registry.get_parameter_name_mapping().get(device.cfg.idc))
 
 def run_save_setup_as_dialog(context, parent_widget):
     setup = context.app_registry.cfg
@@ -233,6 +270,7 @@ class GUIApplication(QtCore.QObject):
         self._device_window_map = dict() # app_model.Device -> list of QMdiSubWindow
 
         self.mainwindow.installEventFilter(self)
+        self.mainwindow.mdiArea.subWindowActivated.connect(self._on_subwindow_activated)
 
         # Treeview
         self.treeview = self.mainwindow.treeview
@@ -256,10 +294,11 @@ class GUIApplication(QtCore.QObject):
 
         # Load device modules
         context.init_device_registry()
+        # Clean resources on exit
+        context.add_shutdown_callback(resources.qCleanupResources)
 
         self.app_registry.hw.mrc_added.connect(self._hw_mrc_added)
 
-        self.mainwindow.mdiArea.subWindowActivated.connect(self._on_subwindow_activated)
 
     def quit(self):
         """Non-blocking method to quit the application. Needs a running event
@@ -270,8 +309,6 @@ class GUIApplication(QtCore.QObject):
         if hasattr(window, 'device') and hasattr(window, 'view_mode'):
             device = window.device
             view_mode = window.view_mode
-            # Note: combined mode will be handled internally by the treeview
-            # upon node selection
             if view_mode & device_tableview.SHOW_CFG:
                 self.treeview.select_config_node_by_ref(device)
             elif view_mode & device_tableview.SHOW_HW:
@@ -460,9 +497,34 @@ class GUIApplication(QtCore.QObject):
                     partial(self._show_or_create_device_window,
                         device=node.ref, from_config_side=True, from_hw_side=False))
 
-            menu.addAction("Load From File")
+            def load_device_config():
+                app_device = node.ref
+                app_mrc    = app_device.mrc
 
-            menu.addAction("Save To File")
+                if run_load_device_config(device=node.ref, context=self.context,
+                        parent_widget=self.treeview):
+                    # A config was loaded. If the app_device did not have a
+                    # hardware model it will have been removed from the app_mrc
+                    # as a result of calling remove_device() on the config mrc.
+                    # Afterwards a new app_model.Device will have been created
+                    # by calling add_device() on the config mrc. Query the app
+                    # mrc to get the newly created app device.
+                    app_device = app_mrc.get_device(app_device.bus, app_device.address)
+
+                    # Select the hardware node before the config node to end up
+                    # with focus in the config tree.
+                    if self.linked_mode and not app_device.idc_conflict:
+                        self.treeview.select_hardware_node_by_ref(app_device)
+
+                    self.treeview.select_config_node_by_ref(app_device)
+
+            menu.addAction("Load From File").triggered.connect(load_device_config)
+
+            menu.addAction("Save To File").triggered.connect(
+                    partial(run_save_device_config,
+                        device=node.ref,
+                        context=self.context,
+                        parent_widget=self.treeview))
 
             def remove_device():
                 device = node.ref
@@ -680,8 +742,19 @@ class DeviceTableSubWindow(QtGui.QMdiSubWindow):
             for signal in signals:
                 getattr(new_cfg, signal).connect(self.update_title_and_name)
 
+        #if self.view_mode == device_tableview.SHOW_CFG and new_cfg is None:
+        #    self.close()
+
+        #if self.view_mode == device_tableview.COMBINED and new_cfg is None and app_device.hw is None:
+        #    self.close()
+
     def _on_device_hardware_set(self, app_device, old_hw, new_hw):
         pass
+        #if self.view_mode == device_tableview.SHOW_HW and new_hw is None:
+        #    self.close()
+
+        #if self.view_mode == device_tableview.COMBINED and new_hw is None and app_device.cfg is None:
+        #    self.close()
 
     def get_device(self):
         return self.widget().device
@@ -729,3 +802,47 @@ class DeviceTableSubWindow(QtGui.QMdiSubWindow):
 
         self.setWindowTitle(title)
         self.setObjectName(name)
+
+import future
+
+def apply_device_config(source, dest, device_profile):
+    """Takes parameter values from source and sets them on dest. Which
+    parameters are used, the load order and additional special handling depend
+    on the given device profile.
+    Returns a Future object that fullfills once all parameters have been
+    written."""
+
+    if source.idc != dest.idc:
+        raise RuntimeError("idc conflict")
+
+    # Store polling state and disable polling
+    # Set critical params to safe values
+    # Set non-critical config values in device profile order
+    # Set critical param config values
+    # Enable RC
+    # Restore polling state 
+
+    def set_safe_values():
+        futures = list()
+
+        for pp in device_profile.get_critical_parameters():
+            futures.append(dest.set_parameter(pp.address, pp.safe_value))
+
+        return future.all_done(*futures)
+
+    def get_non_criticals():
+        futures = list()
+
+        for pp in device_profile.get_non_critical_parameters():
+            f = source.get_parameter(pp.address)
+
+        return future.all_done(*futures)
+
+    # XXX: leftoff: result_futures or read_results or list((param, value))?
+    def set_non_criticals(result_futures):
+        futures = list()
+
+        for pp in device_profile.get_non_critical_parameters():
+            f = dest.set_parameter()
+
+            source.get_parameter(pp.address).add_done_callback(do_set)
