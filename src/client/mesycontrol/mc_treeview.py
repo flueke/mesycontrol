@@ -287,6 +287,7 @@ class MCTreeView(QtGui.QWidget):
         self.cfg_view.customContextMenuRequested.connect(self._cfg_context_menu)
         self.cfg_view.expanded.connect(self._cfg_expanded)
         self.cfg_view.collapsed.connect(self._cfg_collapsed)
+        self.cfg_view.setItemDelegate(MCTreeItemDelegate(self._director))
 
         self.cfg_view.selectionModel().currentChanged.connect(self._cfg_selection_current_changed)
         self.cfg_view.selectionModel().selectionChanged.connect(self._cfg_selection_changed)
@@ -301,6 +302,7 @@ class MCTreeView(QtGui.QWidget):
         self.hw_view.customContextMenuRequested.connect(self._hw_context_menu)
         self.hw_view.expanded.connect(self._hw_expanded)
         self.hw_view.collapsed.connect(self._hw_collapsed)
+        self.hw_view.setItemDelegate(MCTreeItemDelegate(self._director))
 
         self.hw_view.selectionModel().currentChanged.connect(self._hw_selection_current_changed)
         self.hw_view.selectionModel().selectionChanged.connect(self._hw_selection_changed)
@@ -525,4 +527,21 @@ class DoubleClickSplitter(QtGui.QSplitter):
 
     def createHandle(self):
         return DoubleClickSplitterHandle(self.orientation(), self)
+
+class MCTreeItemDelegate(QtGui.QStyledItemDelegate):
+    def __init__(self, tree_director, parent=None):
+        super(MCTreeItemDelegate, self).__init__(parent)
+        self.director = tree_director
+
+    def paint(self, painter, option, index):
+        node = index.internalPointer()
+
+        if (option.state & QtGui.QStyle.State_Selected
+                and isinstance(node, (ctm.DeviceNode, htm.DeviceNode))
+                and node.ref.idc_conflict
+                and self.director.linked_mode):
+            # Change the color for selected device nodes with an idc conflict.
+            option.palette.setColor(QtGui.QPalette.Highlight, QtGui.QColor('darkRed'))
+
+        super(MCTreeItemDelegate, self).paint(painter, option, index)
 
