@@ -6,7 +6,6 @@ import collections
 from .. qt import Qt
 from .. qt import QtCore
 from .. qt import QtGui
-from .. qt import uic
 from .. import basic_model as bm
 from .. import util
 
@@ -20,11 +19,11 @@ class AddMRCDialog(QtGui.QDialog):
     Result = collections.namedtuple("Result", "url connect")
     SERIAL, TCP, MC = range(3)
 
-    def __init__(self, find_data_file, serial_ports, urls_in_use=list(), url=None,
+    def __init__(self, serial_ports, urls_in_use=list(), url=None,
             do_connect_default=False, title="Add MRC", parent=None):
         super(AddMRCDialog, self).__init__(parent)
         self.urls_in_use = urls_in_use
-        uic.loadUi(find_data_file('mesycontrol/ui/connect_dialog.ui'), self)
+        util.loadUi(":/ui/connect_dialog.ui", self)
 
         self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(False)
         self.combo_serial_port.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+'), None))

@@ -54,10 +54,10 @@ def add_mrc_connection(registry, url, do_connect):
 
     return None
 
-def run_add_mrc_config_dialog(find_data_file, registry, parent_widget=None):
+def run_add_mrc_config_dialog(registry, parent_widget=None):
     urls_in_use = [mrc.url for mrc in registry.cfg.get_mrcs()]
     serial_ports = util.list_serial_ports()
-    dialog = AddMRCDialog(find_data_file=find_data_file, serial_ports=serial_ports,
+    dialog = AddMRCDialog(serial_ports=serial_ports,
             urls_in_use=urls_in_use, parent=parent_widget)
     dialog.setModal(True)
 
@@ -76,10 +76,10 @@ def run_add_mrc_config_dialog(find_data_file, registry, parent_widget=None):
     dialog.accepted.connect(accepted)
     dialog.show()
 
-def run_add_mrc_connection_dialog(find_data_file, registry, parent_widget=None):
+def run_add_mrc_connection_dialog(registry, parent_widget=None):
     urls_in_use = [mrc.url for mrc in registry.hw.get_mrcs()]
     serial_ports = util.list_serial_ports()
-    dialog = AddMRCDialog(find_data_file, serial_ports=serial_ports, urls_in_use=urls_in_use,
+    dialog = AddMRCDialog(serial_ports=serial_ports, urls_in_use=urls_in_use,
             do_connect_default=True, parent=parent_widget)
     dialog.setModal(True)
 
@@ -397,8 +397,7 @@ class GUIApplication(QtCore.QObject):
         subwin = DeviceTableSubWindow(
                 device=device,
                 view_mode=mode,
-                device_registry=self.device_registry,
-                find_data_file=self.context.find_data_file)
+                device_registry=self.device_registry)
         
         self.mainwindow.mdiArea.addSubWindow(subwin)
         subwin.installEventFilter(self)
@@ -434,8 +433,7 @@ class GUIApplication(QtCore.QObject):
             menu.addSeparator()
 
             menu.addAction("Add MRC").triggered.connect(partial(run_add_mrc_config_dialog,
-                find_data_file=self.context.find_data_file, registry=self.app_registry,
-                parent_widget=self.treeview))
+                registry=self.app_registry, parent_widget=self.treeview))
 
         if isinstance(node, ctm.MRCNode):
             menu.addAction("Add Device").triggered.connect(partial(run_add_device_config_dialog,
@@ -478,7 +476,7 @@ class GUIApplication(QtCore.QObject):
 
         if isinstance(node, htm.RegistryNode):
             menu.addAction("Add MRC Connection").triggered.connect(partial(run_add_mrc_connection_dialog,
-                find_data_file=self.context.find_data_file, registry=self.app_registry, parent_widget=self.treeview))
+                registry=self.app_registry, parent_widget=self.treeview))
 
         if isinstance(node, htm.MRCNode):
             mrc = node.ref
@@ -587,7 +585,7 @@ class MainWindow(QtGui.QMainWindow):
 
         # Treeview
         self.treeview = MCTreeView(app_registry=context.app_registry,
-                device_registry=context.device_registry, find_data_file=context.find_data_file)
+                device_registry=context.device_registry)
 
         dw_tree = QtGui.QDockWidget("Device tree", self)
         dw_tree.setObjectName("dw_treeview")
@@ -652,10 +650,10 @@ class MainWindow(QtGui.QMainWindow):
         super(MainWindow, self).closeEvent(event)
 
 class DeviceTableSubWindow(QtGui.QMdiSubWindow):
-    def __init__(self, device, view_mode, device_registry, find_data_file, parent=None):
+    def __init__(self, device, view_mode, device_registry, parent=None):
         super(DeviceTableSubWindow, self).__init__(parent)
         self.device_registry = device_registry
-        widget = device_tableview.DeviceTableWidget(device, find_data_file, view_mode)
+        widget = device_tableview.DeviceTableWidget(device, view_mode)
         self.setWidget(widget)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.update_title_and_name()

@@ -469,7 +469,7 @@ class DeviceTableView(QtGui.QTableView):
 # TODO: change Hide to Show to make it easier to understand which params are shown...
 
 class DeviceTableWidget(QtGui.QWidget):
-    def __init__(self, device, find_data_file, view_mode=COMBINED, parent=None):
+    def __init__(self, device, view_mode=COMBINED, parent=None):
         super(DeviceTableWidget, self).__init__(parent)
 
         settings = util.loadUi(":/ui/device_tableview_settings.ui")

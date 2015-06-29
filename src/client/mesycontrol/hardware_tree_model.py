@@ -11,9 +11,8 @@ import basic_tree_model as btm
 QModelIndex = QtCore.QModelIndex
 
 class HardwareTreeModel(btm.BasicTreeModel):
-    def __init__(self, device_registry, find_data_file, parent=None):
+    def __init__(self, device_registry, parent=None):
         super(HardwareTreeModel, self).__init__(parent)
-        self.find_data_file = find_data_file
         self.device_registry = device_registry
         self.linked_mode = False
 

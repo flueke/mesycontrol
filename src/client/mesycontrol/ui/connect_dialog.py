@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from PyQt4 import QtCore, QtGui, uic
+from PyQt4 import QtCore
+from PyQt4 import QtGui
 from PyQt4.QtCore import pyqtSlot
 from mesycontrol import config
 from mesycontrol import util
@@ -11,7 +12,7 @@ class ConnectDialog(QtGui.QDialog):
     def __init__(self, context, parent=None):
         super(ConnectDialog, self).__init__(parent)
 
-        uic.loadUi(context.find_data_file('mesycontrol/ui/connect_dialog.ui'), self)
+        util.loadUi(":/ui/connect_dialog.ui", self)
         self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(False)
         self.combo_serial_port.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+'), None))
         self.le_tcp_host.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+'), None))

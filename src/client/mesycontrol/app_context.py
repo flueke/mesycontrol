@@ -4,7 +4,6 @@
 
 from qt import QtCore
 import contextlib
-import os
 
 import app_model as am
 import basic_model as bm
@@ -39,9 +38,6 @@ class Context(QtCore.QObject):
             observer.set_future(future.all_done(*futures))
 
         util.wait_for_signal(signal=observer.done, emitting_callable=do_disconnect, timeout_ms=5000)
-
-    def find_data_file(self, filename):
-        return os.path.join(self.data_dir, filename)
 
     def make_qsettings(self):
         return QtCore.QSettings("mesytec", "mesycontrol")
