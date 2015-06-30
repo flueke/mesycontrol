@@ -21,10 +21,12 @@ from mc_treeview import MCTreeView
 from ui.dialogs import AddDeviceDialog
 from ui.dialogs import AddMRCDialog
 import basic_model as bm
+import config_algo
 import config_model as cm
 import config_tree_model as ctm
 import config_xml
 import device_tableview
+import future
 import hardware_controller
 import hardware_model as hm
 import hardware_tree_model as htm
@@ -493,15 +495,17 @@ class GUIApplication(QtCore.QObject):
                 parent_widget=self.treeview))
 
         if isinstance(node, ctm.DeviceNode):
+            device = node.ref
+
             menu.addAction("Open").triggered.connect(
                     partial(self._show_or_create_device_window,
-                        device=node.ref, from_config_side=True, from_hw_side=False))
+                        device=device, from_config_side=True, from_hw_side=False))
 
             def load_device_config():
-                app_device = node.ref
+                app_device = device
                 app_mrc    = app_device.mrc
 
-                if run_load_device_config(device=node.ref, context=self.context,
+                if run_load_device_config(device=device, context=self.context,
                         parent_widget=self.treeview):
                     # A config was loaded. If the app_device did not have a
                     # hardware model it will have been removed from the app_mrc
@@ -522,12 +526,34 @@ class GUIApplication(QtCore.QObject):
 
             menu.addAction("Save To File").triggered.connect(
                     partial(run_save_device_config,
-                        device=node.ref,
+                        device=device,
                         context=self.context,
                         parent_widget=self.treeview))
 
+            if (self.linked_mode and device.has_cfg and device.has_hw
+                    and device.mrc.hw.is_connected()):
+
+                def apply_config():
+                    runner = config_algo.ApplyDeviceConfigRunner(
+                            source=device.cfg, dest=device.hw,
+                            device_profile=device.profile)
+                    f = runner.start()
+                    fo = future.FutureObserver(f)
+                    pd = QtGui.QProgressDialog()
+                    fo.progress_range_changed.connect(pd.setRange)
+                    fo.progress_changed.connect(pd.setValue)
+                    fo.progress_text_changed.connect(pd.setLabelText)
+                    def print_progress(p):
+                        print "progress changed", p
+                    fo.progress_changed.connect(print_progress)
+                    def print_result():
+                        print f.result()
+                    fo.done.connect(print_result)
+                    fo.done.connect(pd.close)
+                    pd.exec_()
+                menu.addAction("Apply config").triggered.connect(apply_config)
+
             def remove_device():
-                device = node.ref
                 self._close_device_windows(device)
                 device.mrc.cfg.remove_device(device.cfg)
 
@@ -802,47 +828,3 @@ class DeviceTableSubWindow(QtGui.QMdiSubWindow):
 
         self.setWindowTitle(title)
         self.setObjectName(name)
-
-import future
-
-def apply_device_config(source, dest, device_profile):
-    """Takes parameter values from source and sets them on dest. Which
-    parameters are used, the load order and additional special handling depend
-    on the given device profile.
-    Returns a Future object that fullfills once all parameters have been
-    written."""
-
-    if source.idc != dest.idc:
-        raise RuntimeError("idc conflict")
-
-    # Store polling state and disable polling
-    # Set critical params to safe values
-    # Set non-critical config values in device profile order
-    # Set critical param config values
-    # Enable RC
-    # Restore polling state 
-
-    def set_safe_values():
-        futures = list()
-
-        for pp in device_profile.get_critical_parameters():
-            futures.append(dest.set_parameter(pp.address, pp.safe_value))
-
-        return future.all_done(*futures)
-
-    def get_non_criticals():
-        futures = list()
-
-        for pp in device_profile.get_non_critical_parameters():
-            f = source.get_parameter(pp.address)
-
-        return future.all_done(*futures)
-
-    # XXX: leftoff: result_futures or read_results or list((param, value))?
-    def set_non_criticals(result_futures):
-        futures = list()
-
-        for pp in device_profile.get_non_critical_parameters():
-            f = dest.set_parameter()
-
-            source.get_parameter(pp.address).add_done_callback(do_set)

@@ -26,7 +26,7 @@ class Future(object):
         self._progress_min = 0
         self._progress_max = 100
         self._progress = 0
-        self._progress_text = None
+        self._progress_text = str()
 
     def __del__(self):
         if self._exception is not None and not self._exception_observed:
@@ -188,6 +188,10 @@ class FutureObserver(QtCore.QObject):
             self._progress_range    = (0, 0)
             self._progress          = 0
             self._progress_text     = str()
+
+        self.progress_range_changed.emit(*self._progress_range)
+        self.progress_changed.emit(self._progress)
+        self.progress_text_changed.emit(self._progress_text)
 
     def _future_done(self, f):
         self.log.debug("Future %s is done", f)
