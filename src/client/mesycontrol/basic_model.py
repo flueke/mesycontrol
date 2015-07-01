@@ -148,7 +148,7 @@ class SetResult(collections.namedtuple("SetResult", ReadResult._fields + ('reque
     def __int__(self):
         return self.value
 
-    def __bool__(self):
+    def __nonzero__(self):
         return self.value == self.requested_value
 
 
