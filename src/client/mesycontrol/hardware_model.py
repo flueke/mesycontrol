@@ -178,11 +178,25 @@ class Device(bm.Device):
     def get_rc(self):
         return self._rc
 
-    def set_rc(self, rc):
+    def update_rc(self, rc):
+        """Updates the local RC flag of this device."""
         rc = bool(rc)
         if self.rc != rc:
             self._rc = rc
             self.rc_changed.emit(self.rc)
+
+    def set_rc(self, on_off):
+        """Sends a ON/OFF command to the MRC.
+        On successful command execution the local RC flag is updated.
+        """
+
+        def on_rc_set(f):
+            if f.exception() is None:
+                self.update_rc(on_off)
+
+        ret = self.controller.set_rc(self.bus, self.address, on_off)
+        ret.add_done_callback(on_rc_set)
+        return ret
 
     def should_poll(self):
         return self.mrc.polling and self._polling
@@ -228,6 +242,6 @@ class Device(bm.Device):
     address_conflict = pyqtProperty(bool, has_address_conflict, set_address_conflict,
             notify=address_conflict_changed)
 
-    rc = pyqtProperty(bool, get_rc, set_rc, notify=rc_changed)
+    rc = pyqtProperty(bool, get_rc, update_rc, notify=rc_changed)
     polling = pyqtProperty(bool, should_poll, set_polling, notify=polling_changed)
 

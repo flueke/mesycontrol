@@ -171,6 +171,11 @@ class Controller(object):
         m = protocol.Message('request_scanbus', bus=bus)
         return self.connection.queue_request(m).add_done_callback(on_bus_scanned)
 
+    def set_rc(self, bus, device, on_off):
+        mt = 'request_rc_on' if on_off else 'request_rc_off'
+        m  = protocol.Message(mt, bus=bus, dev=device)
+        return self.connection.queue_request(m)
+
     def set_scanbus_interval(self, msec):
         self._scanbus_timer.setInterval(msec)
 

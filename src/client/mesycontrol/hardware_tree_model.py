@@ -8,6 +8,10 @@ from qt import Qt
 
 import basic_tree_model as btm
 
+column_titles = ('Path', 'RC')
+
+COL_PATH, COL_RC = range(2)
+
 QModelIndex = QtCore.QModelIndex
 
 class HardwareTreeModel(btm.BasicTreeModel):
@@ -17,9 +21,14 @@ class HardwareTreeModel(btm.BasicTreeModel):
         self.linked_mode = False
 
     def columnCount(self, parent=QModelIndex()):
-        return 1
+        return 2
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            try:
+                return column_titles[section]
+            except IndexError:
+                pass
         return None
 
 class HardwareTreeNode(btm.BasicTreeNode):
@@ -117,6 +126,18 @@ class DeviceNode(HardwareTreeNode):
 
         self.notify_all_columns_changed()
 
+    def flags(self, column):
+        device  = self.ref   # app_model.Device
+        hw      = device.hw  # hardware_model.Device
+        mrc     = device.mrc # app_model.MRC
+
+        ret = Qt.ItemIsEnabled | Qt.ItemIsSelectable
+
+        if column == COL_RC and hw is not None and mrc.hw.is_connected():
+            ret |= Qt.ItemIsEditable
+
+        return ret
+
     def data(self, column, role):
         device  = self.ref   # app_model.Device
         hw      = device.hw  # hardware_model.Device
@@ -137,6 +158,12 @@ class DeviceNode(HardwareTreeNode):
 
             return "%X %s" % (device.address, data)
 
+        if column == COL_RC and hw is not None and mrc.hw.is_connected():
+            if role == Qt.DisplayRole:
+                return "RC on" if hw.rc else "RC off"
+            if role == Qt.EditRole:
+                return hw.rc
+
         if column == 0 and role == Qt.DecorationRole:
             if hw is not None and hw.address_conflict:
                 return QtGui.QPixmap(":/connection-error.png")
@@ -156,8 +183,12 @@ class DeviceNode(HardwareTreeNode):
 
             return QtGui.QPixmap(":/disconnected.png")
 
-        if column == 0 and role == Qt.BackgroundRole:
+        if role == Qt.BackgroundRole:
             if hw is not None and hw.address_conflict:
                 return QtGui.QColor('red')
             if device.idc_conflict and self.model.linked_mode:
                 return QtGui.QColor('red')
+
+    def set_data(self, column, value, role):
+        if role == Qt.EditRole and column == COL_RC:
+            self.ref.hw.set_rc(value)

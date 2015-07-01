@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
@@ -33,7 +32,7 @@ class HardwareTreeView(QtGui.QTreeView):
         self.setTextElideMode(Qt.ElideNone)
         self.setRootIsDecorated(False)
         self.setExpandsOnDoubleClick(False)
-        self.setEditTriggers(QtGui.QAbstractItemView.EditKeyPressed)
+        self.setEditTriggers(QtGui.QAbstractItemView.EditKeyPressed | QtGui.QAbstractItemView.DoubleClicked)
 
 def find_insertion_index(items, test_fun):
     prev_item = next((o for o in items if test_fun(o)), None)
@@ -50,6 +49,7 @@ class MCTreeDirector(object):
         self.cfg_model = ctm.ConfigTreeModel(device_registry=device_registry)
 
         self.hw_model  = htm.HardwareTreeModel(device_registry=device_registry)
+        self.hw_model.rowsInserted.connect(self._hw_rows_inserted)
 
         self._linked_mode = linked_mode_on
         self._populate_models()
@@ -254,6 +254,10 @@ class MCTreeDirector(object):
         if hw_node is not None:
             self.hw_model.remove_node(hw_node)
 
+    ######################
+    def _hw_rows_inserted(self, parent_idx, start, end):
+        print parent_idx, start, end
+
 class MCTreeView(QtGui.QWidget):
     hw_context_menu_requested   = pyqtSignal(object, object, object, object) #: node, idx, position, view
     cfg_context_menu_requested  = pyqtSignal(object, object, object, object) #: node, idx, position, view
@@ -303,6 +307,7 @@ class MCTreeView(QtGui.QWidget):
         self.hw_view.expanded.connect(self._hw_expanded)
         self.hw_view.collapsed.connect(self._hw_collapsed)
         self.hw_view.setItemDelegate(MCTreeItemDelegate(self._director))
+        self.hw_view.setFirstColumnSpanned(0, QtCore.QModelIndex(), True)
 
         self.hw_view.selectionModel().currentChanged.connect(self._hw_selection_current_changed)
         self.hw_view.selectionModel().selectionChanged.connect(self._hw_selection_changed)
@@ -545,3 +550,61 @@ class MCTreeItemDelegate(QtGui.QStyledItemDelegate):
 
         super(MCTreeItemDelegate, self).paint(painter, option, index)
 
+    def _is_device_rc(self, idx):
+        return (isinstance(idx.internalPointer(), htm.DeviceNode)
+                and idx.column() == htm.COL_RC)
+
+    def createEditor(self, parent, options, idx):
+        if not self._is_device_rc(idx):
+            return super(MCTreeItemDelegate, self).createEditor(parent, options, idx)
+
+        combo = QtGui.QComboBox(parent)
+        combo = AutoPopupComboBox(parent)
+        combo.addItem("RC on",  True)
+        combo.addItem("RC off", False)
+
+        # Hack to make the combobox commit immediately after the user selects
+        # an item.
+        def on_combo_activated(index):
+            self.commitData.emit(combo)
+            self.closeEditor.emit(combo, QtGui.QAbstractItemDelegate.NoHint)
+
+        combo.activated.connect(on_combo_activated)
+
+        return combo
+
+    def setEditorData(self, editor, idx):
+        if not self._is_device_rc(idx):
+            return super(MCTreeItemDelegate, self).setEditorData(editor, idx)
+
+        rc = idx.data(Qt.EditRole).toBool()
+        combo_idx = editor.findData(rc)
+        if combo_idx >= 0:
+            editor.setCurrentIndex(combo_idx)
+
+    def setModelData(self, editor, model, idx):
+        if not self._is_device_rc(idx):
+            return super(MCTreeItemDelegate, self).setModelData(editor, model, idx)
+
+        combo_idx  = editor.currentIndex()
+        combo_data = editor.itemData(combo_idx).toBool()
+        model.setData(idx, combo_data)
+
+class AutoPopupComboBox(QtGui.QComboBox):
+    """QComboBox subclass which automatically shows its popup on receiving a
+    non-spontaneous showEvent."""
+
+    def __init__(self, parent=None):
+        super(AutoPopupComboBox, self).__init__(parent)
+        self._ignore_next_hide = False
+
+    def showEvent(self, event):
+        if not event.spontaneous():
+            self._ignore_next_hide = True
+            self.showPopup()
+
+    def hidePopup(self):
+        if self._ignore_next_hide:
+            self._ignore_next_hide = False
+        else:
+            super(AutoPopupComboBox, self).hidePopup()
