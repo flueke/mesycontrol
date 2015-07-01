@@ -157,8 +157,6 @@ class MRCConnection(AbstractConnection):
 
     def disconnect(self):
         self.log.debug("disconnect")
-        #self._is_connected = False
-        #self._is_connecting = False
         return self.client.disconnect()
 
     def is_connected(self):

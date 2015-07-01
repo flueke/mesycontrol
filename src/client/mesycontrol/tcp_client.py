@@ -222,7 +222,7 @@ class MCTCPClient(QtCore.QObject):
 
                 if message.is_error():
                     future.set_exception(protocol.MessageError(
-                        message.get_error_code(), message.get_error_string(), request))
+                        message=message, request=request))
 
                     self.error_received.emit(message)
                 else:

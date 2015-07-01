@@ -463,6 +463,27 @@ class GUIApplication(QtCore.QObject):
                 context=self.context, parent_widget=self.treeview))
 
             if len(setup):
+                if self.linked_mode:
+                    def apply_setup():
+                        runner = config_algo.ApplySetupRunner(
+                                source=setup, dest=node.ref.hw,
+                                device_registry=self.context.device_registry)
+                        f  = runner.start()
+                        fo = future.FutureObserver(f)
+                        pd = QtGui.QProgressDialog()
+                        pd.setAutoClose(False)
+
+                        fo.progress_range_changed.connect(pd.setRange)
+                        fo.progress_changed.connect(pd.setValue)
+                        fo.progress_text_changed.connect(pd.setLabelText)
+                        fo.done.connect(pd.close)
+                        pd.exec_()
+                        if f.exception() is not None:
+                            log.error("apply_config: %s", f.exception())
+                            QtGui.QMessageBox.critical(view, "Error", str(f.exception()))
+
+                    menu.addAction("Apply setup").triggered.connect(apply_setup)
+
                 if len(setup.filename):
                     menu.addAction("Save Setup").triggered.connect(partial(run_save_setup,
                         context=self.context, parent_widget=self.treeview))
@@ -537,20 +558,19 @@ class GUIApplication(QtCore.QObject):
                     runner = config_algo.ApplyDeviceConfigRunner(
                             source=device.cfg, dest=device.hw,
                             device_profile=device.profile)
-                    f = runner.start()
+                    f  = runner.start()
                     fo = future.FutureObserver(f)
                     pd = QtGui.QProgressDialog()
+
                     fo.progress_range_changed.connect(pd.setRange)
                     fo.progress_changed.connect(pd.setValue)
                     fo.progress_text_changed.connect(pd.setLabelText)
-                    def print_progress(p):
-                        print "progress changed", p
-                    fo.progress_changed.connect(print_progress)
-                    def print_result():
-                        print f.result()
-                    fo.done.connect(print_result)
                     fo.done.connect(pd.close)
                     pd.exec_()
+                    if f.exception() is not None:
+                        log.error("apply_config: %s", f.exception())
+                        QtGui.QMessageBox.critical(view, "Error", str(f.exception()))
+
                 menu.addAction("Apply config").triggered.connect(apply_config)
 
             def remove_device():

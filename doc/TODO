@@ -44,7 +44,6 @@
 * TreeView display & actions:
   - create setup/config from hardware
   - check/apply setup/config
-  - rc on/off
   - polling
   - silent mode
   - prompts on close/overwrite/...
@@ -138,3 +137,4 @@
 * transition to linked mode off: change combined views back to their old mode
   before linked mode was turned on. windows that where created in linked mode
   should be closed.
+* RC bit: when to enable?

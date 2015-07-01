@@ -13,6 +13,7 @@ import hardware_tree_model as htm
 import util
 
 # TODO: context menu and display for virtual items
+# FIXME: config tree modified does not trigger dataChanged for devices!
 
 class ConfigTreeView(QtGui.QTreeView):
     def __init__(self, parent=None):

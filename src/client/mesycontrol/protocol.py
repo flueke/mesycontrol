@@ -55,8 +55,29 @@ def str_read_multi_response(msg):
 def str_error_response(msg):
   return "%s(%s)" % (msg.get_type_name(), ErrorInfo.by_code[msg.error_code]['name'])
 
-class MessageError(Exception):
-  pass
+class MessageError(RuntimeError):
+  def __init__(self, message=None, request=None, text=None, *args):
+    super(MessageError, self).__init__(*args)
+    self.message = message
+    self.request = request
+    self.text = text
+
+  def __str__(self):
+    ret = str()
+
+    if self.message is not None and self.message.is_error():
+      ret = self.message.get_error_description()
+
+      if self.request is not None:
+        ret += "\nRequest: %s" % self.request
+
+    if self.text is not None:
+      if len(ret):
+        ret += '\n'
+      ret += self.text
+
+    return ret
+
 
 class InvalidMessageType(MessageError):
   def __init__(self, type_code):
@@ -296,7 +317,7 @@ class ErrorInfo:
         },
       { 'code': 5,
         'name': 'mrc_no_response',
-        'description': 'The device did not respond. Most likely the bus address is not in use.',
+        'description': 'The device did not respond.',
         },
       { 'code': 6,
         'name': 'mrc_comm_timeout',
@@ -424,8 +445,11 @@ class Message(object):
   def set_error_code(self, error_code):
     self._error_code = error_code
 
-  def get_error_string(self):
+  def get_error_name(self):
     return ErrorInfo.by_code[self.get_error_code()]['name']
+
+  def get_error_description(self):
+    return ErrorInfo.by_code[self.get_error_code()]['description']
 
   def get_type_code(self): return self._type_code
   def get_bus(self): return self._bus
@@ -433,21 +457,21 @@ class Message(object):
     if 0 <= int(bus) < 2:
       self._bus = int(bus)
     else:
-      raise MessageError("bus out of range", int(bus))
+      raise MessageError(text="bus out of range")
 
   def get_dev(self): return self._dev
   def set_dev(self, dev):
     if 0 <= int(dev) < 16:
       self._dev = int(dev)
     else:
-      raise MessageError("dev out of range", int(dev))
+      raise MessageError(text="dev out of range")
 
   def get_par(self): return self._par
   def set_par(self, par):
     if 0 <= int(par) < 256:
       self._par = int(par)
     else:
-      raise MessageError("par out of range", int(par))
+      raise MessageError(text="par out of range")
 
   def get_value(self): return self._value
   def set_value(self, value):
@@ -465,7 +489,7 @@ class Message(object):
   def set_n_params(self, value):
     value = int(value)
     if not (0 < value <= 256):
-      raise MessageError("n_params out of range", value)
+      raise MessageError(text="n_params out of range")
     self._n_params = value
 
   type_code  = property(get_type_code)
@@ -494,7 +518,7 @@ class Message(object):
   @staticmethod
   def deserialize(data):
     if len(data) < 1:
-      raise MessageError("deserialize(): empty data given")
+      raise MessageError(text="deserialize(): empty data given")
 
     type_code = struct.unpack('!B', data[0])[0]
     type_info = MessageInfo.get_message_info(type_code)
