@@ -244,4 +244,3 @@ class Device(bm.Device):
 
     rc = pyqtProperty(bool, get_rc, update_rc, notify=rc_changed)
     polling = pyqtProperty(bool, should_poll, set_polling, notify=polling_changed)
-

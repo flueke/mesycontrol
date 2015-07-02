@@ -1,0 +1,25 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# Author: Florian Lüke <florianlueke@gmx.net>
+
+import hardware_controller
+import hardware_model as hm
+import mrc_connection
+
+def add_mrc_connection(hardware_registry, url, do_connect):
+    """Adds an MRC connection using the given url to the hardware_registry.
+    If `do_connect' is True this function will start a connection attempt and
+    return the corresponding Future object. Otherwise the newly added MRC will
+    be in disconnected state and None is returned."""
+
+    connection      = mrc_connection.factory(url=url)
+    controller      = hardware_controller.Controller(connection)
+    mrc             = hm.MRC(url)
+    mrc.controller  = controller
+
+    hardware_registry.add_mrc(mrc)
+
+    if do_connect:
+        return mrc.connect()
+
+    return None

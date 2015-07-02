@@ -8,13 +8,9 @@ from qt import QtCore
 
 import future
 import itertools
+import model_util
 import util
-
-class SetParameterError(RuntimeError):
-    pass
-
-class IDCConflict(RuntimeError):
-    pass
+import sys
 
 class ProgressUpdate(object):
     __slots__ = ['current', 'total', 'text']
@@ -37,6 +33,104 @@ class ProgressUpdate(object):
             return "%d/%d" % (self.current, self.total)
         return "%d/%d: %s" % (self.current, self.total, self.text)
 
+class GeneratorRunner(QtCore.QObject):
+    def __init__(self, generator=None, parent=None):
+        super(GeneratorRunner, self).__init__(parent)
+
+        self.generator = generator
+        self.log = util.make_logging_source_adapter(__name__, self)
+
+    # Note about using QMetaObject.invokeMethod() in start() and
+    # _future_yielded():
+    #
+    # If the generator yields a Future object that completes immediately a
+    # callback added via add_done_callback() will also be executed immediately.
+    # As the on_done() callback in _future_yielded() calls _next() again the
+    # call stack grows. This can quickly lead to the call stack exceeding its
+    # maximum size.
+    #
+    # To avoid this the call to _next() is queued in the Qt event loop and the
+    # current invocation of _next() can return.
+
+    def start(self):
+        """Start execution of the generator.
+        Requires a running Qt event loop (or calls to processEvents()).
+        Returns a Future that fullfills on generator termination.
+        """
+        self._start()
+
+        if self.generator is None:
+            raise RuntimeError("No generator function set")
+
+        self.arg    = None
+        self.result = future.Future()
+
+        QtCore.QMetaObject.invokeMethod(self, "_next", Qt.QueuedConnection)
+
+        return self.result
+
+    @pyqtSlot()
+    def _next(self):
+        while True:
+            try:
+                obj = self.generator.send(self.arg)
+
+                if isinstance(obj, future.Future):
+                    if self._future_yielded(obj):
+                        return
+
+                elif isinstance(obj, ProgressUpdate):
+                    self._progress_update(obj)
+
+                else:
+                    self.arg, do_return = self._object_yielded(obj)
+                    if do_return:
+                        return
+
+            except StopIteration:
+                self._stop_iteration()
+                return
+
+            except Exception as e:
+                try:
+                    self._exception(e)
+                except Exception as e:
+                    self.result.set_exception(e)
+                    self.generator.close()
+                    self.log.exception("Generator")
+                    return
+
+    def _start(self):
+        pass
+
+    def _future_yielded(self, f):
+        def on_done(f):
+            self.arg = f
+            QtCore.QMetaObject.invokeMethod(self, "_next", Qt.QueuedConnection)
+
+        f.add_done_callback(on_done)
+        return True
+
+    def _object_yielded(self, obj):
+        raise NotImplementedError()
+
+    def _progress_update(self, progress):
+        self.result.set_progress_range(0, progress.total)
+        self.result.set_progress(progress.current)
+        self.result.set_progress_text(progress.text)
+
+    def _stop_iteration(self):
+        self.result.set_result(True)
+
+    def _exception(self, e):
+        raise e, None, sys.exc_info()[2]
+
+class SetParameterError(RuntimeError):
+    pass
+
+class IDCConflict(RuntimeError):
+    pass
+
 def apply_device_config(source, dest, device_profile):
     """Apply device config operation in the form of a generator.
     Yields Futures and ProgressUpdates. Raises StopIteration on completion.
@@ -44,10 +138,16 @@ def apply_device_config(source, dest, device_profile):
 
     def check_idcs():
         if source.idc != dest.idc:
-            raise IDCConflict("idc conflict between source and dest")
+            raise IDCConflict(
+                    "IDCConflict: mrc=%s, bus=%d, dev=%d, src-idc=%d, dest-idc=%d" %
+                    (source.mrc.get_display_url(), source.bus, source.address,
+                        source.idc, dest.idc))
 
         if source.idc != device_profile.idc:
-            raise IDCConflict("idc conflict between source and device profile")
+            raise IDCConflict(
+                    "IDCConflict: mrc=%s, bus=%d, dev=%d, src-idc=%d, profile-idc=%d" %
+                    (source.mrc.get_display_url(), source.bus, source.address,
+                        source.idc, device_profile.idc))
 
     try:
         check_idcs()
@@ -85,11 +185,11 @@ def apply_device_config(source, dest, device_profile):
         for pp in filter(lambda pp: pp.address not in values,
                 itertools.chain(non_criticals, criticals)):
 
-            check_idcs()
             futures.append(source.get_parameter(pp.address))
 
         for f in futures:
             yield f
+            check_idcs()
             r = f.result()
 
             values[r.address] = r.value
@@ -103,11 +203,11 @@ def apply_device_config(source, dest, device_profile):
 
         # Set safe values for critical parameters.
         for pp in criticals:
-            check_idcs()
             futures.append(dest.set_parameter(pp.address, pp.safe_value))
 
         for f in futures:
             f = yield f
+            check_idcs()
             r = f.result()
 
             if not r:
@@ -121,12 +221,12 @@ def apply_device_config(source, dest, device_profile):
 
         # Set non-criticals
         for pp in non_criticals:
-            check_idcs()
             value = values[pp.address]
             futures.append(dest.set_parameter(pp.address, value))
 
         for f in futures:
             f = yield f
+            check_idcs()
             r = f.result()
 
             if not r:
@@ -141,11 +241,11 @@ def apply_device_config(source, dest, device_profile):
 
         # Finally set criticals to their config values
         for pp in criticals:
-            check_idcs()
             value = values[pp.address]
             futures.append(dest.set_parameter(pp.address, value))
 
         for f in futures:
+            check_idcs()
             f = yield f
             r = f.result()
 
@@ -161,59 +261,18 @@ def apply_device_config(source, dest, device_profile):
     finally:
         pass
 
-class ApplyDeviceConfigRunner(QtCore.QObject):
+class ApplyDeviceConfigRunner(GeneratorRunner):
     def __init__(self, source, dest, device_profile, parent=None):
-        super(ApplyDeviceConfigRunner, self).__init__(parent)
+        super(ApplyDeviceConfigRunner, self).__init__(parent=parent)
+
         self.log = util.make_logging_source_adapter(__name__, self)
         self.source = source
         self.dest   = dest
         self.device_profile = device_profile
 
-    # Note about using QMetaObject.invokeMethod() in start() and _next():
-    # If the apply_device_config generator yields a Future object that
-    # completes immediately a callback added via add_done_callback() will also
-    # be executed immediately. As the on_done() callback below calls _next()
-    # again the call stack grows. This can quickly lead to the call stack
-    # exceeding its maximum size.
-    # To avoid this the call to _next() is queued in the Qt event loop and the
-    # current invocation of _next() can return.
-    def start(self):
-        self.apply_generator = apply_device_config(self.source, self.dest,
+    def _start(self):
+        self.generator = apply_device_config(self.source, self.dest,
                 self.device_profile)
-        self.arg = None
-        self.result_future = future.Future()
-        QtCore.QMetaObject.invokeMethod(self, "_next", Qt.QueuedConnection)
-        return self.result_future
-
-    @pyqtSlot()
-    def _next(self):
-        while True:
-            try:
-                obj = self.apply_generator.send(self.arg)
-
-                if isinstance(obj, future.Future):
-
-                    def on_done(f):
-                        self.arg = f
-                        QtCore.QMetaObject.invokeMethod(self, "_next", Qt.QueuedConnection)
-
-                    obj.add_done_callback(on_done)
-                    return
-
-                elif isinstance(obj, ProgressUpdate):
-                    self.result_future.set_progress_range(0, obj.total)
-                    self.result_future.set_progress(obj.current)
-                    self.result_future.set_progress_text(obj.text)
-                else:
-                    raise RuntimeError("Generator yielded unknown object %s" % obj)
-
-            except StopIteration:
-                self.result_future.set_result(True)
-                return
-            except Exception as e:
-                self.result_future.set_exception(e)
-                self.apply_generator.close()
-                return
 
 def apply_setup(source, dest, device_registry):
     """
@@ -261,50 +320,57 @@ def apply_setup(source, dest, device_registry):
                     apply_config.close()
                     return
 
-class ApplySetupRunner(QtCore.QObject):
+class ApplySetupRunner(GeneratorRunner):
     def __init__(self, source, dest, device_registry, parent=None):
-        super(ApplySetupRunner, self).__init__(parent)
+        super(GeneratorRunner, self).__init__(parent=parent)
         self.log = util.make_logging_source_adapter(__name__, self)
         self.source = source
         self.dest   = dest
         self.device_registry = device_registry
 
-    def start(self):
-        self.apply_generator = apply_setup(self.source, self.dest, self.device_registry)
-        self.arg = None
-        self.result_future = future.Future()
-        QtCore.QMetaObject.invokeMethod(self, "_next", Qt.QueuedConnection)
-        return self.result_future
+    def _start(self):
+        self.generator = apply_setup(self.source, self.dest, self.device_registry)
 
-    @pyqtSlot()
-    def _next(self):
-        while True:
-            try:
-                obj = self.apply_generator.send(self.arg)
+def establish_connections(setup, hardware_registry):
+    for cfg_mrc in setup:
+        hw_mrc = hardware_registry.get_mrc(cfg_mrc.url)
 
-                if isinstance(obj, future.Future):
+        if hw_mrc is None:
+            model_util.add_mrc_connection(hardware_registry, cfg_mrc.url, False)
+            hw_mrc = hardware_registry.get_mrc(cfg_mrc.url)
 
-                    def on_done(f):
-                        self.arg = f
-                        QtCore.QMetaObject.invokeMethod(self, "_next", Qt.QueuedConnection)
+        if hw_mrc.is_disconnected():
+            yield hw_mrc.connect()
 
-                    obj.add_done_callback(on_done)
-                    return
+        yield hw_mrc.scanbus(0)
+        yield hw_mrc.scanbus(1)
 
-                elif isinstance(obj, ProgressUpdate):
-                    self.result_future.set_progress_range(0, obj.total)
-                    self.result_future.set_progress(obj.current)
-                    self.result_future.set_progress_text(obj.text)
-                else:
-                    raise RuntimeError("Generator yielded unknown object %s" % obj)
+def connect_and_apply_setup(setup, hw_registry, device_registry):
+    gen = establish_connections(setup, hw_registry)
+    arg = None
 
-            except StopIteration:
-                self.result_future.set_result(True)
-                return
-            except Exception as e:
-                self.result_future.set_exception(e)
-                self.apply_generator.close()
-                return
+    while True:
+        try:
+            obj = gen.send(arg)
+            arg = yield obj
+        except StopIteration:
+            break
+        except GeneratorExit:
+            gen.close()
+            return
+
+    gen = apply_setup(setup, hw_registry, device_registry)
+    arg = None
+
+    while True:
+        try:
+            obj = gen.send(arg)
+            arg = yield obj
+        except StopIteration:
+            break
+        except GeneratorExit:
+            gen.close()
+            return
 
 if __name__ == "__main__":
     import mock

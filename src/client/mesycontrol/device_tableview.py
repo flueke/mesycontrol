@@ -19,6 +19,7 @@ import util
 
 # TODO: handle the case where there's no device config present yet -> create one
 # TODO: handle failed sets. maybe display red background for a few seconds
+# FIXME: hw device is disconnected and connected again -> hw column still says disconnected
 
 column_titles = ('Address', 'Name', 'HW Value', 'Config Value', 'HW Unit Value', 'Config Unit Value')
 

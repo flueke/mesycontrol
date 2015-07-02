@@ -18,44 +18,24 @@ from qt import QtCore
 from qt import QtGui
 
 from mc_treeview import MCTreeView
+from model_util import add_mrc_connection
 from ui.dialogs import AddDeviceDialog
 from ui.dialogs import AddMRCDialog
 import basic_model as bm
-import config_algo
+import config_util
 import config_model as cm
 import config_tree_model as ctm
 import config_xml
 import device_tableview
 import future
-import hardware_controller
-import hardware_model as hm
 import hardware_tree_model as htm
 import log_view
-import mrc_connection
 import resources
 import util
 
 log = logging.getLogger(__name__)
 
 # ===== MRC =====
-def add_mrc_connection(registry, url, do_connect):
-    """Adds an MRC connection using the given url to the application registry.
-    If `do_connect' is True this function will start a connection attempt and
-    return the corresponding Future object. Otherwise the newly added MRC will
-    be in disconnected state and None is returned."""
-
-    connection      = mrc_connection.factory(url=url)
-    controller      = hardware_controller.Controller(connection)
-    mrc             = hm.MRC(url)
-    mrc.controller  = controller
-
-    registry.hw.add_mrc(mrc)
-
-    if do_connect:
-        return mrc.connect()
-
-    return None
-
 def run_add_mrc_config_dialog(registry, parent_widget=None):
     urls_in_use = [mrc.url for mrc in registry.cfg.get_mrcs()]
     serial_ports = util.list_serial_ports()
@@ -71,7 +51,7 @@ def run_add_mrc_config_dialog(registry, parent_widget=None):
         if connect:
             mrc = registry.hw.get_mrc(url)
             if not mrc:
-                add_mrc_connection(registry, url, True)
+                add_mrc_connection(registry.hw, url, True)
             elif mrc.is_disconnected():
                 mrc.connect()
 
@@ -88,7 +68,7 @@ def run_add_mrc_connection_dialog(registry, parent_widget=None):
     def accepted():
         try:
             url, connect = dialog.result()
-            add_mrc_connection(registry, url, connect)
+            add_mrc_connection(registry.hw, url, connect)
         except Exception as e:
             log.exception("run_add_mrc_connection_dialog")
             QtGui.QMessageBox.critical(parent_widget, "Error", str(e))
@@ -465,9 +445,13 @@ class GUIApplication(QtCore.QObject):
             if len(setup):
                 if self.linked_mode:
                     def apply_setup():
-                        runner = config_algo.ApplySetupRunner(
-                                source=setup, dest=node.ref.hw,
+                        #runner = config_util.ApplySetupRunner(
+                        #        source=setup, dest=node.ref.hw,
+                        #        device_registry=self.context.device_registry)
+                        gen    = config_util.connect_and_apply_setup(
+                                setup=setup, hw_registry=node.ref.hw,
                                 device_registry=self.context.device_registry)
+                        runner = config_util.GeneratorRunner(generator=gen)
                         f  = runner.start()
                         fo = future.FutureObserver(f)
                         pd = QtGui.QProgressDialog()
@@ -555,7 +539,7 @@ class GUIApplication(QtCore.QObject):
                     and device.mrc.hw.is_connected()):
 
                 def apply_config():
-                    runner = config_algo.ApplyDeviceConfigRunner(
+                    runner = config_util.ApplyDeviceConfigRunner(
                             source=device.cfg, dest=device.hw,
                             device_profile=device.profile)
                     f  = runner.start()
@@ -596,7 +580,7 @@ class GUIApplication(QtCore.QObject):
             if not mrc.hw or mrc.hw.is_disconnected():
                 def do_connect():
                     if not mrc.hw:
-                        add_mrc_connection(self.app_registry, mrc.url, True)
+                        add_mrc_connection(self.app_registry.hw, mrc.url, True)
                     else:
                         mrc.hw.connect()
 
