@@ -17,6 +17,9 @@ These objects merge the hardware and the config models together.
 MRC objects are identified by URL, Device objects by (bus, address).
 """
 
+# FIXME: Device.profile does not match hw.profile or cfg.profile after opening
+# and closing setups!
+
 class AppObject(QtCore.QObject):
     hardware_set = pyqtSignal(object, object, object) #: self, old, new
     config_set   = pyqtSignal(object, object, object) #: self, old, new
