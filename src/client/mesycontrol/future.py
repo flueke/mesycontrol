@@ -28,6 +28,8 @@ class Future(object):
         self._progress = 0
         self._progress_text = str()
 
+        self.log = util.make_logging_source_adapter(__name__, self)
+
     def __del__(self):
         if self._exception is not None and not self._exception_observed:
             logging.getLogger().error("Unobserved exception in Future: %s %s",
@@ -118,6 +120,10 @@ class Future(object):
 
     def _set_done(self):
         self._done = True
+        if self.exception() is not None:
+            self.log.debug("%s done: %s", self, self.exception())
+        else:
+            self.log.debug("%s done: %s", self, self.result())
         for cb in self._callbacks:
             self._exec_callback(cb)
         self._callbacks = list()

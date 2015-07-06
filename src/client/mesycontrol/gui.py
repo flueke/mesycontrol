@@ -22,7 +22,7 @@ from model_util import add_mrc_connection
 from ui.dialogs import AddDeviceDialog
 from ui.dialogs import AddMRCDialog
 import basic_model as bm
-import config_util
+import config_gui
 import config_model as cm
 import config_tree_model as ctm
 import config_xml
@@ -445,13 +445,8 @@ class GUIApplication(QtCore.QObject):
             if len(setup):
                 if self.linked_mode:
                     def apply_setup():
-                        #runner = config_util.ApplySetupRunner(
-                        #        source=setup, dest=node.ref.hw,
-                        #        device_registry=self.context.device_registry)
-                        gen    = config_util.connect_and_apply_setup(
-                                setup=setup, hw_registry=node.ref.hw,
-                                device_registry=self.context.device_registry)
-                        runner = config_util.GeneratorRunner(generator=gen)
+                        runner = config_gui.ApplySetupRunner(source=setup, dest=node.ref.hw,
+                                device_registry=self.context.device_registry, parent_widget=self.treeview)
                         f  = runner.start()
                         fo = future.FutureObserver(f)
                         pd = QtGui.QProgressDialog()
@@ -539,7 +534,7 @@ class GUIApplication(QtCore.QObject):
                     and device.mrc.hw.is_connected()):
 
                 def apply_config():
-                    runner = config_util.ApplyDeviceConfigRunner(
+                    runner = config_gui.ApplyDeviceConfigRunner(
                             source=device.cfg, dest=device.hw,
                             device_profile=device.profile)
                     f  = runner.start()

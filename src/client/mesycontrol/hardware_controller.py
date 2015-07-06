@@ -6,6 +6,7 @@ from qt import QtCore
 import weakref
 
 import basic_model as bm
+import future
 import hardware_model as hm
 import protocol
 import util
@@ -15,7 +16,10 @@ import util
 # Polling, poll sets
 # Read Range
 
-class ErrorResponse(Exception):
+class ErrorResponse(RuntimeError):
+    pass
+
+class TimeoutError(RuntimeError):
     pass
 
 SCANBUS_INTERVAL_MSEC  = 5000
@@ -43,6 +47,11 @@ class Controller(object):
         self._poll_timer.timeout.connect(self._on_poll_timer_timeout)
         self._poll_items = weakref.WeakKeyDictionary()
         self.set_poll_min_interval(poll_min_interval_msec)
+
+        self._connect_timer = QtCore.QTimer()
+        self._connect_timer.setSingleShot(True)
+        self._connect_timer.timeout.connect(self._on_connect_timer_timeout)
+        self._connect_future = None
 
         def on_connected():
             for i in bm.BUS_RANGE:
@@ -91,8 +100,27 @@ class Controller(object):
 
     mrc = property(get_mrc, set_mrc)
 
-    def connect(self):
-        return self.connection.connect()
+    def connect(self, timeout_ms=hm.DEFAULT_CONNECT_TIMEOUT_MS):
+        self.log.debug("connect: timeout_ms=%s", timeout_ms)
+
+        self._connect_future = future.Future()
+
+        def on_connection_connected(f):
+            if self._connect_future is None or self._connect_future.done():
+                return
+
+            if f.exception() is not None:
+                self._connect_future.set_exception(f.exception())
+            else:
+                self._connect_future.set_result(f.result())
+
+        f = self.connection.connect().add_done_callback(on_connection_connected)
+        future.progress_forwarder(f, self._connect_future)
+
+        if timeout_ms > 0:
+            self._connect_timer.start(timeout_ms)
+
+        return self._connect_future
 
     def disconnect(self):
         return self.connection.disconnect()
@@ -233,6 +261,13 @@ class Controller(object):
 
     def remove_polling_subscriber(self, subscriber):
         del self._poll_items[subscriber]
+
+    def _on_connect_timer_timeout(self):
+        if self._connect_future is not None and not self._connect_future.done():
+            self.log.debug("_on_connect_timer_timeout: TimeoutError, %s", self._connect_future)
+            self._connect_future.set_exception(TimeoutError(self.connection.url))
+            self._connect_future = None
+            self.connection.disconnect()
 
     def __str__(self):
         return "Controller(%s)" % util.display_url(self.connection.url)

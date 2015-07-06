@@ -6,7 +6,7 @@ import hardware_controller
 import hardware_model as hm
 import mrc_connection
 
-def add_mrc_connection(hardware_registry, url, do_connect):
+def add_mrc_connection(hardware_registry, url, do_connect, connect_timeout_ms=10000):
     """Adds an MRC connection using the given url to the hardware_registry.
     If `do_connect' is True this function will start a connection attempt and
     return the corresponding Future object. Otherwise the newly added MRC will
@@ -20,6 +20,6 @@ def add_mrc_connection(hardware_registry, url, do_connect):
     hardware_registry.add_mrc(mrc)
 
     if do_connect:
-        return mrc.connect()
+        return mrc.connect(connect_timeout_ms)
 
     return None

@@ -7,31 +7,11 @@ from qt import Qt
 from qt import QtCore
 
 import future
+import hardware_controller
 import itertools
 import model_util
 import util
 import sys
-
-class ProgressUpdate(object):
-    __slots__ = ['current', 'total', 'text']
-
-    def __init__(self, current, total, text=str()):
-        self.current = current
-        self.total   = total
-        self.text    = text
-
-    def __iadd__(self, other):
-        self.current += other
-        return self
-
-    def increment(self, delta=1):
-        self += delta
-        return self
-
-    def __str__(self):
-        if not len(self.text):
-            return "%d/%d" % (self.current, self.total)
-        return "%d/%d: %s" % (self.current, self.total, self.text)
 
 class GeneratorRunner(QtCore.QObject):
     def __init__(self, generator=None, parent=None):
@@ -120,16 +100,57 @@ class GeneratorRunner(QtCore.QObject):
         self.result.set_progress_text(progress.text)
 
     def _stop_iteration(self):
-        self.result.set_result(True)
+        if not self.result.done():
+            self.result.set_result(True)
 
     def _exception(self, e):
-        raise e, None, sys.exc_info()[2]
+        if isinstance(e, Aborted):
+            self.result.set_result(False)
+        else:
+            raise e, None, sys.exc_info()[2]
+
+class ProgressUpdate(object):
+    __slots__ = ['current', 'total', 'text']
+
+    def __init__(self, current, total, text=str()):
+        self.current = current
+        self.total   = total
+        self.text    = text
+
+    def __iadd__(self, other):
+        self.current += other
+        return self
+
+    def increment(self, delta=1):
+        self += delta
+        return self
+
+    def __str__(self):
+        if not len(self.text):
+            return "%d/%d" % (self.current, self.total)
+        return "%d/%d: %s" % (self.current, self.total, self.text)
 
 class SetParameterError(RuntimeError):
     pass
 
 class IDCConflict(RuntimeError):
     pass
+
+class MissingDestinationDevice(RuntimeError):
+    def __init__(self, url, bus, dev):
+        self.url = url
+        self.bus = bus
+        self.dev = dev
+
+class MissingDestinationMRC(RuntimeError):
+    def __init__(self, url):
+        self.url = url
+
+ACTION_SKIP, ACTION_ABORT, ACTION_RETRY = range(3)
+
+class Aborted(RuntimeError):
+    pass
+
 
 def apply_device_config(source, dest, device_profile):
     """Apply device config operation in the form of a generator.
@@ -261,19 +282,6 @@ def apply_device_config(source, dest, device_profile):
     finally:
         pass
 
-class ApplyDeviceConfigRunner(GeneratorRunner):
-    def __init__(self, source, dest, device_profile, parent=None):
-        super(ApplyDeviceConfigRunner, self).__init__(parent=parent)
-
-        self.log = util.make_logging_source_adapter(__name__, self)
-        self.source = source
-        self.dest   = dest
-        self.device_profile = device_profile
-
-    def _start(self):
-        self.generator = apply_device_config(self.source, self.dest,
-                self.device_profile)
-
 def apply_setup(source, dest, device_registry):
     """
     source: a basic_model.MRCRegistry compatible object; usually a
@@ -297,15 +305,43 @@ def apply_setup(source, dest, device_registry):
     #       missing: skip device, skip mrc, abort, try again
     #       addr conflict: skip bus, skip mrc, abort, try again
     #       idc conflict: skip device, skip mrc, abort, try again
-    #
-    # FIXME: where to add mrc connections and wait for them to be ready? in
-    # here or do this before calling apply_setup?
 
     for src_mrc in source:
         dest_mrc = dest.get_mrc(src_mrc.url)
 
+        if dest_mrc is None:
+            action = yield MissingDestinationMRC(url=src_mrc.url)
+
+            if action == ACTION_SKIP:
+                continue
+
+            if action == ACTION_ABORT:
+                raise Aborted()
+
         for src_dev in src_mrc:
             dest_dev     = dest_mrc.get_device(src_dev.bus, src_dev.address)
+
+            if dest_dev is None:
+                action = ACTION_RETRY
+
+                while action == ACTION_RETRY:
+                    dest_dev = dest_mrc.get_device(src_dev.bus, src_dev.address)
+
+                    if dest_dev is not None:
+                        break
+
+                    action = yield MissingDestinationDevice(
+                            url=src_mrc.url, bus=src_dev.bus, dev=src_dev.address)
+
+                    if action == ACTION_SKIP:
+                        break
+
+                    if action == ACTION_ABORT:
+                        raise Aborted()
+
+                if action == ACTION_SKIP:
+                    continue
+
             profile      = device_registry.get_profile(src_dev.idc)
             apply_config = apply_device_config(src_dev, dest_dev, profile)
             arg          = None
@@ -314,33 +350,62 @@ def apply_setup(source, dest, device_registry):
                 try:
                     obj = apply_config.send(arg)
                     arg = yield obj
+                except IDCConflict as e:
+                    action = yield e
+
+                    if action == ACTION_SKIP:
+                        break
+
+                    if action == ACTION_ABORT:
+                        raise Aborted()
+
+                    if action == ACTION_RETRY:
+                        continue # FIXME: need to retry with a new apply_device_config generator!
+
                 except StopIteration:
                     break
                 except GeneratorExit:
                     apply_config.close()
                     return
 
-class ApplySetupRunner(GeneratorRunner):
-    def __init__(self, source, dest, device_registry, parent=None):
-        super(GeneratorRunner, self).__init__(parent=parent)
-        self.log = util.make_logging_source_adapter(__name__, self)
-        self.source = source
-        self.dest   = dest
-        self.device_registry = device_registry
-
-    def _start(self):
-        self.generator = apply_setup(self.source, self.dest, self.device_registry)
+            if action == ACTION_SKIP:
+                continue
 
 def establish_connections(setup, hardware_registry):
     for cfg_mrc in setup:
         hw_mrc = hardware_registry.get_mrc(cfg_mrc.url)
 
         if hw_mrc is None:
-            model_util.add_mrc_connection(hardware_registry, cfg_mrc.url, False)
+            model_util.add_mrc_connection(hardware_registry=hardware_registry,
+                    url=cfg_mrc.url, do_connect=False)
+
             hw_mrc = hardware_registry.get_mrc(cfg_mrc.url)
 
+        if hw_mrc.is_connecting():
+            # Cancel active connection attempts as we need the Future returned
+            # by connect().
+            yield hw_mrc.disconnect()
+
         if hw_mrc.is_disconnected():
-            yield hw_mrc.connect()
+            action = ACTION_RETRY
+
+            while action == ACTION_RETRY:
+                f = yield hw_mrc.connect()
+
+                try:
+                    f.result()
+                    break
+                except hardware_controller.TimeoutError as e:
+                    action = yield e
+
+                    if action == ACTION_SKIP:
+                        break
+
+                    if action == ACTION_ABORT:
+                        raise Aborted()
+
+            if action == ACTION_SKIP:
+                continue
 
         yield hw_mrc.scanbus(0)
         yield hw_mrc.scanbus(1)
@@ -354,8 +419,10 @@ def connect_and_apply_setup(setup, hw_registry, device_registry):
             obj = gen.send(arg)
             arg = yield obj
         except StopIteration:
+            # From inside the generator
             break
         except GeneratorExit:
+            # From the caller invoking close()
             gen.close()
             return
 
@@ -371,41 +438,3 @@ def connect_and_apply_setup(setup, hw_registry, device_registry):
         except GeneratorExit:
             gen.close()
             return
-
-if __name__ == "__main__":
-    import mock
-    import basic_model as bm
-    import device_profile
-    import devices.device_profile_mhv4
-    import logging
-
-    logging.basicConfig(level=logging.DEBUG,
-            format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
-
-    app = QtCore.QCoreApplication([])
-
-    mhv4 = device_profile.from_dict(devices.device_profile_mhv4.profile_dict)
-
-    source = mock.MagicMock()
-    dest   = mock.MagicMock()
-
-    source.idc = dest.idc = mhv4.idc
-
-    def get_parameter(address):
-        return bm.ResultFuture().set_result(bm.ReadResult(bus=0, device=0, address=address, value=42))
-
-    set_values = dict()
-
-    def set_parameter(address, value):
-        set_values[address] = value
-        return bm.ResultFuture().set_result(bm.SetResult(bus=0, device=0, address=address, value=value, requested_value=value))
-
-    source.get_parameter.side_effect = get_parameter
-    dest.set_parameter.side_effect = set_parameter
-
-    runner = ApplyDeviceConfigRunner(source=source, dest=dest, device_profile=mhv4)
-    runner.start()
-
-    app.exec_()
-
-    print set_values

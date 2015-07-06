@@ -210,6 +210,7 @@ class LocalMRCConnection(AbstractConnection):
                 self.log.debug("Connected to %s", self.url)
 
             except Exception as e:
+                self.log.error("connect result: %s, f=%s, ret=%s", e, f, ret)
                 ret.set_exception(e)
 
         def on_connect_timer_expired():

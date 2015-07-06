@@ -32,6 +32,9 @@ class LogView(QtGui.QTextEdit):
         else:
             super(LogView, self).append(text)
 
+        bar = self.verticalScrollBar()
+        bar.setValue(bar.maximum())
+
     def handle_log_record(self, log_record):
         with QtCore.QMutexLocker(self._mutex):
             try:

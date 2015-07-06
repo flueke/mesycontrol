@@ -8,6 +8,11 @@ from qt import pyqtSignal
 import basic_model as bm
 import util
 
+DEFAULT_CONNECT_TIMEOUT_MS = 10000
+
+class AddressConflict(RuntimeError):
+    pass
+
 class MRC(bm.MRC):
     connected                   = pyqtSignal()
     connecting                  = pyqtSignal(object)    #: future object
@@ -28,7 +33,6 @@ class MRC(bm.MRC):
         self._disconnected = True
         self._polling = True
         self.last_connection_error = None
-        self._address_conflict = False
 
     def set_controller(self, controller):
         """Set the hardware controller this MRC should use.
@@ -63,8 +67,8 @@ class MRC(bm.MRC):
     def get_connection(self):
         return self.controller.connection
 
-    def connect(self):
-        ret = self.controller.connect()
+    def connect(self, timeout_ms=DEFAULT_CONNECT_TIMEOUT_MS):
+        ret = self.controller.connect(timeout_ms)
         self.set_connecting(ret)
         return ret
 
@@ -125,20 +129,9 @@ class MRC(bm.MRC):
             self._polling = on_off
             self.polling_changed.emit(on_off)
 
-    def has_address_conflict(self):
-        return self._address_conflict
-
-    def set_address_conflict(self, conflict):
-        conflict = bool(conflict)
-        if self.address_conflict != conflict:
-            self._address_conflict = conflict
-            self.address_conflict_changed.emit(self.address_conflict)
-
     connection  = pyqtProperty(object, get_connection)
     controller  = pyqtProperty(object, get_controller, set_controller)
     polling     = pyqtProperty(bool, should_poll, set_polling, notify=polling_changed)
-    address_conflict = pyqtProperty(bool, has_address_conflict, set_address_conflict,
-            notify=address_conflict_changed)
 
 class Device(bm.Device):
     connected                   = pyqtSignal()
@@ -158,9 +151,13 @@ class Device(bm.Device):
         self._polling = True
 
     def _read_parameter(self, address):
+        if self.address_conflict:
+            raise AddressConflict()
         return self.mrc.read_parameter(self.bus, self.address, address)
 
     def _set_parameter(self, address, value):
+        if self.address_conflict:
+            raise AddressConflict()
         return self.mrc.set_parameter(self.bus, self.address, address, value)
 
     def get_controller(self):
@@ -189,6 +186,8 @@ class Device(bm.Device):
         """Sends a ON/OFF command to the MRC.
         On successful command execution the local RC flag is updated.
         """
+        if self.address_conflict:
+            raise AddressConflict()
 
         def on_rc_set(f):
             if f.exception() is None:
