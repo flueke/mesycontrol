@@ -225,6 +225,8 @@ class Device(AppObject):
         self.config_set.connect(self._update_idc_conflict)
         self._update_idc_conflict()
 
+        self._config_applied = False
+
     def get_mrc(self):
         return None if self._mrc is None else self._mrc()
 
@@ -265,6 +267,10 @@ class Device(AppObject):
         if conflict != self._idc_conflict:
             self._idc_conflict = conflict
             self.idc_conflict_changed.emit(self.idc_conflict)
+
+    def _update_config_applied(self):
+        if self.has_hw and self.has_cfg:
+            # XXX: leftoff
 
     def has_idc_conflict(self):
         return self._idc_conflict
@@ -312,6 +318,7 @@ class Device(AppObject):
     mrc = pyqtProperty(object, get_mrc, set_mrc, notify=mrc_changed)
     idc_conflict = pyqtProperty(bool, has_idc_conflict, notify=idc_conflict_changed)
     profile = pyqtProperty(object, get_profile, set_profile, notify=profile_changed)
+    config_applied = pyqtProperty(bool, is_config_applied, notify=config_applied_changed)
 
 class Director(object):
     def __init__(self, app_registry, device_registry):
