@@ -1,3 +1,98 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# Author: Florian Lüke <florianlueke@gmx.net>
+
+from qt import pyqtSlot
+from qt import Qt
+from qt import QtCore
+
+import future
+import hardware_controller
+import itertools
+import model_util
+import util
+import sys
+
+class GeneratorRunner(QtCore.QObject):
+    def __init__(self, generator=None, parent=None):
+        super(GeneratorRunner, self).__init__(parent)
+
+        self.generator = generator
+        self.log = util.make_logging_source_adapter(__name__, self)
+
+    # Note about using QMetaObject.invokeMethod() in start() and
+    # _future_yielded():
+    #
+    # If the generator yields a Future object that completes immediately a
+    # callback added via add_done_callback() will also be executed immediately.
+    # As the on_done() callback in _future_yielded() calls _next() again the
+    # call stack grows. This can quickly lead to the call stack exceeding its
+    # maximum size.
+    #
+    # To avoid this the call to _next() is queued in the Qt event loop and the
+    # current invocation of _next() can return.
+
+    def start(self):
+        """Start execution of the generator.
+        Requires a running Qt event loop (or calls to processEvents()).
+        Returns a Future that fullfills on generator termination.
+        """
+
+        self._start()
+
+        if self.generator is None:
+            raise RuntimeError("No generator function set")
+
+        self.arg    = None
+        self.result = future.Future()
+
+        QtCore.QMetaObject.invokeMethod(self, "_next", Qt.QueuedConnection)
+
+        return self.result
+
+    def close(self):
+        if self.generator is None:
+            raise RuntimeError("No generator function set")
+
+        self.generator.close()
+
+    @pyqtSlot()
+    def _next(self):
+        while True:
+            try:
+                obj = self.generator.send(self.arg)
+
+                if isinstance(obj, future.Future):
+                    if self._future_yielded(obj):
+                        return
+
+                elif isinstance(obj, ProgressUpdate):
+                    self._progress_update(obj)
+
+                else:
+                    self.arg, do_return = self._object_yielded(obj)
+                    if do_return:
+                        return
+
+            except StopIteration:
+                self._stop_iteration()
+                return
+
+            except Exception as e:
+                try:
+                    self._exception(e)
+                except Exception as e:
+                    self.result.set_exception(e)
+                    self.generator.close()
+                    self.log.exception("Generator")
+                    return
+
+    def _start(self):
+        """Called right before starting the generator. Use for initialization
+        if needed."""
+        pass
+
+    def _future_yielded(self, f):
         """Handles the case where the generator yields a Future object.
         The default action is to wait for the future to complete and then send
         the future back into the generator.
@@ -10,6 +105,9 @@
         return True
 
     def _progress_update(self, progress):
+        """Handles the case where the generator yields a ProgressUpdate. The
+        default is to update the results progress.
+        """
         self.result.set_progress_range(0, progress.total)
         self.result.set_progress(progress.current)
         self.result.set_progress_text(progress.text)
@@ -21,14 +119,14 @@
 
     def _stop_iteration(self):
         """Called on encountering a StopIteration exception. The default is to
-        set the result futures value to True."""
+        set the results value to True."""
         if not self.result.done():
             self.result.set_result(True)
 
     def _exception(self, e):
-        """Called on encountering an exception other than StopIteration.  If
-        the exception is an instance of Aborted the result futures value will
-        be set to False. Otherwise the exception is reraised with the original
+        """Called on encountering an exception other than StopIteration. If the
+        exception is an instance of Aborted the result futures value will be
+        set to False. Otherwise the exception is reraised with the original
         traceback."""
         if isinstance(e, Aborted):
             self.result.set_result(False)
@@ -36,8 +134,6 @@
             raise e, None, sys.exc_info()[2]
 
 class ProgressUpdate(object):
-    __slots__ = ['current', 'total', 'text']
-
     def __init__(self, current, total, text=str()):
         self.current = current
         self.total   = total
@@ -208,7 +304,12 @@ def apply_device_config(source, dest, device_profile):
         pass
 
 def establish_connections(setup, hardware_registry):
+    progress = ProgressUpdate(current=0, total=len(setup))
+
     for cfg_mrc in setup:
+        progress.text = "Connecting to %s" % cfg_mrc.get_display_url()
+        yield progress
+
         hw_mrc = hardware_registry.get_mrc(cfg_mrc.url)
 
         if hw_mrc is None:
@@ -243,17 +344,34 @@ def establish_connections(setup, hardware_registry):
             if action == ACTION_SKIP:
                 continue
 
-        yield hw_mrc.scanbus(0)
-        yield hw_mrc.scanbus(1)
+        if hw_mrc.is_connected():
+            yield hw_mrc.scanbus(0)
+            yield hw_mrc.scanbus(1)
+
+        progress.increment()
 
 def connect_and_apply_setup(setup, hw_registry, device_registry):
+    # MRCs to connect + device configs to apply
+    total_progress = len(setup) + sum(len(mrc) for mrc in setup)
+    progress       = ProgressUpdate(current=0, total=total_progress)
+    progress.text  = "Establishing MRC connections"
+
+    yield progress
+
     gen = establish_connections(setup, hw_registry)
     arg = None
 
     while True:
         try:
             obj = gen.send(arg)
-            arg = yield obj
+
+            if isinstance(obj, ProgressUpdate):
+                progress.text = obj.text
+                yield progress.increment()
+                arg = None
+            else:
+                arg = yield obj
+
         except StopIteration:
             # From inside the generator
             break
@@ -268,7 +386,18 @@ def connect_and_apply_setup(setup, hw_registry, device_registry):
     while True:
         try:
             obj = gen.send(arg)
-            arg = yield obj
+
+            if isinstance(obj, ProgressUpdate):
+                progress.current = len(setup) + obj.current
+
+                if hasattr(obj, 'subprogress'):
+                    progress.subprogress = obj.subprogress
+
+                yield progress
+                arg = None
+            else:
+                arg = yield obj
+
         except StopIteration:
             break
         except GeneratorExit:
@@ -276,6 +405,8 @@ def connect_and_apply_setup(setup, hw_registry, device_registry):
             return
 
 def apply_setup(source, dest, device_registry):
+    progress = ProgressUpdate(current=0, total=sum(len(mrc) for mrc in source))
+    progress.subprogress = ProgressUpdate(current=0, total=0)
 
     def _apply_device_config(src_dev, dest_mrc):
         action = ACTION_RETRY
@@ -303,7 +434,14 @@ def apply_setup(source, dest, device_registry):
         while True:
             try:
                 obj = gen.send(arg)
-                arg = yield obj
+
+                if isinstance(obj, ProgressUpdate):
+                    progress.subprogress = obj
+                    yield progress
+                    arg = None
+                else:
+                    arg = yield obj
+
             except StopIteration:
                 break
             except GeneratorExit:
@@ -357,6 +495,8 @@ def apply_setup(source, dest, device_registry):
 
                         if action == ACTION_ABORT:
                             raise Aborted()
+
+            yield progress.increment()
 
     for src_mrc in source:
         gen = _apply_mrc_config(src_mrc)

@@ -199,6 +199,7 @@ class MRC(AppObject):
 class Device(AppObject):
     mrc_changed = pyqtSignal(object)
     idc_conflict_changed = pyqtSignal(bool)
+    profile_changed = pyqtSignal(object)
 
     def __init__(self, bus, address, mrc=None, hw_device=None, cfg_device=None, profile=None, parent=None):
         self.bus        = int(bus)
@@ -214,7 +215,10 @@ class Device(AppObject):
 
         self._mrc       = None
         self.mrc        = mrc
+
+        self._profile   = None
         self.profile    = profile
+
         self._idc_conflict = False
 
         self.hardware_set.connect(self._update_idc_conflict)
@@ -228,6 +232,26 @@ class Device(AppObject):
         if self.mrc != mrc:
             self._mrc = None if mrc is None else weakref.ref(mrc)
             self.mrc_changed.emit(self.mrc)
+            return True
+
+        return False
+
+    def get_profile(self):
+        return self._profile
+
+    def set_profile(self, profile):
+        if self.profile != profile:
+
+            old_name = self.profile.name if self.profile is not None else str()
+            old_idc  = self.profile.idc  if self.profile is not None else -1
+            new_name = profile.name if profile is not None else str()
+            new_idc  = profile.idc if profile is not None else -1
+
+            self.log.debug("profile changed: old=%s (%d), new=%s (%d)",
+                    old_name, old_idc, new_name, new_idc)
+
+            self._profile = profile
+            self.profile_changed.emit(self.profile)
             return True
 
         return False
@@ -287,6 +311,7 @@ class Device(AppObject):
 
     mrc = pyqtProperty(object, get_mrc, set_mrc, notify=mrc_changed)
     idc_conflict = pyqtProperty(bool, has_idc_conflict, notify=idc_conflict_changed)
+    profile = pyqtProperty(object, get_profile, set_profile, notify=profile_changed)
 
 class Director(object):
     def __init__(self, app_registry, device_registry):
@@ -307,6 +332,16 @@ class Director(object):
         profile = self.device_registry.get_profile(idc)
 
         return Device(bus=bus, address=address, hw_device=hw_device, cfg_device=cfg_device, profile=profile)
+
+    def _maybe_update_device_profile(self, app_device):
+        hw  = app_device.hw
+        cfg = app_device.cfg
+        p   = app_device.profile
+
+        idc = hw.idc if hw is not None else cfg.idc
+
+        if p.idc != idc:
+            app_device.profile = self.device_registry.get_profile(idc)
 
     # hardware side
     def _hw_registry_set(self, app_registry, old_hw_reg, new_hw_reg):
@@ -361,6 +396,7 @@ class Director(object):
             app_mrc.add_device(app_device)
         else:
             app_device.hw = device
+            self._maybe_update_device_profile(app_device)
 
     def _hw_device_about_to_be_removed(self, device):
         self.log.debug("_hw_device_about_to_be_removed: device=%s", device)
@@ -369,6 +405,8 @@ class Director(object):
         app_device.hw = None
         if app_device.cfg is None:
             app_mrc.remove_device(app_device)
+        else:
+            self._maybe_update_device_profile(app_device)
 
     # config side
     def _cfg_registry_set(self, app_registry, old_cfg_reg, new_cfg_reg):
@@ -423,6 +461,7 @@ class Director(object):
             app_mrc.add_device(app_device)
         else:
             app_device.cfg = device
+            self._maybe_update_device_profile(app_device)
 
     def _cfg_device_about_to_be_removed(self, device):
         self.log.debug("_cfg_device_about_to_be_removed: device=%s", device)
@@ -431,3 +470,5 @@ class Director(object):
         app_device.cfg = None
         if app_device.hw is None:
             app_mrc.remove_device(app_device)
+        else:
+            self._maybe_update_device_profile(app_device)

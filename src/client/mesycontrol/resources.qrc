@@ -43,5 +43,6 @@
     <file>ui/mscf16_channel_settings.ui</file>
     <file>ui/mscf16_global_settings.ui</file>
     <file>ui/mscf16_panel.ui</file>
+    <file>ui/subprogress_widget.ui</file>
 </qresource>
 </RCC>

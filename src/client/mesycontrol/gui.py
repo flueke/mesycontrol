@@ -447,18 +447,20 @@ class GUIApplication(QtCore.QObject):
                     def apply_setup():
                         runner = config_gui.ApplySetupRunner(source=setup, dest=node.ref.hw,
                                 device_registry=self.context.device_registry, parent_widget=self.treeview)
-                        f  = runner.start()
-                        fo = future.FutureObserver(f)
-                        pd = QtGui.QProgressDialog()
-                        pd.setAutoClose(False)
 
-                        fo.progress_range_changed.connect(pd.setRange)
-                        fo.progress_changed.connect(pd.setValue)
-                        fo.progress_text_changed.connect(pd.setLabelText)
+                        pd = config_gui.SubProgressDialog()
+
+                        runner.progress_changed.connect(pd.set_progress)
+                        pd.canceled.connect(runner.close)
+
+                        f = runner.start()
+                        fo = future.FutureObserver(f)
                         fo.done.connect(pd.close)
+
                         pd.exec_()
-                        if f.exception() is not None:
-                            log.error("apply_config: %s", f.exception())
+
+                        if f.done() and f.exception() is not None:
+                            log.error("apply_setup: %s", f.exception())
                             QtGui.QMessageBox.critical(view, "Error", str(f.exception()))
 
                     menu.addAction("Apply setup").triggered.connect(apply_setup)

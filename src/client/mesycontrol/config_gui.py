@@ -3,6 +3,7 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 from qt import QtGui
+from qt import pyqtSignal
 
 import config_util
 import hardware_controller
@@ -22,7 +23,43 @@ def std_button_to_cfg_action(button):
 
     raise ValueError("unknown button")
 
+class SubProgressDialog(QtGui.QDialog):
+    canceled = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super(SubProgressDialog, self).__init__(parent)
+        util.loadUi(":/ui/subprogress_widget.ui", self)
+        self.cancel_button.clicked.connect(self.cancel)
+        self._reset()
+
+    def _reset(self):
+        for label in (self.progress_label, self.subprogress_label):
+            label.setText(str())
+
+        for bar in (self.progressbar, self.subprogressbar):
+            bar.setMinimum(0)
+            bar.setMaximum(100)
+            bar.setValue(0)
+
+    def set_progress(self, progress):
+        self.progress_label.setText(progress.text)
+        self.progressbar.setMaximum(progress.total)
+        self.progressbar.setValue(progress.current)
+
+        if hasattr(progress, 'subprogress'):
+            subprogress = progress.subprogress
+            self.subprogress_label.setText(subprogress.text)
+            self.subprogressbar.setMaximum(subprogress.total)
+            self.subprogressbar.setValue(subprogress.current)
+
+    def cancel(self):
+        self.hide()
+        self._reset()
+        self.canceled.emit()
+
 class ApplySetupRunner(config_util.GeneratorRunner):
+    progress_changed = pyqtSignal(object)
+
     def __init__(self, source, dest, device_registry, parent_widget, parent=None):
         super(config_util.GeneratorRunner, self).__init__(parent=parent)
         self.log = util.make_logging_source_adapter(__name__, self)
@@ -68,6 +105,10 @@ class ApplySetupRunner(config_util.GeneratorRunner):
             return (std_button_to_cfg_action(answer), False)
 
         raise ValueError("unhandled object: %s" % obj)
+
+    def _progress_update(self, progress):
+        super(ApplySetupRunner, self)._progress_update(progress)
+        self.progress_changed.emit(progress)
 
 class ApplyDeviceConfigRunner(config_util.GeneratorRunner):
     def __init__(self, source, dest, device_profile, parent=None):

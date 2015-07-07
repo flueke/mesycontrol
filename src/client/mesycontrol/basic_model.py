@@ -127,6 +127,9 @@ class MRC(QtCore.QObject):
             return list(self._devices)
         return [d for d in self._devices if d.bus == bus]
 
+    def __len__(self):
+        return len(self._devices)
+
     def __iter__(self):
         return iter(self._devices)
 
