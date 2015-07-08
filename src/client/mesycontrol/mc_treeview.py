@@ -544,10 +544,23 @@ class MCTreeItemDelegate(QtGui.QStyledItemDelegate):
 
         if (option.state & QtGui.QStyle.State_Selected
                 and isinstance(node, (ctm.DeviceNode, htm.DeviceNode))
-                and node.ref.idc_conflict
                 and self.director.linked_mode):
-            # Change the color for selected device nodes with an idc conflict.
-            option.palette.setColor(QtGui.QPalette.Highlight, QtGui.QColor('darkRed'))
+
+            device = node.ref
+            color  = None
+
+            if device.idc_conflict:
+                color = QtGui.QColor('darkRed')
+
+            elif device.has_hw and device.has_cfg:
+
+                if device.hw.is_connected() and device.config_applied:
+                    color = QtGui.QColor('darkGreen')
+                else:
+                    color = QtGui.QColor('darkOrange')
+
+            if color is not None:
+                option.palette.setColor(QtGui.QPalette.Highlight, color)
 
         super(MCTreeItemDelegate, self).paint(painter, option, index)
 

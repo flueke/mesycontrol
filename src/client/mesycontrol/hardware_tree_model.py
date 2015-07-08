@@ -111,6 +111,8 @@ class BusNode(btm.BasicTreeNode):
 class DeviceNode(HardwareTreeNode):
     def __init__(self, device, parent=None):
         super(DeviceNode, self).__init__(ref=device, parent=parent)
+        device.idc_conflict_changed.connect(self.notify_all_columns_changed)
+        device.config_applied_changed.connect(self.notify_all_columns_changed)
 
     def _on_hardware_set(self, app_device, old_device, new_device):
         signals = ['connected', 'connecting', 'disconnected', 'connection_error',
@@ -186,8 +188,16 @@ class DeviceNode(HardwareTreeNode):
         if role == Qt.BackgroundRole:
             if hw is not None and hw.address_conflict:
                 return QtGui.QColor('red')
-            if device.idc_conflict and self.model.linked_mode:
+
+        if role == Qt.BackgroundRole and self.model.linked_mode:
+            if device.idc_conflict:
                 return QtGui.QColor('red')
+
+            if device.has_hw and device.has_cfg:
+                if device.hw.is_connected() and device.config_applied:
+                    return QtGui.QColor('green')
+                else:
+                    return QtGui.QColor('orange')
 
     def set_data(self, column, value, role):
         if role == Qt.EditRole and column == COL_RC:

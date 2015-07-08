@@ -134,6 +134,8 @@ class BusNode(btm.BasicTreeNode):
 class DeviceNode(ConfigTreeNode):
     def __init__(self, device, parent=None):
         super(DeviceNode, self).__init__(ref=device, parent=parent)
+        device.idc_conflict_changed.connect(self.notify_all_columns_changed)
+        device.config_applied_changed.connect(self.notify_all_columns_changed)
 
     def _on_config_set(self, app_device, old_device, new_device):
         if old_device is not None:
@@ -178,9 +180,15 @@ class DeviceNode(ConfigTreeNode):
         if column == 0 and role == Qt.EditRole:
             return self.ref.cfg.name
 
-        if column == 0 and role == Qt.BackgroundRole:
-            if device.idc_conflict and self.model.linked_mode:
+        if role == Qt.BackgroundRole and self.model.linked_mode:
+            if device.idc_conflict:
                 return QtGui.QColor('red')
+
+            if device.has_hw and device.has_cfg:
+                if device.hw.is_connected() and device.config_applied:
+                    return QtGui.QColor('green')
+                else:
+                    return QtGui.QColor('orange')
 
     def set_data(self, column, value, role):
         if role == Qt.EditRole and column == 0:
