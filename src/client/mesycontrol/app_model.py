@@ -194,12 +194,12 @@ class MRC(AppObject):
     url     = pyqtProperty(str, get_url)
     devices = pyqtProperty(list, get_devices)
     mrc_registry = pyqtProperty(object, get_mrc_registry, set_mrc_registry, notify=mrc_registry_changed)
-    
 
 class Device(AppObject):
-    mrc_changed = pyqtSignal(object)
-    idc_conflict_changed = pyqtSignal(bool)
-    profile_changed = pyqtSignal(object)
+    mrc_changed             = pyqtSignal(object)
+    profile_changed         = pyqtSignal(object)
+    idc_conflict_changed    = pyqtSignal(bool)
+    config_applied_changed  = pyqtSignal(bool)
 
     def __init__(self, bus, address, mrc=None, hw_device=None, cfg_device=None, profile=None, parent=None):
         self.bus        = int(bus)
@@ -213,19 +213,48 @@ class Device(AppObject):
 
         super(Device, self).__init__(hardware=hw_device, config=cfg_device, parent=parent)
 
-        self._mrc       = None
-        self.mrc        = mrc
+        self._mrc               = None
+        self._profile           = None
+        self._idc_conflict      = False # Set by _update_idc_conflict()
+        self._config_applied    = False # Set by _update_config_applied()
+        self._config_addresses  = set() # Filled by set_profile()
 
-        self._profile   = None
+        self.mrc        = mrc
         self.profile    = profile
 
-        self._idc_conflict = False
+        self.hardware_set.connect(self._on_hardware_set)
+        self.config_set.connect(self._on_config_set)
+        self.profile_changed.connect(self._update_config_applied)
+        self.idc_conflict_changed.connect(self._update_config_applied)
 
-        self.hardware_set.connect(self._update_idc_conflict)
-        self.config_set.connect(self._update_idc_conflict)
         self._update_idc_conflict()
+        self._update_config_applied()
+        self._on_hardware_set(self, None, hw_device)
+        self._on_config_set(self, None, cfg_device)
 
-        self._config_applied = False
+    def _on_hardware_set(self, app_model, old_hw, new_hw):
+        self._update_idc_conflict()
+        self._update_config_applied()
+
+        if old_hw is not None:
+            old_hw.parameter_changed.disconnect(self._update_config_applied)
+            old_hw.memory_cleared.disconnect(self._update_config_applied)
+
+        if new_hw is not None:
+            new_hw.parameter_changed.connect(self._update_config_applied)
+            new_hw.memory_cleared.connect(self._update_config_applied)
+
+    def _on_config_set(self, app_model, old_cfg, new_cfg):
+        self._update_idc_conflict()
+        self._update_config_applied()
+
+        if old_cfg is not None:
+            old_cfg.parameter_changed.disconnect(self._update_config_applied)
+            old_cfg.memory_cleared.disconnect(self._update_config_applied)
+
+        if new_cfg is not None:
+            new_cfg.parameter_changed.connect(self._update_config_applied)
+            new_cfg.memory_cleared.connect(self._update_config_applied)
 
     def get_mrc(self):
         return None if self._mrc is None else self._mrc()
@@ -243,7 +272,6 @@ class Device(AppObject):
 
     def set_profile(self, profile):
         if self.profile != profile:
-
             old_name = self.profile.name if self.profile is not None else str()
             old_idc  = self.profile.idc  if self.profile is not None else -1
             new_name = profile.name if profile is not None else str()
@@ -253,6 +281,12 @@ class Device(AppObject):
                     old_name, old_idc, new_name, new_idc)
 
             self._profile = profile
+
+            if profile is not None:
+                # Cache of the config parameter addresses used to speed up _update_config_applied().
+                self._config_addresses = set([p.address for p in self.profile.get_config_parameters()])
+                self.log.debug("profile changed: config addresses=%s", self._config_addresses)
+
             self.profile_changed.emit(self.profile)
             return True
 
@@ -264,16 +298,40 @@ class Device(AppObject):
 
     def _update_idc_conflict(self):
         conflict = self.has_hw and self.has_cfg and self.hw.idc != self.cfg.idc
+
         if conflict != self._idc_conflict:
             self._idc_conflict = conflict
+            self.log("%s: idc conflict=%s", self, conflict)
             self.idc_conflict_changed.emit(self.idc_conflict)
 
-    def _update_config_applied(self):
-        if self.has_hw and self.has_cfg:
-            # XXX: leftoff
-
     def has_idc_conflict(self):
+        """True if hardware and config IDCs differ."""
         return self._idc_conflict
+
+    def _update_config_applied(self):
+        old_state = self.is_config_applied()
+        new_state = False
+
+        if not self.has_idc_conflict() and self.has_hw and self.has_cfg:
+            hw_mem  = self.hw.get_cached_memory_ref()
+            cfg_mem = self.cfg.get_cached_memory_ref()
+
+            try:
+                self.log.debug("_update_config_applied: addresses=%s", self._config_addresses)
+                new_state = all((hw_mem[k] == cfg_mem[k] for k in self._config_addresses))
+            except KeyError:
+                self.log.debug("_update_config_applied: Key(s) missing from mem cache")
+                pass
+
+        if new_state != old_state:
+            self._config_applied = new_state
+            self.config_applied_changed.emit(new_state)
+
+        self.log.debug("%s: config_applied=%s", self, new_state)
+
+    def is_config_applied(self):
+        """True if hardware and config values are equal."""
+        return self._config_applied
 
     def create_config(self, name=str(), init_from_hardware=False, create_mrc_config=True):
         """Creates a config for this device.
@@ -321,6 +379,10 @@ class Device(AppObject):
     config_applied = pyqtProperty(bool, is_config_applied, notify=config_applied_changed)
 
 class Director(object):
+    """Manages the app_model tree.
+    Subscribes to changes to both the hardware and config trees and updates the
+    app_model tree.
+    """
     def __init__(self, app_registry, device_registry):
         self.log                = util.make_logging_source_adapter(__name__, self)
         self.registry           = app_registry
@@ -348,9 +410,13 @@ class Director(object):
         idc = hw.idc if hw is not None else cfg.idc
 
         if p.idc != idc:
+            self.log.debug("updating profile for (%s, %d, %d); old_idc=%d, new_idc=%d",
+                    app_device.mrc.get_display_url(), app_device.bus, app_device.address,
+                    p.idc, idc)
+
             app_device.profile = self.device_registry.get_profile(idc)
 
-    # hardware side
+    # ===== hardware side =====
     def _hw_registry_set(self, app_registry, old_hw_reg, new_hw_reg):
         if old_hw_reg is not None:
             old_hw_reg.mrc_added.disconnect(self._hw_mrc_added)
@@ -415,7 +481,7 @@ class Director(object):
         else:
             self._maybe_update_device_profile(app_device)
 
-    # config side
+    # ===== config side =====
     def _cfg_registry_set(self, app_registry, old_cfg_reg, new_cfg_reg):
         if old_cfg_reg is not None:
             old_cfg_reg.mrc_added.disconnect(self._cfg_mrc_added)

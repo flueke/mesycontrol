@@ -239,6 +239,10 @@ class DeviceProfile(object):
     def get_non_critical_parameters(self):
         return filter(lambda p: not p.critical, self.parameters)
 
+    def get_config_parameters(self):
+        predicate = lambda p: not p.read_only and not p.do_not_store
+        return filter(predicate, self.parameters)
+
     def get_non_critical_config_parameters(self):
         predicate = lambda p: not p.critical and not p.read_only and not p.do_not_store
         return filter(predicate, self.parameters)

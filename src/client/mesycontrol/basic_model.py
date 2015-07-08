@@ -345,8 +345,12 @@ class Device(QtCore.QObject):
         return address in self._memory
 
     def get_cached_memory(self):
-        """Returns the memory cache in the form of a dict."""
+        """Returns a copy of the memory cache in the form of a dict."""
         return dict(self._memory)
+
+    def get_cached_memory_ref(self):
+        """Returns a reference to the memory cache (a dictionary)."""
+        return self._memory
 
     def clear_cached_memory(self):
         """Clears the memory cache.
