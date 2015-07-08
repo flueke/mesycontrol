@@ -373,6 +373,7 @@ class GUIApplication(QtCore.QObject):
             return
         self._linked_mode = linked_mode
 
+        # TODO: linked mode transition
         if linked_mode:
             # transition to linked_mode
             # for each DeviceTableWidget: set its mode to linked mode

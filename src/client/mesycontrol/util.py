@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
+
+from pyqtgraph.SignalProxy import SignalProxy
+
 from qt import QtCore
 from qt import QtGui
 from qt import pyqtProperty
@@ -15,6 +18,7 @@ import contextlib
 import collections
 import gc
 import logging
+import math
 import os
 import sys
 import weakref
@@ -602,9 +606,33 @@ class OrderedSet(collections.MutableSet):
         return set(self) == set(other)
 
 def loadUi(filename, baseinstance=None, package='', resource_suffix=''):
-    """This version of PyQts loadUi() adds support for loading from resource
-    files."""
+    """This version of PyQts uic.loadUi() adds support for loading from
+    resource files."""
     f = QtCore.QFile(filename)
     if not f.open(QtCore.QIODevice.ReadOnly | QtCore.QIODevice.Text):
         raise RuntimeError(str(f.errorString()))
     return uic.loadUi(f, baseinstance, package, resource_suffix)
+
+class ChannelGroupHelper(object):
+    def __init__(self, num_channels, num_groups):
+        self.num_channels = num_channels
+        self.num_groups   = num_groups
+
+    def channels_per_group(self):
+        return self.num_channels / self.num_groups
+
+    def group_channel_range(self, group_num):
+        return xrange(group_num * self.channels_per_group(),
+                (group_num + 1) * self.channels_per_group())
+
+    def channel_to_group(self, channel_num):
+        return int(math.floor(channel_num / self.channels_per_group()))
+
+class DelayedSpinBox(QtGui.QSpinBox):
+    delayed_valueChanged = pyqtSignal(object)
+
+    def __init__(self, delay=0.5, parent=None):
+        super(DelayedSpinBox, self).__init__(parent)
+        self.proxy = SignalProxy(signal=self.valueChanged,
+                slot=self.delayed_valueChanged,
+                delay=delay)

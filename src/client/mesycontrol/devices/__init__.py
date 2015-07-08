@@ -5,7 +5,7 @@
 device_modules = [
     'mcfd16',
     'mhv4' ,
-    'mscf16',
+    'mscf16_ng',
     'stm16',
     ]
 
