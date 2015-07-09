@@ -17,9 +17,6 @@ These objects merge the hardware and the config models together.
 MRC objects are identified by URL, Device objects by (bus, address).
 """
 
-# FIXME: Device.profile does not match hw.profile or cfg.profile after opening
-# and closing setups!
-
 class AppObject(QtCore.QObject):
     hardware_set = pyqtSignal(object, object, object) #: self, old, new
     config_set   = pyqtSignal(object, object, object) #: self, old, new
@@ -178,7 +175,7 @@ class MRC(AppObject):
 
     def create_config(self):
         if self.cfg is not None:
-            raise RuntimeError("device config exists")
+            raise RuntimeError("MRC config exists")
 
         self.mrc_registry.cfg.add_mrc(cm.MRC(self.url))
 
@@ -199,7 +196,7 @@ class Device(AppObject):
     mrc_changed             = pyqtSignal(object)
     profile_changed         = pyqtSignal(object)
     idc_conflict_changed    = pyqtSignal(bool)
-    config_applied_changed  = pyqtSignal(bool)
+    config_applied_changed  = pyqtSignal(object)
 
     def __init__(self, bus, address, mrc=None, hw_device=None, cfg_device=None, profile=None, parent=None):
         self.bus        = int(bus)
@@ -366,7 +363,7 @@ class Device(AppObject):
                     value = self.hw.get_cached_parameter(pp.address)
                     cfg.set_parameter(pp.address, value)
 
-        if not self.mrc.cfg:
+        if self.mrc.cfg is None:
             self.mrc.create_config()
 
         self.mrc.cfg.add_device(cfg)

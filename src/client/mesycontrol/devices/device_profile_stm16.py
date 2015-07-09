@@ -37,5 +37,9 @@ profile_dict = {
             { 'address':  27, 'name': 'threshold_channel13' , 'index': 13,  'range': (0, 255), 'units': [threshold_percent] },
             { 'address':  29, 'name': 'threshold_channel14' , 'index': 14,  'range': (0, 255), 'units': [threshold_percent] },
             { 'address':  31, 'name': 'threshold_channel15' , 'index': 15,  'range': (0, 255), 'units': [threshold_percent] },
-            ]
+            ],
+
+        'extensions': [
+            { 'name': 'gain_adjust', 'value': 1 }
+            ],
 }

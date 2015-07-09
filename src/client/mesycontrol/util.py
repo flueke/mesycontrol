@@ -633,6 +633,21 @@ class DelayedSpinBox(QtGui.QSpinBox):
 
     def __init__(self, delay=0.5, parent=None):
         super(DelayedSpinBox, self).__init__(parent)
+
+        def delayed_slt():
+            self.delayed_valueChanged.emit(self.value())
+
         self.proxy = SignalProxy(signal=self.valueChanged,
-                slot=self.delayed_valueChanged,
-                delay=delay)
+                slot=delayed_slt, delay=delay)
+
+class DelayedDoubleSpinBox(QtGui.QDoubleSpinBox):
+    delayed_valueChanged = pyqtSignal(object)
+
+    def __init__(self, delay=0.5, parent=None):
+        super(DelayedDoubleSpinBox, self).__init__(parent)
+
+        def delayed_slt():
+            self.delayed_valueChanged.emit(self.value())
+
+        self.proxy = SignalProxy(signal=self.valueChanged,
+                slot=delayed_slt, delay=delay)

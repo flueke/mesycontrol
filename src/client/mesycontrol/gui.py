@@ -26,10 +26,12 @@ import config_gui
 import config_model as cm
 import config_tree_model as ctm
 import config_xml
+import device as dev
 import device_tableview
 import future
 import hardware_tree_model as htm
 import log_view
+import parameter_binding
 import resources
 import util
 
@@ -503,6 +505,23 @@ class GUIApplication(QtCore.QObject):
             menu.addAction("Open").triggered.connect(
                     partial(self._show_or_create_device_window,
                         device=device, from_config_side=True, from_hw_side=False))
+
+            def open_widget(app_device, from_config_side, from_hw_side):
+                #device = dev.Device(app_device, dev.READ_CFG, dev.WRITE_CFG)
+                cls = self.context.device_registry.get_device_class(app_device.cfg.idc)
+                print "device class:", cls
+                device = cls(app_device, dev.READ_CFG, dev.WRITE_CFG)
+                ui_cls = self.context.device_registry.get_device_ui_class(app_device.cfg.idc)
+                print "ui class:", ui_cls
+                widget = ui_cls(device, parameter_binding.DISPLAY_CFG , device.write_mode)
+                subwin = QtGui.QMdiSubWindow()
+                subwin.setWidget(widget)
+                subwin.setAttribute(Qt.WA_DeleteOnClose)
+                self.mainwindow.mdiArea.addSubWindow(subwin)
+                subwin.show()
+
+            menu.addAction("Open Widget").triggered.connect(partial(
+                open_widget, app_device=device, from_config_side=True, from_hw_side=False))
 
             def load_device_config():
                 app_device = device
