@@ -185,8 +185,13 @@ class MCTCPClient(QtCore.QObject):
             self.log.debug("_start_write_request: request in progress")
             return
 
-        request, future = self._current_request = self._queue.pop(False) # FIFO order
-        self.queue_size_changed.emit(len(self._queue))
+        while len(self._queue):
+            request, future = self._current_request = self._queue.pop(False) # FIFO order
+            self.queue_size_changed.emit(len(self._queue))
+
+            if future.set_running_or_notify_cancel():
+                break
+
         data = request.serialize()
         data = struct.pack('!H', len(data)) + data # prepend message size
         self.log.debug("_start_write_request: writing %s (len=%d)", request, len(data))

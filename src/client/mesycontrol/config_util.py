@@ -9,9 +9,12 @@ from qt import QtCore
 import future
 import hardware_controller
 import itertools
+import logging
 import model_util
 import util
 import sys
+
+log = logging.getLogger(__name__)
 
 class GeneratorRunner(QtCore.QObject):
     def __init__(self, generator=None, parent=None):
@@ -177,7 +180,37 @@ def apply_device_config(source, dest, device_profile):
     """Apply device config operation in the form of a generator.
     Yields Futures and ProgressUpdates. Raises StopIteration on completion.
     """
+    if source.idc != dest.idc:
+        raise IDCConflict(
+                "IDCConflict: mrc=%s, bus=%d, dev=%d, src-idc=%d, dest-idc=%d" %
+                (source.mrc.get_display_url(), source.bus, source.address,
+                    source.idc, dest.idc))
 
+    if source.idc != device_profile.idc:
+        raise IDCConflict(
+                "IDCConflict: mrc=%s, bus=%d, dev=%d, src-idc=%d, profile-idc=%d" %
+                (source.mrc.get_display_url(), source.bus, source.address,
+                    source.idc, device_profile.idc))
+
+    # TODO: call device specific code to determine which parameters to set and
+    # which ones to skip
+    non_criticals   = device_profile.get_non_critical_config_parameters()
+    criticals       = device_profile.get_critical_parameters()
+
+    gen = apply_parameters(source, dest, criticals, non_criticals)
+    arg = None
+
+    while True:
+        try:
+            obj = gen.send(arg)
+            arg = yield obj
+        except StopIteration:
+            break
+        except GeneratorExit:
+            gen.close()
+            return
+
+def apply_parameters(source, dest, criticals, non_criticals):
     def check_idcs():
         if source.idc != dest.idc:
             raise IDCConflict(
@@ -185,123 +218,160 @@ def apply_device_config(source, dest, device_profile):
                     (source.mrc.get_display_url(), source.bus, source.address,
                         source.idc, dest.idc))
 
-        if source.idc != device_profile.idc:
-            raise IDCConflict(
-                    "IDCConflict: mrc=%s, bus=%d, dev=%d, src-idc=%d, profile-idc=%d" %
-                    (source.mrc.get_display_url(), source.bus, source.address,
-                        source.idc, device_profile.idc))
+    check_idcs()
+    values = dict()
 
-    try:
+    # Get available parameters directly from the sources cache. This is
+    # mostly to smoothen progress updates as otherwise, if all parameters
+    # are in the sources cache, progress would jump to around 50%
+    # instantly.
+    
+    for pp in itertools.chain(non_criticals, criticals):
+        if source.has_cached_parameter(pp.address):
+            values[pp.address] = source.get_cached_parameter(pp.address)
+
+    # number of parameters left to read from source
+    total_progress  = (len(non_criticals) + len(criticals)) - len(values)
+    # number of parameters to be written to dest
+    total_progress += len(non_criticals) + 2 * len(criticals)
+
+    progress      = ProgressUpdate(current=0, total=total_progress)
+    progress.text = ("Reading from source (%s,%d,%d)" %
+            (source.mrc.get_display_url(), source.bus, source.address))
+
+    yield progress
+
+    # Note: The code below executes async operations (get and set
+    # parameter) in bursts instead of queueing one request and waiting for
+    # its future to complete. This way the devices request queue won't be
+    # empty and thus polling won't interfere with our requests.
+
+    futures = list()
+
+    # Read remaining parameters from source.
+    for pp in filter(lambda pp: pp.address not in values,
+            itertools.chain(non_criticals, criticals)):
+
+        futures.append(source.get_parameter(pp.address))
+
+    for f in futures:
+        yield f
         check_idcs()
+        r = f.result()
 
-        non_criticals   = device_profile.get_non_critical_config_parameters()
-        criticals       = device_profile.get_critical_parameters()
-        values          = dict()
+        values[r.address] = r.value
 
-        # Get available parameters directly from the sources cache. This is
-        # mostly to smoothen progress updates as otherwise progress would jump
-        # to around 50% instantly if all parameters are in the sources cache.
+        yield progress.increment()
 
-        for pp in itertools.chain(non_criticals, criticals):
-            if source.has_cached_parameter(pp.address):
-                values[pp.address] = source.get_cached_parameter(pp.address)
+    if len(criticals):
+        progress.text = "Setting critical parameters to safe values"
 
-        # number of parameters left to read from source
-        total_progress  = (len(non_criticals) + len(criticals)) - len(values)
-        # number of parameters to be written to dest
-        total_progress += len(non_criticals) + 2 * len(criticals)
+    futures = list()
 
-        progress      = ProgressUpdate(current=0, total=total_progress)
-        progress.text = "Reading from source"
+    # Set safe values for critical parameters.
+    for pp in criticals:
+        futures.append(dest.set_parameter(pp.address, pp.safe_value))
 
-        yield progress
+    gen = run_set_parameter_futures(futures)
+    arg = None
 
-        # Note: The code below executes async operations (get and set
-        # parameter) in bursts instead of queueing one request and waiting for
-        # its future to complete. This way the devices request queue won't be
-        # empty and thus polling won't interfere with our requests.
-
-        futures = list()
-
-        # Read remaining parameters from source.
-        for pp in filter(lambda pp: pp.address not in values,
-                itertools.chain(non_criticals, criticals)):
-
-            futures.append(source.get_parameter(pp.address))
-
-        for f in futures:
-            yield f
+    while True:
+        try:
             check_idcs()
-            r = f.result()
+            obj = gen.send(arg)
+            arg = yield obj
 
-            values[r.address] = r.value
+            if isinstance(obj, future.Future):
+                yield progress.increment()
+        except StopIteration:
+            break
+        except GeneratorExit:
+            gen.close()
 
-            yield progress.increment()
+    progress.text = ("Writing to destination (%s,%d,%d)" %
+            (dest.mrc.get_display_url(), dest.bus, dest.address))
 
-        if len(criticals):
-            progress.text = "Setting critical parameters to safe values"
+    futures = list()
 
-        futures = list()
+    # Set non-criticals
+    for pp in non_criticals:
+        value = values[pp.address]
+        futures.append(dest.set_parameter(pp.address, value))
 
-        # Set safe values for critical parameters.
-        for pp in criticals:
-            futures.append(dest.set_parameter(pp.address, pp.safe_value))
+    gen = run_set_parameter_futures(futures)
+    arg = None
 
-        for f in futures:
-            f = yield f
+    while True:
+        try:
             check_idcs()
-            r = f.result()
+            obj = gen.send(arg)
+            arg = yield obj
 
+            if isinstance(obj, future.Future):
+                yield progress.increment()
+        except StopIteration:
+            break
+        except GeneratorExit:
+            gen.close()
+
+    if len(criticals):
+        progress.text = ("Writing critical parameters to destination (%s,%d,%d)" %
+            (dest.mrc.get_display_url(), dest.bus, dest.address))
+
+    futures = list()
+
+    # Finally set criticals to their config values
+    for pp in criticals:
+        value = values[pp.address]
+        futures.append(dest.set_parameter(pp.address, value))
+
+    gen = run_set_parameter_futures(futures)
+    arg = None
+
+    while True:
+        try:
+            check_idcs()
+            obj = gen.send(arg)
+            arg = yield obj
+
+            if isinstance(obj, future.Future):
+                yield progress.increment()
+        except StopIteration:
+            break
+        except GeneratorExit:
+            gen.close()
+
+    progress.text = "Parameters applied successfully"
+    yield progress
+
+    raise StopIteration()
+
+def run_set_parameter_futures(futures):
+    log.debug("run_set_parameter_futures: %s", futures)
+    for f in futures:
+        f = yield f
+
+        try:
+            r = f.result()
             if not r:
                 raise SetParameterError(r)
+            log.debug("run_set_parameter_futures: %s done", f)
+        except Exception as e:
+            log.debug("run_set_parameter_futures: yielding %s", e)
+            action = yield e
 
-            yield progress.increment()
+            if action == ACTION_SKIP:
+                log.debug("run_set_parameter_futures: skipping one future")
+                continue
 
-        progress.text = "Writing to destination"
+            if action == ACTION_ABORT:
+                log.debug("run_set_parameter_futures: aborting")
+                for f in futures:
+                    f.cancel()
 
-        futures = list()
+                raise Aborted()
 
-        # Set non-criticals
-        for pp in non_criticals:
-            value = values[pp.address]
-            futures.append(dest.set_parameter(pp.address, value))
-
-        for f in futures:
-            f = yield f
-            check_idcs()
-            r = f.result()
-
-            if not r:
-                raise SetParameterError(r)
-
-            yield progress.increment()
-
-        if len(criticals):
-            progress.text = "Writing critical parameters to destination"
-
-        futures = list()
-
-        # Finally set criticals to their config values
-        for pp in criticals:
-            value = values[pp.address]
-            futures.append(dest.set_parameter(pp.address, value))
-
-        for f in futures:
-            check_idcs()
-            f = yield f
-            r = f.result()
-
-            if not r:
-                raise SetParameterError(r)
-
-            yield progress.increment()
-
-        progress.text = "Config applied successfully"
-        yield progress
-
-        raise StopIteration()
-    finally:
-        pass
+            raise RuntimeError("unhandled action: %s" % action)
 
 def establish_connections(setup, hardware_registry):
     progress = ProgressUpdate(current=0, total=len(setup))

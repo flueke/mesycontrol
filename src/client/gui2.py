@@ -31,9 +31,9 @@ if __name__ == "__main__":
                 format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
         logging.getLogger("mesycontrol.basic_tree_model").setLevel(logging.INFO)
-        logging.getLogger("mesycontrol.future").setLevel(logging.INFO)
+        #logging.getLogger("mesycontrol.future").setLevel(logging.INFO)
         logging.getLogger("mesycontrol.mc_treeview").setLevel(logging.INFO)
-        logging.getLogger("mesycontrol.tcp_client.MCTCPClient").setLevel(logging.INFO)
+        #logging.getLogger("mesycontrol.tcp_client.MCTCPClient").setLevel(logging.INFO)
         logging.getLogger("PyQt4.uic").setLevel(logging.INFO)
 
     logging.info("Starting up...")

@@ -136,11 +136,16 @@ class Controller(object):
             try:
                 ret.set_result(bm.ReadResult(bus, device, address, f.result().response.val))
             except Exception as e:
-                #self.log.exception("read_parameter")
                 ret.set_exception(e)
 
         m = protocol.Message('request_read', bus=bus, dev=device, par=address)
-        self.connection.queue_request(m).add_done_callback(on_response_received)
+        request_future = self.connection.queue_request(m).add_done_callback(on_response_received)
+
+        def cancel_request(f):
+            if f.cancelled():
+                request_future.cancel()
+
+        ret.add_done_callback(cancel_request)
 
         return ret
 
@@ -155,11 +160,16 @@ class Controller(object):
             try:
                 ret.set_result(bm.SetResult(bus, device, address, f.result().response.val, value))
             except Exception as e:
-                #self.log.exception("set_parameter")
                 ret.set_exception(e)
 
         m = protocol.Message('request_set', bus=bus, dev=device, par=address, val=value)
-        self.connection.queue_request(m).add_done_callback(on_response_received)
+        request_future = self.connection.queue_request(m).add_done_callback(on_response_received)
+
+        def cancel_request(f):
+            if f.cancelled():
+                request_future.cancel()
+
+        ret.add_done_callback(cancel_request)
 
         return ret
 

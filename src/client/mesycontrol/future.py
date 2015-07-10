@@ -15,12 +15,20 @@ class IncompleteFuture(RuntimeError):
 class FutureIsDone(RuntimeError):
     pass
 
+class FutureIsRunning(RuntimeError):
+    pass
+
+class CancelledError(RuntimeError):
+    pass
+
 class Future(object):
     def __init__(self):
         self._done = False
         self._result = None
         self._exception = None
         self._exception_observed = False
+        self._running = False
+        self._cancelled = False
         self._callbacks = list()
         self._progress_callbacks = list()
         self._progress_min = 0
@@ -35,12 +43,16 @@ class Future(object):
             logging.getLogger().error("Unobserved exception in Future: %s %s",
                     type(self._exception), self._exception)
 
+    # ===== Client functionality =====
     def done(self):
         return self._done
 
     def result(self):
         if not self.done():
             raise IncompleteFuture(self)
+
+        if self.cancelled():
+            raise CancelledError()
 
         if self._exception is not None:
             self._exception_observed = True
@@ -52,9 +64,55 @@ class Future(object):
         if not self.done():
             raise IncompleteFuture(self)
 
+        if self.cancelled():
+            raise CancelledError()
+
         self._exception_observed = True
         return self._exception
 
+    def cancel(self):
+        if self.done() or self.running():
+            return False
+
+        self._cancelled = True
+        self._set_done()
+        return True
+
+    def cancelled(self):
+        return self._cancelled
+
+    def running(self):
+        return self._running
+
+    def progress(self):
+        return self._progress
+
+    def progress_range(self):
+        return (self._progress_min, self._progress_max)
+
+    def progress_min(self):
+        return self._progress_min
+
+    def progress_max(self):
+        return self._progress_max
+
+    def add_done_callback(self, fn):
+        if self.done():
+            self._exec_callback(fn)
+        else:
+            self._callbacks.append(fn)
+
+        return self
+
+    def add_progress_callback(self, fn):
+        if self.done():
+            self._exec_callback(fn)
+        else:
+            self._progress_callbacks.append(fn)
+
+        return self
+
+    # ===== Executor functionality =====
     def set_result(self, result):
         if self.done():
             raise FutureIsDone(self)
@@ -73,22 +131,27 @@ class Future(object):
 
         return self
 
-    def progress(self):
-        return self._progress
+    def set_running_or_notify_cancel(self):
+        """If the method returns False then the Future was cancelled. Otherwise
+        the Future will be put in running state and True is returned."""
+
+        if self.running():
+            raise FutureIsRunning()
+
+        if self._result is not None or self._exception is not None:
+            raise FutureIsDone()
+
+        if self.cancelled():
+            return False
+
+        self._running = True
+        return True
 
     def set_progress(self, progress):
         self._progress = progress
+
         for cb in self._progress_callbacks:
             self._exec_callback(cb)
-
-    def progress_range(self):
-        return (self._progress_min, self._progress_max)
-
-    def progress_min(self):
-        return self._progress_min
-
-    def progress_max(self):
-        return self._progress_max
 
     def set_progress_range(self, min_or_tuple, max_or_none=None):
         self._progress_min = min_or_tuple[0] if max_or_none is None else min_or_tuple
@@ -99,33 +162,24 @@ class Future(object):
 
     def set_progress_text(self, txt):
         self._progress_text = txt
+
         for cb in self._progress_callbacks:
             self._exec_callback(cb)
 
-    def add_done_callback(self, fn):
-        if self.done():
-            self._exec_callback(fn)
-        else:
-            self._callbacks.append(fn)
-
-        return self
-
-    def add_progress_callback(self, fn):
-        if self.done():
-            self._exec_callback(fn)
-        else:
-            self._progress_callbacks.append(fn)
-
-        return self
-
     def _set_done(self):
         self._done = True
-        if self.exception() is not None:
+        self._running = False
+
+        if self.cancelled():
+            self.log.debug("%s done: canceled", self)
+        elif self.exception() is not None:
             self.log.debug("%s done: %s", self, self.exception())
         else:
             self.log.debug("%s done: %s", self, self.result())
+
         for cb in self._callbacks:
             self._exec_callback(cb)
+
         self._callbacks = list()
         self._progress_callbacks = list()
 
@@ -169,6 +223,7 @@ class FutureObserver(QtCore.QObject):
     """Qt wrapper around a Future object using Qt signals to notify about state
     changes."""
     done                    = pyqtSignal()
+    cancelled               = pyqtSignal()
     progress_range_changed  = pyqtSignal(int, int)
     progress_changed        = pyqtSignal(int)
     progress_text_changed   = pyqtSignal(str)
@@ -201,6 +256,8 @@ class FutureObserver(QtCore.QObject):
 
     def _future_done(self, f):
         self.log.debug("Future %s is done", f)
+        if f.cancelled():
+            self.cancelled.emit()
         self.done.emit()
 
     def _future_progress(self, f):
