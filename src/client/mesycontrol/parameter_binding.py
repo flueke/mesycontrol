@@ -11,10 +11,15 @@ import util
 DISPLAY_HW, DISPLAY_CFG = range(2)
 
 # write modes
-WRITE_DISPLAY, WRITE_BOTH = range(2)
+WRITE_DISPLAY, WRITE_COMBINED = range(2)
 
 class AbstractParameterBinding(object):
     def __init__(self, device, profile, display_mode, write_mode, target):
+        """
+        device: app_model.Device or SpecializedDeviceBase
+        display_mode: bm.HARDWARE | bm.CONFIG
+        write_mode: bm.HARDWARE | bm.CONFIG | bm.COMBINED
+        """
         self.device         = device
         self.profile        = profile
         self._display_mode  = display_mode
@@ -72,7 +77,7 @@ class AbstractParameterBinding(object):
             dev = self.device.cfg if self.display_mode == DISPLAY_CFG else self.device.hw
             dev.set_parameter(self.address, value).add_done_callback(self._update)
 
-        elif self.write_mode == WRITE_BOTH:
+        elif self.write_mode == WRITE_COMBINED:
 
             def on_cfg_set(f):
                 if not f.exception():
@@ -144,7 +149,6 @@ class SpinBoxParameterBinding(AbstractParameterBinding):
         self.target.setToolTip(self._get_tooltip(result_future))
 
     def _value_changed(self, value):
-        print "_value_changed:", value
         self._write_value(value)
 
 class DoubleSpinBoxParameterBinding(AbstractParameterBinding):
@@ -237,7 +241,7 @@ if __name__ == "__main__":
     device = mock.MagicMock()
     profile = mock.MagicMock()
     display_mode = DISPLAY_CFG
-    write_mode = WRITE_BOTH
+    write_mode = WRITE_COMBINED
     target = QtGui.QSpinBox()
 
     d = dict(device=device)

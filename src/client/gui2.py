@@ -30,6 +30,7 @@ if __name__ == "__main__":
         logging.basicConfig(level=logging.DEBUG,
                 format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
+        logging.getLogger().addHandler(logging.FileHandler("mesycontrol.log", "w"))
         logging.getLogger("mesycontrol.basic_tree_model").setLevel(logging.INFO)
         #logging.getLogger("mesycontrol.future").setLevel(logging.INFO)
         logging.getLogger("mesycontrol.mc_treeview").setLevel(logging.INFO)

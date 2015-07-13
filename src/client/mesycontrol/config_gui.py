@@ -61,7 +61,7 @@ class ApplySetupRunner(config_util.GeneratorRunner):
     progress_changed = pyqtSignal(object)
 
     def __init__(self, source, dest, device_registry, parent_widget, parent=None):
-        super(config_util.GeneratorRunner, self).__init__(parent=parent)
+        super(ApplySetupRunner, self).__init__(parent=parent)
         self.log = util.make_logging_source_adapter(__name__, self)
         self.source = source
         self.dest   = dest
@@ -111,15 +111,34 @@ class ApplySetupRunner(config_util.GeneratorRunner):
         self.progress_changed.emit(progress)
 
 class ApplyDeviceConfigRunner(config_util.GeneratorRunner):
-    def __init__(self, source, dest, device_profile, parent=None):
+    def __init__(self, device, parent_widget, parent=None):
         super(ApplyDeviceConfigRunner, self).__init__(parent=parent)
 
         self.log = util.make_logging_source_adapter(__name__, self)
-        self.source = source
-        self.dest   = dest
-        self.device_profile = device_profile
+        self.device = device
+        self.parent_widget = parent_widget
 
     def _start(self):
-        self.generator = config_util.apply_device_config(self.source, self.dest,
-                self.device_profile)
+        self.generator = config_util.apply_device_config(self.device)
 
+    def _object_yielded(self, obj):
+        if isinstance(obj, config_util.SetParameterError):
+            set_result = obj.set_result
+
+            try:
+                param_name = self.device.profile[set_result.address].name
+                param_name = "'%s' (address=%d)" % (param_name, set_result.address)
+            except KeyError:
+                param_name = "address=%d" % (set_result.address,)
+
+            msg = "Error setting %s to %d. Result: %d" % (
+                    param_name, set_result.requested_value, set_result.value)
+
+            answer = QMB.question(
+                    self.parent_widget,
+                    "Set parameter error",
+                    msg,
+                    buttons=QMB.Ignore | QMB.Abort,
+                    defaultButton=QMB.Abort)
+
+            return (std_button_to_cfg_action(answer), False)

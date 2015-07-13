@@ -6,7 +6,7 @@ from .. qt import pyqtSlot
 from .. qt import Qt
 from .. qt import QtGui
 
-from .. device import Device
+from .. specialized_device import DeviceBase
 from .. import future
 from .. import parameter_binding as pb
 from .. import util
@@ -21,7 +21,7 @@ GAIN_ADJUST_LIMITS  = (1, 100)  # limits of the hardware gain jumpers
 
 cg_helper = util.ChannelGroupHelper(NUM_CHANNELS, NUM_GROUPS)
 
-class STM16(Device):
+class STM16(DeviceBase):
     def __init__(self, app_device, read_mode, write_mode, parent=None):
         super(STM16, self).__init__(app_device, read_mode, write_mode, parent)
 

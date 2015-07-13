@@ -266,8 +266,6 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
             if not ok:
                 return False
 
-            print row, value
-
             self.device.hw.set_parameter(row, value)
 
             return True

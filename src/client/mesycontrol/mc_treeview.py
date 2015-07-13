@@ -257,7 +257,7 @@ class MCTreeDirector(object):
 
     ######################
     def _hw_rows_inserted(self, parent_idx, start, end):
-        print parent_idx, start, end
+        pass
 
 class MCTreeView(QtGui.QWidget):
     hw_context_menu_requested   = pyqtSignal(object, object, object, object) #: node, idx, position, view

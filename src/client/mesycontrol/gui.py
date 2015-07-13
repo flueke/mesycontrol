@@ -26,7 +26,6 @@ import config_gui
 import config_model as cm
 import config_tree_model as ctm
 import config_xml
-import device as dev
 import device_tableview
 import future
 import hardware_tree_model as htm
@@ -507,12 +506,9 @@ class GUIApplication(QtCore.QObject):
                         device=device, from_config_side=True, from_hw_side=False))
 
             def open_widget(app_device, from_config_side, from_hw_side):
-                #device = dev.Device(app_device, dev.READ_CFG, dev.WRITE_CFG)
                 cls = self.context.device_registry.get_device_class(app_device.cfg.idc)
-                print "device class:", cls
-                device = cls(app_device, dev.READ_CFG, dev.WRITE_CFG)
+                device = cls(app_device)
                 ui_cls = self.context.device_registry.get_device_ui_class(app_device.cfg.idc)
-                print "ui class:", ui_cls
                 widget = ui_cls(device, parameter_binding.DISPLAY_CFG , device.write_mode)
                 subwin = QtGui.QMdiSubWindow()
                 subwin.setWidget(widget)
@@ -557,8 +553,7 @@ class GUIApplication(QtCore.QObject):
 
                 def apply_config():
                     runner = config_gui.ApplyDeviceConfigRunner(
-                            source=device.cfg, dest=device.hw,
-                            device_profile=device.profile)
+                            device=device, parent_widget=self.treeview)
                     f  = runner.start()
                     fo = future.FutureObserver(f)
                     pd = QtGui.QProgressDialog()
@@ -568,7 +563,10 @@ class GUIApplication(QtCore.QObject):
                     fo.progress_text_changed.connect(pd.setLabelText)
                     fo.done.connect(pd.close)
                     pd.exec_()
-                    if f.exception() is not None:
+                    if pd.wasCanceled():
+                        runner.close()
+
+                    elif f.exception() is not None:
                         log.error("apply_config: %s", f.exception())
                         QtGui.QMessageBox.critical(view, "Error", str(f.exception()))
 

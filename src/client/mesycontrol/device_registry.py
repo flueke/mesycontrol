@@ -24,10 +24,10 @@ class DeviceRegistry(object):
 
     def load_system_modules(self):
         """Load all built-in device modules."""
-        self.load_system_deviceprofile_modules()
+        self.load_system_device_profile_modules()
         self.load_system_device_modules()
 
-    def load_system_deviceprofile_modules(self):
+    def load_system_device_profile_modules(self):
         """Loads the built-in DeviceProfiles."""
         for mod_name in devices.profile_modules:
             try:
@@ -67,10 +67,10 @@ class DeviceRegistry(object):
         self.device_ui_classes[idc] = module.device_ui_class
         self.log.debug("Loaded device module from '%s' for idc=%d", module_name, idc)
 
-    def get_profile_module(self, idc):
+    def get_device_profile_module(self, idc):
         return self.profile_modules[idc]
 
-    def get_profile(self, idc):
+    def get_device_profile(self, idc):
         try:
             return copy.deepcopy(self.profiles[idc])
         except KeyError:
@@ -90,7 +90,7 @@ class DeviceRegistry(object):
         return sorted(((p.idc, p.name) for p in self.profiles.values()))
 
     def get_device_name(self, idc):
-        return self.get_profile(idc).name
+        return self.get_device_profile(idc).name
 
     def get_parameter_names(self, idc):
         profile = self.profiles.get(idc, None)

@@ -74,6 +74,8 @@ class Future(object):
         if self.done() or self.running():
             return False
 
+        self.log.info("%s: canceled", self)
+
         self._cancelled = True
         self._set_done()
         return True

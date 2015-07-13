@@ -158,9 +158,11 @@ class Controller(object):
 
         def on_response_received(f):
             try:
-                ret.set_result(bm.SetResult(bus, device, address, f.result().response.val, value))
+                if not f.cancelled():
+                    ret.set_result(bm.SetResult(bus, device, address, f.result().response.val, value))
             except Exception as e:
-                ret.set_exception(e)
+                if not ret.done():
+                    ret.set_exception(e)
 
         m = protocol.Message('request_set', bus=bus, dev=device, par=address, val=value)
         request_future = self.connection.queue_request(m).add_done_callback(on_response_received)

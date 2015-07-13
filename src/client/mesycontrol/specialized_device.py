@@ -6,12 +6,13 @@ from qt import pyqtProperty
 from qt import pyqtSignal
 from qt import QtCore
 
+import basic_model as bm
 import future
 
-READ_HW, READ_CFG = range(2)
-WRITE_HW, WRITE_CFG, WRITE_BOTH = range(3)
+class DeviceBase(QtCore.QObject):
+    """Acts as a decorator for an app_model.Device. Should be subclassed to
+    create device specific classes, e.g. class MHV4(DeviceBase)."""
 
-class Device(QtCore.QObject):
     hardware_set            = pyqtSignal(object, object, object) #: self, old, new
     config_set              = pyqtSignal(object, object, object) #: self, old, new
     mrc_changed             = pyqtSignal(object)
@@ -22,10 +23,15 @@ class Device(QtCore.QObject):
     read_mode_changed       = pyqtSignal(object)
     write_mode_changed      = pyqtSignal(object)
 
-    """Acts as a decorator for an app_model.Device. Should be subclassed to
-    create device specific classes, e.g. class MHV4(Device)."""
     def __init__(self, app_device, read_mode, write_mode, parent=None):
-        super(Device, self).__init__(parent)
+        """
+        app_device: app_model.Device
+        read_mode:  bm.HARDWARE | bm.CONFIG
+        write_mode: bm.HARDWARE | bm.CONFIG | bm.COMBINED
+        """
+
+        super(DeviceBase, self).__init__(parent)
+
         self.app_device = app_device
         self.app_device.hardware_set.connect(self.hardware_set)
         self.app_device.config_set.connect(self.config_set)
@@ -64,13 +70,13 @@ class Device(QtCore.QObject):
 
     def get_parameter(self, address_or_name):
         address = self.profile[address_or_name].address
-        dev = self.hw if self.read_mode == READ_HW else self.cfg
+        dev = self.hw if self.read_mode == bm.HARDWARE else self.cfg
         return dev.get_parameter(address)
 
     def set_parameter(self, address_or_name, value):
         address = self.profile[address_or_name].address
 
-        if self.write_mode == WRITE_BOTH:
+        if self.write_mode == bm.COMBINED:
 
             ret = future.Future()
 
@@ -92,5 +98,8 @@ class Device(QtCore.QObject):
 
             return ret
 
-        dev = self.hw if self.write_mode == WRITE_HW else self.cfg
+        dev = self.hw if self.write_mode == bm.HARDWARE else self.cfg
         return dev.set_parameter(address, value)
+
+    def __getattr__(self, attr):
+        return getattr(self.app_device, attr)

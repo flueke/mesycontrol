@@ -24,6 +24,9 @@ SET_VALUE_MAX = 65535       # maximum settable parameter value
 # List of valid bus and device address pairs
 ALL_DEVICE_ADDRESSES = [(bus, dev) for bus in BUS_RANGE for dev in DEV_RANGE]
 
+# Display and write modes for devices and device guis
+HARDWARE, CONFIG, COMBINED = range(3)
+
 class MRCRegistry(QtCore.QObject):
     """Manages MRC instances"""
 
@@ -290,7 +293,7 @@ class Device(QtCore.QObject):
         instance.
         """
         def on_parameter_set(f):
-            if f.exception() is None:
+            if not f.cancelled() and f.exception() is None:
                 self.set_cached_parameter(address, int(f))
 
         ret = self._set_parameter(address, value)

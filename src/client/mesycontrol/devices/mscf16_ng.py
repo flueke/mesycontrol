@@ -15,6 +15,7 @@ GAIN_ADJUST_LIMITS  = (1, 100)  # limits of the hardware gain jumpers
 cg_helper = util.ChannelGroupHelper(NUM_CHANNELS, NUM_GROUPS)
 
 class MSCF16(device.Device):
+    def __init__(self, app_device, read_mode, write_mode, parent=None):
     def __init__(self, app_device, parent=None):
         super(MSCF16, self).__init__(app_device, parent)
         self.log = util.make_logging_source_adapter(__name__, self)

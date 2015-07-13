@@ -9,6 +9,7 @@ from qt import pyqtSignal
 
 import basic_model as bm
 import config_model as cm
+import future
 import util
 
 """Mesycontrol application model.
@@ -330,7 +331,7 @@ class Device(AppObject):
         """True if hardware and config values are equal."""
         return self._config_applied
 
-    def create_config(self, name=str(), init_from_hardware=False, create_mrc_config=True):
+    def create_config(self, name=str(), create_mrc_config=True):
         """Creates a config for this device.
         Name is the optional device name to use.
         If init_from_hardware is True the known(!) hardware values will be used
@@ -356,19 +357,20 @@ class Device(AppObject):
         cfg = cm.make_device_config(bus=self.bus, address=self.address,
                 idc=self.profile.idc, name=name, device_profile=self.profile)
 
-        if init_from_hardware and self.hw is not None:
-            pps = filter(lambda pp: pp.should_be_stored(), self.profile.get_parameters())
-            for pp in pps:
-                if self.hw.has_cached_parameter(pp.address):
-                    value = self.hw.get_cached_parameter(pp.address)
-                    cfg.set_parameter(pp.address, value)
-
         if self.mrc.cfg is None:
             self.mrc.create_config()
 
         self.mrc.cfg.add_device(cfg)
 
         return cfg
+
+    def get_critical_config_parameters(self):
+        return future.Future().set_result(
+                self.profile.get_critical_parameters())
+
+    def get_non_critical_config_parameters(self):
+        return future.Future().set_result(
+                self.profile.get_non_critical_config_parameters())
 
     mrc = pyqtProperty(object, get_mrc, set_mrc, notify=mrc_changed)
     idc_conflict = pyqtProperty(bool, has_idc_conflict, notify=idc_conflict_changed)
@@ -395,9 +397,18 @@ class Director(object):
         # hardware idc has precedence for profile selection
         idc = hw_device.idc if hw_device is not None else cfg_device.idc
 
-        profile = self.device_registry.get_profile(idc)
+        profile = self.device_registry.get_device_profile(idc)
 
         return Device(bus=bus, address=address, hw_device=hw_device, cfg_device=cfg_device, profile=profile)
+
+    def _make_specialized_device(self, app_device):
+        try:
+            idc = app_device.hw.idc if app_device.hw is not None else app_device.cfg.idc
+            cls = self.device_registry.get_device_class(idc)
+            if cls is not None:
+                return cls(app_device)
+        except KeyError:
+            return None
 
     def _maybe_update_device_profile(self, app_device):
         hw  = app_device.hw
@@ -411,7 +422,7 @@ class Director(object):
                     app_device.mrc.get_display_url(), app_device.bus, app_device.address,
                     p.idc, idc)
 
-            app_device.profile = self.device_registry.get_profile(idc)
+            app_device.profile = self.device_registry.get_device_profile(idc)
 
     # ===== hardware side =====
     def _hw_registry_set(self, app_registry, old_hw_reg, new_hw_reg):

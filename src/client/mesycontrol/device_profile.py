@@ -118,7 +118,7 @@ class ParameterProfile(object):
 
     def get_name(self):
         if not self.is_named():
-            return None
+            return str()
 
         return self._name
 

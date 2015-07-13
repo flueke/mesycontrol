@@ -27,7 +27,7 @@ class Context(QtCore.QObject):
         self._shutdown_callbacks = list()
 
     def init_device_registry(self):
-        self.device_registry.load_system_deviceprofile_modules()
+        self.device_registry.load_system_device_profile_modules()
         self.device_registry.load_system_device_modules()
 
     def shutdown(self):

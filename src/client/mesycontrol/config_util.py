@@ -66,15 +66,29 @@ class GeneratorRunner(QtCore.QObject):
                 obj = self.generator.send(self.arg)
 
                 if isinstance(obj, future.Future):
+                    self.log.debug("Future yielded")
                     if self._future_yielded(obj):
                         return
 
                 elif isinstance(obj, ProgressUpdate):
+                    self.log.debug("ProgressUpdate yielded")
                     self._progress_update(obj)
-
                 else:
+                    self.log.debug("Calling _object_yielded with %s", obj)
                     self.arg, do_return = self._object_yielded(obj)
+
+                    self.log.debug("invoked _object_yielded: %s, %s", self.arg, do_return)
+
                     if do_return:
+                        self.log.debug("return flag is set; returning from _next")
+                        return
+
+                    if self.arg == ACTION_ABORT:
+                        self.log.debug("arg is ACTION_ABORT. closing generator")
+                        self.log.info("Abort: closing generator")
+                        self.generator.close()
+                        self.log.info("Abort: setting result to False")
+                        self.result.set_result(False)
                         return
 
             except StopIteration:
@@ -123,18 +137,16 @@ class GeneratorRunner(QtCore.QObject):
     def _stop_iteration(self):
         """Called on encountering a StopIteration exception. The default is to
         set the results value to True."""
+
         if not self.result.done():
             self.result.set_result(True)
 
     def _exception(self, e):
-        """Called on encountering an exception other than StopIteration. If the
-        exception is an instance of Aborted the result futures value will be
-        set to False. Otherwise the exception is reraised with the original
+        """Called on encountering an exception other than StopIteration. The
+        default action is to reraise the exception with the original
         traceback."""
-        if isinstance(e, Aborted):
-            self.result.set_result(False)
-        else:
-            raise e, None, sys.exc_info()[2]
+
+        raise e, None, sys.exc_info()[2]
 
 class ProgressUpdate(object):
     def __init__(self, current, total, text=str()):
@@ -156,7 +168,8 @@ class ProgressUpdate(object):
         return "%d/%d: %s" % (self.current, self.total, self.text)
 
 class SetParameterError(RuntimeError):
-    pass
+    def __init__(self, set_result):
+        self.set_result = set_result
 
 class IDCConflict(RuntimeError):
     pass
@@ -176,28 +189,17 @@ class Aborted(RuntimeError):
 
 ACTION_SKIP, ACTION_ABORT, ACTION_RETRY = range(3)
 
-def apply_device_config(source, dest, device_profile):
-    """Apply device config operation in the form of a generator.
-    Yields Futures and ProgressUpdates. Raises StopIteration on completion.
-    """
-    if source.idc != dest.idc:
-        raise IDCConflict(
-                "IDCConflict: mrc=%s, bus=%d, dev=%d, src-idc=%d, dest-idc=%d" %
-                (source.mrc.get_display_url(), source.bus, source.address,
-                    source.idc, dest.idc))
+def apply_device_config(device):
+    """Device may be an app_model.Device instance or a SpecializedDeviceBase
+    subclass."""
 
-    if source.idc != device_profile.idc:
-        raise IDCConflict(
-                "IDCConflict: mrc=%s, bus=%d, dev=%d, src-idc=%d, profile-idc=%d" %
-                (source.mrc.get_display_url(), source.bus, source.address,
-                    source.idc, device_profile.idc))
+    if device.idc_conflict:
+        raise IDCConflict("%s" % device)
 
-    # TODO: call device specific code to determine which parameters to set and
-    # which ones to skip
-    non_criticals   = device_profile.get_non_critical_config_parameters()
-    criticals       = device_profile.get_critical_parameters()
+    criticals       = (yield device.get_critical_config_parameters()).result()
+    non_criticals   = (yield device.get_non_critical_config_parameters()).result()
 
-    gen = apply_parameters(source, dest, criticals, non_criticals)
+    gen = apply_parameters(device.cfg, device.hw, criticals, non_criticals)
     arg = None
 
     while True:
@@ -205,12 +207,17 @@ def apply_device_config(source, dest, device_profile):
             obj = gen.send(arg)
             arg = yield obj
         except StopIteration:
+            non_criticals = obj
             break
         except GeneratorExit:
             gen.close()
             return
 
 def apply_parameters(source, dest, criticals, non_criticals):
+    """Write parameters from source to dest. First criticals are set to their
+    safe value, then non_criticals are written to the destination and finally
+    criticals are set to the value they have in the source device.
+    """
     def check_idcs():
         if source.idc != dest.idc:
             raise IDCConflict(
@@ -287,6 +294,7 @@ def apply_parameters(source, dest, criticals, non_criticals):
             break
         except GeneratorExit:
             gen.close()
+            return
 
     progress.text = ("Writing to destination (%s,%d,%d)" %
             (dest.mrc.get_display_url(), dest.bus, dest.address))
@@ -313,6 +321,7 @@ def apply_parameters(source, dest, criticals, non_criticals):
             break
         except GeneratorExit:
             gen.close()
+            return
 
     if len(criticals):
         progress.text = ("Writing critical parameters to destination (%s,%d,%d)" %
@@ -340,6 +349,7 @@ def apply_parameters(source, dest, criticals, non_criticals):
             break
         except GeneratorExit:
             gen.close()
+            return
 
     progress.text = "Parameters applied successfully"
     yield progress
@@ -349,13 +359,16 @@ def apply_parameters(source, dest, criticals, non_criticals):
 def run_set_parameter_futures(futures):
     log.debug("run_set_parameter_futures: %s", futures)
     for f in futures:
-        f = yield f
-
         try:
+            f = yield f
             r = f.result()
             if not r:
                 raise SetParameterError(r)
             log.debug("run_set_parameter_futures: %s done", f)
+        except GeneratorExit:
+            for f in filter(lambda f: not f.done(), futures):
+                f.cancel()
+            return
         except Exception as e:
             log.debug("run_set_parameter_futures: yielding %s", e)
             action = yield e
@@ -363,13 +376,6 @@ def run_set_parameter_futures(futures):
             if action == ACTION_SKIP:
                 log.debug("run_set_parameter_futures: skipping one future")
                 continue
-
-            if action == ACTION_ABORT:
-                log.debug("run_set_parameter_futures: aborting")
-                for f in futures:
-                    f.cancel()
-
-                raise Aborted()
 
             raise RuntimeError("unhandled action: %s" % action)
 
@@ -408,13 +414,12 @@ def establish_connections(setup, hardware_registry):
                     if action == ACTION_SKIP:
                         break
 
-                    if action == ACTION_ABORT:
-                        raise Aborted()
-
             if action == ACTION_SKIP:
                 continue
 
         if hw_mrc.is_connected():
+            progress.text = "Connected to %s" % cfg_mrc.get_display_url()
+            yield progress
             yield hw_mrc.scanbus(0)
             yield hw_mrc.scanbus(1)
 
@@ -494,11 +499,8 @@ def apply_setup(source, dest, device_registry):
             if action == ACTION_SKIP:
                 raise StopIteration()
 
-            if action == ACTION_ABORT:
-                raise Aborted()
-
         gen = apply_device_config(src_dev, dest_dev,
-                device_registry.get_profile(src_dev.idc))
+                device_registry.get_device_profile(src_dev.idc))
         arg = None
 
         while True:
@@ -533,9 +535,6 @@ def apply_setup(source, dest, device_registry):
             if action == ACTION_SKIP:
                 raise StopIteration()
 
-            if action == ACTION_ABORT:
-                raise Aborted()
-
         if not dest_mrc.is_connected():
             return
 
@@ -562,9 +561,6 @@ def apply_setup(source, dest, device_registry):
 
                         if action in (ACTION_SKIP, ACTION_RETRY):
                             break
-
-                        if action == ACTION_ABORT:
-                            raise Aborted()
 
             yield progress.increment()
 

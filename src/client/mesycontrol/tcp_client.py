@@ -192,6 +192,10 @@ class MCTCPClient(QtCore.QObject):
             if future.set_running_or_notify_cancel():
                 break
 
+        if future.cancelled():
+            self._current_request = None
+            return
+
         data = request.serialize()
         data = struct.pack('!H', len(data)) + data # prepend message size
         self.log.debug("_start_write_request: writing %s (len=%d)", request, len(data))
