@@ -14,6 +14,8 @@ from .. util import hline
 from .. util import make_spinbox
 from .. util import make_title_label
 
+import device_profile_stm16
+
 NUM_CHANNELS        = 16        # number of channels
 NUM_GROUPS          =  8        # number of channel groups
 GAIN_FACTOR         = 1.22      # gain step factor
@@ -30,7 +32,8 @@ class STM16(DeviceBase):
         return obj.get_extension('gain_adjust')
 
     def set_gain_adjust(self, gain_adjust):
-        self.cfg.set_extension('gain_adjust', int(gain_adjust))
+        if self.get_gain_adjust() != int(gain_adjust):
+            self.cfg.set_extension('gain_adjust', int(gain_adjust))
 
     def get_total_gain(self, group):
         ret = future.Future()
@@ -209,6 +212,8 @@ class STM16Widget(QtGui.QWidget):
             for binding in page.bindings:
                 binding.set_write_mode(write_mode)
 
-idc = 19
+
+idc             = 19
 device_class    = STM16
 device_ui_class = STM16Widget
+profile_dict    = device_profile_stm16.profile_dict

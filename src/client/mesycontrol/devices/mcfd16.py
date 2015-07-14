@@ -15,9 +15,9 @@ import re
 
 from .. import app_model
 from .. import util
-
-from .. app_model import modifies_extensions
 from .. util import make_title_label, hline, make_spinbox
+
+import device_profile_mcfd16
 
 # MCFD16 - 16 channel CFD
 # Hardware dependent tunables:
@@ -316,7 +316,6 @@ class MCFD16(app_model.Device):
         return self.set_parameter('single_channel_mode', value, response_handler=response_handler)
 
     # Extensions
-    @modifies_extensions
     def set_delay_chip_ns(self, value):
         self._delay_chip_ns = int(value)
         self.delay_chip_ns_changed.emit(self.delay_chip_ns)
@@ -1446,6 +1445,8 @@ class MCFD16Widget(QtGui.QWidget):
 idc             = 26
 device_class    = MCFD16
 device_ui_class = MCFD16Widget
+profile_dict    = device_profile_mcfd16.profile_dict
+
 
 if __name__ == "__main__":
     import mock

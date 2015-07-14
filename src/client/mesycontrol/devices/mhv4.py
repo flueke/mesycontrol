@@ -2,19 +2,22 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from PyQt4 import QtCore
-from PyQt4 import QtGui
-from PyQt4 import uic
-from PyQt4.QtCore import pyqtProperty
-from PyQt4.QtCore import pyqtSignal
-from PyQt4.QtCore import pyqtSlot
-from PyQt4.QtCore import Qt
+from .. qt import pyqtProperty
+from .. qt import pyqtSignal
+from .. qt import pyqtSlot
+from .. qt import Qt
+from .. qt import QtCore
+from .. qt import QtGui
+from .. qt import uic
+
 from functools import partial
 import math
 import weakref
 
 from .. import app_model
 from .. import util
+
+import device_profile_mhv4
 
 # TODO: improve modified state for ChannelSettingsWidget and
 # GlobalSettingsWidget: compare spinbox value to old value and set modified
@@ -763,3 +766,4 @@ class MHV4Widget(QtGui.QWidget):
 idc             = 27
 device_class    = MHV4
 device_ui_class = MHV4Widget
+profile_dict    = device_profile_mhv4.profile_dict
