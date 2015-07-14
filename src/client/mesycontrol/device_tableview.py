@@ -278,7 +278,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
             cfg = self.device.cfg
 
             if cfg is None:
-                cfg = self.device.create_config(init_from_hardware=True)
+                cfg = self.device.create_config()
                 
             cfg.set_parameter(row, value)
 

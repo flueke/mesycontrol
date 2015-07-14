@@ -390,15 +390,20 @@ class Device(AppObject):
         return ret
 
     def make_specialized_device(self, read_mode, write_mode):
-        idc = self.hw.idc if self.hw is not None else self.cfg.idc
-        cls = self.module.get_device_class(idc)
-        return cls(self, read_mode, write_mode)
+        return self.module.device_class(self, read_mode, write_mode)
 
-    mrc = pyqtProperty(object, get_mrc, set_mrc, notify=mrc_changed)
-    idc_conflict = pyqtProperty(bool, has_idc_conflict, notify=idc_conflict_changed)
-    module  = pyqtProperty(object, get_module, set_module, notify=module_changed)
-    profile = pyqtProperty(object, get_profile, notify=profile_changed)
-    config_applied = pyqtProperty(bool, is_config_applied, notify=config_applied_changed)
+    def make_device_widget(self, read_mode, write_mode, parent=None):
+        return self.module.device_ui_class(
+                device=self.make_specialized_device(read_mode, write_mode),
+                display_mode=read_mode,
+                write_mode=write_mode,
+                parent=parent)
+
+    mrc             = pyqtProperty(object, get_mrc, set_mrc, notify=mrc_changed)
+    idc_conflict    = pyqtProperty(bool, has_idc_conflict, notify=idc_conflict_changed)
+    module          = pyqtProperty(object, get_module, set_module, notify=module_changed)
+    profile         = pyqtProperty(object, get_profile, notify=profile_changed)
+    config_applied  = pyqtProperty(bool, is_config_applied, notify=config_applied_changed)
 
 class Director(object):
     """Manages the app_model tree.

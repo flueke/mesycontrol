@@ -30,7 +30,6 @@ import device_tableview
 import future
 import hardware_tree_model as htm
 import log_view
-import parameter_binding
 import resources
 import util
 
@@ -508,10 +507,24 @@ class GUIApplication(QtCore.QObject):
                         device=device, from_config_side=True, from_hw_side=False))
 
             def open_widget(app_device, from_config_side, from_hw_side):
-                cls = self.context.device_registry.get_device_class(app_device.cfg.idc)
-                device = cls(app_device)
-                ui_cls = self.context.device_registry.get_device_ui_class(app_device.cfg.idc)
-                widget = ui_cls(device, parameter_binding.DISPLAY_CFG , device.write_mode)
+                if self.linked_mode and app_device.has_hw and app_device.has_cfg:
+                    write_mode = util.COMBINED
+                else:
+                    write_mode = util.CONFIG if from_config_side else util.HARDWARE
+
+                read_mode=util.CONFIG if from_config_side else util.HARDWARE
+
+                #device = app_device.make_specialized_device(
+                #        read_mode=read_mode, write_mode=write_mode)
+
+                #idc = app_device.cfg.idc if app_device.has_cfg else app_device.hw.idc
+
+                #ui_cls = self.context.device_registry.get_device_ui_class(idc)
+
+                #widget = ui_cls(device, util.CONFIG , device.write_mode)
+
+                widget = app_device.make_device_widget(read_mode, write_mode)
+
                 subwin = QtGui.QMdiSubWindow()
                 subwin.setWidget(widget)
                 subwin.setAttribute(Qt.WA_DeleteOnClose)
@@ -629,13 +642,19 @@ class GUIApplication(QtCore.QObject):
                 menu.addAction("Scanbus").triggered.connect(partial(mrc.hw.scanbus, bus))
 
         if isinstance(node, htm.DeviceNode):
-            hw = node.ref.hw
-            menu.addAction("Open").triggered.connect(partial(self._add_device_table_window, device=node.ref))
-            if hw is not None:
-                def toggle_polling():
-                    hw.polling = not hw.polling
+            device = node.ref
 
-                menu.addAction("Disable polling" if hw.polling else "Enable polling").triggered.connect(toggle_polling)
+            if self.linked_mode or device.has_hw:
+                menu.addAction("Open").triggered.connect(
+                        partial(self._show_or_create_device_window,
+                            device=device, from_config_side=False, from_hw_side=True))
+
+            if device.has_hw:
+                def toggle_polling():
+                    device.hw.polling = not device.hw.polling
+
+                menu.addAction("Disable polling" if device.hw.polling else "Enable polling"
+                        ).triggered.connect(toggle_polling)
 
         if not menu.isEmpty():
             menu.exec_(view.mapToGlobal(pos))
