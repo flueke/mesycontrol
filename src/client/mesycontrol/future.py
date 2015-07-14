@@ -5,6 +5,8 @@
 from qt import QtCore
 from qt import pyqtProperty
 from qt import pyqtSignal
+
+from functools import wraps
 import logging
 
 import util
@@ -279,3 +281,75 @@ class FutureObserver(QtCore.QObject):
             self.progress_text_changed.emit(self._progress_text)
 
     future = pyqtProperty(object, get_future, set_future)
+
+def set_result_on(result_future):
+    def deco(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            try:
+                result_future.set_result(f(*args, **kwargs))
+            except Exception as e:
+                result_future.set_exception(e)
+        return wrapper
+    return deco
+
+def set_exception_on(result_future):
+    def deco(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            try:
+                f(*args, **kwargs)
+            except Exception as e:
+                result_future.set_exception(e)
+        return wrapper
+    return deco
+
+if __name__ == "__main__":
+    ret = Future()
+
+    @set_result_on(ret)
+    def my_func():
+        return 42
+
+    my_func()
+    print ret.result()
+
+    # ==================
+
+    ret = Future()
+
+    @set_result_on(ret)
+    def my_func():
+        raise ValueError(42)
+
+    my_func()
+    try:
+        print ret.result()
+    except Exception as e:
+        print type(e), e
+
+    # ==================
+    ret = Future()
+
+    @set_exception_on(ret)
+    def my_func():
+        return 42
+
+    my_func()
+    try:
+        print ret.result()
+    except Exception as e:
+        print type(e), e
+
+    # ==================
+    ret = Future()
+
+    @set_exception_on(ret)
+    def my_func():
+        raise ValueError(42)
+
+    my_func()
+    try:
+        print ret.result()
+    except Exception as e:
+        print type(e), e

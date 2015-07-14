@@ -59,6 +59,9 @@ class DeviceBase(QtCore.QObject):
             self._write_mode = mode
             self.write_mode_changed.emit(self.write_mode)
 
+    def __getattr__(self, attr):
+        return getattr(self.app_device, attr)
+
     #hw              = pyqtProperty(object, lambda s: s.app_device.get_hardware(), notify=hardware_set)
     #cfg             = pyqtProperty(object, lambda s: s.app_device.get_config(), notify=config_set)
     #mrc             = pyqtProperty(object, lambda s: s.app_device.get_mrc(), notify=mrc_changed)
@@ -68,6 +71,7 @@ class DeviceBase(QtCore.QObject):
     read_mode       = pyqtProperty(object, get_read_mode, set_read_mode, notify=read_mode_changed)
     write_mode      = pyqtProperty(object, get_write_mode, set_write_mode, notify=write_mode_changed)
 
+    # ===== mode dependent =====
     def get_parameter(self, address_or_name):
         address = self.profile[address_or_name].address
         dev = self.hw if self.read_mode == util.HARDWARE else self.cfg
@@ -107,5 +111,28 @@ class DeviceBase(QtCore.QObject):
         dev = self.hw if self.write_mode == util.HARDWARE else self.cfg
         return dev.set_parameter(address, value)
 
-    def __getattr__(self, attr):
-        return getattr(self.app_device, attr)
+    # ===== HW =====
+    def get_hw_parameter(self, address_or_name):
+        address = self.profile[address_or_name].address
+        return self.hw.get_parameter(address)
+
+    def read_hw_parameter(self, address_or_name):
+        address = self.profile[address_or_name].address
+        return self.hw.read_parameter(address)
+
+    def set_hw_parameter(self, address_or_name, value):
+        address = self.profile[address_or_name].address
+        return self.hw.set_parameter(address, value)
+
+    # ===== CFG =====
+    def get_cfg_parameter(self, address_or_name):
+        address = self.profile[address_or_name].address
+        return self.cfg.get_parameter(address)
+
+    def read_cfg_parameter(self, address_or_name):
+        address = self.profile[address_or_name].address
+        return self.cfg.read_parameter(address)
+
+    def set_cfg_parameter(self, address_or_name, value):
+        address = self.profile[address_or_name].address
+        return self.cfg.set_parameter(address, value)

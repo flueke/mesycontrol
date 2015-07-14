@@ -6,10 +6,10 @@ from .. qt import pyqtSlot
 from .. qt import Qt
 from .. qt import QtGui
 
-from .. specialized_device import DeviceBase
 from .. import future
 from .. import parameter_binding as pb
 from .. import util
+from .. specialized_device import DeviceBase
 from .. util import hline
 from .. util import make_spinbox
 from .. util import make_title_label
