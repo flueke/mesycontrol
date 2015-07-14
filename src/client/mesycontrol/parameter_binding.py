@@ -6,22 +6,17 @@ from qt import QtGui
 
 import basic_model as bm
 import util
-
-# display modes
-DISPLAY_HW, DISPLAY_CFG = range(2)
-
-# write modes
-WRITE_DISPLAY, WRITE_COMBINED = range(2)
+import future
 
 class AbstractParameterBinding(object):
-    def __init__(self, device, profile, display_mode, write_mode, target):
+    def __init__(self, device, parameter_profile, display_mode, write_mode, target):
         """
-        device: app_model.Device or SpecializedDeviceBase
-        display_mode: bm.HARDWARE | bm.CONFIG
-        write_mode: bm.HARDWARE | bm.CONFIG | bm.COMBINED
+        device: app_model.Device or DeviceBase subclass
+        display_mode: util.HARDWARE | util.CONFIG
+        write_mode: util.HARDWARE | util.CONFIG | util.COMBINED
         """
         self.device         = device
-        self.profile        = profile
+        self.profile        = parameter_profile
         self._display_mode  = display_mode
         self.write_mode     = write_mode
         self.target         = target
@@ -33,7 +28,7 @@ class AbstractParameterBinding(object):
         self._on_device_cfg_set(self.device, None, self.device.cfg)
 
     def populate(self):
-        dev = self.device.cfg if self.display_mode == DISPLAY_CFG else self.device.hw
+        dev = self.device.cfg if self.display_mode == util.CONFIG else self.device.hw
         dev.get_parameter(self.address).add_done_callback(self._update)
 
     def get_address(self):
@@ -65,29 +60,31 @@ class AbstractParameterBinding(object):
             new_cfg.parameter_changed.connect(self._on_cfg_parameter_changed)
 
     def _on_hw_parameter_changed(self, address, value):
-        if address == self.address and self.display_mode == DISPLAY_HW:
+        if address == self.address and self.display_mode == util.HARDWARE:
             self.device.hw.get_parameter(self.address).add_done_callback(self._update)
 
     def _on_cfg_parameter_changed(self, address, value):
-        if address == self.address and self.display_mode == DISPLAY_CFG:
+        if address == self.address and self.display_mode == util.CONFIG:
             self.device.cfg.get_parameter(self.address).add_done_callback(self._update)
 
     def _write_value(self, value):
-        if self.write_mode == WRITE_DISPLAY:
-            dev = self.device.cfg if self.display_mode == DISPLAY_CFG else self.device.hw
-            dev.set_parameter(self.address, value).add_done_callback(self._update)
-
-        elif self.write_mode == WRITE_COMBINED:
+        if self.write_mode == util.COMBINED:
 
             def on_cfg_set(f):
-                if not f.exception():
-                    self.device.hw.set_parameter(self.address, value
-                            ).add_done_callback(self._update)
-                else:
-                    self._update(f)
+                try:
+                    if not f.exception():
+                        self.device.hw.set_parameter(self.address, value
+                                ).add_done_callback(self._update)
+                    else:
+                        self._update(f)
+                except future.CancelledError:
+                    pass
 
             self.device.cfg.set_parameter(self.address, value
                     ).add_done_callback(on_cfg_set)
+        else:
+            dev = self.device.cfg if self.write_mode == util.CONFIG else self.device.hw
+            dev.set_parameter(self.address, value).add_done_callback(self._update)
 
     def _update(self, result_future):
         raise NotImplementedError()
@@ -98,20 +95,21 @@ class AbstractParameterBinding(object):
         if self.profile.is_named():
             tt += ", name=%s" % self.profile.name
 
-        if not result_future.exception():
-            result = result_future.result()
-            value  = int(result)
+        if not result_future.cancelled():
+            if not result_future.exception():
+                result = result_future.result()
+                value  = int(result)
 
-            tt += ", value=%d" % value
+                tt += ", value=%d" % value
 
-            if isinstance(result, bm.SetResult) and not result:
-                tt += ", requested_value=%d" % result.requested_value
+                if isinstance(result, bm.SetResult) and not result:
+                    tt += ", requested_value=%d" % result.requested_value
 
-            if len(self.profile.units) > 1:
-                unit = self.profile.units[1]
-                tt += ", %f%s" % (unit.unit_value(value), unit.label)
-        else:
-            tt += ", %s" % result_future.exception()
+                if len(self.profile.units) > 1:
+                    unit = self.profile.units[1]
+                    tt += ", %f%s" % (unit.unit_value(value), unit.label)
+            else:
+                tt += ", %s" % result_future.exception()
 
         return tt
 
@@ -240,8 +238,8 @@ if __name__ == "__main__":
 
     device = mock.MagicMock()
     profile = mock.MagicMock()
-    display_mode = DISPLAY_CFG
-    write_mode = WRITE_COMBINED
+    display_mode = util.CONFIG
+    write_mode = util.COMBINED
     target = QtGui.QSpinBox()
 
     d = dict(device=device)
