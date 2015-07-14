@@ -60,16 +60,16 @@ class SubProgressDialog(QtGui.QDialog):
 class ApplySetupRunner(config_util.GeneratorRunner):
     progress_changed = pyqtSignal(object)
 
-    def __init__(self, source, dest, device_registry, parent_widget, parent=None):
+    def __init__(self, app_registry, device_registry, parent_widget, parent=None):
         super(ApplySetupRunner, self).__init__(parent=parent)
-        self.log = util.make_logging_source_adapter(__name__, self)
-        self.source = source
-        self.dest   = dest
+
+        self.log             = util.make_logging_source_adapter(__name__, self)
+        self.app_registry    = app_registry
         self.device_registry = device_registry
-        self.parent_widget = parent_widget
+        self.parent_widget   = parent_widget
 
     def _start(self):
-        self.generator = config_util.connect_and_apply_setup(self.source, self.dest, self.device_registry)
+        self.generator = config_util.connect_and_apply_setup(self.app_registry, self.device_registry)
 
     def _object_yielded(self, obj):
         if isinstance(obj, hardware_controller.TimeoutError):
@@ -101,6 +101,31 @@ class ApplySetupRunner(config_util.GeneratorRunner):
                     str(obj),
                     buttons=QMB.Retry | QMB.Ignore | QMB.Abort,
                     defaultButton=QMB.Retry)
+
+            return (std_button_to_cfg_action(answer), False)
+
+        if isinstance(obj, config_util.SetParameterError):
+            url  = obj.url
+            bus  = obj.set_result.bus
+            dev  = obj.set_result.device
+            addr = obj.set_result.address
+
+            try:
+                device = self.app_registry.get_mrc(url).get_device(bus, dev)
+                param_name = device.profile[addr].name
+                param_name = "'%s' (address=%d)" % (param_name, addr)
+            except KeyError:
+                param_name = "address=%d" % (addr)
+
+            msg = "Error setting %s to %d. Result: %d" % (
+                    param_name, obj.set_result.requested_value, obj.set_result.value)
+
+            answer = QMB.question(
+                    self.parent_widget,
+                    "Set parameter error",
+                    msg,
+                    buttons=QMB.Ignore | QMB.Abort,
+                    defaultButton=QMB.Abort)
 
             return (std_button_to_cfg_action(answer), False)
 
