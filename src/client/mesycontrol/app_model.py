@@ -196,10 +196,11 @@ class MRC(AppObject):
 class Device(AppObject):
     mrc_changed             = pyqtSignal(object)
     profile_changed         = pyqtSignal(object)
+    module_changed          = pyqtSignal(object)
     idc_conflict_changed    = pyqtSignal(bool)
     config_applied_changed  = pyqtSignal(object)
 
-    def __init__(self, bus, address, mrc=None, hw_device=None, cfg_device=None, profile=None, parent=None):
+    def __init__(self, bus, address, mrc=None, hw_device=None, cfg_device=None, module=None, parent=None):
         self.bus        = int(bus)
         self.address    = int(address)
 
@@ -212,17 +213,16 @@ class Device(AppObject):
         super(Device, self).__init__(hardware=hw_device, config=cfg_device, parent=parent)
 
         self._mrc               = None
-        self._profile           = None
+        self._module            = None
         self._idc_conflict      = False # Set by _update_idc_conflict()
         self._config_applied    = False # Set by _update_config_applied()
-        self._config_addresses  = set() # Filled by set_profile()
+        self._config_addresses  = set() # Filled by set_module()
 
         self.mrc        = mrc
-        self.profile    = profile
+        self.module     = module
 
         self.hardware_set.connect(self._on_hardware_set)
         self.config_set.connect(self._on_config_set)
-        self.profile_changed.connect(self._update_config_applied)
         self.idc_conflict_changed.connect(self._update_config_applied)
 
         self._update_idc_conflict()
@@ -266,29 +266,25 @@ class Device(AppObject):
         return False
 
     def get_profile(self):
-        return self._profile
+        return self.module.profile
 
-    def set_profile(self, profile):
-        if self.profile != profile:
-            old_name = self.profile.name if self.profile is not None else str()
-            old_idc  = self.profile.idc  if self.profile is not None else -1
-            new_name = profile.name if profile is not None else str()
-            new_idc  = profile.idc if profile is not None else -1
+    def get_module(self):
+        return self._module
 
-            self.log.debug("profile changed: old=%s (%d), new=%s (%d)",
-                    old_name, old_idc, new_name, new_idc)
+    def set_module(self, module):
+        if self.module != module:
+            self._module = module
 
-            self._profile = profile
+            def on_done(f):
+                self._config_addresses = set((p.address for p in f.result()))
+                self._update_config_applied()
 
-            if profile is not None:
-                # Cache of the config parameter addresses used to speed up _update_config_applied().
-                self._config_addresses = set([p.address for p in self.profile.get_config_parameters()])
-                self.log.debug("profile changed: config addresses=%s", self._config_addresses)
-
+            self.get_config_parameters().add_done_callback(on_done)
+            self.module_changed.emit(self.module)
             self.profile_changed.emit(self.profile)
             return True
-
         return False
+
 
     def __str__(self):
         return "%s.Device(id=%s, b=%d, a=%d, mrc=%s, hw=%s, cfg=%s)" % (
@@ -332,18 +328,14 @@ class Device(AppObject):
         return self._config_applied
 
     def create_config(self, name=str(), create_mrc_config=True):
-        """Creates a config for this device.
-        Name is the optional device name to use.
-        If init_from_hardware is True the known(!) hardware values will be used
-        to fill the config. Unknown values will not be read, instead the config
-        will contain default values as defined by the device profile.
+        """Creates a config for this device using the default values from the
+        device profile.
+
         Preconditions:
           - self.cfg must be None: device must not have a config yet
           - self.profile must be set: a device profile is needed to create the
             config with the proper idc and initial values
-          - create_mrc_config must be True or self.mrc.cfg must be set:
-            there needs to be a MRC config present to register the new device
-            config with.
+          - create_mrc_config must be True or self.mrc.cfg must be set
         """
         if self.cfg is not None:
             raise RuntimeError("device config exists")
@@ -364,17 +356,48 @@ class Device(AppObject):
 
         return cfg
 
-    def get_critical_config_parameters(self):
+    def get_config_parameters(self):
+        if self.module is not None and hasattr(self.module, 'get_config_parameters'):
+            return self.module.get_config_parameters(self)
+
         return future.Future().set_result(
-                self.profile.get_critical_parameters())
+                self.profile.get_config_parameters())
+
+    def get_critical_config_parameters(self):
+        ret = future.Future()
+
+        def on_done(f):
+            try:
+                ret.set_result([p for p in f.result() if p.critical])
+            except Exception as e:
+                ret.set_exception(e)
+
+        self.get_config_parameters().add_done_callback(on_done)
+
+        return ret
 
     def get_non_critical_config_parameters(self):
-        return future.Future().set_result(
-                self.profile.get_non_critical_config_parameters())
+        ret = future.Future()
+
+        def on_done(f):
+            try:
+                ret.set_result([p for p in f.result() if not p.critical])
+            except Exception as e:
+                ret.set_exception(e)
+
+        self.get_config_parameters().add_done_callback(on_done)
+
+        return ret
+
+    def make_specialized_device(self, read_mode, write_mode):
+        idc = self.hw.idc if self.hw is not None else self.cfg.idc
+        cls = self.module.get_device_class(idc)
+        return cls(self, read_mode, write_mode)
 
     mrc = pyqtProperty(object, get_mrc, set_mrc, notify=mrc_changed)
     idc_conflict = pyqtProperty(bool, has_idc_conflict, notify=idc_conflict_changed)
-    profile = pyqtProperty(object, get_profile, set_profile, notify=profile_changed)
+    module  = pyqtProperty(object, get_module, set_module, notify=module_changed)
+    profile = pyqtProperty(object, get_profile, notify=profile_changed)
     config_applied = pyqtProperty(bool, is_config_applied, notify=config_applied_changed)
 
 class Director(object):
@@ -394,35 +417,25 @@ class Director(object):
         app_registry.config_set.connect(self._cfg_registry_set)
 
     def _make_device(self, bus, address, hw_device=None, cfg_device=None):
-        # hardware idc has precedence for profile selection
-        idc = hw_device.idc if hw_device is not None else cfg_device.idc
+        # hardware idc has precedence for module selection
+        idc     = hw_device.idc if hw_device is not None else cfg_device.idc
+        module  = self.device_registry.get_device_module(idc)
 
-        profile = self.device_registry.get_device_profile(idc)
+        return Device(bus=bus, address=address, hw_device=hw_device, cfg_device=cfg_device, module=module)
 
-        return Device(bus=bus, address=address, hw_device=hw_device, cfg_device=cfg_device, profile=profile)
-
-    def _make_specialized_device(self, app_device):
-        try:
-            idc = app_device.hw.idc if app_device.hw is not None else app_device.cfg.idc
-            cls = self.device_registry.get_device_class(idc)
-            if cls is not None:
-                return cls(app_device)
-        except KeyError:
-            return None
-
-    def _maybe_update_device_profile(self, app_device):
+    def _maybe_update_device_module(self, app_device):
         hw  = app_device.hw
         cfg = app_device.cfg
-        p   = app_device.profile
+        m   = app_device.module
 
         idc = hw.idc if hw is not None else cfg.idc
 
-        if p.idc != idc:
-            self.log.debug("updating profile for (%s, %d, %d); old_idc=%d, new_idc=%d",
+        if m.idc != idc:
+            self.log.debug("updating module for (%s, %d, %d); old_idc=%d, new_idc=%d",
                     app_device.mrc.get_display_url(), app_device.bus, app_device.address,
-                    p.idc, idc)
+                    m.idc, idc)
 
-            app_device.profile = self.device_registry.get_device_profile(idc)
+            app_device.module = self.device_registry.get_device_module(idc)
 
     # ===== hardware side =====
     def _hw_registry_set(self, app_registry, old_hw_reg, new_hw_reg):
@@ -477,7 +490,7 @@ class Director(object):
             app_mrc.add_device(app_device)
         else:
             app_device.hw = device
-            self._maybe_update_device_profile(app_device)
+            self._maybe_update_device_module(app_device)
 
     def _hw_device_about_to_be_removed(self, device):
         self.log.debug("_hw_device_about_to_be_removed: device=%s", device)
@@ -487,7 +500,7 @@ class Director(object):
         if app_device.cfg is None:
             app_mrc.remove_device(app_device)
         else:
-            self._maybe_update_device_profile(app_device)
+            self._maybe_update_device_module(app_device)
 
     # ===== config side =====
     def _cfg_registry_set(self, app_registry, old_cfg_reg, new_cfg_reg):
@@ -542,7 +555,7 @@ class Director(object):
             app_mrc.add_device(app_device)
         else:
             app_device.cfg = device
-            self._maybe_update_device_profile(app_device)
+            self._maybe_update_device_module(app_device)
 
     def _cfg_device_about_to_be_removed(self, device):
         self.log.debug("_cfg_device_about_to_be_removed: device=%s", device)
@@ -552,4 +565,4 @@ class Director(object):
         if app_device.hw is None:
             app_mrc.remove_device(app_device)
         else:
-            self._maybe_update_device_profile(app_device)
+            self._maybe_update_device_module(app_device)

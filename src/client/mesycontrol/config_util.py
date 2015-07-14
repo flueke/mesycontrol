@@ -65,6 +65,8 @@ class GeneratorRunner(QtCore.QObject):
             try:
                 obj = self.generator.send(self.arg)
 
+                self.log.info("Generator %s yielded %s (%s)", self.generator, obj, type(obj))
+
                 if isinstance(obj, future.Future):
                     self.log.debug("Future yielded")
                     if self._future_yielded(obj):
@@ -73,6 +75,7 @@ class GeneratorRunner(QtCore.QObject):
                 elif isinstance(obj, ProgressUpdate):
                     self.log.debug("ProgressUpdate yielded")
                     self._progress_update(obj)
+
                 else:
                     self.log.debug("Calling _object_yielded with %s", obj)
                     self.arg, do_return = self._object_yielded(obj)
@@ -170,6 +173,13 @@ class ProgressUpdate(object):
 class SetParameterError(RuntimeError):
     def __init__(self, set_result):
         self.set_result = set_result
+        self.url = None
+
+    def __str__(self):
+        if self.url is not None:
+            return "SetParameterError(url=%s, %s)" % (
+                    self.url, self.set_result)
+        return "SetParameterError(%s)" % str(self.set_result)
 
 class IDCConflict(RuntimeError):
     pass
@@ -190,7 +200,7 @@ class Aborted(RuntimeError):
 ACTION_SKIP, ACTION_ABORT, ACTION_RETRY = range(3)
 
 def apply_device_config(device):
-    """Device may be an app_model.Device instance or a SpecializedDeviceBase
+    """Device may be an app_model.Device instance or a DeviceBase
     subclass."""
 
     if device.idc_conflict:
@@ -205,6 +215,10 @@ def apply_device_config(device):
     while True:
         try:
             obj = gen.send(arg)
+
+            if isinstance(obj, SetParameterError):
+                obj.url = device.mrc.url
+
             arg = yield obj
         except StopIteration:
             non_criticals = obj
@@ -425,7 +439,8 @@ def establish_connections(setup, hardware_registry):
 
         progress.increment()
 
-def connect_and_apply_setup(setup, hw_registry, device_registry):
+def connect_and_apply_setup(app_registry, device_registry):
+    setup = app_registry.cfg
     # MRCs to connect + device configs to apply
     total_progress = len(setup) + sum(len(mrc) for mrc in setup)
     progress       = ProgressUpdate(current=0, total=total_progress)
@@ -433,7 +448,7 @@ def connect_and_apply_setup(setup, hw_registry, device_registry):
 
     yield progress
 
-    gen = establish_connections(setup, hw_registry)
+    gen = establish_connections(setup, app_registry.hw)
     arg = None
 
     while True:
@@ -455,7 +470,7 @@ def connect_and_apply_setup(setup, hw_registry, device_registry):
             gen.close()
             return
 
-    gen = apply_setup(setup, hw_registry, device_registry)
+    gen = apply_setup(app_registry, device_registry)
     arg = None
 
     while True:
@@ -479,28 +494,22 @@ def connect_and_apply_setup(setup, hw_registry, device_registry):
             gen.close()
             return
 
-def apply_setup(source, dest, device_registry):
+def apply_setup(app_registry, device_registry):
+    source   = app_registry.cfg
     progress = ProgressUpdate(current=0, total=sum(len(mrc) for mrc in source))
     progress.subprogress = ProgressUpdate(current=0, total=0)
 
-    def _apply_device_config(src_dev, dest_mrc):
+    def _apply_device_config(device):
         action = ACTION_RETRY
-        dest_dev = None
 
-        while action == ACTION_RETRY:
-            dest_dev = dest_mrc.get_device(src_dev.bus, src_dev.address)
-
-            if dest_dev is not None:
-                break
-
+        while device.hw is None and action == ACTION_RETRY:
             action = yield MissingDestinationDevice(
-                    url=src_dev.mrc.url, bus=src_dev.bus, dev=src_dev.address)
+                    url=device.mrc.url, bus=device.bus, dev=device.address)
 
             if action == ACTION_SKIP:
                 raise StopIteration()
 
-        gen = apply_device_config(src_dev, dest_dev,
-                device_registry.get_device_profile(src_dev.idc))
+        gen = apply_device_config(device)
         arg = None
 
         while True:
@@ -520,30 +529,24 @@ def apply_setup(source, dest, device_registry):
                 gen.close()
                 return
 
-    def _apply_mrc_config(src_mrc):
+    def _apply_mrc_config(app_mrc):
         action   = ACTION_RETRY
-        dest_mrc = None
 
-        while action == ACTION_RETRY:
-            dest_mrc = dest.get_mrc(src_mrc.url)
-
-            if dest_mrc is not None:
-                break
-
-            action = yield MissingDestinationMRC(url=src_mrc.url)
+        while app_mrc.hw is None and action == ACTION_RETRY:
+            action = yield MissingDestinationMRC(url=app_mrc.url)
 
             if action == ACTION_SKIP:
                 raise StopIteration()
 
-        if not dest_mrc.is_connected():
+        if not app_mrc.hw.is_connected():
             return
 
-        for src_dev in src_mrc:
+        for device in (d for d in app_mrc if d.cfg is not None):
             action = ACTION_RETRY
 
             while action == ACTION_RETRY:
 
-                gen = _apply_device_config(src_dev, dest_mrc)
+                gen = _apply_device_config(device)
                 arg = None
 
                 while True:
@@ -564,8 +567,8 @@ def apply_setup(source, dest, device_registry):
 
             yield progress.increment()
 
-    for src_mrc in source:
-        gen = _apply_mrc_config(src_mrc)
+    for mrc in (m for m in app_registry if m.cfg is not None):
+        gen = _apply_mrc_config(mrc)
         arg = None
 
         while True:

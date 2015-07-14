@@ -447,8 +447,10 @@ class GUIApplication(QtCore.QObject):
             if len(setup):
                 if self.linked_mode:
                     def apply_setup():
-                        runner = config_gui.ApplySetupRunner(source=setup, dest=node.ref.hw,
-                                device_registry=self.context.device_registry, parent_widget=self.treeview)
+                        runner = config_gui.ApplySetupRunner(
+                                app_registry=node.ref,
+                                device_registry=self.context.device_registry,
+                                parent_widget=self.treeview)
 
                         pd = config_gui.SubProgressDialog()
 
