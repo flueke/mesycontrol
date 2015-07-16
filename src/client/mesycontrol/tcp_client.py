@@ -25,7 +25,11 @@ class SocketError(Exception):
         return self.error_code
 
 class Disconnected(Exception):
-    pass
+    def __str__(self):
+        s = super(Disconnected, self).__str__()
+        if not len(s):
+            return "Disconnected"
+        return s
 
 RequestResult = collections.namedtuple("RequestResult", "request response")
 
