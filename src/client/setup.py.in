@@ -12,10 +12,22 @@ CSD = '${CMAKE_CURRENT_SOURCE_DIR}'
 # fine tuning.
 build_options = dict(
       packages = ['mesycontrol', 'mesycontrol.ui'],
-      excludes = ['PyQt4.uic.port_v3'],
-      #includes = ['scipy.sparse.csgraph._validation', 'scipy.special._ufuncs_cxx'],
-      include_files = [(pjoin(CSD, 'mesycontrol/ui'), 'mesycontrol/ui')],
+
+      # Excluding the python 3 uic and matplotlib. I can't get the latter to
+      # work and I am not sure if it's actually needed.
+      excludes = ['PyQt4.uic.port_v3', 'matplotlib'],
+
+      includes = ['scipy.sparse.csgraph._validation', 'scipy.special._ufuncs_cxx'],
+
+      include_files = [
+          (pjoin(CSD, 'mesycontrol/ui'), 'mesycontrol/ui'),
+          # This will use the correct mpl data path but fails later on with Error 21: Is a directory.
+          # The created mpl-data directory also has bad permissions.
+          #(matplotlib.get_data_path(), 'mpl-data')
+          ],
+
       #zip_includes  = [(pjoin(CSD, 'mesycontrol/ui/mainwin.ui'), 'mesycontrol/ui')],
+
       init_script = pjoin(CSD, 'cxfreeze_init.py'),
       path = sys.path + [CSD]
       )
