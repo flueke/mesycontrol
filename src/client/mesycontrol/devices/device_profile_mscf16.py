@@ -7,7 +7,11 @@ threshold_percent = { 'label': '%', 'name': 'percent', 'factor': 256/30.0 }
 # Note: The major part of the fpga version equals the hardware version.
 # Note2: The fpga version is only readable if the software version is >= 5.3.
 
-idc = 20
+idc                 = 20
+NUM_CHANNELS        = 16        # number of channels
+NUM_GROUPS          =  4        # number of channel groups
+GAIN_FACTOR         = 1.22      # gain step factor
+GAIN_ADJUST_LIMITS  = (1, 100)  # limits of the hardware gain jumpers
 
 profile_dict = {
         'name': 'MSCF-16',
@@ -118,5 +122,8 @@ profile_dict = {
             # This should always yield the same version as the `version'
             # register (49) (although the encoding is different).
             { 'address': 255, 'name': 'cpu_software_version',   'read_only': True }, # sw version >= 5.3
-            ]
+            ],
+        'extensions': [
+            { 'name': 'gain_adjusts', 'value': [1 for i in range(NUM_GROUPS)] }
+            ],
 }

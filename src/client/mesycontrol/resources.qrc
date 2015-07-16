@@ -1,5 +1,6 @@
 <!DOCTYPE RCC><RCC version="1.0">
 <qresource>
+    <file alias="arrow-bottom.png">ui/arrow-bottom-2x.png</file>
     <file alias="connected.png">ui/connected.png</file>
     <file alias="connecting.png">ui/loop-circular-2x.png</file>
     <file alias="connection-error.png">ui/warning-2x.png</file>
@@ -7,7 +8,6 @@
     <file alias="linked.png">ui/link-broken-2x.png</file>
     <file alias="unlinked.png">ui/link-intact-2x.png</file>
     <file>ui/applications-utilities.png</file>
-    <file>ui/arrow-bottom-2x.png</file>
     <file>ui/arrow-circle-left-2x.png</file>
     <file>ui/arrow-circle-right-2x.png</file>
     <file>ui/ban-2x.png</file>

@@ -399,6 +399,9 @@ class Device(AppObject):
                 write_mode=write_mode,
                 parent=parent)
 
+    def has_widget_class(self):
+        return hasattr(self.module, 'device_ui_class')
+
     mrc             = pyqtProperty(object, get_mrc, set_mrc, notify=mrc_changed)
     idc_conflict    = pyqtProperty(bool, has_idc_conflict, notify=idc_conflict_changed)
     module          = pyqtProperty(object, get_module, set_module, notify=module_changed)

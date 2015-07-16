@@ -193,8 +193,7 @@ class Device(bm.Device):
             self._extensions[name] = value
             if is_new:
                 self.extension_added.emit(name, value)
-            else:
-                self.extension_changed.emit(name, value)
+            self.extension_changed.emit(name, value)
 
             return True
 

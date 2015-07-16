@@ -351,6 +351,19 @@ class GUIApplication(QtCore.QObject):
             if subwin.isMinimized():
                 subwin.showNormal()
 
+    def _create_device_widget_window(self, app_device, from_config_side, from_hw_side):
+        if self.linked_mode and app_device.has_hw and app_device.has_cfg:
+            write_mode = util.COMBINED
+        else:
+            write_mode = util.CONFIG if from_config_side else util.HARDWARE
+
+        read_mode = util.CONFIG if from_config_side else util.HARDWARE
+
+        subwin = self._add_device_widget_window(app_device, read_mode, write_mode)
+
+        if subwin.isMinimized():
+            subwin.showNormal()
+
     def _tree_node_selected(self, node):
         # For now only mouse clicks are used
         pass
@@ -434,6 +447,19 @@ class GUIApplication(QtCore.QObject):
         self._device_window_map.setdefault(device, set()).add(subwin)
         return subwin
 
+    def _add_device_widget_window(self, app_device, read_mode, write_mode):
+        widget = app_device.make_device_widget(read_mode, write_mode)
+        subwin = QtGui.QMdiSubWindow()
+        subwin.setWidget(widget)
+        subwin.setAttribute(Qt.WA_DeleteOnClose)
+        subwin.device = app_device
+        self.mainwindow.mdiArea.addSubWindow(subwin)
+        subwin.installEventFilter(self)
+        restore_subwindow_state(subwin, self.context.make_qsettings())
+        subwin.show()
+        self._device_window_map.setdefault(app_device, set()).add(subwin)
+        return subwin
+
     def _cfg_context_menu(self, node, idx, pos, view):
         menu = QtGui.QMenu()
 
@@ -506,33 +532,10 @@ class GUIApplication(QtCore.QObject):
                     partial(self._show_or_create_device_window,
                         device=device, from_config_side=True, from_hw_side=False))
 
-            def open_widget(app_device, from_config_side, from_hw_side):
-                if self.linked_mode and app_device.has_hw and app_device.has_cfg:
-                    write_mode = util.COMBINED
-                else:
-                    write_mode = util.CONFIG if from_config_side else util.HARDWARE
-
-                read_mode=util.CONFIG if from_config_side else util.HARDWARE
-
-                #device = app_device.make_specialized_device(
-                #        read_mode=read_mode, write_mode=write_mode)
-
-                #idc = app_device.cfg.idc if app_device.has_cfg else app_device.hw.idc
-
-                #ui_cls = self.context.device_registry.get_device_ui_class(idc)
-
-                #widget = ui_cls(device, util.CONFIG , device.write_mode)
-
-                widget = app_device.make_device_widget(read_mode, write_mode)
-
-                subwin = QtGui.QMdiSubWindow()
-                subwin.setWidget(widget)
-                subwin.setAttribute(Qt.WA_DeleteOnClose)
-                self.mainwindow.mdiArea.addSubWindow(subwin)
-                subwin.show()
-
-            menu.addAction("Open Widget").triggered.connect(partial(
-                open_widget, app_device=device, from_config_side=True, from_hw_side=False))
+            if device.has_widget_class():
+                menu.addAction("Open Widget").triggered.connect(partial(
+                    self._create_device_widget_window, app_device=device,
+                    from_config_side=True, from_hw_side=False))
 
             def load_device_config():
                 app_device = device
@@ -650,6 +653,12 @@ class GUIApplication(QtCore.QObject):
                             device=device, from_config_side=False, from_hw_side=True))
 
             if device.has_hw:
+                if device.has_widget_class():
+                    menu.addAction("Open Widget").triggered.connect(partial(
+                        self._create_device_widget_window, app_device=device,
+                        from_config_side=False, from_hw_side=True))
+
+
                 def toggle_polling():
                     device.hw.polling = not device.hw.polling
 
@@ -857,7 +866,7 @@ class DeviceTableSubWindow(QtGui.QMdiSubWindow):
             prefix = 'cfg'
 
         device_name = self.device_registry.get_device_name(idc)
-        name        = "%s_(%s, %d, %d)" % (prefix, device.mrc.url, device.bus, device.address)
+        name        = "table_%s_(%s, %d, %d)" % (prefix, device.mrc.url, device.bus, device.address)
         title       = "%s @ (%s, %d, %d)" % (device_name, device.mrc.get_display_url(),
                 device.bus, device.address)
 

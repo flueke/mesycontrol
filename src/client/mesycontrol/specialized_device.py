@@ -33,8 +33,8 @@ class DeviceBase(QtCore.QObject):
         super(DeviceBase, self).__init__(parent)
 
         self.app_device = app_device
-        self.app_device.hardware_set.connect(self.hardware_set)
-        self.app_device.config_set.connect(self.config_set)
+        self.app_device.hardware_set.connect(self._on_hardware_set)
+        self.app_device.config_set.connect(self._on_config_set)
         self.app_device.mrc_changed.connect(self.mrc_changed)
         self.app_device.profile_changed.connect(self.profile_changed)
         self.app_device.idc_conflict_changed.connect(self.idc_conflict_changed)
@@ -124,6 +124,9 @@ class DeviceBase(QtCore.QObject):
         address = self.profile[address_or_name].address
         return self.hw.set_parameter(address, value)
 
+    def _on_hardware_set(self, app_device, old, new):
+        self.hardware_set.emit(self, old, new)
+
     # ===== CFG =====
     def get_cfg_parameter(self, address_or_name):
         address = self.profile[address_or_name].address
@@ -136,3 +139,6 @@ class DeviceBase(QtCore.QObject):
     def set_cfg_parameter(self, address_or_name, value):
         address = self.profile[address_or_name].address
         return self.cfg.set_parameter(address, value)
+
+    def _on_config_set(self, app_device, old, new):
+        self.config_set.emit(self, old, new)
