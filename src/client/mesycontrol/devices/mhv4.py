@@ -14,8 +14,8 @@ from functools import partial
 import math
 import weakref
 
-from .. import app_model
 from .. import util
+from .. specialized_device import DeviceBase
 
 import device_profile_mhv4
 
@@ -23,192 +23,37 @@ import device_profile_mhv4
 # GlobalSettingsWidget: compare spinbox value to old value and set modified
 # state accordingly
 
+NUM_CHANNELS = 4
+RAMP_SPEEDS = {
+        0:   '5 V/s',
+        1:  '25 V/s',
+        2: '100 V/s',
+        3: '500 V/s'
+        }
+
+TCOMP_SOURCES = {
+        0: '0',
+        1: '1',
+        2: '2',
+        3: '3',
+        4: 'off'
+        }
+
+TEMP_NO_SENSOR = 999
+
+MAX_VOLTAGE_V = 800.0
+
 class Polarity(object):
     negative = 0
     positive = 1
 
-class MHV4(app_model.Device):
-    """Model for the 800V MHV-4 high voltage supply."""
-    num_channels  = 4
-    idcs          = (27,)
-
-    ramp_speeds = {
-            0:   '5 V/s',
-            1:  '25 V/s',
-            2: '100 V/s',
-            3: '500 V/s'
-            }
-
-    tcomp_sources = {
-            0: '0',
-            1: '1',
-            2: '2',
-            3: '3',
-            4: 'off'
-            }
-
-    temp_no_sensor = 999
-
-    actual_voltage_changed  = pyqtSignal([int, int], [object])   #: [channel, raw value], [BoundParameter]
-    target_voltage_changed  = pyqtSignal([int, int], [object])   #: [channel, raw value], [BoundParameter]
-    voltage_limit_changed   = pyqtSignal([int, int], [object])   #: [channel, raw value], [BoundParameter]
-    actual_current_changed  = pyqtSignal([int, int], [object])   #: [channel, raw value], [BoundParameter]
-    current_limit_changed   = pyqtSignal([int, int], [object])   #: [channel, raw value], [BoundParameter]
-    channel_state_changed   = pyqtSignal(int, bool)              #: channel, value
-    polarity_changed        = pyqtSignal(int, int)               #: channel, Polarity.(negative|positive)
-    temperature_changed     = pyqtSignal([int, int], [object])   #: [sensor_idx, raw_value], [BoundParameter]
-    tcomp_slope_changed     = pyqtSignal([int, int], [object])    
-    tcomp_offset_changed    = pyqtSignal([int, int], [object])
-    tcomp_source_changed    = pyqtSignal([int, int], [object])
-    ramp_speed_changed      = pyqtSignal(int)
-
-    def __init__(self, device_model=None, device_config=None, device_profile=None, parent=None):
-        super(MHV4, self).__init__(device_model=device_model, device_config=device_config,
-                device_profile=device_profile, parent=parent)
-
+# ==========  Device ========== 
+class MHV4(DeviceBase):
+    def __init__(self, app_device, display_mode, write_mode, parent=None):
+        super(MHV4, self).__init__(app_device, display_mode, write_mode, parent)
         self.log = util.make_logging_source_adapter(__name__, self)
 
-        self.parameter_changed[object, int, int].connect(self._on_parameter_changed)
-
-    def propagate_state(self):
-        """Propagate the current state using the signals defined in this class."""
-        if not self.has_model():
-            return
-
-        for param_profile in self.profile.parameters:
-            if self.has_parameter(param_profile.address):
-                self._on_parameter_changed(param_profile, 0, self[param_profile.address])
-
-    def _on_parameter_changed(self, param, old_value, new_value):
-        p = self.profile
-
-        if p['channel0_voltage_write'] <= param <= p['channel3_voltage_write']:
-            self.target_voltage_changed.emit(param.index, new_value)
-            self.target_voltage_changed[object].emit(self.make_bound_parameter(param))
-
-        elif p['channel0_voltage_read'] <= param <= p['channel3_voltage_read']:
-            self.actual_voltage_changed.emit(param.index, new_value)
-            self.actual_voltage_changed[object].emit(self.make_bound_parameter(param))
-
-        elif p['channel0_enable_read'] <= param <= p['channel3_enable_read']:
-            self.channel_state_changed.emit(param.index, new_value)
-
-        elif p['channel0_current_limit_read'] <= param <= p['channel3_current_limit_read']:
-            self.current_limit_changed.emit(param.index, new_value)
-            self.current_limit_changed[object].emit(self.make_bound_parameter(param))
-
-        elif p['channel0_voltage_limit_read'] <= param <= p['channel3_voltage_limit_read']:
-            self.voltage_limit_changed.emit(param.index, new_value)
-            self.voltage_limit_changed[object].emit(self.make_bound_parameter(param))
-
-        elif p['channel0_polarity_read'] <= param <= p['channel3_polarity_read']:
-            self.polarity_changed.emit(param.index, new_value)
-
-        elif p['channel0_current_read'] <= param <= p['channel3_current_read']:
-            self.actual_current_changed.emit(param.index, new_value)
-            self.actual_current_changed[object].emit(self.make_bound_parameter(param))
-
-        elif p['sensor0_temp_read'] <= param <= p['sensor3_temp_read']:
-            self.temperature_changed.emit(param.index, new_value)
-            self.temperature_changed[object].emit(self.make_bound_parameter(param))
-
-        elif p['channel0_tcomp_slope_read'] <= param <= p['channel3_tcomp_slope_read']:
-            self.tcomp_slope_changed.emit(param.index, new_value)
-            self.tcomp_slope_changed[object].emit(self.make_bound_parameter(param))
-
-        elif p['channel0_tcomp_offset_read'] <= param <= p['channel3_tcomp_offset_read']:
-            self.tcomp_offset_changed.emit(param.index, new_value)
-            self.tcomp_offset_changed[object].emit(self.make_bound_parameter(param))
-
-        elif p['channel0_tcomp_source_read'] <= param <= p['channel3_tcomp_source_read']:
-            self.tcomp_source_changed.emit(param.index, new_value)
-            self.tcomp_source_changed[object].emit(self.make_bound_parameter(param))
-
-        elif p['ramp_speed_read'] == param:
-            self.ramp_speed_changed.emit(new_value)
-
-    # voltage
-    def get_actual_voltage(self, channel, unit_label='raw'):
-        return self.get_parameter_by_name('channel%d_voltage_read' % channel, unit_label)
-
-    def get_target_voltage(self, channel, unit_label='raw'):
-        return self.get_parameter_by_name('channel%d_voltage_write' % channel, unit_label)
-
-    def set_target_voltage(self, channel, voltage, unit_label='raw', response_handler=None):
-        return self.set_parameter_by_name('channel%d_voltage_write' % channel, voltage, unit_label, response_handler)
-
-    def get_voltage_limit(self, channel, unit_label='raw'):
-        return self.get_parameter_by_name('channel%d_voltage_limit_read' % channel, unit_label)
-
-    def set_voltage_limit(self, channel, voltage, unit_label='raw', response_handler=None):
-        return self.set_parameter_by_name('channel%d_voltage_limit_write' % channel, voltage, unit_label, response_handler)
-
-    # current
-    def get_actual_current(self, channel, unit_label='raw'):
-        return self.get_parameter_by_name('channel%d_current_read' % channel, unit_label)
-
-    def get_current_limit(self, channel, unit_label='raw'):
-        return self.get_parameter_by_name('channel%d_current_limit_read' % channel, unit_label)
-
-    def set_current_limit(self, channel, current, unit_label='raw', response_handler=None):
-        return self.set_parameter_by_name('channel%d_current_limit_write' % channel, current, unit_label, response_handler)
-
-
-    # channel state
-    def get_channel_state(self, channel):
-        return bool(self.get_parameter_by_name('channel%d_enable_read' % channel))
-
-    def set_channel_state(self, channel, on_off, response_handler=None):
-        return self.set_parameter_by_name('channel%d_enable_write' % channel, bool(on_off), 'raw', response_handler)
-
-    def enable_all_channels(self):
-        for i in range(MHV4.num_channels):
-            self.set_channel_state(i, True)
-
-    # polarity
-    def get_polarity(self, channel):
-        return self.get_parameter_by_name('channel%d_polarity_read' % channel)
-
-    def set_polarity(self, channel, polarity, response_handler=None):
-        return self.set_parameter_by_name('channel%d_polarity_write' % channel, polarity, 'raw', response_handler)
-
-    # temperature compensation
-    def get_tcomp_slope(self, channel, unit_label='raw'):
-        return self.get_parameter_by_name('channel%d_tcomp_slope_read' % channel, unit_label)
-
-    def set_tcomp_slope(self, channel, value, unit_label='raw', response_handler=None):
-        self.set_parameter_by_name('channel%d_tcomp_slope_write' % channel, value, unit_label, response_handler)
-
-    def get_tcomp_offset(self, channel, unit_label='raw'):
-        return self.get_parameter_by_name('channel%d_tcomp_offset_read' % channel, unit_label)
-
-    def set_tcomp_offset(self, channel, value, unit_label='raw', response_handler=None):
-        self.set_parameter_by_name('channel%d_tcomp_offset_write' % channel, value, unit_label, response_handler)
-
-    def get_tcomp_source(self, channel):
-        return self.get_parameter_by_name('channel%d_tcomp_source_read' % channel)
-
-    def set_tcomp_source(self, channel, value, unit_label='raw', response_handler=None):
-        self.set_parameter_by_name('channel%d_tcomp_source_write' % channel, value, unit_label, response_handler)
-
-    def get_temperature(self, sensor, unit_label='°C'):
-        """Returns the temperature for the given sensor or None if no valid
-        temperature reading is available."""
-        if self.get_parameter_by_name('sensor%d_temp_read' % sensor) == MHV4.temp_no_sensor:
-            return None
-
-        return self.get_parameter_by_name('sensor%d_temp_read' % sensor, unit_label)
-
-    # ramp speed
-    def get_ramp_speed(self):
-        return self.get_parameter_by_name('ramp_speed_read')
-
-    def set_ramp_speed(self, value, response_handler=None):
-        return self.set_parameter_by_name('ramp_speed_write', value, 'raw', response_handler)
-
-    def get_maximum_voltage(self):
-        return 800.0
-
+# ==========  GUI ========== 
 class WheelEventFilter(QtCore.QObject):
     """Event filter to filter out QEvent::Wheel events."""
     def __init__(self, parent=None):
@@ -221,18 +66,20 @@ class ChannelWidget(QtGui.QWidget):
     target_voltage_changed          = pyqtSignal(float)
     channel_state_changed           = pyqtSignal(bool)
 
-    def __init__(self, mhv4, channel, context, parent=None):
+    def __init__(self, mhv4, channel, display_mode, write_mode, parent=None):
         super(ChannelWidget, self).__init__(parent)
-        uic.loadUi(context.find_data_file('mesycontrol/ui/mhv4_channel_without_settings.ui'), self)
+        util.loadUi(":/ui/mhv4_channel.ui", self)
         self.mhv4    = weakref.ref(mhv4)
         self.channel = channel
 
         self.pb_channelstate.installEventFilter(self)
         sz  = self.label_polarity.minimumSize()
-        self.pixmap_positive = QtGui.QPixmap(context.find_data_file('mesycontrol/ui/list-add.png')).scaled(
-                        sz, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        self.pixmap_negative = QtGui.QPixmap(context.find_data_file('mesycontrol/ui/list-remove.png')).scaled(
-                        sz, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+        self.pixmap_positive = QtGui.QPixmap(":/ui/list-add.png").scaled(
+                sz, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+        self.pixmap_negative = QtGui.QPixmap(":/ui/list-remove.png").scaled(
+                sz, Qt.KeepAspectRatio, Qt.SmoothTransformation)
 
         self._last_temperature      = None
         self._last_tcomp_source     = None
@@ -318,7 +165,7 @@ class ChannelWidget(QtGui.QWidget):
 
     def _update_temperature_display(self):
         if (self._last_tcomp_source is None
-                or MHV4.tcomp_sources[self._last_tcomp_source] == 'off'):
+                or TCOMP_SOURCES[self._last_tcomp_source] == 'off'):
             self.label_temperature.clear()
             return
 
@@ -328,7 +175,7 @@ class ChannelWidget(QtGui.QWidget):
             text = QtCore.QString.fromUtf8("Temp: %.1f °C" % self._last_temperature)
 
         if self._last_tcomp_source is not None:
-            text += ", Src: %s" % MHV4.tcomp_sources[self._last_tcomp_source]
+            text += ", Src: %s" % TCOMP_SOURCES[self._last_tcomp_source]
 
         self.label_temperature.setText(text)
 
@@ -391,18 +238,18 @@ class ChannelSettingsWidget(QtGui.QWidget):
     apply_settings      = pyqtSignal()
     modified_changed    = pyqtSignal(bool)
 
-    def __init__(self, mhv4, channel, context, labels_on=True, parent=None):
+    def __init__(self, mhv4, channel, display_mode, write_mode, labels_on=True, parent=None):
         super(ChannelSettingsWidget, self).__init__(parent)
 
         self.mhv4    = weakref.ref(mhv4)
         self.channel = channel
-        uic.loadUi(context.find_data_file('mesycontrol/ui/mhv4_channel_settings.ui'), self)
+        util.loadUi(":/ui/mhv4_channel_settings.ui", self)
 
         if not labels_on:
             for label in self.findChildren(QtGui.QLabel, QtCore.QRegExp("label_\\d+")):
                 label.hide()
 
-        self.spin_target_voltage_limit.setMaximum(mhv4.get_maximum_voltage())
+        self.spin_target_voltage_limit.setMaximum(MAX_VOLTAGE_V)
         self.pb_apply.clicked.connect(self.apply_settings)
         self.pb_discard.clicked.connect(self.discard)
 
@@ -449,7 +296,7 @@ class ChannelSettingsWidget(QtGui.QWidget):
             self.spin_target_tcomp_offset.setValue(value)
 
     def set_tcomp_source(self, value):
-        self.le_actual_tcomp_source.setText(MHV4.tcomp_sources[value])
+        self.le_actual_tcomp_source.setText(TCOMP_SOURCES[value])
         with util.block_signals(self.combo_target_tcomp_source):
             self.combo_target_tcomp_source.setCurrentIndex(value)
 
@@ -486,10 +333,10 @@ class GlobalSettingsWidget(QtGui.QWidget):
     apply_settings      = pyqtSignal()
     modified_changed    = pyqtSignal(bool)
 
-    def __init__(self, mhv4, context, parent=None):
+    def __init__(self, mhv4, display_mode, write_mode, parent=None):
         super(GlobalSettingsWidget, self).__init__(parent)
 
-        uic.loadUi(context.find_data_file('mesycontrol/ui/mhv4_global_settings.ui'), self)
+        util.loadUi(":/ui/mhv4_global_settings.ui", self)
         self.mhv4 = weakref.ref(mhv4)
         self.pb_apply.clicked.connect(self.apply_settings)
         self.pb_discard.clicked.connect(self.discard)
@@ -527,11 +374,9 @@ def set_if_differs(cur, new, setter):
     return False
 
 class MHV4Widget(QtGui.QWidget):
-    def __init__(self, device, context, parent=None):
+    def __init__(self, device, display_mode, write_mode, parent=None):
         super(MHV4Widget, self).__init__(parent)
-        self.context = context
         self.device  = device
-        self.device.add_default_parameter_subscription(self)
 
         self.channels = list()
         self.channel_settings = list()
@@ -541,9 +386,9 @@ class MHV4Widget(QtGui.QWidget):
         channel_layout = QtGui.QHBoxLayout()
         channel_layout.setContentsMargins(4, 4, 4, 4)
 
-        for i in range(MHV4.num_channels):
+        for i in range(NUM_CHANNELS):
             groupbox        = QtGui.QGroupBox("Channel %d" % (i+1), self)
-            channel_widget  = ChannelWidget(device, i, self.context)
+            channel_widget  = ChannelWidget(device, i, display_mode, write_mode)
             groupbox_layout = QtGui.QHBoxLayout(groupbox)
             groupbox_layout.setContentsMargins(4, 4, 4, 4)
             groupbox_layout.addWidget(channel_widget)
@@ -558,15 +403,15 @@ class MHV4Widget(QtGui.QWidget):
         channel_settings_tabs = QtGui.QTabWidget()
         self.channel_settings_tabs = weakref.ref(channel_settings_tabs)
 
-        for i in range(MHV4.num_channels):
-            settings_widget = ChannelSettingsWidget(device, i, self.context)
+        for i in range(NUM_CHANNELS):
+            settings_widget = ChannelSettingsWidget(device, i, display_mode, write_mode)
             settings_widget.apply_settings.connect(self.apply_channel_settings)
             settings_widget.modified_changed.connect(self._on_channel_settings_modified)
             channel_settings_tabs.addTab(settings_widget, "Channel %d" % (i+1))
             self.channel_settings.append(weakref.ref(settings_widget))
 
         # Global settings
-        global_settings_widget = GlobalSettingsWidget(device, self.context)
+        global_settings_widget = GlobalSettingsWidget(device, display_mode, write_mode)
         global_settings_widget.apply_settings.connect(self.apply_global_settings)
         global_settings_widget.modified_changed.connect(self._on_global_settings_modified)
         self.global_settings = weakref.ref(global_settings_widget)
@@ -576,34 +421,34 @@ class MHV4Widget(QtGui.QWidget):
         channels_widget.setLayout(channel_layout)
 
         toolbox = QtGui.QToolBox()
-        toolbox.addItem(channels_widget, QtGui.QIcon(self.context.find_data_file(
-            'mesycontrol/ui/applications-utilities.png')), 'Channel Control')
-        toolbox.addItem(channel_settings_tabs, QtGui.QIcon(self.context.find_data_file(
-            'mesycontrol/ui/preferences-system.png')), 'Settings')
+        toolbox.addItem(channels_widget, QtGui.QIcon(":/ui/applications-utilities.png"),
+                'Channel Control')
+        toolbox.addItem(channel_settings_tabs, QtGui.QIcon("mesycontrol/ui/preferences-system.png"),
+                'Settings')
 
         layout = QtGui.QVBoxLayout() 
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(toolbox)
         self.setLayout(layout)
 
-        self.device.actual_voltage_changed.connect(self.actual_voltage_changed)
-        self.device.target_voltage_changed.connect(self.target_voltage_changed)
-        self.device.voltage_limit_changed.connect(self.voltage_limit_changed)
-        self.device.actual_current_changed.connect(self.actual_current_changed)
-        self.device.current_limit_changed.connect(self.current_limit_changed)
-        self.device.channel_state_changed.connect(self.channel_state_changed)
-        self.device.polarity_changed.connect(self.polarity_changed)
-        self.device.temperature_changed[object].connect(self.temperature_changed)
-        self.device.tcomp_slope_changed[object].connect(self.tcomp_slope_changed)
-        self.device.tcomp_offset_changed[object].connect(self.tcomp_offset_changed)
-        self.device.tcomp_source_changed[object].connect(self.tcomp_source_changed)
-        self.device.ramp_speed_changed.connect(self.ramp_speed_changed)
+        #self.device.actual_voltage_changed.connect(self.actual_voltage_changed)
+        #self.device.target_voltage_changed.connect(self.target_voltage_changed)
+        #self.device.voltage_limit_changed.connect(self.voltage_limit_changed)
+        #self.device.actual_current_changed.connect(self.actual_current_changed)
+        #self.device.current_limit_changed.connect(self.current_limit_changed)
+        #self.device.channel_state_changed.connect(self.channel_state_changed)
+        #self.device.polarity_changed.connect(self.polarity_changed)
+        #self.device.temperature_changed[object].connect(self.temperature_changed)
+        #self.device.tcomp_slope_changed[object].connect(self.tcomp_slope_changed)
+        #self.device.tcomp_offset_changed[object].connect(self.tcomp_offset_changed)
+        #self.device.tcomp_source_changed[object].connect(self.tcomp_source_changed)
+        #self.device.ramp_speed_changed.connect(self.ramp_speed_changed)
 
         # Initialize the GUI with the current state of the device. This is
         # needed to make newly created widgets work even if all static
         # parameters are known (static parameters won't get refreshed and thus
         # no change signals will be emitted).
-        self.device.propagate_state()
+        #self.device.propagate_state()
 
     @pyqtSlot(float)
     def set_target_voltage(self, voltage):
@@ -655,7 +500,7 @@ class MHV4Widget(QtGui.QWidget):
         self.channel_settings[channel]().set_polarity(value)
 
     def temperature_changed(self, bp):
-        if bp.value == MHV4.temp_no_sensor:
+        if bp.value == TEMP_NO_SENSOR:
             value = None
         else:
             value = bp.get_value('°C')
@@ -663,7 +508,7 @@ class MHV4Widget(QtGui.QWidget):
         sensor = bp.index
 
         # Update temperature for channels using this sensor
-        for i in range(MHV4.num_channels):
+        for i in range(NUM_CHANNELS):
             try:
                 src = self.device.get_tcomp_source(i)
                 if src == sensor:
@@ -680,7 +525,7 @@ class MHV4Widget(QtGui.QWidget):
     def tcomp_source_changed(self, bp):
         self.channels[bp.index]().set_tcomp_source(bp.value)
         self.channel_settings[bp.index]().set_tcomp_source(bp.value)
-        if MHV4.tcomp_sources[bp.value] == 'off':
+        if TCOMP_SOURCES[bp.value] == 'off':
             return
 
         try:

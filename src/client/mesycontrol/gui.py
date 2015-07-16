@@ -88,8 +88,8 @@ def run_add_device_config_dialog(device_registry, registry, mrc, bus=None, paren
 
         def accepted():
             bus, address, idc, name = dialog.result()
-            device_config = cm.make_device_config(bus, address, idc, name, device_registry.get_profile(idc))
-            if not mrc.cfg:
+            device_config = cm.make_device_config(bus, address, idc, name, device_registry.get_device_profile(idc))
+            if not mrc.has_cfg:
                 registry.cfg.add_mrc(cm.MRC(mrc.url))
             mrc.cfg.add_device(device_config)
 
@@ -137,6 +137,11 @@ def run_save_device_config(device, context, parent_widget):
     if not len(filename):
         return False
 
+    root, ext = os.path.splitext(filename)
+
+    if not len(ext):
+        filename += ".xml"
+
     try:
         config_xml.write_device_config(device_config=device.cfg, dest=filename,
                 parameter_names=context.device_registry.get_parameter_names(device.cfg.idc))
@@ -180,6 +185,11 @@ def run_save_setup_as_dialog(context, parent_widget):
 
     if not len(filename):
         return False
+
+    root, ext = os.path.splitext(filename)
+
+    if not len(ext):
+        filename += ".xml"
 
     try:
         config_xml.write_setup(setup=setup, dest=filename,

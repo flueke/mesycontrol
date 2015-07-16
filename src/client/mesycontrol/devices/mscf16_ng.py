@@ -105,6 +105,10 @@ class MSCF16(DeviceBase):
         self.module_info      = ModuleInfo()
 
         self.config_set.connect(self._on_config_set)
+        self.hardware_set.connect(self._on_hardware_set)
+
+        self._on_config_set(self, None, self.cfg)
+        self._on_hardware_set(self, None, self.hw)
 
     def perform_copy_function(self, copy_function):
         """Performs one of the MSCF copy functions as defined in CopyFunction.
@@ -210,9 +214,13 @@ class MSCF16(DeviceBase):
 
         return ret
 
-    def _on_config_set(self):
-        for i in range(NUM_GROUPS):
-            self.set_gain_adjust(i, self._gain_adjusts[i])
+    def _on_config_set(self, s, old, new):
+        if new is not None:
+            for i in range(NUM_GROUPS):
+                self.set_gain_adjust(i, self._gain_adjusts[i])
+
+    def _on_hardware_set(self, s, old, new):
+        pass
 
 # ==========  GUI ========== 
 dynamic_label_style = "QLabel { background-color: lightgrey; }"
@@ -783,19 +791,29 @@ class TimingPage(QtGui.QGroupBox):
         #d = command.CommandProgressDialog(cmd, cancelButtonText=QtCore.QString(), parent=self)
         #d.exec_()
 
+class ChannelModeBinding(pb.AbstractParameterBinding):
+    def __init__(self, **kwargs):
+        super(ChannelModeBinding, self).__init__(**kwargs)
+        self.target[0].toggled.connect(self._write_value)
+
+    def _update(self, rf):
+        try:
+            rb = self.target[0] if int(rf) else self.target[1]
+            with util.block_signals(rb):
+                rb.setChecked(True)
+        except Exception:
+            pass
+
+        for rb in self.target:
+            rb.setToolTip(self._get_tooltip(rf))
+            rb.setStatusTip(rb.toolTip())
+
 class MiscPage(QtGui.QWidget):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(MiscPage, self).__init__(parent)
         self.log    = util.make_logging_source_adapter(__name__, self)
         self.device = device
         self.bindings = list()
-
-        #self.device.coincidence_time_changed.connect(self._on_device_coincidence_time_changed)
-        #self.device.multiplicity_low_changed.connect(self._on_device_multiplicity_low_changed)
-        #self.device.multiplicity_high_changed.connect(self._on_device_multiplicity_high_changed)
-        #self.device.monitor_channel_changed.connect(self._on_device_monitor_channel_changed)
-        #self.device.single_channel_mode_changed.connect(self._on_device_single_channel_mode_changed)
-        #self.device.parameter_changed[object].connect(self._on_device_parameter_changed)
 
         layout = QtGui.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -853,15 +871,30 @@ class MiscPage(QtGui.QWidget):
         self.combo_monitor.addItem("Off")
         self.combo_monitor.addItems(["Channel %d" % i for i in range(NUM_CHANNELS)])
         self.combo_monitor.setMaxVisibleItems(NUM_CHANNELS+1)
-        self.combo_monitor.currentIndexChanged[int].connect(self._monitor_channel_selected)
+
+        self.bindings.append(pb.factor.make_binding(
+            device=device,
+            profile=device.profile['monitor_channel'],
+            display_mode=display_mode,
+            write_mode=write_mode,
+            target=self.combo_monitor))
+
         monitor_layout.addWidget(self.combo_monitor, 0, 0)
 
         # Channel mode
+        self.rb_mode_single = QtGui.QRadioButton("Single")
+        self.rb_mode_common = QtGui.QRadioButton("Common")
+
+        self.bindings.append(ChannelModeBinding(
+            device=device,
+            profile=device.profile['single_channel_mode'],
+            display_mode=display_mode,
+            write_mode=write_mode,
+            target=(self.rb_mode_single, self.rb_mode_common)))
+
         mode_box = QtGui.QGroupBox("Channel Mode")
         mode_layout = QtGui.QGridLayout(mode_box)
         mode_layout.setContentsMargins(2, 2, 2, 2)
-        self.rb_mode_single = QtGui.QRadioButton("Single", toggled=self._rb_mode_single_toggled)
-        self.rb_mode_common = QtGui.QRadioButton("Common")
         mode_layout.addWidget(self.rb_mode_single, 0, 0)
         mode_layout.addWidget(self.rb_mode_common, 0, 1)
 

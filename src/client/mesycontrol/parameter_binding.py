@@ -36,7 +36,8 @@ class AbstractParameterBinding(object):
         """Gets the value of this bindings parameter and updates the target
         display once the value is retrieved."""
         dev = self.device.cfg if self.display_mode == util.CONFIG else self.device.hw
-        dev.get_parameter(self.address).add_done_callback(self._update_wrapper)
+        f = dev.get_parameter(self.address).add_done_callback(self._update_wrapper)
+        log.debug("populate: addr=%d, future=%s", self.address, f)
 
     def get_address(self):
         return self.profile.address
@@ -73,13 +74,17 @@ class AbstractParameterBinding(object):
 
     def _on_hw_parameter_changed(self, address, value):
         if address == self.address and self.display_mode == util.HARDWARE:
-            self.device.hw.get_parameter(self.address).add_done_callback(self._update_wrapper)
+            f = self.device.hw.get_parameter(self.address).add_done_callback(self._update_wrapper)
+            log.debug("_on_hw_parameter_changed: addr=%d, future=%s", self.address, f)
 
     def _on_cfg_parameter_changed(self, address, value):
         if address == self.address and self.display_mode == util.CONFIG:
-            self.device.cfg.get_parameter(self.address).add_done_callback(self._update_wrapper)
+            f = self.device.cfg.get_parameter(self.address).add_done_callback(self._update_wrapper)
+            log.debug("_on_cfg_parameter_changed: addr=%d, future=%s", self.address, f)
 
     def _write_value(self, value):
+        log.debug("_write_value: %d=%d", self.address, value)
+
         if self.write_mode == util.COMBINED:
 
             def on_cfg_set(f):
@@ -99,6 +104,7 @@ class AbstractParameterBinding(object):
             dev.set_parameter(self.address, value).add_done_callback(self._update_wrapper)
 
     def _update_wrapper(self, result_future):
+        log.debug("_update_wrapper: addr=%d, result_future=%s", self.address, result_future)
         self._update(result_future)
 
         for cb in self._update_callbacks:
@@ -135,104 +141,6 @@ class AbstractParameterBinding(object):
 
         return tt
 
-class SpinBoxParameterBinding(AbstractParameterBinding):
-    def __init__(self, **kwargs):
-        super(SpinBoxParameterBinding, self).__init__(**kwargs)
-
-        if self.profile.range is not None:
-            self.target.setMinimum(self.profile.range[0])
-            self.target.setMaximum(self.profile.range[1])
-
-        if hasattr(self.target, 'delayed_valueChanged'):
-            self.target.delayed_valueChanged.connect(self._value_changed)
-        else:
-            self.target.valueChanged.connect(self._value_changed)
-
-    def _update(self, result_future):
-        pal = QtGui.QApplication.palette()
-
-        if not result_future.cancelled() and not result_future.exception():
-            # No exception. Check if set was ok in case of SetResult.
-            result = result_future.result()
-            value  = int(result)
-
-            with util.block_signals(self.target):
-                self.target.setValue(value)
-
-            if isinstance(result, bm.SetResult) and not result:
-                pal.setColor(QtGui.QPalette.Base, QtGui.QColor('red'))
-        else:
-            # Exception case
-            pal.setColor(QtGui.QPalette.Base, QtGui.QColor('red'))
-
-        self.target.setPalette(pal)
-        self.target.setToolTip(self._get_tooltip(result_future))
-
-    def _value_changed(self, value):
-        self._write_value(value)
-
-class DoubleSpinBoxParameterBinding(AbstractParameterBinding):
-    def __init__(self, unit_name, **kwargs):
-        super(DoubleSpinBoxParameterBinding, self).__init__(**kwargs)
-
-        self.unit = self.profile.get_unit(unit_name)
-
-        if self.profile.range is not None:
-            self.target.setMinimum(self.unit.unit_value(profile.range[0]))
-            self.target.setMaximum(self.unit.unit_value(profile.range[1]))
-
-        if hasattr(self.target, 'delayed_valueChanged'):
-            self.target.delayed_valueChanged.connect(self._value_changed)
-        else:
-            self.target.valueChanged.connect(self._value_changed)
-
-    def _update(self, result_future):
-        pal = QtGui.QApplication.palette()
-
-        if not result_future.cancelled() and not result_future.exception():
-            # No exception. Check if set was ok in case of SetResult.
-            result = result_future.result()
-            value  = self.unit.unit_value(int(result))
-
-            with util.block_signals(self.target):
-                self.target.setValue(value)
-
-            if isinstance(result, bm.SetResult) and not result:
-                pal.setColor(QtGui.QPalette.Base, QtGui.QColor('red'))
-        else:
-            # Exception case
-            pal.setColor(QtGui.QPalette.Base, QtGui.QColor('red'))
-
-        self.target.setPalette(pal)
-        self.target.setToolTip(self._get_tooltip(result_future))
-
-    def _value_changed(self, dvalue):
-        self._write_value(self.unit.raw_value(dvalue))
-
-class LabelParameterBinding(AbstractParameterBinding):
-    def __init__(self, unit_name, prec=2, **kwargs):
-        super(LabelParameterBinding, self).__init__(**kwargs)
-
-        self.unit = self.profile.get_unit(unit_name)
-
-    def _update(self, result_future):
-        try:
-            value = self.unit.unit_value(int(result_future))
-            self.target.setText("%.2f%s" % (value, self.unit.label))
-        except Exception:
-            self.target.setText("N/A")
-
-class CheckBoxParameterBinding(AbstractParameterBinding):
-    def __init__(self, **kwargs):
-        super(CheckBoxParameterBinding, self).__init__(**kwargs)
-        self.target.clicked[bool].connect(self._value_changed)
-
-    def _update(self, result_future):
-        self.target.setChecked(result_future.result())
-
-    def _value_changed(self, on_off):
-        self._write_value(on_off)
-
 class Factory(object):
     def __init__(self):
         self.predicate_binding_class_pairs = list()
@@ -268,6 +176,123 @@ class Factory(object):
             return cls(**kwargs)
 
         raise ValueError("Could not find binding class for target %s" % kwargs['target'])
+
+class DefaultParameterBinding(AbstractParameterBinding):
+    def __init__(self, **kwargs):
+        super(DefaultParameterBinding, self).__init__(**kwargs)
+
+    def _update(self, result_future):
+        pal = QtGui.QApplication.palette()
+
+        try:
+            result = result_future.result()
+            if isinstance(result, bm.SetResult) and not result:
+                raise RuntimeError()
+        except Exception:
+            pal.setColor(QtGui.QPalette.Base, QtGui.QColor('red'))
+
+        self.target.setPalette(pal)
+        self.target.setToolTip(self._get_tooltip(result_future))
+        self.target.setStatusTip(self.target.toolTip())
+
+class SpinBoxParameterBinding(DefaultParameterBinding):
+    def __init__(self, **kwargs):
+        super(SpinBoxParameterBinding, self).__init__(**kwargs)
+
+        if self.profile.range is not None:
+            with util.block_signals(self.target):
+                self.target.setMinimum(self.profile.range[0])
+                self.target.setMaximum(self.profile.range[1])
+
+        if hasattr(self.target, 'delayed_valueChanged'):
+            self.target.delayed_valueChanged.connect(self._value_changed)
+        else:
+            self.target.valueChanged.connect(self._value_changed)
+
+    def _update(self, result_future):
+        log.debug("SpinBoxParameterBinding: addr=%d, result_future=%s", self.address, result_future)
+        super(SpinBoxParameterBinding, self)._update(result_future)
+
+        try:
+            with util.block_signals(self.target):
+                self.target.setValue(int(result_future.result()))
+        except Exception:
+            pass
+
+    def _value_changed(self, value):
+        log.debug("SpinBoxParameterBinding: addr=%d: _value_changed: %d", self.address, value)
+        self._write_value(value)
+
+class DoubleSpinBoxParameterBinding(DefaultParameterBinding):
+    def __init__(self, unit_name, **kwargs):
+        super(DoubleSpinBoxParameterBinding, self).__init__(**kwargs)
+
+        self.unit = self.profile.get_unit(unit_name)
+
+        if self.profile.range is not None:
+            with util.block_signals(self.target):
+                self.target.setMinimum(self.unit.unit_value(profile.range[0]))
+                self.target.setMaximum(self.unit.unit_value(profile.range[1]))
+
+        if hasattr(self.target, 'delayed_valueChanged'):
+            self.target.delayed_valueChanged.connect(self._value_changed)
+        else:
+            self.target.valueChanged.connect(self._value_changed)
+
+    def _update(self, result_future):
+        super(DoubleSpinBoxParameterBinding, self)._update(result_future)
+        try:
+            value = self.unit.unit_value(int(result_future.result()))
+            with util.block_signals(self.target):
+                self.target.setValue(value)
+        except Exception:
+            pass
+
+    def _value_changed(self, dvalue):
+        self._write_value(self.unit.raw_value(dvalue))
+
+class LabelParameterBinding(DefaultParameterBinding):
+    def __init__(self, unit_name, prec=2, **kwargs):
+        super(LabelParameterBinding, self).__init__(**kwargs)
+
+        self.unit = self.profile.get_unit(unit_name)
+
+    def _update(self, result_future):
+        super(LabelParameterBinding, self)._update(result_future)
+        try:
+            value = self.unit.unit_value(int(result_future))
+            self.target.setText("%.2f%s" % (value, self.unit.label))
+        except Exception:
+            self.target.setText("N/A")
+
+class CheckBoxParameterBinding(DefaultParameterBinding):
+    def __init__(self, **kwargs):
+        super(CheckBoxParameterBinding, self).__init__(**kwargs)
+        self.target.clicked[bool].connect(self._value_changed)
+
+    def _update(self, result_future):
+        super(CheckBoxParameterBinding, self)._update(result_future)
+        try:
+            with util.block_signals(self.target):
+                self.target.setChecked(int(result_future))
+        except Exception:
+            pass
+
+    def _value_changed(self, on_off):
+        self._write_value(on_off)
+
+class ComboBoxParameterBinding(DefaultParameterBinding):
+    def __init__(self, **kwargs):
+        super(ComboBoxParameterBinding, self).__init__(**kwargs)
+        self.target.currentIndexChanged[int].connect(self._write_value)
+
+    def _update(self, rf):
+        super(ComboBoxParameterBinding, self)._update(rf)
+        try:
+            with util.block_signals(self.target):
+                self.target.setCurrentIndex(int(rf))
+        except Exception:
+            pass
 
 factory = Factory()
 

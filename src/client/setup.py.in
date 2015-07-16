@@ -4,12 +4,24 @@
 
 from cx_Freeze import setup, Executable
 from os.path import join as pjoin
+import importlib
 import sys
 
 CSD = '${CMAKE_CURRENT_SOURCE_DIR}'
 
 # Dependencies are automatically detected, but it might need
 # fine tuning.
+
+includes = list()
+maybe_includes = ['scipy.sparse.csgraph._validation', 'scipy.special._ufuncs_cxx'],
+
+for mod in maybe_includes:
+    try:
+        importlib.import_module(mod)
+        includes.append(mod)
+    except ImportError:
+        pass
+
 build_options = dict(
       packages = ['mesycontrol', 'mesycontrol.ui'],
 
@@ -17,7 +29,7 @@ build_options = dict(
       # work and I am not sure if it's actually needed.
       excludes = ['PyQt4.uic.port_v3', 'matplotlib'],
 
-      includes = ['scipy.sparse.csgraph._validation', 'scipy.special._ufuncs_cxx'],
+      includes = includes,
 
       include_files = [
           (pjoin(CSD, 'mesycontrol/ui'), 'mesycontrol/ui'),

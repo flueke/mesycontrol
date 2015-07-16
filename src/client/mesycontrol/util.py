@@ -544,8 +544,10 @@ class DelayedSpinBox(QtGui.QSpinBox):
 
     def __init__(self, delay=0.5, parent=None):
         super(DelayedSpinBox, self).__init__(parent)
+        self.log = make_logging_source_adapter(__name__, self)
 
         def delayed_slt():
+            self.log.debug("delayed_slt invoked. value=%d" % self.value())
             self.delayed_valueChanged.emit(self.value())
 
         self.proxy = SignalProxy(signal=self.valueChanged,

@@ -82,9 +82,11 @@ class MRCNode(ConfigTreeNode):
     def _on_config_set(self, app_mrc, old_mrc, new_mrc):
         if old_mrc is not None:
             old_mrc.name_changed.disconnect(self.notify_all_columns_changed)
+            old_mrc.modified_changed.disconnect(self.notify_all_columns_changed)
 
         if new_mrc is not None:
             new_mrc.name_changed.connect(self.notify_all_columns_changed)
+            new_mrc.modified_changed.connect(self.notify_all_columns_changed)
 
         self.notify_all_columns_changed()
 
@@ -140,9 +142,11 @@ class DeviceNode(ConfigTreeNode):
     def _on_config_set(self, app_device, old_device, new_device):
         if old_device is not None:
             old_device.name_changed.disconnect(self.notify_all_columns_changed)
+            old_device.modified_changed.disconnect(self.notify_all_columns_changed)
 
         if new_device is not None:
             new_device.name_changed.connect(self.notify_all_columns_changed)
+            new_device.modified_changed.connect(self.notify_all_columns_changed)
 
         self.notify_all_columns_changed()
 
