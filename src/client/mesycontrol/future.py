@@ -171,6 +171,9 @@ class Future(object):
             self._exec_callback(cb)
 
     def _set_done(self):
+        if self._done:
+            raise FutureIsDone()
+
         self._done = True
         self._running = False
 
