@@ -8,7 +8,6 @@ from .. qt import pyqtSlot
 from .. qt import Qt
 from .. qt import QtCore
 from .. qt import QtGui
-from .. qt import uic
 
 from functools import partial
 import math
