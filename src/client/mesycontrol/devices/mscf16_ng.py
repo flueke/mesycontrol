@@ -872,7 +872,7 @@ class MiscPage(QtGui.QWidget):
         self.combo_monitor.addItems(["Channel %d" % i for i in range(NUM_CHANNELS)])
         self.combo_monitor.setMaxVisibleItems(NUM_CHANNELS+1)
 
-        self.bindings.append(pb.factor.make_binding(
+        self.bindings.append(pb.factory.make_binding(
             device=device,
             profile=device.profile['monitor_channel'],
             display_mode=display_mode,
