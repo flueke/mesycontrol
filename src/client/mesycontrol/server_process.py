@@ -393,7 +393,7 @@ class ServerProcess(QtCore.QObject):
             ret.set_progress_text("Starting %s" % cmd_line)
 
         except Exception as e:
-            self.log.exception("ServerProcess")
+            #self.log.exception("ServerProcess")
             ret.set_exception(e)
 
         return ret

@@ -203,8 +203,8 @@ class LocalMRCConnection(AbstractConnection):
         ret = Future()
 
         def on_connection_connected(f):
-            self._is_connecting = False
             try:
+                self._is_connecting = False
                 ret.set_result(f.result())
                 self._is_connected  = True
                 self.log.debug("Connected to %s", self.url)
@@ -227,9 +227,11 @@ class LocalMRCConnection(AbstractConnection):
                 self._connect_timer.timeout.connect(on_connect_timer_expired)
                 self._connect_timer.start()
             else:
+                self._is_connecting = False
                 ret.set_exception(f.exception())
+                self.connection_error.emit(f.exception())
 
-        self._is_connected = False
+        self._is_connected  = False
         self._is_connecting = True
         f = self.server.start().add_done_callback(on_server_started)
         progress_forwarder(f, ret)

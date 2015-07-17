@@ -91,6 +91,14 @@ class MRC(bm.MRC):
         self.log.debug("%s: set_connecting", self.url)
         self._connected, self._connecting, self._disconnected = (False, True, False)
         self.last_connection_error = None
+
+        def done(f):
+            try:
+                f.result()
+            except Exception as e:
+                self.set_connection_error(e)
+
+        the_future.add_done_callback(done)
         self.connecting.emit(the_future)
 
     def is_disconnected(self):
@@ -104,7 +112,7 @@ class MRC(bm.MRC):
             device.clear_cached_memory()
 
     def set_connection_error(self, error):
-        self.log.debug("%s: set_connection_error", self.url)
+        self.log.debug("%s: set_connection_error: %s", self.url, error)
         self._connected, self._connecting, self._disconnected = (False, False, True)
         self.last_connection_error = error
         self.connection_error.emit(error)
