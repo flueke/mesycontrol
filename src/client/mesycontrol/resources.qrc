@@ -38,7 +38,6 @@
     <file>ui/mhv4_channel_settings.ui</file>
     <file>ui/mhv4_channel.ui</file>
     <file>ui/mhv4_global_settings.ui</file>
-    <file>ui/mhv4_settings_times_four.ui</file>
     <file>ui/mscf16_channel_settings.ui</file>
     <file>ui/mscf16_global_settings.ui</file>
     <file>ui/mscf16_panel.ui</file>

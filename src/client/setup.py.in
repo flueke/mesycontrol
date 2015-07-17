@@ -13,7 +13,7 @@ CSD = '${CMAKE_CURRENT_SOURCE_DIR}'
 # fine tuning.
 
 includes = list()
-maybe_includes = ['scipy.sparse.csgraph._validation', 'scipy.special._ufuncs_cxx'],
+maybe_includes = ['scipy.sparse.csgraph._validation', 'scipy.special._ufuncs_cxx']
 
 for mod in maybe_includes:
     try:
