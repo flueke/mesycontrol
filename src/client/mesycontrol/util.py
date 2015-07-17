@@ -564,3 +564,23 @@ class DelayedDoubleSpinBox(QtGui.QDoubleSpinBox):
 
         self.proxy = SignalProxy(signal=self.valueChanged,
                 slot=delayed_slt, delay=delay)
+
+class FixedWidthVerticalToolBar(QtGui.QWidget):
+    """Like a vertical QToolBar but having a fixed width. I did not manage to
+    get a QToolBar to have a fixed width. That's the only reason this class
+    exists."""
+    def __init__(self, parent=None):
+        super(FixedWidthVerticalToolBar, self).__init__(parent)
+        self.setLayout(QtGui.QVBoxLayout())
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().addStretch(1)
+
+    def addAction(self, action):
+        super(FixedWidthVerticalToolBar, self).addAction(action)
+        b = QtGui.QToolButton()
+        b.setDefaultAction(action)
+
+        self.layout().takeAt(self.layout().count()-1)
+        self.layout().addWidget(b, 0, Qt.AlignHCenter)
+        self.layout().addStretch(1)
+        self.setFixedWidth(self.sizeHint().width())
