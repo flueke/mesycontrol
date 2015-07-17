@@ -67,6 +67,9 @@ class MRCRegistry(QtCore.QObject):
     def __len__(self):
         return len(self._mrcs)
 
+    def __nonzero__(self):
+        return self is not None
+
     def __iter__(self):
         return iter(self._mrcs)
 
@@ -132,6 +135,9 @@ class MRC(QtCore.QObject):
 
     def __len__(self):
         return len(self._devices)
+
+    def __nonzero__(self):
+        return self is not None
 
     def __iter__(self):
         return iter(self._devices)
