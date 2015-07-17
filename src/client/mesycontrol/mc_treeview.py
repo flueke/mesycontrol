@@ -7,13 +7,13 @@ from qt import pyqtSignal
 from qt import Qt
 from qt import QtCore
 from qt import QtGui
+import collections
 
 import config_tree_model as ctm
 import hardware_tree_model as htm
 import util
 
 # TODO: context menu and display for virtual items
-# FIXME: config tree modified does not trigger dataChanged for devices!
 
 class ConfigTreeView(QtGui.QTreeView):
     def __init__(self, parent=None):
@@ -319,38 +319,40 @@ class MCTreeView(QtGui.QWidget):
         self.cfg_view.expandAll()
         self.hw_view.expandAll()
 
-        self.splitter_buttons = QtGui.QWidget()
-        splitter_buttons_layout = QtGui.QVBoxLayout(self.splitter_buttons)
-
-        def add_splitter_button(b):
-            # keeps buttons from expanding horizontally
-            policy = b.sizePolicy()
-            policy.setHorizontalPolicy(QtGui.QSizePolicy.Maximum)
-            b.setSizePolicy(policy)
-            splitter_buttons_layout.addWidget(b)
-            return b
+        self.splitter_buttons = util.FixedWidthVerticalToolBar()
+        self.splitter_actions = collections.OrderedDict()
 
         link_icons = {
                 True:  QtGui.QIcon(QtGui.QPixmap(":/linked.png")),
                 False: QtGui.QIcon(QtGui.QPixmap(":/unlinked.png"))
                 }
 
-        link_button = QtGui.QPushButton(link_icons[self.linked_mode], str())
-        link_button.setCheckable(True)
-        link_button.setChecked(self.linked_mode)
+        action = QtGui.QAction(link_icons[self.linked_mode], "Toggle linked mode", self)
+        action.setToolTip("Link Hardware & Config Views")
+        action.setStatusTip("Link Hardware & Config Views")
+        action.setCheckable(True)
+        action.setChecked(self.linked_mode)
 
-        def toggle_linked_mode():
-            self.linked_mode = not self.linked_mode
-            link_button.setIcon(link_icons[self.linked_mode])
+        # Wrapper to avoid late binding trouble
+        def wrapper(action=action):
+            def toggle_linked_mode(b):
+                self.linked_mode = b
+                action.setIcon(link_icons[self.linked_mode])
+            return toggle_linked_mode
 
-        link_button.toggled.connect(toggle_linked_mode)
-        link_button.setToolTip("Link Hardware & Config Views")
+        action.toggled.connect(wrapper())
 
-        add_splitter_button(link_button)
+        self.splitter_actions['toggle_linked_mode'] = action
 
-        splitter_buttons_layout.addStretch()
-        splitter_buttons_layout.setContentsMargins(0, 0, 0, 0)
-        splitter_buttons_layout.setSizeConstraint(QtGui.QLayout.SetMaximumSize)
+        action = QtGui.QAction("C", self)
+
+        self.splitter_actions['connect'] = action
+
+        for action in self.splitter_actions.values():
+            self.splitter_buttons.addAction(action)
+
+        #self.splitter_buttons.addAction(toggle_link_mode_action)
+        #self.splitter_buttons.addAction(connect_action)
 
         splitter = DoubleClickSplitter()
         splitter.setChildrenCollapsible(False)
