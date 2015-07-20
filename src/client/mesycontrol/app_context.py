@@ -8,8 +8,10 @@ import contextlib
 import app_model as am
 import basic_model as bm
 import config_model as cm
+import config_xml
 import device_registry
 import future
+import model_util
 import util
 
 class Context(QtCore.QObject):
@@ -49,6 +51,22 @@ class Context(QtCore.QObject):
 
     def make_qsettings(self):
         return QtCore.QSettings("mesytec", "mesycontrol")
+
+    def open_setup(self, filename):
+        setup = config_xml.read_setup(filename)
+
+        for mrc in setup:
+            for device in mrc:
+                model_util.set_default_device_extensions(device, self.device_registry)
+
+        setup.modified = False
+
+        if not len(setup):
+            raise RuntimeError("No MRC configurations found in %s" % filename)
+
+        self.setup = setup
+        self.make_qsettings().setValue('Files/last_setup_file', filename)
+        return setup
 
     def reset_setup(self):
         self.app_registry.setup = cm.Setup()

@@ -226,21 +226,7 @@ def run_open_setup_dialog(context, parent_widget):
         return False
 
     try:
-        setup = config_xml.read_setup(filename)
-
-        for mrc in setup:
-            for device in mrc:
-                model_util.set_default_device_extensions(device, context.device_registry)
-
-        setup.modified = False
-        
-        if not len(setup):
-            raise RuntimeError("No MRC configurations found in %s" % filename)
-
-        context.setup = setup
-        context.make_qsettings().setValue('Files/last_setup_file', filename)
-        return True
-
+        context.open_setup(filename)
     except Exception as e:
         log.exception(e)
         QtGui.QMessageBox.critical(parent_widget, "Error", "Opening setup file %s failed:\n%s" % (filename, e))

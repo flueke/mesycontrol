@@ -19,6 +19,7 @@ if __name__ == "__main__":
     if not sys.platform.startswith('win32'):
         parser = argparse.ArgumentParser(description='mesycontrol GUI command line arguments')
         parser.add_argument('--logging-config', metavar='FILE')
+        parser.add_argument('--setup', metavar='FILE')
         opts = parser.parse_args()
     else:
         opts = None
@@ -100,13 +101,28 @@ if __name__ == "__main__":
     logging.debug("main_file=%s, bin_dir=%s", main_file, bin_dir)
 
     # Application setup
-    context = app_context.Context(main_file, auto_load_device_modules=False)
+    context     = app_context.Context(main_file, auto_load_device_modules=False)
+    setup_file  = None
+    settings    = context.make_qsettings()
+
+    if opts is not None and opts.setup is not None:
+        setup_file = opts.setup
+    elif settings.value('Options/open_last_setup_at_start', False).toBool():
+        setup_file = str(settings.value('Files/last_setup_file', str()).toString())
 
     with app_context.use(context):
         mainwindow      = gui.MainWindow(context)
         gui_application = gui.GUIApplication(context, mainwindow)
         sigint_handler.set_app(gui_application)
         mainwindow.show()
+
+        if setup_file:
+            try:
+                context.open_setup(setup_file)
+            except Exception as e:
+                settings.remove('Files/last_setup_file')
+                QtGui.QMessageBox.critical(mainwindow, "Error",
+                        "Opening setup file %s failed:\n%s" % (setup_file, e))
 
         ret = app.exec_()
 
