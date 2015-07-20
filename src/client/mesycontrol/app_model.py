@@ -2,11 +2,13 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
+from functools import partial
 import weakref
 from qt import QtCore
 from qt import pyqtProperty
 from qt import pyqtSignal
 
+from basic_model import IDCConflict
 import basic_model as bm
 import config_model as cm
 import future
@@ -195,12 +197,24 @@ class MRC(AppObject):
 
 class Device(AppObject):
     mrc_changed             = pyqtSignal(object)
-    profile_changed         = pyqtSignal(object)
-    module_changed          = pyqtSignal(object)
+
     idc_conflict_changed    = pyqtSignal(bool)
+    idc_changed             = pyqtSignal(int)
+    hw_idc_changed          = pyqtSignal(int)
+    cfg_idc_changed         = pyqtSignal(int)
+
+    module_changed          = pyqtSignal(object)
+    hw_module_changed       = pyqtSignal(object)
+    cfg_module_changed      = pyqtSignal(object)
+
+    profile_changed         = pyqtSignal(object)
+    hw_profile_changed      = pyqtSignal(object)
+    cfg_profile_changed     = pyqtSignal(object)
+
     config_applied_changed  = pyqtSignal(object)
 
-    def __init__(self, bus, address, mrc=None, hw_device=None, cfg_device=None, module=None, parent=None):
+    def __init__(self, bus, address, mrc=None, hw_device=None, cfg_device=None,
+            hw_module=None, cfg_module=None, parent=None):
         self.bus        = int(bus)
         self.address    = int(address)
 
@@ -213,13 +227,15 @@ class Device(AppObject):
         super(Device, self).__init__(hardware=hw_device, config=cfg_device, parent=parent)
 
         self._mrc               = None
-        self._module            = None
+        self._hw_module         = None
+        self._cfg_module        = None
         self._idc_conflict      = False # Set by _update_idc_conflict()
         self._config_applied    = False # Set by _update_config_applied()
         self._config_addresses  = set() # Filled by set_module()
 
         self.mrc        = mrc
-        self.module     = module
+        self.hw_module  = hw_module
+        self.cfg_module = cfg_module
 
         self.hardware_set.connect(self._on_hardware_set)
         self.config_set.connect(self._on_config_set)
@@ -237,10 +253,12 @@ class Device(AppObject):
         if old_hw is not None:
             old_hw.parameter_changed.disconnect(self._update_config_applied)
             old_hw.memory_cleared.disconnect(self._update_config_applied)
+            old_hw.idc_changed.disconnect(self._on_hw_idc_changed)
 
         if new_hw is not None:
             new_hw.parameter_changed.connect(self._update_config_applied)
             new_hw.memory_cleared.connect(self._update_config_applied)
+            new_hw.idc_changed.connect(self._on_hw_idc_changed)
 
     def _on_config_set(self, app_model, old_cfg, new_cfg):
         self._update_idc_conflict()
@@ -249,10 +267,12 @@ class Device(AppObject):
         if old_cfg is not None:
             old_cfg.parameter_changed.disconnect(self._update_config_applied)
             old_cfg.memory_cleared.disconnect(self._update_config_applied)
+            old_cfg.idc_changed.disconnect(self._on_cfg_idc_changed)
 
         if new_cfg is not None:
             new_cfg.parameter_changed.connect(self._update_config_applied)
             new_cfg.memory_cleared.connect(self._update_config_applied)
+            new_cfg.idc_changed.connect(self._on_cfg_idc_changed)
 
     def get_mrc(self):
         return None if self._mrc is None else self._mrc()
@@ -265,15 +285,64 @@ class Device(AppObject):
 
         return False
 
-    def get_profile(self):
-        return self.module.profile
+    # ===== profile ===== #
+    def get_idc(self):
+        if self.idc_conflict:
+            raise IDCConflict()
+        return self._hw.idc if self._hw is not None else self._cfg.idc
 
+    def get_hw_idc(self):
+        return self._hw.idc if self._hw is not None else None
+
+    def get_cfg_idc(self):
+        return self._cfg.idc if self._cfg is not None else None
+
+    def _on_hw_idc_changed(self, idc):
+        self.log.debug("%s: _on_hw_idc_changed: idc=%d", self, idc)
+        self._update_idc_conflict()
+        self.hw_idc_changed.emit(idc)
+        if not self.idc_conflict:
+            self.idc_changed.emit(idc)
+
+    def _on_cfg_idc_changed(self, idc):
+        self.log.debug("%s: _on_cfg_idc_changed: idc=%d", self, idc)
+        self._update_idc_conflict()
+        self.cfg_idc_changed.emit(idc)
+        if not self.idc_conflict:
+            self.idc_changed.emit(idc)
+
+    # ===== profile ===== #
+    def get_profile(self):
+        return self.get_module().profile
+
+    def get_hw_profile(self):
+        return self.hw_module.profile
+
+    def get_cfg_profile(self):
+        return self.cfg_module.profile
+
+    # ===== module ===== #
     def get_module(self):
-        return self._module
+        if self.idc_conflict:
+            raise IDCConflict()
+        return self._hw_module if self._hw_module is not None else self._cfg_module
+
+    def get_hw_module(self):
+        return self._hw_module
+
+    def get_cfg_module(self):
+        return self._cfg_module
 
     def set_module(self, module):
+        if self.idc_conflict:
+            raise IDCConflict()
+
+        if module.idc != self.idc:
+            raise IDCConflict()
+
         if self.module != module:
-            self._module = module
+            self.set_hw_module(module)
+            self.set_cfg_module(module)
 
             def on_done(f):
                 self._config_addresses = set((p.address for p in f.result()))
@@ -285,6 +354,27 @@ class Device(AppObject):
             return True
         return False
 
+    def set_hw_module(self, module):
+        if self.has_hw and self.hw_idc != module.idc:
+            raise IDCConflict()
+
+        self.log.debug("%s: set_hw_module: module=%s", self, module)
+
+        if self._hw_module != module:
+            self._hw_module = module
+            self.hw_module_changed.emit(module)
+            self.hw_profile_changed.emit(module.profile)
+
+    def set_cfg_module(self, module):
+        if self.has_cfg and self.cfg_idc != module.idc:
+            raise IDCConflict()
+
+        self.log.debug("%s: set_cfg_module: module=%s", self, module)
+
+        if self._cfg_module != module:
+            self._hw_module = module
+            self.cfg_module_changed.emit(module)
+            self.cfg_profile_changed.emit(module.profile)
 
     def __str__(self):
         return "%s.Device(id=%s, b=%d, a=%d, mrc=%s, hw=%s, cfg=%s)" % (
@@ -403,9 +493,20 @@ class Device(AppObject):
         return hasattr(self.module, 'device_ui_class')
 
     mrc             = pyqtProperty(object, get_mrc, set_mrc, notify=mrc_changed)
+
     idc_conflict    = pyqtProperty(bool, has_idc_conflict, notify=idc_conflict_changed)
+    idc             = pyqtProperty(int, get_idc, notify=idc_changed)
+    hw_idc          = pyqtProperty(int, get_hw_idc, notify=hw_idc_changed)
+    cfg_idc         = pyqtProperty(int, get_cfg_idc, notify=cfg_idc_changed)
+
     module          = pyqtProperty(object, get_module, set_module, notify=module_changed)
+    hw_module       = pyqtProperty(object, get_hw_module, set_hw_module, notify=hw_module_changed)
+    cfg_module      = pyqtProperty(object, get_cfg_module, set_cfg_module, notify=cfg_module_changed)
+
     profile         = pyqtProperty(object, get_profile, notify=profile_changed)
+    hw_profile      = pyqtProperty(object, get_hw_profile, notify=hw_profile_changed)
+    cfg_profile     = pyqtProperty(object, get_cfg_profile, notify=cfg_profile_changed)
+
     config_applied  = pyqtProperty(bool, is_config_applied, notify=config_applied_changed)
 
 class Director(object):
@@ -429,21 +530,16 @@ class Director(object):
         idc     = hw_device.idc if hw_device is not None else cfg_device.idc
         module  = self.device_registry.get_device_module(idc)
 
-        return Device(bus=bus, address=address, hw_device=hw_device, cfg_device=cfg_device, module=module)
+        return Device(bus=bus, address=address,
+                hw_device=hw_device, cfg_device=cfg_device,
+                hw_module=module, cfg_module=module)
 
     def _maybe_update_device_module(self, app_device):
-        hw  = app_device.hw
-        cfg = app_device.cfg
-        m   = app_device.module
-
-        idc = hw.idc if hw is not None else cfg.idc
-
-        if m.idc != idc:
-            self.log.debug("updating module for (%s, %d, %d); old_idc=%d, new_idc=%d",
-                    app_device.mrc.get_display_url(), app_device.bus, app_device.address,
-                    m.idc, idc)
-
-            app_device.module = self.device_registry.get_device_module(idc)
+        if app_device.idc_conflict:
+            app_device.set_hw_module(self.device_registry.get_device_module(app_device.hw_idc))
+            app_device.set_cfg_module(self.device_registry.get_device_module(app_device.cfg.idc))
+        else:
+            app_device.set_module(self.device_registry.get_device_module(app_device.idc))
 
     # ===== hardware side =====
     def _hw_registry_set(self, app_registry, old_hw_reg, new_hw_reg):
@@ -499,6 +595,7 @@ class Director(object):
         else:
             app_device.hw = device
             self._maybe_update_device_module(app_device)
+        device.idc_changed.connect(partial(self._maybe_update_device_module, app_device=app_device))
 
     def _hw_device_about_to_be_removed(self, device):
         self.log.debug("_hw_device_about_to_be_removed: device=%s", device)
@@ -564,6 +661,7 @@ class Director(object):
         else:
             app_device.cfg = device
             self._maybe_update_device_module(app_device)
+        device.idc_changed.connect(partial(self._maybe_update_device_module, app_device=app_device))
 
     def _cfg_device_about_to_be_removed(self, device):
         self.log.debug("_cfg_device_about_to_be_removed: device=%s", device)

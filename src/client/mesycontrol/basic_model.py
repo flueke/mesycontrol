@@ -27,6 +27,9 @@ ALL_DEVICE_ADDRESSES = [(bus, dev) for bus in BUS_RANGE for dev in DEV_RANGE]
 # Display and write modes for devices and device guis
 HARDWARE, CONFIG, COMBINED = range(3)
 
+class IDCConflict(RuntimeError):
+    pass
+
 class MRCRegistry(QtCore.QObject):
     """Manages MRC instances"""
 
@@ -132,6 +135,9 @@ class MRC(QtCore.QObject):
         if bus is None:
             return list(self._devices)
         return [d for d in self._devices if d.bus == bus]
+
+    def has_device(self, bus, address):
+        return self.get_device(bus, address) is not None
 
     def __len__(self):
         return len(self._devices)

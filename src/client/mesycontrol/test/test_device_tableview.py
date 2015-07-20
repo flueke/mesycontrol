@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 from mesycontrol.device_tableview import *
-from mesycontrol.hw_model import *
+from mesycontrol.hardware_model import *
 
 def test_simple():
     app = QtGui.QApplication([])

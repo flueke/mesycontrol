@@ -6,6 +6,7 @@ from qt import pyqtSlot
 from qt import Qt
 from qt import QtCore
 
+from basic_model import IDCConflict
 import future
 import hardware_controller
 import itertools
@@ -180,9 +181,6 @@ class SetParameterError(RuntimeError):
             return "SetParameterError(url=%s, %s)" % (
                     self.url, self.set_result)
         return "SetParameterError(%s)" % str(self.set_result)
-
-class IDCConflict(RuntimeError):
-    pass
 
 class MissingDestinationDevice(RuntimeError):
     def __init__(self, url, bus, dev):
