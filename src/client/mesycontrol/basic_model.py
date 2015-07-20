@@ -187,6 +187,10 @@ class Device(QtCore.QObject):
     memory_about_to_be_cleared = pyqtSignal(object) #: memory
     memory_cleared = pyqtSignal()
 
+    extension_added     = pyqtSignal(str, object)
+    extension_changed   = pyqtSignal(str, object)
+    extension_removed   = pyqtSignal(str, object)
+
     def __init__(self, bus=None, address=None, idc=None, parent=None):
         super(Device, self).__init__(parent)
         self.log        = util.make_logging_source_adapter(__name__, self)
@@ -196,6 +200,7 @@ class Device(QtCore.QObject):
         self._mrc       = None
         self._memory    = dict() # address -> value
         self._read_futures = dict() # address -> future
+        self._extensions = dict() # name -> value
 
     def get_bus(self):
         """Returns the devices bus number."""
@@ -379,6 +384,32 @@ class Device(QtCore.QObject):
         self.memory_cleared.emit()
         return ret
 
+    def set_extension(self, name, value):
+        is_new = name not in self._extensions
+
+        if self._extensions.get(name, None) != value:
+            self._extensions[name] = value
+            if is_new:
+                self.extension_added.emit(name, value)
+            self.extension_changed.emit(name, value)
+            return True
+        return False
+
+    def has_extension(self, name):
+        return name in self._extensions
+
+    def get_extension(self, name):
+        return self._extensions[name]
+
+    def get_extensions(self):
+        return dict(self._extensions)
+
+    def remove_extension(self, name):
+        value = self.get_extension(name)
+        del self._extensions[name]
+        self.extension_removed.emit(name, value)
+        return True
+
     # Using lambdas here to allow overriding property accessors.
     bus     = pyqtProperty(int,
             fget=lambda self: self.get_bus(),
@@ -399,3 +430,6 @@ class Device(QtCore.QObject):
             fget=lambda self: self.get_mrc(),
             fset=lambda self, v: self.set_mrc(v),
             notify=mrc_changed)
+
+    extensions = pyqtProperty(dict,
+            fget=lambda self: self.get_extensions())

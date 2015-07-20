@@ -30,6 +30,7 @@ import device_tableview
 import future
 import hardware_tree_model as htm
 import log_view
+import model_util
 import resources
 import util
 
@@ -226,6 +227,12 @@ def run_open_setup_dialog(context, parent_widget):
 
     try:
         setup = config_xml.read_setup(filename)
+
+        for mrc in setup:
+            for device in mrc:
+                model_util.set_default_device_extensions(device, context.device_registry)
+
+        setup.modified = False
         
         if not len(setup):
             raise RuntimeError("No MRC configurations found in %s" % filename)

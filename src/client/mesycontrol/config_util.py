@@ -219,11 +219,15 @@ def apply_device_config(device):
 
             arg = yield obj
         except StopIteration:
-            non_criticals = obj
+            #non_criticals = obj # XXX: why this line?
             break
         except GeneratorExit:
             gen.close()
             return
+
+    # extensions
+    for name, value in device.cfg.get_extensions().iteritems():
+        device.hw.set_extension(name, value)
 
 def apply_parameters(source, dest, criticals, non_criticals):
     """Write parameters from source to dest. First criticals are set to their

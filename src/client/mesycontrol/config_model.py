@@ -129,15 +129,11 @@ class MRC(bm.MRC):
 class Device(bm.Device):
     modified_changed    = pyqtSignal(bool)
     name_changed        = pyqtSignal(str)
-    extension_added     = pyqtSignal(str, object)
-    extension_changed   = pyqtSignal(str, object)
-    extension_removed   = pyqtSignal(str, object)
 
     def __init__(self, bus=None, address=None, idc=None, parent=None):
         super(Device, self).__init__(bus, address, idc, parent)
         self._modified = False
         self._name = str()
-        self._extensions = dict()
 
     set_modified = _set_modified
 
@@ -185,30 +181,8 @@ class Device(bm.Device):
 
         return bm.ResultFuture().set_result(result)
 
-    @modifies
-    def set_extension(self, name, value):
-        is_new = name not in self._extensions
-
-        if self._extensions.get(name, None) != value:
-            self._extensions[name] = value
-            if is_new:
-                self.extension_added.emit(name, value)
-            self.extension_changed.emit(name, value)
-
-            return True
-
-    def get_extension(self, name):
-        return self._extensions[name]
-
-    def get_extensions(self):
-        return dict(self._extensions)
-
-    @modifies
-    def remove_extension(self, name):
-        value = self.get_extension(name)
-        del self._extensions[name]
-        self.extension_removed.emit(name, value)
-        return True
+    set_extension    = modifies(bm.Device.set_extension)
+    remove_extension = modifies(bm.Device.remove_extension)
 
     def __str__(self):
         return "%s.Device(id=%s, b=%d, a=%d, idc=%d, mrc=%s)" % (
@@ -216,7 +190,6 @@ class Device(bm.Device):
 
     modified    = pyqtProperty(bool, is_modified, set_modified, notify=modified_changed)
     name        = pyqtProperty(str, get_name, set_name, notify=name_changed)
-    extensions  = pyqtProperty(dict, get_extensions)
 
 def make_device_config(bus, address, idc, name=str(), device_profile=None):
     if device_profile is not None and device_profile.idc != idc:

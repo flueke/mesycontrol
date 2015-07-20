@@ -23,3 +23,9 @@ def add_mrc_connection(hardware_registry, url, do_connect, connect_timeout_ms=10
         return mrc.connect(connect_timeout_ms)
 
     return None
+
+def set_default_device_extensions(device, device_registry):
+    p = device_registry.get_device_profile(device.idc)
+    for name, value in p.get_extensions().iteritems():
+        if not device.has_extension(name):
+            device.set_extension(name, value)

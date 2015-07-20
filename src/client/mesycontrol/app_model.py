@@ -12,6 +12,7 @@ from basic_model import IDCConflict
 import basic_model as bm
 import config_model as cm
 import future
+import model_util
 import util
 
 """Mesycontrol application model.
@@ -407,6 +408,8 @@ class Device(AppObject):
                 self.log.debug("_update_config_applied: Key(s) missing from mem cache")
                 pass
 
+            new_state = new_state and self.hw.get_extensions() == self.cfg.get_extensions()
+
         if new_state != old_state:
             self._config_applied = new_state
             self.config_applied_changed.emit(new_state)
@@ -587,6 +590,7 @@ class Director(object):
 
     def _hw_device_added(self, device):
         self.log.debug("_hw_device_added: device=%s", device)
+        model_util.set_default_device_extensions(device, self.device_registry)
         app_mrc = self.registry.find_mrc_by_hardware(device.mrc)
         app_device = app_mrc.get_device(device.bus, device.address)
         if app_device is None:
@@ -653,6 +657,10 @@ class Director(object):
 
     def _cfg_device_added(self, device):
         self.log.debug("_cfg_device_added: device=%s", device)
+        was_modified = device.modified
+        model_util.set_default_device_extensions(device, self.device_registry)
+        if not was_modified:
+            device.modified = False
         app_mrc = self.registry.find_mrc_by_config(device.mrc)
         app_device = app_mrc.get_device(device.bus, device.address)
         if app_device is None:
