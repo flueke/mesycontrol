@@ -131,6 +131,18 @@ class DeviceBase(QtCore.QObject):
         dev = self.hw if self.write_mode == util.HARDWARE else self.cfg
         return dev.set_parameter(address, value)
 
+    def get_extension(self, name):
+        dev = self.hw if self.write_mode == util.HARDWARE else self.cfg
+        return dev.get_extension(name)
+
+    def set_extension(self, name, value):
+        if self.write_mode == util.COMBINED:
+            self.cfg.set_extension(name, value)
+            self.hw.set_extension(name, value)
+        else:
+            dev = self.hw if self.write_mode == util.HARDWARE else self.cfg
+            dev.set_extension(name, value)
+
     # ===== HW =====
     def get_hw_parameter(self, address_or_name):
         address = self.profile[address_or_name].address

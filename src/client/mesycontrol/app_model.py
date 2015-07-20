@@ -386,7 +386,7 @@ class Device(AppObject):
 
         if conflict != self._idc_conflict:
             self._idc_conflict = conflict
-            self.log("%s: idc conflict=%s", self, conflict)
+            self.log.debug("%s: idc conflict=%s", self, conflict)
             self.idc_conflict_changed.emit(self.idc_conflict)
 
     def has_idc_conflict(self):

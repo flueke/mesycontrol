@@ -123,7 +123,14 @@ profile_dict = {
             # register (49) (although the encoding is different).
             { 'address': 255, 'name': 'cpu_software_version',   'read_only': True }, # sw version >= 5.3
             ],
+
         'extensions': [
-            { 'name': 'gain_adjusts', 'value': [1 for i in range(NUM_GROUPS)] }
+            { 'name': 'gain_adjusts',       'value': [1 for i in range(NUM_GROUPS)] },
+            { 'name': 'module_name',        'value': 'F' },                             # the single letter mscf16 suffix
+            { 'name': 'shaping_time',       'value': 1 },                               # 1, 2, 4, 8
+            { 'name': 'input_type',         'value': 'V' },
+            { 'name': 'input_connector',    'value': 'L' },
+            { 'name': 'discriminator',      'value': 'CFD' },
+            { 'name': 'cfd_delay',          'value': 30 },
             ],
 }

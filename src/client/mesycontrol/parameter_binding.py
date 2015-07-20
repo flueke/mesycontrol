@@ -173,7 +173,11 @@ class Factory(object):
         cls = self.get_binding_class(kwargs['target'])
 
         if cls is not None:
-            return cls(**kwargs)
+            try:
+                return cls(**kwargs)
+            except Exception as e:
+                e.args = e.args + ("class=%s, kwargs=%s" % (cls.__name__, kwargs),)
+                raise
 
         raise ValueError("Could not find binding class for target %s" % kwargs['target'])
 

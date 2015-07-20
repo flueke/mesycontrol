@@ -28,18 +28,18 @@ NUM_CHANNELS        = device_profile_mscf16.NUM_CHANNELS
 NUM_GROUPS          = device_profile_mscf16.NUM_GROUPS
 GAIN_FACTOR         = device_profile_mscf16.GAIN_FACTOR
 GAIN_ADJUST_LIMITS  = device_profile_mscf16.GAIN_ADJUST_LIMITS
+SHAPING_TIMES_US = {
+        1: [0.125, 0.25, 0.5, 1.0],
+        2: [0.25,  0.5,  1.0, 2.0],
+        4: [0.5,   1.0,  2.0, 4.0],
+        8: [1.0,   2.0,  4.0, 8.0]
+        }
 
 cg_helper = util.ChannelGroupHelper(NUM_CHANNELS, NUM_GROUPS)
 
 class ModuleInfo(object):
     """Holds information about an MSCF16 that can't be detected via
     software."""
-    shaping_times_us = {
-            1: [0.125, 0.25, 0.5, 1.0],
-            2: [0.25,  0.5,  1.0, 2.0],
-            4: [0.5,   1.0,  2.0, 4.0],
-            8: [1.0,   2.0,  4.0, 8.0]
-            }
 
     def __init__(self, name='F', shaping_time=1, input_type='V',
             input_connector='L', discriminator='CFD', cfd_delay=30):
@@ -101,28 +101,8 @@ class MSCF16(DeviceBase):
         self.log = util.make_logging_source_adapter(__name__, self)
 
         self._auto_pz_channel = 0
-        self._gain_adjusts    = [GAIN_ADJUST_LIMITS[0] for i in range(NUM_GROUPS)]
-        self.module_info      = ModuleInfo()
 
-        self.config_set.connect(self._on_config_set)
-        self.hardware_set.connect(self._on_hardware_set)
-
-        self._on_config_set(self, None, self.cfg)
-        self._on_hardware_set(self, None, self.hw)
-
-    def perform_copy_function(self, copy_function):
-        """Performs one of the MSCF copy functions as defined in CopyFunction.
-        After writing the copy_function register all parameters are re-read
-        from the hardware.
-        Returns a Future.
-        """
-        futures = [self.set_hw_parameter('copy_function', copy_function)]
-
-        for p in self.profile.parameters:
-            futures.append(self.read_hw_parameter(p.address))
-
-        return future.all_done(*futures)
-
+    # ===== version registers =====
     def get_software_version(self):
         """Reads the 'version' register and returns a Future whose result is a
         tuple of the form (major, minor)."""
@@ -167,6 +147,7 @@ class MSCF16(DeviceBase):
 
         return ret
 
+    # ===== gain =====
     def get_total_gain(self, group):
         # FIXME: calculation depends on mscf type (integrating or not)
         ret = future.Future()
@@ -180,21 +161,12 @@ class MSCF16(DeviceBase):
         return ret
 
     def get_gain_adjust(self, group):
-        if self.has_cfg:
-            return self.cfg.get_extension('gain_adjusts')[group]
-        return self._gain_adjusts[group]
+        return self.get_extension('gain_adjusts')[group]
 
     def set_gain_adjust(self, group, gain_adjust):
-        changed = self.get_gain_adjust(group) != gain_adjust
-        if self.has_cfg:
-            adjusts = self.cfg.get_extension('gain_adjusts')
-            adjusts[group] = gain_adjust
-            self.cfg.set_extension('gain_adjusts', adjusts)
-        else:
-            self._gain_adjusts[group] = gain_adjust
-
-        if changed:
-            self.gain_adjust_changed.emit(group, self.get_gain_adjust(group))
+        adjusts = self.get_extension['gain_adjusts']
+        adjusts[group] = gain_adjust
+        self.set_extension('gain_adjusts', adjusts)
 
     def apply_common_gain(self):
         ret = future.Future()
@@ -214,13 +186,31 @@ class MSCF16(DeviceBase):
 
         return ret
 
-    def _on_config_set(self, s, old, new):
-        if new is not None:
-            for i in range(NUM_GROUPS):
-                self.set_gain_adjust(i, self._gain_adjusts[i])
+    # ===== shaping time =====
+    def get_effective_shaping_time(self, group):
+        ret = future.Future()
 
-    def _on_hardware_set(self, s, old, new):
-        pass
+        @set_result_on(ret)
+        def done(f):
+            return SHAPING_TIMES_US[self.get_extension('shaping_time')][int(f)]
+
+        self.get_parameter('shaping_time_group%d' % group).add_done_callback(done)
+
+        return ret
+
+    # ===== copy function =====
+    def perform_copy_function(self, copy_function):
+        """Performs one of the MSCF copy functions as defined in CopyFunction.
+        After writing the copy_function register all parameters are re-read
+        from the hardware.
+        Returns a Future.
+        """
+        futures = [self.set_hw_parameter('copy_function', copy_function)]
+
+        for p in self.profile.parameters:
+            futures.append(self.read_hw_parameter(p.address))
+
+        return future.all_done(*futures)
 
 # ==========  GUI ========== 
 dynamic_label_style = "QLabel { background-color: lightgrey; }"
@@ -346,6 +336,8 @@ class GainPage(QtGui.QGroupBox):
 
             self.bindings.append(b)
 
+            self.bindings.append(b)
+
             layout.addWidget(descr_label, i+offset, 0, 1, 1, Qt.AlignRight)
             layout.addWidget(gain_spin,   i+offset, 1)
             layout.addWidget(gain_label,  i+offset, 2, 1, 1, Qt.AlignCenter)
@@ -431,6 +423,7 @@ class ShapingPage(QtGui.QGroupBox):
 
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(ShapingPage, self).__init__("Shaping", parent)
+        self.log    = util.make_logging_source_adapter(__name__, self)
         self.device = device
         #self.device.shaping_time_changed.connect(self._on_device_shaping_time_changed)
         #self.device.pz_value_changed.connect(self._on_device_pz_value_changed)
@@ -439,7 +432,6 @@ class ShapingPage(QtGui.QGroupBox):
         #self.device.blr_changed.connect(self._on_device_blr_changed)
 
         #self.device.auto_pz_channel_changed.connect(self._on_device_auto_pz_channel_changed)
-        #self.device.module_info_changed.connect(self._on_device_module_info_changed)
 
         self.stop_icon  = QtGui.QIcon(':/ui/process-stop.png')
         self.sht_inputs = list()
@@ -525,6 +517,11 @@ class ShapingPage(QtGui.QGroupBox):
 
                 self.bindings.append(b)
 
+                def cb(f, group):
+                    self._update_sht_label(group)
+
+                b.add_update_callback(partial(cb, group=group))
+
             label_chan  = QtGui.QLabel("%d" % chan)
             spin_pz     = AutoPZSpin()
             self.pz_inputs.append(spin_pz.spin)
@@ -554,9 +551,30 @@ class ShapingPage(QtGui.QGroupBox):
         self.spin_blr_threshold = make_spinbox(limits=device.profile['blr_threshold'].range.to_tuple())
         self.check_blr_enable   = QtGui.QCheckBox()
 
-        self.spin_shaper_offset.valueChanged[int].connect(self._on_shaper_offset_value_changed)
-        self.spin_blr_threshold.valueChanged[int].connect(self._on_blr_threshold_value_changed)
-        self.check_blr_enable.clicked[bool].connect(self._on_blr_enable_clicked)
+        self.spin_shaper_offset = util.DelayedSpinBox()
+        self.spin_blr_threshold = util.DelayedSpinBox()
+        self.check_blr_enable   = QtGui.QCheckBox()
+
+        self.bindings.append(pb.factory.make_binding(
+            device=device,
+            profile=device.profile['shaper_offset'],
+            display_mode=display_mode,
+            write_mode=write_mode,
+            target=self.spin_shaper_offset))
+
+        self.bindings.append(pb.factory.make_binding(
+            device=device,
+            profile=device.profile['blr_threshold'],
+            display_mode=display_mode,
+            write_mode=write_mode,
+            target=self.spin_blr_threshold))
+
+        self.bindings.append(pb.factory.make_binding(
+            device=device,
+            profile=device.profile['blr_enable'],
+            display_mode=display_mode,
+            write_mode=write_mode,
+            target=self.check_blr_enable))
 
         row = layout.rowCount()
         layout.addWidget(QtGui.QLabel("Sh. offset"), row, 0)
@@ -676,15 +694,17 @@ class ShapingPage(QtGui.QGroupBox):
                 self.pz_buttons[i].setIcon(self.stop_icon)
                 self.pz_buttons[i].setToolTip("Stop auto PZ")
 
-    def _on_device_module_info_changed(self, mod_info):
-        for i in range(NUM_GROUPS):
-            self._update_sht_label(i)
-
     def _update_sht_label(self, group):
-        text  = "%.2f µs" % self.device.get_effective_shaping_time(group)
-        label = self.sht_labels[group]
-        label.setText(QtCore.QString.fromUtf8(text))
+        def done(f):
+            try:
+                text  = "%.2f µs" % f.result()
+                label = self.sht_labels[group]
+                label.setText(QtCore.QString.fromUtf8(text))
+            except Exception as e:
+                self.log.warning("_update_sht_label: %s: %s", type(e), e)
+                self.sht_labels[group].setText("N/A")
 
+        self.device.get_effective_shaping_time(group).add_done_callback(done)
 
 class TimingPage(QtGui.QGroupBox):
     def __init__(self, device, display_mode, write_mode, parent=None):
