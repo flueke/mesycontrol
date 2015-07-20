@@ -308,11 +308,19 @@ class GUIApplication(QtCore.QObject):
         def window_filter(window):
             try:
                 view_mode = window.widget().get_view_mode()
+                return ((show_cfg and view_mode & device_tableview.SHOW_CFG)
+                        or (show_hw and view_mode & device_tableview.SHOW_HW))
             except AttributeError:
-                return False
+                pass
 
-            return ((show_cfg and view_mode & device_tableview.SHOW_CFG)
-                    or (show_hw and view_mode & device_tableview.SHOW_HW))
+            try:
+                write_mode = window.write_mode
+                return ((show_cfg and write_mode & util.CONFIG)
+                        or (show_hw and write_mode & util.HARDWARE))
+            except AttributeError:
+                pass
+
+            return False
 
         windows = filter(window_filter, self._device_window_map[device])
 
@@ -452,10 +460,11 @@ class GUIApplication(QtCore.QObject):
 
     def _add_device_widget_window(self, app_device, read_mode, write_mode):
         widget = app_device.make_device_widget(read_mode, write_mode)
-        subwin = QtGui.QMdiSubWindow()
-        subwin.setWidget(widget)
-        subwin.setAttribute(Qt.WA_DeleteOnClose)
-        subwin.device = app_device
+
+        subwin = DeviceWidgetSubWindow(
+                widget=widget,
+                device_registry=self.device_registry)
+
         self.mainwindow.mdiArea.addSubWindow(subwin)
         subwin.installEventFilter(self)
         restore_subwindow_state(subwin, self.context.make_qsettings())
@@ -680,7 +689,13 @@ class GUIApplication(QtCore.QObject):
             if (hasattr(watched_object, 'device')
                     and watched_object.device in self._device_window_map):
                 # Remove the subwindow from the set of device windows
+                print "removing subwindow", watched_object, " for device", watched_object.device
                 self._device_window_map[watched_object.device].remove(watched_object)
+
+            if (hasattr(watched_object, 'app_device')
+                    and watched_object.app_device in self._device_window_map):
+                print "removing subwindow", watched_object, " for device", watched_object.app_device
+                self._device_window_map[watched_object.app_device].remove(watched_object)
 
         elif (event.type() == QtCore.QEvent.Close
                 and watched_object is self.mainwindow):
@@ -807,7 +822,7 @@ class DeviceTableSubWindow(QtGui.QMdiSubWindow):
         device.idc_conflict_changed.connect(self.update_title_and_name)
         device.mrc_changed.connect(self.update_title_and_name)
         self._on_device_config_set(device, None, device.cfg)
-        self._on_device_hardware_set(device, None, device.cfg)
+        self._on_device_hardware_set(device, None, device.hw)
 
     def _on_device_config_set(self, app_device, old_cfg, new_cfg):
         signals = ['modified_changed', 'name_changed']
@@ -874,6 +889,107 @@ class DeviceTableSubWindow(QtGui.QMdiSubWindow):
                 device.bus, device.address)
 
         if ((view_mode & device_tableview.SHOW_CFG)
+                and device.cfg is not None
+                and len(device.cfg.name)):
+            title = "%s - %s" % (device.cfg.name, title)
+
+        self.setWindowTitle(title)
+        self.setObjectName(name)
+
+class DeviceWidgetSubWindow(QtGui.QMdiSubWindow):
+    def __init__(self, widget, device_registry, parent=None):
+        super(DeviceWidgetSubWindow, self).__init__(parent)
+        self.device_registry = device_registry
+        self.setWidget(widget)
+        self.setAttribute(Qt.WA_DeleteOnClose)
+        self.update_title_and_name()
+
+        self.device.config_set.connect(self._on_device_config_set)
+        self.device.hardware_set.connect(self._on_device_hardware_set)
+        self.device.idc_conflict_changed.connect(self.update_title_and_name)
+        self.device.mrc_changed.connect(self.update_title_and_name)
+        self.device.read_mode_changed.connect(self._on_device_read_mode_changed)
+        self.device.write_mode_changed.connect(self._on_device_write_mode_changed)
+
+        self._on_device_config_set(self.device, None, self.device.cfg)
+        self._on_device_hardware_set(self.device, None, self.device.hw)
+
+    def _on_device_config_set(self, app_device, old_cfg, new_cfg):
+        signals = ['modified_changed', 'name_changed']
+
+        if old_cfg is not None:
+            for signal in signals:
+                getattr(old_cfg, signal).disconnect(self.update_title_and_name)
+
+        if new_cfg is not None:
+            for signal in signals:
+                getattr(new_cfg, signal).connect(self.update_title_and_name)
+
+    def _on_device_hardware_set(self, app_device, old_hw, new_hw):
+        pass
+
+    def _on_device_read_mode_changed(self, read_mode):
+        pass
+
+    def _on_device_write_mode_changed(self, write_mode):
+        pass
+
+    def get_device(self):
+        return self.widget().device
+
+    def get_app_device(self):
+        return self.widget().device.app_device
+
+    def get_read_mode(self):
+        return self.device.read_mode
+
+    def set_read_mode(self, mode):
+        self.device.read_mode = mode
+
+    def get_write_mode(self):
+        return self.device.write_mode
+
+    def set_write_mode(self, mode):
+        self.device.write_mode = mode
+
+    device = property(fget=get_device)
+    read_mode = property(fget=get_read_mode, fset=set_read_mode)
+    write_mode = property(fget=get_write_mode, fset=set_write_mode)
+    app_device = property(fget=get_app_device)
+
+    def update_title_and_name(self):
+        """Updates the window title and the object name taking into account the
+        view_mode and the device state."""
+        # TODO: display IDC conflict and address conflict in title
+        device      = self.device
+        read_mode   = device.read_mode
+        write_mode  = device.write_mode
+
+        idc         = None
+        if device.hw is not None:
+            idc = device.hw.idc
+        elif device.cfg is not None:
+            idc = device.cfg.idc
+
+        if idc is None:
+            # The device is about to disappear and this window should close. Do
+            # not attempt to update the title as no idc is known and device.mrc
+            # will not be set.
+            return
+
+        if write_mode == util.COMBINED:
+            prefix = 'combined'
+        elif write_mode & util.HARDWARE:
+            prefix = 'hw'
+        elif write_mode & util.CONFIG:
+            prefix = 'cfg'
+
+        device_name = self.device_registry.get_device_name(idc)
+        name        = "widget_%s_(%s, %d, %d)" % (prefix, device.mrc.url, device.bus, device.address)
+        title       = "%s @ (%s, %d, %d)" % (device_name, device.mrc.get_display_url(),
+                device.bus, device.address)
+
+        if ((read_mode & util.CONFIG)
                 and device.cfg is not None
                 and len(device.cfg.name)):
             title = "%s - %s" % (device.cfg.name, title)

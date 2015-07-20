@@ -205,9 +205,9 @@ class SpinBoxParameterBinding(DefaultParameterBinding):
                 self.target.setMaximum(self.profile.range[1])
 
         if hasattr(self.target, 'delayed_valueChanged'):
-            self.target.delayed_valueChanged.connect(self._value_changed)
+            self.target.delayed_valueChanged.connect(self._write_value)
         else:
-            self.target.valueChanged.connect(self._value_changed)
+            self.target.valueChanged.connect(self._write_value)
 
     def _update(self, result_future):
         log.debug("SpinBoxParameterBinding: addr=%d, result_future=%s", self.address, result_future)
@@ -218,10 +218,6 @@ class SpinBoxParameterBinding(DefaultParameterBinding):
                 self.target.setValue(int(result_future.result()))
         except Exception:
             pass
-
-    def _value_changed(self, value):
-        log.debug("SpinBoxParameterBinding: addr=%d: _value_changed: %d", self.address, value)
-        self._write_value(value)
 
 class DoubleSpinBoxParameterBinding(DefaultParameterBinding):
     def __init__(self, unit_name, **kwargs):
@@ -268,7 +264,7 @@ class LabelParameterBinding(DefaultParameterBinding):
 class CheckBoxParameterBinding(DefaultParameterBinding):
     def __init__(self, **kwargs):
         super(CheckBoxParameterBinding, self).__init__(**kwargs)
-        self.target.clicked[bool].connect(self._value_changed)
+        self.target.clicked[bool].connect(self._write_value)
 
     def _update(self, result_future):
         super(CheckBoxParameterBinding, self)._update(result_future)
@@ -277,9 +273,6 @@ class CheckBoxParameterBinding(DefaultParameterBinding):
                 self.target.setChecked(int(result_future))
         except Exception:
             pass
-
-    def _value_changed(self, on_off):
-        self._write_value(on_off)
 
 class ComboBoxParameterBinding(DefaultParameterBinding):
     def __init__(self, **kwargs):
@@ -307,6 +300,9 @@ factory.append_classinfo_binding(
 
 factory.append_classinfo_binding(
         QtGui.QCheckBox, CheckBoxParameterBinding)
+
+factory.append_classinfo_binding(
+        QtGui.QComboBox, ComboBoxParameterBinding)
 
 if __name__ == "__main__":
     import mock
