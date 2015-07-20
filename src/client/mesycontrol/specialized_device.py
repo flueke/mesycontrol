@@ -13,11 +13,24 @@ class DeviceBase(QtCore.QObject):
     """Acts as a decorator for an app_model.Device. Should be subclassed to
     create device specific classes, e.g. class MHV4(DeviceBase)."""
 
+    mrc_changed             = pyqtSignal(object)
+
     hardware_set            = pyqtSignal(object, object, object) #: self, old, new
     config_set              = pyqtSignal(object, object, object) #: self, old, new
-    mrc_changed             = pyqtSignal(object)
-    profile_changed         = pyqtSignal(object)
+
     idc_conflict_changed    = pyqtSignal(bool)
+    idc_changed             = pyqtSignal(int)
+    hw_idc_changed          = pyqtSignal(int)
+    cfg_idc_changed         = pyqtSignal(int)
+
+    module_changed          = pyqtSignal(object)
+    hw_module_changed       = pyqtSignal(object)
+    cfg_module_changed      = pyqtSignal(object)
+
+    profile_changed         = pyqtSignal(object)
+    hw_profile_changed      = pyqtSignal(object)
+    cfg_profile_changed     = pyqtSignal(object)
+
     config_applied_changed  = pyqtSignal(object)
 
     read_mode_changed       = pyqtSignal(object)
@@ -33,11 +46,24 @@ class DeviceBase(QtCore.QObject):
         super(DeviceBase, self).__init__(parent)
 
         self.app_device = app_device
+        self.app_device.mrc_changed.connect(self.mrc_changed)
+
         self.app_device.hardware_set.connect(self._on_hardware_set)
         self.app_device.config_set.connect(self._on_config_set)
-        self.app_device.mrc_changed.connect(self.mrc_changed)
-        self.app_device.profile_changed.connect(self.profile_changed)
+
         self.app_device.idc_conflict_changed.connect(self.idc_conflict_changed)
+        self.app_device.idc_changed.connect(self.idc_changed)
+        self.app_device.hw_idc_changed.connect(self.hw_idc_changed)
+        self.app_device.cfg_idc_changed.connect(self.cfg_idc_changed)
+
+        self.app_device.module_changed.connect(self.module_changed)
+        self.app_device.hw_module_changed.connect(self.hw_module_changed)
+        self.app_device.cfg_module_changed.connect(self.cfg_module_changed)
+
+        self.app_device.profile_changed.connect(self.profile_changed)
+        self.app_device.hw_profile_changed.connect(self.hw_profile_changed)
+        self.app_device.cfg_profile_changed.connect(self.cfg_profile_changed)
+
         self.app_device.config_applied_changed.connect(self.config_applied_changed)
 
         self._read_mode  = read_mode
@@ -62,12 +88,6 @@ class DeviceBase(QtCore.QObject):
     def __getattr__(self, attr):
         return getattr(self.app_device, attr)
 
-    #hw              = pyqtProperty(object, lambda s: s.app_device.get_hardware(), notify=hardware_set)
-    #cfg             = pyqtProperty(object, lambda s: s.app_device.get_config(), notify=config_set)
-    #mrc             = pyqtProperty(object, lambda s: s.app_device.get_mrc(), notify=mrc_changed)
-    #idc_conflict    = pyqtProperty(bool, lambda s: s.app_device.has_idc_conflict(), notify=idc_conflict_changed)
-    #profile         = pyqtProperty(object, lambda s: s.app_device.get_profile(), notify=profile_changed)
-    #config_applied  = pyqtProperty(bool, lambda s: s.app_device.is_config_applied(), notify=config_applied_changed)
     read_mode       = pyqtProperty(object, get_read_mode, set_read_mode, notify=read_mode_changed)
     write_mode      = pyqtProperty(object, get_write_mode, set_write_mode, notify=write_mode_changed)
 
@@ -91,7 +111,7 @@ class DeviceBase(QtCore.QObject):
                     else:
                         ret.set_result(f.result())
                 except future.CancelledError:
-                    pass
+                    ret.cancel()
 
             def on_cfg_write_done(f):
                 try:
@@ -101,7 +121,7 @@ class DeviceBase(QtCore.QObject):
                         self.hw.set_parameter(address, value
                                 ).add_done_callback(on_hw_write_done)
                 except future.CancelledError:
-                    pass
+                    ret.cancel()
 
             self.cfg.set_parameter(address, value
                     ).add_done_callback(on_cfg_write_done)
