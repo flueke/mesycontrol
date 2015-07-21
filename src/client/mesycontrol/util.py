@@ -6,7 +6,6 @@ from pyqtgraph.SignalProxy import SignalProxy
 
 from qt import QtCore
 from qt import QtGui
-from qt import pyqtProperty
 from qt import pyqtSignal
 from qt import Qt
 from qt import uic
@@ -22,7 +21,9 @@ import math
 import os
 import sys
 
-HARDWARE, CONFIG, COMBINED = range(3)
+HARDWARE = 1
+CONFIG   = 2
+COMBINED = 3
 
 class GarbageCollector(QObject):
     '''
