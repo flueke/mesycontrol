@@ -5,6 +5,7 @@
 from qt import QtGui
 
 import logging
+import weakref
 
 import basic_model as bm
 import util
@@ -19,12 +20,13 @@ class AbstractParameterBinding(object):
         display_mode: util.HARDWARE | util.CONFIG
         write_mode: util.HARDWARE | util.CONFIG | util.COMBINED
         """
-        self.device         = device
+        self._device        = weakref.ref(device)
         self.profile        = profile
         self._display_mode  = display_mode
         self.write_mode     = write_mode if write_mode is not None else display_mode
         self.target         = target
         self._update_callbacks = list()
+        self._update_method_callbacks = list()
 
         self.device.hardware_set.connect(self._on_device_hw_set)
         self.device.config_set.connect(self._on_device_cfg_set)
@@ -37,7 +39,7 @@ class AbstractParameterBinding(object):
         display once the value is retrieved."""
         dev = self.device.cfg if self.display_mode == util.CONFIG else self.device.hw
         f = dev.get_parameter(self.address).add_done_callback(self._update_wrapper)
-        log.debug("populate: addr=%d, future=%s", self.address, f)
+        log.debug("populate: target=%s, addr=%d, future=%s", self.target, self.address, f)
 
     def get_address(self):
         return self.profile.address
@@ -50,11 +52,46 @@ class AbstractParameterBinding(object):
             self._display_mode = mode
             self.populate()
 
+    def get_device(self):
+        return self._device()
+
+    device = property(fget=get_device)
     address = property(fget=get_address)
     display_mode = property(fget=get_display_mode, fset=set_display_mode)
 
-    def add_update_callback(self, cb):
-        self._update_callbacks.append(cb)
+    def add_update_callback(self, method_or_func, *args, **kwargs):
+        """Adds a callback to be invoked when this binding updates its target.
+
+        The callback will be called with the result_future that caused the
+        update as its first argument and the optional args and kwargs as the
+        following arguments.
+
+        If the given method_or_func is a bound method a weak reference to the
+        corresponding object will be stored. This way the parameter binding
+        won't keep any objects alive just because they're registered as a
+        callback.
+
+        http://stackoverflow.com/questions/1673483/how-to-store-callback-methods
+        """
+        if hasattr(method_or_func, 'im_self'):
+            obj  = method_or_func.im_self
+            meth = method_or_func.im_func.__name__
+            self._update_callbacks.append((weakref.ref(obj), meth, args, kwargs))
+        else:
+            self._update_callbacks.append(method_or_func, args, kwargs)
+
+    def _exec_callbacks(self, result_future):
+        for tup in self._update_callbacks:
+            try:
+                if len(tup) == 3:
+                    func, args, kwargs = tup
+                    func(result_future, *args, **kwargs)
+                else:
+                    obj_ref, meth, args, kwargs = tup
+                    getattr(obj_ref(), meth)(result_future, *args, **kwargs)
+
+            except Exception as e:
+                log.warning("target=%s, update callback raised %s: %s", self.target, type(e), e)
 
     def _on_device_hw_set(self, device, old_hw, new_hw):
         if old_hw is not None:
@@ -75,15 +112,15 @@ class AbstractParameterBinding(object):
     def _on_hw_parameter_changed(self, address, value):
         if address == self.address and self.display_mode == util.HARDWARE:
             f = self.device.hw.get_parameter(self.address).add_done_callback(self._update_wrapper)
-            log.debug("_on_hw_parameter_changed: addr=%d, future=%s", self.address, f)
+            log.debug("_on_hw_parameter_changed: target=%s, addr=%d, future=%s", self.target, self.address, f)
 
     def _on_cfg_parameter_changed(self, address, value):
         if address == self.address and self.display_mode == util.CONFIG:
             f = self.device.cfg.get_parameter(self.address).add_done_callback(self._update_wrapper)
-            log.debug("_on_cfg_parameter_changed: addr=%d, future=%s", self.address, f)
+            log.debug("_on_cfg_parameter_changed: target=%s, addr=%d, future=%s", self.target, self.address, f)
 
     def _write_value(self, value):
-        log.debug("_write_value: %d=%d", self.address, value)
+        log.debug("_write_value: target=%s, %d=%d", self.target, self.address, value)
 
         if self.write_mode == util.COMBINED:
 
@@ -104,14 +141,12 @@ class AbstractParameterBinding(object):
             dev.set_parameter(self.address, value).add_done_callback(self._update_wrapper)
 
     def _update_wrapper(self, result_future):
-        log.debug("_update_wrapper: addr=%d, result_future=%s", self.address, result_future)
+        log.debug("_update_wrapper: target=%s, addr=%d, result_future=%s",
+                self.target, self.address, result_future)
+
         self._update(result_future)
 
-        for cb in self._update_callbacks:
-            try:
-                cb(result_future)
-            except Exception as e:
-                log.warning("update callback raised %s: %s", type(e), e)
+        self._exec_callbacks(result_future)
 
     def _update(self, result_future):
         raise NotImplementedError()
@@ -184,8 +219,11 @@ class Factory(object):
 class DefaultParameterBinding(AbstractParameterBinding):
     def __init__(self, **kwargs):
         super(DefaultParameterBinding, self).__init__(**kwargs)
+        self.log = util.make_logging_source_adapter(__name__, self)
 
     def _update(self, result_future):
+        self.log.debug("_update: target=%s, result_future=%s", self.target, result_future)
+
         pal = QtGui.QApplication.palette()
 
         try:
