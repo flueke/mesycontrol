@@ -335,6 +335,8 @@ class Device(AppObject):
         return self._cfg_module
 
     def set_module(self, module):
+        self.log.debug("set_module: module=%s", module)
+
         if self.idc_conflict:
             raise IDCConflict()
 
@@ -373,7 +375,7 @@ class Device(AppObject):
         self.log.debug("%s: set_cfg_module: module=%s", self, module)
 
         if self._cfg_module != module:
-            self._hw_module = module
+            self._cfg_module = module
             self.cfg_module_changed.emit(module)
             self.cfg_profile_changed.emit(module.profile)
 
@@ -532,6 +534,9 @@ class Director(object):
         # hardware idc has precedence for module selection
         idc     = hw_device.idc if hw_device is not None else cfg_device.idc
         module  = self.device_registry.get_device_module(idc)
+
+        self.log.debug("_make_device: bus=%d, addr=%d, hw_device=%s, cfg_device=%s, idc=%d, module=%s",
+                bus, address, hw_device, cfg_device, idc, module)
 
         return Device(bus=bus, address=address,
                 hw_device=hw_device, cfg_device=cfg_device,
