@@ -30,7 +30,6 @@ import device_tableview
 import future
 import hardware_tree_model as htm
 import log_view
-import model_util
 import resources
 import util
 
@@ -294,9 +293,9 @@ class GUIApplication(QtCore.QObject):
         if hasattr(window, 'device') and hasattr(window, 'view_mode'):
             device = window.device
             view_mode = window.view_mode
-            if view_mode & device_tableview.SHOW_CFG:
+            if view_mode & util.CONFIG:
                 self.treeview.select_config_node_by_ref(device)
-            elif view_mode & device_tableview.SHOW_HW:
+            elif view_mode & util.HARDWARE:
                 self.treeview.select_hardware_node_by_ref(device)
 
     def _show_device_windows(self, device, show_cfg, show_hw):
@@ -308,8 +307,8 @@ class GUIApplication(QtCore.QObject):
         def window_filter(window):
             try:
                 view_mode = window.widget().get_view_mode()
-                return ((show_cfg and view_mode & device_tableview.SHOW_CFG)
-                        or (show_hw and view_mode & device_tableview.SHOW_HW))
+                return ((show_cfg and view_mode & util.CONFIG)
+                        or (show_hw and view_mode & util.HARDWARE))
             except AttributeError:
                 pass
 
@@ -351,13 +350,13 @@ class GUIApplication(QtCore.QObject):
                 return
 
             if self.linked_mode and not device.idc_conflict:
-                view_mode = device_tableview.COMBINED
+                view_mode = write_mode = util.COMBINED
             elif from_config_side:
-                view_mode = device_tableview.SHOW_CFG
+                view_mode = write_mode = util.CONFIG
             elif from_hw_side:
-                view_mode = device_tableview.SHOW_HW
+                view_mode = write_mode = util.HARDWARE
 
-            subwin = self._add_device_table_window(device, view_mode)
+            subwin = self._add_device_table_window(device, view_mode, write_mode)
 
             if subwin.isMinimized():
                 subwin.showNormal()
@@ -441,10 +440,14 @@ class GUIApplication(QtCore.QObject):
         self.logview.append("Disconnected from %s" % mrc.get_display_url())
 
     # Device table window creation
-    def _add_device_table_window(self, device, mode):
+    def _add_device_table_window(self, device, view_mode, write_mode):
+        self.log.debug("Adding device table for %s with view_mode=%d, write_mode=%d",
+                device, view_mode, write_mode)
+
         subwin = DeviceTableSubWindow(
                 device=device,
-                view_mode=mode,
+                view_mode=view_mode,
+                write_mode=write_mode,
                 device_registry=self.device_registry)
         
         self.mainwindow.mdiArea.addSubWindow(subwin)
@@ -689,12 +692,12 @@ class GUIApplication(QtCore.QObject):
             if (hasattr(watched_object, 'device')
                     and watched_object.device in self._device_window_map):
                 # Remove the subwindow from the set of device windows
-                print "removing subwindow", watched_object, " for device", watched_object.device
+                self.log.debug("removing subwin %s for device %s", watched_object, watched_object.device)
                 self._device_window_map[watched_object.device].remove(watched_object)
 
             if (hasattr(watched_object, 'app_device')
                     and watched_object.app_device in self._device_window_map):
-                print "removing subwindow", watched_object, " for device", watched_object.app_device
+                self.log.debug("removing subwin %s for device %s", watched_object, watched_object.app_device)
                 self._device_window_map[watched_object.app_device].remove(watched_object)
 
         elif (event.type() == QtCore.QEvent.Close
@@ -809,10 +812,10 @@ class MainWindow(QtGui.QMainWindow):
         super(MainWindow, self).closeEvent(event)
 
 class DeviceTableSubWindow(QtGui.QMdiSubWindow):
-    def __init__(self, device, view_mode, device_registry, parent=None):
+    def __init__(self, device, view_mode, write_mode, device_registry, parent=None):
         super(DeviceTableSubWindow, self).__init__(parent)
         self.device_registry = device_registry
-        widget = device_tableview.DeviceTableWidget(device, view_mode)
+        widget = device_tableview.DeviceTableWidget(device, view_mode, write_mode)
         self.setWidget(widget)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.update_title_and_name()
@@ -876,11 +879,11 @@ class DeviceTableSubWindow(QtGui.QMdiSubWindow):
             # will not be set.
             return
 
-        if view_mode == device_tableview.COMBINED:
+        if view_mode == util.COMBINED:
             prefix = 'combined'
-        elif view_mode & device_tableview.SHOW_HW:
+        elif view_mode & util.HARDWARE:
             prefix = 'hw'
-        elif view_mode & device_tableview.SHOW_CFG:
+        elif view_mode & util.CONFIG:
             prefix = 'cfg'
 
         device_name = self.device_registry.get_device_name(idc)
@@ -888,7 +891,7 @@ class DeviceTableSubWindow(QtGui.QMdiSubWindow):
         title       = "%s @ (%s, %d, %d)" % (device_name, device.mrc.get_display_url(),
                 device.bus, device.address)
 
-        if ((view_mode & device_tableview.SHOW_CFG)
+        if ((view_mode & util.CONFIG)
                 and device.cfg is not None
                 and len(device.cfg.name)):
             title = "%s - %s" % (device.cfg.name, title)
