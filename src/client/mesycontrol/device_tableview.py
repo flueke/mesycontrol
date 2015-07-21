@@ -4,6 +4,7 @@ from PyQt4.QtCore import pyqtProperty
 from PyQt4.QtCore import QModelIndex
 from PyQt4.QtCore import Qt
 
+from basic_model import IDCConflict
 import future
 import basic_model as bm
 import util
@@ -26,16 +27,30 @@ column_titles = ('Address', 'Name', 'HW Value', 'Config Value', 'HW Unit Value',
 # Column indexes
 COL_ADDRESS, COL_NAME, COL_HW_VALUE, COL_CFG_VALUE, COL_HW_UNIT_VALUE, COL_CFG_UNIT_VALUE = range(6)
 
-# View mode
-SHOW_HW, SHOW_CFG = (1, 2)
-COMBINED = SHOW_HW | SHOW_CFG
+
+
+# no conflict:
+#  COMBINED: show both columns; editing: write to specific col. if write mode == COMBINED: write to both
+#  HARDWARE: show hw col; write to hw
+#  CONFIG: show cfg col; write to cfg
+# conflict:
+#  COMBINED: empty table, display IDC conflict warning somewhere
+#  HARDWARE: show hw values and profile and write to hw
+#  CONFIG: show cfg values and profile and write to cfg
+#
+# => No conflict and conflict is the same for HARDWARE and CONFIG only modes.
+#    COMBINED mode does differ depending on the conflict state
 
 class DeviceTableModel(QtCore.QAbstractTableModel):
-    def __init__(self, device, parent=None):
+    def __init__(self, device, view_mode, write_mode, parent=None):
         super(DeviceTableModel, self).__init__(parent)
-        self.log    = util.make_logging_source_adapter(__name__, self)
-        self._device = None
-        self.device = device
+        self.log        = util.make_logging_source_adapter(__name__, self)
+
+        self.view_mode  = view_mode
+        self.write_mode = write_mode
+
+        self._device    = None
+        self.device     = device
 
     def set_device(self, device):
         self.beginResetModel()
@@ -43,22 +58,34 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         if self.device is not None:
             self.device.config_set.disconnect(self._on_device_config_set)
             self.device.hardware_set.disconnect(self._on_device_hardware_set)
+            self.device.idc_conflict_changed.disconnect(self._on_device_idc_conflict_changed)
 
         self._device = device
 
         if self.device is not None:
             self.device.config_set.connect(self._on_device_config_set)
             self.device.hardware_set.connect(self._on_device_hardware_set)
+            self.device.idc_conflict_changed.connect(self._on_device_idc_conflict_changed)
 
             self._on_device_config_set(self.device, None, self.device.cfg)
             self._on_device_hardware_set(self.device, None, self.device.hw)
+            self._on_device_idc_conflict_changed(self.device.idc_conflict)
 
         self.endResetModel()
 
     def get_device(self):
         return self._device
 
+    def get_profile(self):
+        if self.view_mode == util.COMBINED:
+            return self.device.get_profile()
+        elif self.view_mode & util.CONFIG:
+            return self.device.get_cfg_profile()
+        elif self.view_mode & util.HARDWARE:
+            return self.device.get_hw_profile()
+
     device = pyqtProperty(object, get_device, set_device)
+    profile = pyqtProperty(object, get_profile)
 
     def _on_device_hardware_set(self, app_device, old_hw, new_hw):
         signal_slot_map = {
@@ -82,9 +109,8 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
             for signal, slot in signal_slot_map.iteritems():
                 getattr(new_hw, signal).connect(slot)
 
-            if app_device.profile is not None:
-                for addr in app_device.profile.get_volatile_addresses():
-                    new_hw.add_poll_item(self, addr)
+            for addr in app_device.profile.get_volatile_addresses():
+                new_hw.add_poll_item(self, addr)
 
         self._all_fields_changed()
 
@@ -96,6 +122,17 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
             new_cfg.parameter_changed.connect(self._on_cfg_parameter_changed)
 
         self._all_fields_changed()
+
+    def _on_device_idc_conflict_changed(self, conflict):
+        if self.device.has_hw:
+            self.device.hw.remove_polling_subscriber(self)
+        
+        if self.view_mode == util.COMBINED and conflict:
+            self.beginResetModel()
+            self.endResetModel()
+        elif self.device.has_hw:
+            for addr in self.device.get_hw_profile().get_volatile_addresses():
+                self.device.hw.add_poll_item(self, addr)
 
     def _on_hw_parameter_changed(self, address, value):
         self.dataChanged.emit(
@@ -383,9 +420,10 @@ class DeviceTableSortFilterProxyModel(QtGui.QSortFilterProxyModel):
     filter_static   = pyqtProperty(bool, get_filter_static, set_filter_static)
 
 class DeviceTableView(QtGui.QTableView):
-    def __init__(self, model, mode=COMBINED, parent=None):
+    def __init__(self, model, parent=None):
         super(DeviceTableView, self).__init__(parent)
         self.table_model = model
+
         self.sort_model  = DeviceTableSortFilterProxyModel(self)
         self.sort_model.setSourceModel(model)
         self.sort_model.setDynamicSortFilter(True)
@@ -403,13 +441,22 @@ class DeviceTableView(QtGui.QTableView):
         self.setWordWrap(False)
         self.resizeColumnsToContents()
         self.resizeRowsToContents()
-        if not len(self.device.profile.get_parameter_names()):
-            self.setColumnHidden(COL_NAME, True)
 
-        self.mode = mode
+        self.view_mode  = model.view_mode
+        self.write_mode = model.write_mode
 
-    def set_mode(self, mode):
-        self._mode = mode
+        try:
+            print self.table_model.get_profile()
+            if not len(self.profile.get_parameter_names()):
+                self.setColumnHidden(COL_NAME, True)
+        except IDCConflict:
+            pass
+
+    def get_view_mode(self):
+        return self.table_model.view_mode
+
+    def set_view_mode(self, mode):
+        self.table_model.view_mode = mode
 
         self.setColumnHidden(COL_HW_VALUE, not self.does_show_hardware())
         self.setColumnHidden(COL_HW_UNIT_VALUE, not self.does_show_hardware())
@@ -417,17 +464,34 @@ class DeviceTableView(QtGui.QTableView):
         self.setColumnHidden(COL_CFG_VALUE, not self.does_show_config())
         self.setColumnHidden(COL_CFG_UNIT_VALUE, not self.does_show_config())
 
-    def get_mode(self):
-        return self._mode
+    def get_write_mode(self):
+        return self.table_model.write_mode
+
+    def set_write_mode(self, mode):
+        self.table_model.write_mode = mode
 
     def does_show_hardware(self):
-        return self.mode & SHOW_HW
+        return self.view_mode & util.HARDWARE
 
     def does_show_config(self):
-        return self.mode & SHOW_CFG
+        return self.view_mode & util.CONFIG
 
     def contextMenuEvent(self, event):
         pass
+
+    def get_profile(self):
+        return self.table_model.profile
+
+    device = property(
+            fget=lambda self: self.table_model.device,
+            fset=lambda self, device: self.table_model.set_device(device))
+
+    profile = property(
+            fget=lambda self: self.table_model.profile)
+
+    view_mode   = property(fget=get_view_mode, fset=set_view_mode)
+    write_mode  = property(fget=get_write_mode, fset=set_write_mode)
+
         #selection_model = self.selectionModel()
 
         #menu = QtGui.QMenu()
@@ -461,22 +525,22 @@ class DeviceTableView(QtGui.QTableView):
 
     #    #seq_cmd.start()
 
-    device = property(
-            fget=lambda self: self.table_model.device,
-            fset=lambda self, device: self.table_model.set_device(device))
-    mode   = property(fget=get_mode, fset=set_mode)
-
 # TODO: change Hide to Show to make it easier to understand which params are shown...
 
 class DeviceTableWidget(QtGui.QWidget):
-    def __init__(self, device, view_mode=COMBINED, parent=None):
+    def __init__(self, device, view_mode=util.COMBINED, write_mode=util.COMBINED,
+            parent=None):
+
         super(DeviceTableWidget, self).__init__(parent)
 
-        settings = util.loadUi(":/ui/device_tableview_settings.ui")
+        self.log    = util.make_logging_source_adapter(__name__, self)
+        settings    = util.loadUi(":/ui/device_tableview_settings.ui")
 
-        model = DeviceTableModel(device)
-        self.view  = DeviceTableView(model=model, mode=view_mode)
-        sort_model = self.view.sort_model
+        self.log.debug("view_mode=%d, write_mode=%d", view_mode, write_mode)
+
+        model       = DeviceTableModel(device, view_mode=view_mode, write_mode=write_mode)
+        self.view   = DeviceTableView(model=model)
+        sort_model  = self.view.sort_model
 
         menu   = QtGui.QMenu('Filter options', self)
         action = menu.addAction("Hide unknown")
@@ -514,17 +578,14 @@ class DeviceTableWidget(QtGui.QWidget):
         layout.addWidget(self.view)
         self.setLayout(layout)
 
-    def set_view_mode(self, mode):
-        self.view.set_mode(mode)
+    view_mode   = property(
+            fget=lambda s: s.view.view_mode,
+            fset=lambda s, v: s.view.set_view_mode(v))
 
-    def get_view_mode(self):
-        return self.view.get_mode()
+    write_mode  = property(
+            fget=lambda s: s.view.write_mode,
+            fset=lambda s, v: s.view.set_write_mode(v))
 
-    def set_device(self, device):
-        self.view.table_model.set_device(device)
-
-    def get_device(self):
-        return self.view.table_model.get_device()
-
-    view_mode = property(fget=get_view_mode, fset=set_view_mode)
-    device    = property(fget=get_device, fset=set_device)
+    device      = property(
+            fget=lambda s: s.view.table_model.device,
+            fset =lambda s, v: s.view.table_model.set_device(v))
