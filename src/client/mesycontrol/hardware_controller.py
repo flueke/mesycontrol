@@ -272,7 +272,10 @@ class Controller(object):
         items.add((bus, address, item))
 
     def remove_polling_subscriber(self, subscriber):
-        del self._poll_items[subscriber]
+        try:
+            del self._poll_items[subscriber]
+        except KeyError:
+            pass
 
     def _on_connect_timer_timeout(self):
         if self._connect_future is not None and not self._connect_future.done():
