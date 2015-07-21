@@ -8,6 +8,13 @@ import device_profile
 import devices
 import util
 
+class VirtualDeviceModule(object):
+    def __init__(self, idc):
+        self.idc = idc
+        self.device_class = None
+        self.device_ui_class = None
+        self.profile = device_profile.make_generic_profile(idc)
+
 class DeviceRegistry(object):
     """Provides access to device modules."""
     def __init__(self, auto_load_modules=False):
@@ -49,7 +56,10 @@ class DeviceRegistry(object):
         return (m.profile for m in self.modules.itervalues())
 
     def get_device_module(self, idc):
-        return self.modules[idc]
+        try:
+            return self.modules[idc]
+        except KeyError:
+            return VirtualDeviceModule(idc)
 
     def get_device_class(self, idc):
         return self.modules[idc].device_class
