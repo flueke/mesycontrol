@@ -28,7 +28,9 @@ NUM_CHANNELS        = device_profile_mscf16.NUM_CHANNELS
 NUM_GROUPS          = device_profile_mscf16.NUM_GROUPS
 GAIN_FACTOR         = device_profile_mscf16.GAIN_FACTOR
 GAIN_ADJUST_LIMITS  = device_profile_mscf16.GAIN_ADJUST_LIMITS
-SHAPING_TIMES_US = {
+
+# hardware setting (shaping_time extension) -> list indexed by shaping time register
+SHAPING_TIMES_US    = {
         1: [0.125, 0.25, 0.5, 1.0],
         2: [0.25,  0.5,  1.0, 2.0],
         4: [0.5,   1.0,  2.0, 4.0],
@@ -329,14 +331,9 @@ class GainPage(QtGui.QGroupBox):
                     write_mode=write_mode,
                     target=gain_spin)
 
-            def cb(f, group):
-                self._update_gain_label(group)
-
-            b.add_update_callback(partial(cb, group=i))
-
             self.bindings.append(b)
 
-            self.bindings.append(b)
+            b.add_update_callback(self._update_gain_label_cb, group=i)
 
             layout.addWidget(descr_label, i+offset, 0, 1, 1, Qt.AlignRight)
             layout.addWidget(gain_spin,   i+offset, 1)
@@ -384,6 +381,9 @@ class GainPage(QtGui.QGroupBox):
         spin = self.hw_gain_inputs[group]
         with util.block_signals(spin):
             spin.setValue(value)
+        self._update_gain_label(group)
+
+    def _update_gain_label_cb(self, f, group):
         self._update_gain_label(group)
 
     def _update_gain_label(self, group):
@@ -517,10 +517,7 @@ class ShapingPage(QtGui.QGroupBox):
 
                 self.bindings.append(b)
 
-                def cb(f, group):
-                    self._update_sht_label(group)
-
-                b.add_update_callback(partial(cb, group=group))
+                b.add_update_callback(self._update_sht_label_cb, group=group)
 
             label_chan  = QtGui.QLabel("%d" % chan)
             spin_pz     = AutoPZSpin()
@@ -693,6 +690,9 @@ class ShapingPage(QtGui.QGroupBox):
                 self.pz_buttons[i].setText("")
                 self.pz_buttons[i].setIcon(self.stop_icon)
                 self.pz_buttons[i].setToolTip("Stop auto PZ")
+
+    def _update_sht_label_cb(self, f, group):
+        self._update_sht_label(group)
 
     def _update_sht_label(self, group):
         def done(f):

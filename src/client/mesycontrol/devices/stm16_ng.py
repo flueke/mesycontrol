@@ -107,10 +107,7 @@ class GainPage(QtGui.QGroupBox):
                 write_mode=write_mode,
                 target=gain_spin)
 
-            def cb(f, group):
-                self._update_gain_label(group)
-
-            binding.add_update_callback(partial(cb, group=i))
+            binding.add_update_callback(self._update_gain_label_cb, group=i)
 
             self.bindings.append(binding)
 
@@ -146,6 +143,11 @@ class GainPage(QtGui.QGroupBox):
 
         for i in range(NUM_GROUPS):
             self._update_gain_label(i)
+
+    # This version works as an update callback by accepting an additional
+    # argument: the result_future passed to the callback.
+    def _update_gain_label_cb(self, f, group):
+        self._update_gain_label(group)
 
     def _update_gain_label(self, group):
         def done(f):
