@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
+from functools import partial
 import collections
 
 from .. qt import pyqtSignal
@@ -10,8 +11,7 @@ from .. qt import Qt
 from .. qt import QtCore
 from .. qt import QtGui
 
-from functools import partial
-
+from .. future import future_progress_dialog
 from .. future import set_exception_on
 from .. future import set_result_on
 from .. import future
@@ -28,6 +28,7 @@ NUM_CHANNELS        = device_profile_mscf16.NUM_CHANNELS
 NUM_GROUPS          = device_profile_mscf16.NUM_GROUPS
 GAIN_FACTOR         = device_profile_mscf16.GAIN_FACTOR
 GAIN_ADJUST_LIMITS  = device_profile_mscf16.GAIN_ADJUST_LIMITS
+AUTO_PZ_ALL         = NUM_CHANNELS + 1
 
 # hardware setting (shaping_time extension) -> list indexed by shaping time register
 SHAPING_TIMES_US    = {
@@ -97,12 +98,15 @@ def get_config_parameters(app_device):
 # ==========  Device ========== 
 class MSCF16(DeviceBase):
     gain_adjust_changed = pyqtSignal(int, int) # group, value
+    auto_pz_channel_changed = pyqtSignal(int)
 
     def __init__(self, app_device, read_mode, write_mode, parent=None):
         super(MSCF16, self).__init__(app_device, read_mode, write_mode, parent)
         self.log = util.make_logging_source_adapter(__name__, self)
 
         self._auto_pz_channel = 0
+
+        self._on_hardware_set(app_device, None, self.hw)
 
     # ===== version registers =====
     def get_software_version(self):
@@ -166,27 +170,16 @@ class MSCF16(DeviceBase):
         return self.get_extension('gain_adjusts')[group]
 
     def set_gain_adjust(self, group, gain_adjust):
-        adjusts = self.get_extension['gain_adjusts']
-        adjusts[group] = gain_adjust
-        self.set_extension('gain_adjusts', adjusts)
+        adjusts = self.get_extension('gain_adjusts')
+
+        if adjusts[group] != gain_adjust:
+            adjusts[group] = gain_adjust
+            self.set_extension('gain_adjusts', adjusts)
+            self.gain_adjust_changed.emit(group, gain_adjust)
 
     def apply_common_gain(self):
-        ret = future.Future()
-
-        @set_result_on(ret)
-        def gain_applied(f):
-            return all(g.result() for g in f.result())
-
-        @set_exception_on(ret)
-        def apply_gain(f):
-            futures = list()
-            for i in range(NUM_GROUPS):
-                futures.append(self.set_parameter('gain_group%d' % i, int(f)))
-            future.all_done(*futures).add_done_callback(gain_applied)
-
-        self.get_parameter('gain_common').add_done_callback(apply_gain)
-
-        return ret
+        return self._apply_common_to_single(
+                'gain_common', 'gain_group%d', NUM_GROUPS)
 
     # ===== shaping time =====
     def get_effective_shaping_time(self, group):
@@ -199,6 +192,26 @@ class MSCF16(DeviceBase):
         self.get_parameter('shaping_time_group%d' % group).add_done_callback(done)
 
         return ret
+
+    def apply_common_sht(self):
+        return self._apply_common_to_single(
+                'shaping_time_common', 'shaping_time_group%d', NUM_GROUPS)
+
+    # ===== pz - pole zero =====
+    def apply_common_pz(self):
+        return self._apply_common_to_single(
+                'pz_value_common', 'pz_value_channel%d', NUM_CHANNELS)
+
+    def set_auto_pz(self, channel):
+        return self.set_hw_parameter('auto_pz', channel)
+
+    def get_auto_pz(self):
+        return self.get_hw_parameter('auto_pz')
+
+    # ===== threshold =====
+    def apply_common_threshold(self):
+        return self._apply_common_to_single(
+                'threshold_common', 'threshold_channel%d', NUM_CHANNELS)
 
     # ===== copy function =====
     def perform_copy_function(self, copy_function):
@@ -213,6 +226,59 @@ class MSCF16(DeviceBase):
             futures.append(self.read_hw_parameter(p.address))
 
         return future.all_done(*futures)
+
+    # ===== helpers =====
+    def _apply_common_to_single(self, common_param_name, single_param_name_fmt, n_single_params):
+        ret = future.Future()
+
+        @set_result_on(ret)
+        def all_applied(f):
+            return all(g.result() for g in f.result())
+
+        @set_exception_on(ret)
+        def apply_to_single(f):
+            futures = list()
+            for i in range(n_single_params):
+                futures.append(self.set_parameter(single_param_name_fmt % i, int(f)))
+            f_all = future.all_done(*futures).add_done_callback(all_applied)
+            future.progress_forwarder(f_all, ret)
+
+        self.get_parameter(common_param_name).add_done_callback(apply_to_single)
+
+        return ret
+
+    def _on_hardware_set(self, app_device, old, new):
+        # Overrides DeviceBase._on_hardware_set which is connected by DeviceBase.
+        super(MSCF16, self)._on_hardware_set(app_device, old, new)
+
+        if old is not None:
+            old.parameter_changed.disconnect(self._on_hw_parameter_changed)
+
+            try:
+                old.remove_polling_subscriber(self)
+            except KeyError:
+                pass
+
+        if new is not None:
+            new.parameter_changed.connect(self._on_hw_parameter_changed)
+
+            for addr in self.profile.get_volatile_addresses():
+                new.add_poll_item(self, addr)
+
+    def _on_hw_parameter_changed(self, address, value):
+        if address == self.profile['auto_pz'].address:
+            # Refresh the channels PZ value once auto pz is done.
+            # auto_pz = 0 means auto pz is not currently running
+            # 0 < auto_pz < NUM_CHANNELS means auto pz is running for that channel
+            # self._auto_pz_channel is the last channel that auto pz was running for
+            print "===== _on_hw_parameter_changed: is auto_pz", address, value
+
+            if 0 < self._auto_pz_channel <= NUM_CHANNELS:
+                print "=============== refreshing pz value for channel", self._auto_pz_channel
+                self.read_hw_parameter('pz_value_channel%d' % (self._auto_pz_channel-1))
+
+            self._auto_pz_channel = value
+            self.auto_pz_channel_changed.emit(value)
 
 # ==========  GUI ========== 
 dynamic_label_style = "QLabel { background-color: lightgrey; }"
@@ -263,7 +329,13 @@ class MSCF16Widget(QtGui.QWidget):
         return False
 
 def make_apply_common_button_layout(input_spinbox, tooltip, on_clicked):
-    button = QtGui.QPushButton(clicked=on_clicked)
+
+    # Wrapper to invoke the clicked handler without the boolean arg that's
+    # passed from QPushButton.clicked().
+    def _on_clicked(_ignored):
+        on_clicked()
+
+    button = QtGui.QPushButton(clicked=_on_clicked)
     button.setIcon(QtGui.QIcon(":/arrow-bottom.png"))
     button.setMaximumHeight(input_spinbox.sizeHint().height())
     button.setMaximumWidth(16)
@@ -357,19 +429,9 @@ class GainPage(QtGui.QGroupBox):
             layout.addWidget(descr_label, i+offset, 0, 1, 1, Qt.AlignRight)
             layout.addWidget(gain_spin,   i+offset, 1)
 
+    @future_progress_dialog()
     def _apply_common_gain(self):
-        f = self.device.apply_common_gain()
-        fo = future.FutureObserver(the_future=f)
-        pd = QtGui.QProgressDialog()
-        pd.setCancelButton(None)
-
-        fo.progress_range_changed.connect(pd.setRange)
-        fo.progress_changed.connect(pd.setValue)
-        fo.progress_text_changed.connect(pd.setLabelText)
-        fo.done.connect(pd.close)
-
-        pd.exec_()
-
+        return self.device.apply_common_gain()
 
     @pyqtSlot(int)
     def _on_hw_gain_input_value_changed(self, value):
@@ -424,14 +486,9 @@ class ShapingPage(QtGui.QGroupBox):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(ShapingPage, self).__init__("Shaping", parent)
         self.log    = util.make_logging_source_adapter(__name__, self)
-        self.device = device
-        #self.device.shaping_time_changed.connect(self._on_device_shaping_time_changed)
-        #self.device.pz_value_changed.connect(self._on_device_pz_value_changed)
-        #self.device.shaper_offset_changed.connect(self._on_device_shaper_offset_changed)
-        #self.device.blr_threshold_changed.connect(self._on_device_blr_threshold_changed)
-        #self.device.blr_changed.connect(self._on_device_blr_changed)
 
-        #self.device.auto_pz_channel_changed.connect(self._on_device_auto_pz_channel_changed)
+        self.device = device
+        self.device.auto_pz_channel_changed.connect(self._on_device_auto_pz_channel_changed)
 
         self.stop_icon  = QtGui.QIcon(':/ui/process-stop.png')
         self.sht_inputs = list()
@@ -475,7 +532,7 @@ class ShapingPage(QtGui.QGroupBox):
         self.pb_auto_pz_all.setToolTip("Start auto PZ for all channels")
         self.pb_auto_pz_all.setStatusTip(self.pb_auto_pz_all.toolTip())
         self.pb_auto_pz_all.setMaximumSize(ShapingPage.auto_pz_button_size)
-        self.pb_auto_pz_all.clicked.connect(self._on_auto_pz_button_clicked)
+        self.pb_auto_pz_all.clicked.connect(partial(self.device.set_auto_pz, channel=AUTO_PZ_ALL))
 
         layout = QtGui.QGridLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
@@ -531,10 +588,13 @@ class ShapingPage(QtGui.QGroupBox):
                     write_mode=write_mode,
                     target=spin_pz.spin)
 
+            self.bindings.append(b)
+
             button_pz   = QtGui.QPushButton("A")
             button_pz.setToolTip("Start auto PZ for channel %d" % chan)
+            button_pz.setStatusTip(button_pz.toolTip())
             button_pz.setMaximumSize(ShapingPage.auto_pz_button_size)
-            button_pz.clicked.connect(self._on_auto_pz_button_clicked)
+            button_pz.clicked.connect(partial(self._auto_pz_button_clicked, channel=chan))
             self.pz_buttons.append(button_pz)
 
             layout.addWidget(label_chan,    row, 3, 1, 1, Qt.AlignRight)
@@ -585,113 +645,15 @@ class ShapingPage(QtGui.QGroupBox):
         layout.addWidget(QtGui.QLabel("BLR enable"), row, 0)
         layout.addWidget(self.check_blr_enable, row, 1)
 
-    # ===== GUI changes =====
-
-    @pyqtSlot(int)
-    def _on_shaping_time_value_changed(self, value):
-        s = self.sender()
-        if s == self.spin_sht_common:
-            self.device.set_common_shaping_time(value)
-        else:
-            g = self.sht_inputs.index(s)
-            self.device.set_shaping_time(g, value)
-
-    @pyqtSlot(int)
-    def _on_pz_value_changed(self, value):
-        s = self.sender()
-        if s == self.spin_pz_common:
-            self.device.set_common_pz_value(value)
-        else:
-            c = self.pz_inputs.index(s)
-            self.device.set_pz_value(c, value)
-
-    @pyqtSlot(int)
-    def _on_shaper_offset_value_changed(self, value):
-        self.device.set_shaper_offset(value)
-
-    @pyqtSlot(int)
-    def _on_blr_threshold_value_changed(self, value):
-        self.device.set_blr_threshold(value)
-
-    @pyqtSlot(bool)
-    def _on_blr_enable_clicked(self, checked):
-        self.device.set_blr(checked)
-
-    @pyqtSlot()
-    def _on_auto_pz_button_clicked(self):
-        s = self.sender()
-        if s == self.pb_auto_pz_all:
-            self.device.set_auto_pz_channel(17)
-        else:
-            idx = self.pz_buttons.index(s)
-            if self.device.get_auto_pz_channel() == idx+1:
-                self.device.set_auto_pz_channel(0)
-            else:
-                self.device.set_auto_pz_channel(idx+1)
-
+    @future_progress_dialog()
     def _apply_common_sht(self):
-        raise NotImplementedError()
-    #    cmd = command.SequentialCommandGroup()
-    #    for i in range(MSCF16.num_groups):
-    #        set_cmd = mrc_command.SetParameter(self.device, 'shaping_time_group%d' % i,
-    #                self.device['shaping_time_common'])
-    #        cmd.add(set_cmd)
+        return self.device.apply_common_sht()
 
-    #    d = command.CommandProgressDialog(cmd, cancelButtonText=QtCore.QString(), parent=self)
-    #    d.exec_()
-
+    @future_progress_dialog()
     def _apply_common_pz(self):
-        raise NotImplementedError()
-    #    cmd = command.SequentialCommandGroup()
-    #    for i in range(MSCF16.num_channels):
-    #        set_cmd = mrc_command.SetParameter(self.device, 'pz_value_channel%d' % i,
-    #                self.device['pz_value_common'])
-    #        cmd.add(set_cmd)
+        return self.device.apply_common_pz()
 
-    #    d = command.CommandProgressDialog(cmd, cancelButtonText=QtCore.QString(), parent=self)
-    #    d.exec_()
-
-
-    # ===== Device changes =====
-    def _on_device_shaping_time_changed(self, bp):
-        spin = self.spin_sht_common if not bp.has_index() else self.sht_inputs[bp.index]
-        with util.block_signals(spin):
-            spin.setValue(bp.value)
-
-        if bp.has_index():
-            self._update_sht_label(bp.index)
-
-    def _on_device_pz_value_changed(self, bp):
-        spin = self.spin_pz_common if not bp.has_index() else self.pz_inputs[bp.index]
-        with util.block_signals(spin):
-            spin.setValue(bp.value)
-
-    def _on_device_shaper_offset_changed(self, value):
-        with util.block_signals(self.spin_shaper_offset):
-            self.spin_shaper_offset.setValue(value)
-
-    def _on_device_blr_threshold_changed(self, value):
-        with util.block_signals(self.spin_blr_threshold):
-            self.spin_blr_threshold.setValue(value)
-
-    def _on_device_blr_changed(self, on_off):
-        with util.block_signals(self.check_blr_enable):
-            self.check_blr_enable.setChecked(on_off)
-
-    def _on_device_auto_pz_channel_changed(self, value):
-        for i, pz_stack in enumerate(self.pz_stacks):
-            if value == 0 or i != value-1:
-                pz_stack.showSpin()
-                self.pz_buttons[i].setText("A")
-                self.pz_buttons[i].setIcon(QtGui.QIcon())
-                self.pz_buttons[i].setToolTip("Start auto PZ for channel %d" % i)
-            elif i == value-1:
-                pz_stack.showProgress()
-                self.pz_buttons[i].setText("")
-                self.pz_buttons[i].setIcon(self.stop_icon)
-                self.pz_buttons[i].setToolTip("Stop auto PZ")
-
-    def _update_sht_label_cb(self, f, group):
+    def _update_sht_label_cb(self, ignored_future, group):
         self._update_sht_label(group)
 
     def _update_sht_label(self, group):
@@ -705,6 +667,34 @@ class ShapingPage(QtGui.QGroupBox):
                 self.sht_labels[group].setText("N/A")
 
         self.device.get_effective_shaping_time(group).add_done_callback(done)
+
+    def _on_device_auto_pz_channel_changed(self, value):
+        print "====== gui: _on_device_auto_pz_channel_changed", value
+        for i, pz_stack in enumerate(self.pz_stacks):
+            try:
+                button = self.pz_buttons[i]
+            except IndexError:
+                continue
+
+            if value == 0 or i != value-1:
+                pz_stack.showSpin()
+                button.setText("A")
+                button.setIcon(QtGui.QIcon())
+                button.setToolTip("Start auto PZ for channel %d" % i)
+            elif i == value-1:
+                pz_stack.showProgress()
+                button.setText("")
+                button.setIcon(self.stop_icon)
+                button.setToolTip("Stop auto PZ")
+
+    def _auto_pz_button_clicked(self, channel):
+        def done(f):
+            auto_pz = int(f)
+            # Turn auto pz off if the button of the active channel was clicked.
+            # Otherwise turn it on for that channel.
+            self.device.set_auto_pz(0 if auto_pz == channel+1 else channel+1)
+
+        self.device.get_auto_pz().add_done_callback(done)
 
 class TimingPage(QtGui.QGroupBox):
     def __init__(self, device, display_mode, write_mode, parent=None):
@@ -750,14 +740,21 @@ class TimingPage(QtGui.QGroupBox):
             self.threshold_inputs.append(spin_threshold)
             self.threshold_labels.append(label_threshold)
 
-            b = pb.factory.make_binding(
-                    device=device,
-                    profile=device.profile['threshold_channel%d' % chan],
-                    display_mode=display_mode,
-                    write_mode=write_mode,
-                    target=spin_threshold)
+            self.bindings.append(pb.factory.make_binding(
+                device=device,
+                profile=device.profile['threshold_channel%d' % chan],
+                display_mode=display_mode,
+                write_mode=write_mode,
+                target=spin_threshold))
 
-            self.bindings.append(b)
+            self.bindings.append(pb.factory.make_binding(
+                device=device,
+                profile=device.profile['threshold_channel%d' % chan],
+                display_mode=display_mode,
+                write_mode=write_mode,
+                target=label_threshold,
+                unit_name='percent'))
+
 
         layout.addWidget(hline(), layout.rowCount(), 0, 1, 3)
 
@@ -800,16 +797,9 @@ class TimingPage(QtGui.QGroupBox):
         layout.addWidget(QtGui.QLabel("TF int. time"),  row, 0)
         layout.addWidget(self.spin_tf_int_time,         row, 1)
 
+    @future_progress_dialog()
     def _apply_common_threshold(self):
-        raise NotImplementedError()
-        #cmd = command.SequentialCommandGroup()
-        #for i in range(MSCF16.num_channels):
-        #    set_cmd = mrc_command.SetParameter(self.device, 'threshold_channel%d' % i,
-        #            self.device['threshold_common'])
-        #    cmd.add(set_cmd)
-
-        #d = command.CommandProgressDialog(cmd, cancelButtonText=QtCore.QString(), parent=self)
-        #d.exec_()
+        return self.device.apply_common_threshold()
 
 class ChannelModeBinding(pb.AbstractParameterBinding):
     def __init__(self, **kwargs):
@@ -851,6 +841,16 @@ class MiscPage(QtGui.QWidget):
             write_mode=write_mode,
             target=self.spin_coincidence_time))
 
+        self.label_coincidence_time = QtGui.QLabel()
+        self.label_coincidence_time.setStyleSheet(dynamic_label_style)
+        self.bindings.append(pb.factory.make_binding(
+            device=device,
+            profile=device.profile['coincidence_time'],
+            display_mode=display_mode,
+            write_mode=write_mode,
+            target=self.label_coincidence_time,
+            unit_name='nanoseconds'))
+
         self.spin_multiplicity_high = util.DelayedSpinBox()
         self.bindings.append(pb.factory.make_binding(
             device=device,
@@ -866,9 +866,6 @@ class MiscPage(QtGui.QWidget):
             display_mode=display_mode,
             write_mode=write_mode,
             target=self.spin_multiplicity_low))
-
-        self.label_coincidence_time = QtGui.QLabel()
-        self.label_coincidence_time.setStyleSheet(dynamic_label_style)
 
         row = 0
         trigger_layout.addWidget(QtGui.QLabel("Coinc. time"), row, 0)
