@@ -3,6 +3,7 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 from qt import QtCore
+from qt import QtGui
 from qt import pyqtProperty
 from qt import pyqtSignal
 
@@ -222,6 +223,7 @@ def all_done(*futures):
 def progress_forwarder(source, dest):
     def callback(f):
         dest.set_progress_range(source.progress_range())
+        dest.set_progress(source.progress())
         dest.set_progress_text(source.progress_text())
 
     source.add_progress_callback(callback)
@@ -306,6 +308,35 @@ def set_exception_on(result_future):
                 result_future.set_exception(e)
         return wrapper
     return deco
+
+def future_progress_dialog(cancelable=True):
+    def deco(func):
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+
+            f  = func(*args, **kwargs)
+
+            if f.done():
+                return
+
+            fo = FutureObserver(the_future=f)
+            pd = QtGui.QProgressDialog()
+
+            if not cancelable:
+                pd.setCancelButton(None)
+
+            fo.progress_range_changed.connect(pd.setRange)
+            fo.progress_changed.connect(pd.setValue)
+            fo.progress_text_changed.connect(pd.setLabelText)
+            fo.done.connect(pd.close)
+
+            pd.exec_()
+
+        return wrapper
+
+    return deco
+
 
 if __name__ == "__main__":
     ret = Future()
