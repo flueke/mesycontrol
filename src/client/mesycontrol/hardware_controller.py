@@ -240,6 +240,10 @@ class Controller(object):
         if self.connection.get_queue_size() > 0:
             return
 
+        if len(self._poll_items):
+            self.log.debug("%s: polling subscribers: %s",
+                    self, self._poll_items.keys())
+
         # Merge all poll items into one set.
         # Note: This does not try to merge any overlapping ranges. Those will
         # lead to parameters being read multiple times.
@@ -254,14 +258,17 @@ class Controller(object):
 
             polled_items = polled_items_by_device.setdefault((bus, dev), set())
 
+            # Note: below device.read_parameter() is used instead of
+            # self.read_parameter(). This ensures the device can update its
+            # memory cache and keep track of reads in progress.
             try:
                 lower, upper = item
                 polled_items.add((lower, upper))
                 for param in xrange(lower, upper+1):
-                    self.read_parameter(bus, dev, param)
+                    device.read_parameter(param)
             except TypeError:
                 polled_items.add(item)
-                self.read_parameter(bus, dev, item)
+                device.read_parameter(item)
 
         for bus, dev in sorted(polled_items_by_device.keys()):
             self.log.debug("%s: polled (%d, %d): %s", self, bus, dev,
