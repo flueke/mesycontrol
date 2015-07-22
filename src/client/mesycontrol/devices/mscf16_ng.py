@@ -930,13 +930,13 @@ class MiscPage(QtGui.QWidget):
 
         self.pb_copy_common2single          = QtGui.QPushButton("Common -> Single", clicked=self._copy_common2single)
         self.copy_common2single_progress    = QtGui.QProgressBar()
-        self.stack_copy_common2single       = QtGui.QStackedWidget()
-        self.stack_copy_common2single.addWidget(self.pb_copy_common2single)
-        self.stack_copy_common2single.addWidget(self.copy_common2single_progress)
+        self.copy_common2single_stack       = QtGui.QStackedWidget()
+        self.copy_common2single_stack.addWidget(self.pb_copy_common2single)
+        self.copy_common2single_stack.addWidget(self.copy_common2single_progress)
 
         copy_layout.addWidget(self.copy_panel2rc_stack)
         copy_layout.addWidget(self.pb_copy_rc2panel)
-        copy_layout.addWidget(self.stack_copy_common2single)
+        copy_layout.addWidget(self.copy_common2single_stack)
 
         # Version display
         version_box = QtGui.QGroupBox("Version")
@@ -955,84 +955,38 @@ class MiscPage(QtGui.QWidget):
         layout.addWidget(copy_box)
         layout.addWidget(version_box)
 
-    @pyqtSlot(int)
-    def _coincidence_time_changed(self, value):
-        self.device.set_coincidence_time(value)
-
-    @pyqtSlot(int)
-    def _mult_lo_changed(self, value):
-        self.device.set_multiplicity_low(value)
-
-    @pyqtSlot(int)
-    def _mult_hi_changed(self, value):
-        self.device.set_multiplicity_high(value)
-
-    @pyqtSlot()
     def _copy_panel2rc(self):
-        cmd = self.device.get_copy_panel2rc_command()
-        self.copy_panel2rc_progress.setMaximum(len(cmd))
-        self.copy_panel2rc_progress.setValue(0)
-        cmd.progress_changed[int].connect(self.copy_panel2rc_progress.setValue)
+        def progress(f):
+            self.copy_panel2rc_progress.setValue(f.progress())
 
-        def on_command_stopped():
-            cmd.progress_changed[int].disconnect(self.copy_panel2rc_progress.setValue)
-            cmd.stopped.disconnect()
+        def done(f):
             self.copy_panel2rc_stack.setCurrentIndex(0)
 
-        cmd.stopped.connect(on_command_stopped)
-        self.copy_panel2rc_stack.setCurrentIndex(1)
-        cmd.start()
+        copy_future = self.device.perform_copy_function(CopyFunction.panel2rc)
+        copy_future.add_progress_callback(progress)
+        copy_future.add_done_callback(done)
 
-    @pyqtSlot()
+        self.copy_panel2rc_progress.setMaximum(copy_future.progress_max())
+        self.copy_panel2rc_progress.setValue(0)
+        self.copy_panel2rc_stack.setCurrentIndex(1)
+
     def _copy_rc2panel(self):
         self.device.perform_copy_function(CopyFunction.rc2panel)
 
-    @pyqtSlot()
     def _copy_common2single(self):
-        cmd = self.device.get_copy_common2single_command()
-        self.copy_common2single_progress.setMaximum(len(cmd))
+        def progress(f):
+            self.copy_common2single_progress.setValue(f.progress())
+
+        def done(f):
+            self.copy_common2single_stack.setCurrentIndex(0)
+
+        copy_future = self.device.perform_copy_function(CopyFunction.common2single)
+        copy_future.add_progress_callback(progress)
+        copy_future.add_done_callback(done)
+
+        self.copy_common2single_progress.setMaximum(copy_future.progress_max())
         self.copy_common2single_progress.setValue(0)
-        cmd.progress_changed[int].connect(self.copy_common2single_progress.setValue)
-
-        def on_command_stopped():
-            cmd.progress_changed[int].disconnect(self.copy_common2single_progress.setValue)
-            cmd.stopped.disconnect()
-            self.stack_copy_common2single.setCurrentIndex(0)
-
-        cmd.stopped.connect(on_command_stopped)
-        self.stack_copy_common2single.setCurrentIndex(1)
-        cmd.start()
-
-    @pyqtSlot(int)
-    def _monitor_channel_selected(self, idx):
-        self.device.set_monitor_channel(idx)
-
-    @pyqtSlot(bool)
-    def _rb_mode_single_toggled(self, on_off):
-        self.device.set_single_channel_mode(on_off)
-
-    def _on_device_coincidence_time_changed(self, value):
-        with util.block_signals(self.spin_coincidence_time):
-            self.spin_coincidence_time.setValue(value)
-        self.label_coincidence_time.setText(
-                "%.1f ns" % self.device.get_parameter_by_name('coincidence_time', 'nanoseconds'))
-
-    def _on_device_multiplicity_low_changed(self, value):
-        with util.block_signals(self.spin_multiplicity_low):
-            self.spin_multiplicity_low.setValue(value)
-
-    def _on_device_multiplicity_high_changed(self, value):
-        with util.block_signals(self.spin_multiplicity_high):
-            self.spin_multiplicity_high.setValue(value)
-
-    def _on_device_monitor_channel_changed(self, value):
-        with util.block_signals(self.combo_monitor):
-            self.combo_monitor.setCurrentIndex(value)
-
-    def _on_device_single_channel_mode_changed(self, value):
-        rb = self.rb_mode_single if value else self.rb_mode_common
-        with util.block_signals(rb):
-            rb.setChecked(True)
+        self.copy_common2single_stack.setCurrentIndex(1)
 
     def _on_device_parameter_changed(self, bp):
         self.log.debug("parameter_changed: %s", bp)
