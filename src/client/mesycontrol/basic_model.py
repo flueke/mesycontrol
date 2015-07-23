@@ -169,7 +169,6 @@ class SetResult(collections.namedtuple("SetResult", ReadResult._fields + ('reque
     def __nonzero__(self):
         return self.value == self.requested_value
 
-
 class ResultFuture(future.Future):
     """
     Future subclass used to hold ReadResult/SetResult instances. This class

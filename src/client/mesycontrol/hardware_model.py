@@ -137,6 +137,10 @@ class MRC(bm.MRC):
             self._polling = on_off
             self.polling_changed.emit(on_off)
 
+    def __str__(self):
+        return "hm.MRC(id=%s, url=%s, connected=%s, polling=%s)" % (
+                hex(id(self)), self.url, self.is_connected(), self.should_poll())
+
     connection  = pyqtProperty(object, get_connection)
     controller  = pyqtProperty(object, get_controller, set_controller)
     polling     = pyqtProperty(bool, should_poll, set_polling, notify=polling_changed)
@@ -241,8 +245,8 @@ class Device(bm.Device):
         return self.mrc.last_connection_error
 
     def __str__(self):
-        return "%s.Device(id=%s, b=%d, a=%d, idc=%d, mrc=%s)" % (
-                __name__, hex(id(self)), self.bus, self.address, self.idc, self.mrc)
+        return "hm.Device(id=%s, b=%d, a=%d, idc=%d, mrc=%s)" % (
+                hex(id(self)), self.bus, self.address, self.idc, self.mrc)
 
     controller = pyqtProperty(object, get_controller)
 

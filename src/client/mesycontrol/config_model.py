@@ -72,6 +72,10 @@ class Setup(bm.MRCRegistry):
         if is_modified:
             self.modified = True
 
+    def __str__(self):
+        return "cm.Setup(id=%s, filename=%s, modified=%s" % (
+                hex(id(self)), self.filename, self.modified)
+
     modified = pyqtProperty(bool, is_modified, set_modified, notify=modified_changed)
     filename = pyqtProperty(str, get_filename, set_filename, notify=filename_changed)
 
@@ -120,6 +124,10 @@ class MRC(bm.MRC):
     def _on_device_modified_changed(self, is_modified):
         if is_modified:
             self.modified = True
+
+    def __str__(self):
+        return "cm.MRC(id=%s, url=%s, modified=%s)" % (
+                hex(id(self)), self.url, self.modified)
 
     set_url     = modifies(bm.MRC.set_url)
 
@@ -185,8 +193,8 @@ class Device(bm.Device):
     remove_extension = modifies(bm.Device.remove_extension)
 
     def __str__(self):
-        return "%s.Device(id=%s, b=%d, a=%d, idc=%d, mrc=%s)" % (
-                __name__, hex(id(self)), self.bus, self.address, self.idc, self.mrc)
+        return "cm.Device(id=%s, b=%d, a=%d, idc=%d, mrc=%s)" % (
+                hex(id(self)), self.bus, self.address, self.idc, self.mrc)
 
     modified    = pyqtProperty(bool, is_modified, set_modified, notify=modified_changed)
     name        = pyqtProperty(str, get_name, set_name, notify=name_changed)

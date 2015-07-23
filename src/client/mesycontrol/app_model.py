@@ -103,8 +103,8 @@ class MRCRegistry(AppObject):
         return iter(self._mrcs)
 
     def __str__(self):
-        return "%s.MRCRegistry(id=%s, hw=%s, cfg=%s)" % (
-                __name__, hex(id(self)), self.hw, self.cfg)
+        return "am.MRCRegistry(id=%s, hw=%s, cfg=%s)" % (
+                hex(id(self)), self.hw, self.cfg)
 
     setup = pyqtProperty(object,
             fget=lambda s: s.cfg,
@@ -189,8 +189,8 @@ class MRC(AppObject):
         return iter(self._devices)
 
     def __str__(self):
-        return "%s.MRC(id=%s, url=%s, hw=%s, cfg=%s)" % (
-                __name__, hex(id(self)), self.url, self.hw, self.cfg)
+        return "am.MRC(id=%s, url=%s, hw=%s, cfg=%s)" % (
+                hex(id(self)), self.url, self.hw, self.cfg)
 
     url     = pyqtProperty(str, get_url)
     devices = pyqtProperty(list, get_devices)
@@ -243,7 +243,6 @@ class Device(AppObject):
         self.idc_conflict_changed.connect(self._update_config_applied)
 
         self._update_idc_conflict()
-        self._update_config_applied()
         self._on_hardware_set(self, None, hw_device)
         self._on_config_set(self, None, cfg_device)
 
@@ -347,11 +346,6 @@ class Device(AppObject):
             self.set_hw_module(module)
             self.set_cfg_module(module)
 
-            def on_done(f):
-                self._config_addresses = set((p.address for p in f.result()))
-                self._update_config_applied()
-
-            self.get_config_parameters().add_done_callback(on_done)
             self.module_changed.emit(self.module)
             self.profile_changed.emit(self.profile)
             return True
@@ -367,6 +361,7 @@ class Device(AppObject):
             self._hw_module = module
             self.hw_module_changed.emit(module)
             self.hw_profile_changed.emit(module.profile)
+            self._update_config_addresses()
 
     def set_cfg_module(self, module):
         if self.has_cfg and self.cfg_idc != module.idc:
@@ -378,10 +373,11 @@ class Device(AppObject):
             self._cfg_module = module
             self.cfg_module_changed.emit(module)
             self.cfg_profile_changed.emit(module.profile)
+            self._update_config_addresses()
 
     def __str__(self):
-        return "%s.Device(id=%s, b=%d, a=%d, mrc=%s, hw=%s, cfg=%s)" % (
-                __name__, hex(id(self)), self.bus, self.address, self.mrc, self.hw, self.cfg)
+        return "am.Device(id=%s, b=%d, a=%d, mrc=%s, hw=%s, cfg=%s)" % (
+                hex(id(self)), self.bus, self.address, self.mrc, self.hw, self.cfg)
 
     def _update_idc_conflict(self):
         conflict = self.has_hw and self.has_cfg and self.hw.idc != self.cfg.idc
@@ -417,6 +413,14 @@ class Device(AppObject):
             self.config_applied_changed.emit(new_state)
 
         self.log.debug("%s: config_applied=%s", self, new_state)
+
+    def _update_config_addresses(self):
+        def on_done(f):
+            self._config_addresses = set((p.address for p in f.result()))
+            self.log.debug("_update_config_addresses: %s", self._config_addresses)
+            self._update_config_applied()
+
+        self.get_config_parameters().add_done_callback(on_done)
 
     def is_config_applied(self):
         """True if hardware and config values are equal."""
