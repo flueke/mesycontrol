@@ -6,7 +6,10 @@
     <file alias="connection-error.png">ui/warning-2x.png</file>
     <file alias="disconnected.png">ui/disconnected.png</file>
     <file alias="linked.png">ui/link-broken-2x.png</file>
+    <file alias="polarity-negative.png">ui/list-remove.png</file>
+    <file alias="polarity-positive.png">ui/list-add.png</file>
     <file alias="unlinked.png">ui/link-intact-2x.png</file>
+
     <file>ui/applications-utilities.png</file>
     <file>ui/arrow-circle-left-2x.png</file>
     <file>ui/arrow-circle-right-2x.png</file>
@@ -18,8 +21,6 @@
     <file>ui/data-transfer-download-2x.png</file>
     <file>ui/data-transfer-upload-2x.png</file>
     <file>ui/flash-2x.png</file>
-    <file>ui/list-add.png</file>
-    <file>ui/list-remove.png</file>
     <file>ui/lock-locked-2x.png</file>
     <file>ui/lock-unlocked-2x.png</file>
     <file>ui/loop-2x.png</file>
