@@ -14,7 +14,7 @@ import future
 log = logging.getLogger(__name__)
 
 class AbstractParameterBinding(object):
-    def __init__(self, device, profile, target, display_mode, write_mode=None):
+    def __init__(self, device, profile, target, display_mode, write_mode=None, **kwargs):
         """
         device: app_model.Device or DeviceBase subclass
         display_mode: util.HARDWARE | util.CONFIG
