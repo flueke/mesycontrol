@@ -85,19 +85,13 @@ class CopyFunction(object):
 
 Version = collections.namedtuple('Version', 'major minor')
 
-def version_to_major_minor(version):
-   minor = version % 16;
-   major = (version - minor) / 16;
-
-   return Version(major, minor)
-
 def get_config_parameters(app_device):
     # TODO: implement version dependent code here
     return future.Future().set_result(app_device.profile.get_config_parameters())
 
 # ==========  Device ========== 
 class MSCF16(DeviceBase):
-    gain_adjust_changed = pyqtSignal(int, int) # group, value
+    gain_adjust_changed     = pyqtSignal(int, int) # group, value
     auto_pz_channel_changed = pyqtSignal(int)
 
     def __init__(self, app_device, read_mode, write_mode, parent=None):
@@ -352,7 +346,8 @@ def make_apply_common_button_layout(input_spinbox, tooltip, on_clicked):
 class GainPage(QtGui.QGroupBox):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(GainPage, self).__init__("Gain", parent)
-        self.device         = device
+        self.log    = util.make_logging_source_adapter(__name__, self)
+        self.device = device
 
         device.gain_adjust_changed.connect(self._on_device_gain_adjust_changed)
 
@@ -987,23 +982,6 @@ class MiscPage(QtGui.QWidget):
         self.copy_common2single_progress.setMaximum(copy_future.progress_max())
         self.copy_common2single_progress.setValue(0)
         self.copy_common2single_stack.setCurrentIndex(1)
-
-    def _on_device_parameter_changed(self, bp):
-        self.log.debug("parameter_changed: %s", bp)
-        def update_version_label(label, value):
-            text = "%d.%d" % (version_to_major_minor(value))
-            label.setText(text)
-
-        if bp.name == 'hardware_version' and self.device.has_hardware_version():
-            update_version_label(self.version_labels['Hardware'], bp.value)
-        elif bp.name == 'fpga_version' and self.device.has_fgpa_version():
-            update_version_label(self.version_labels['FPGA'], bp.value)
-        elif bp.name == 'cpu_software_version' and self.device.has_cpu_software_version():
-            update_version_label(self.version_labels['Software'], bp.value)
-        elif bp.name == 'version' and self.device.has_version():
-            update_version_label(self.version_labels['Software'], bp.value)
-            self.version_labels['FPGA'].setText('N/A')
-            self.version_labels['Hardware'].setText('N/A')
 
 # FIXME: implement this
 class MSCF16SetupWidget(QtGui.QWidget):

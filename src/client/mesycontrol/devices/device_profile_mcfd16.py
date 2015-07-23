@@ -8,6 +8,9 @@
 
 idc = 26
 
+# the default delay chip max delay [ns]
+DEFAULT_DELAY_CHIP_NS = 20
+
 profile_dict = {
         'name': 'MCFD-16',
         'idc': idc,
@@ -198,5 +201,9 @@ profile_dict = {
 
             { 'address': 254, 'name': 'fpga_firmware_version', 'read_only': True },
             { 'address': 255, 'name': 'cpu_firmware_version', 'read_only': True },
-            ]
+            ],
+
+            'extensions': [
+                { 'name': 'delay_chip_ns', 'value': DEFAULT_DELAY_CHIP_NS },
+            ],
 }
