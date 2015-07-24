@@ -5,6 +5,7 @@
 from qt import QtGui
 
 import logging
+import traceback
 import weakref
 
 import basic_model as bm
@@ -78,7 +79,9 @@ class AbstractParameterBinding(object):
             meth = method_or_func.im_func.__name__
             self._update_callbacks.append((weakref.ref(obj), meth, args, kwargs))
         else:
-            self._update_callbacks.append(method_or_func, args, kwargs)
+            self._update_callbacks.append((method_or_func, args, kwargs))
+
+        return self
 
     def _exec_callbacks(self, result_future):
         for tup in self._update_callbacks:
@@ -92,6 +95,7 @@ class AbstractParameterBinding(object):
 
             except Exception as e:
                 log.warning("target=%s, update callback raised %s: %s", self.target, type(e), e)
+                traceback.print_exc()
 
     def _on_device_hw_set(self, device, old_hw, new_hw):
         if old_hw is not None:
@@ -181,10 +185,10 @@ class Factory(object):
         self.predicate_binding_class_pairs = list()
         self.classinfo_bindings = list()
 
-    def append_predicate(self, predicate, binding_class):
+    def append_predicate_binding(self, predicate, binding_class):
         self.predicate_binding_class_pairs.append((predicate, binding_class))
 
-    def insert_predicate(self, idx, predicate, binding_class):
+    def insert_predicate_binding(self, idx, predicate, binding_class):
         self.predicate_binding_class_pairs.insert(idx, (predicate, binding_class))
 
     def append_classinfo_binding(self, target_classinfo, binding_class):
@@ -224,18 +228,22 @@ class DefaultParameterBinding(AbstractParameterBinding):
     def _update(self, result_future):
         self.log.debug("_update: target=%s, result_future=%s", self.target, result_future)
 
+        pal = self._get_palette(result_future)
+        self.target.setPalette(pal)
+        self.target.setToolTip(self._get_tooltip(result_future))
+        self.target.setStatusTip(self.target.toolTip())
+
+    def _get_palette(self, rf):
         pal = QtGui.QApplication.palette()
 
         try:
-            result = result_future.result()
+            result = rf.result()
             if isinstance(result, bm.SetResult) and not result:
                 raise RuntimeError()
         except Exception:
             pal.setColor(QtGui.QPalette.Base, QtGui.QColor('red'))
 
-        self.target.setPalette(pal)
-        self.target.setToolTip(self._get_tooltip(result_future))
-        self.target.setStatusTip(self.target.toolTip())
+        return pal
 
 class SpinBoxParameterBinding(DefaultParameterBinding):
     def __init__(self, **kwargs):
@@ -329,6 +337,26 @@ class ComboBoxParameterBinding(DefaultParameterBinding):
         except Exception:
             pass
 
+class RadioButtonGroupParameterBinding(DefaultParameterBinding):
+    def __init__(self, **kwargs):
+        super(RadioButtonGroupParameterBinding, self).__init__(**kwargs)
+        self.target.buttonClicked[int].connect(self._on_button_clicked)
+
+    def _on_button_clicked(self, button_id):
+        self._write_value(button_id)
+
+    def _update(self, rf):
+        self.target.button(int(rf)).setChecked(True)
+
+        for b in self.target.buttons():
+            b.setToolTip(self._get_tooltip(rf))
+            b.setStatusTip(b.toolTip())
+
+    @staticmethod
+    def predicate(target):
+        return (isinstance(target, QtGui.QButtonGroup) and
+                all(isinstance(b, QtGui.QRadioButton) for b in target.buttons()))
+
 factory = Factory()
 
 factory.append_classinfo_binding(
@@ -345,6 +373,9 @@ factory.append_classinfo_binding(
 
 factory.append_classinfo_binding(
         QtGui.QComboBox, ComboBoxParameterBinding)
+
+factory.append_predicate_binding(
+        RadioButtonGroupParameterBinding.predicate, RadioButtonGroupParameterBinding)
 
 if __name__ == "__main__":
     import mock
