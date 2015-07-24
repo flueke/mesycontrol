@@ -36,6 +36,8 @@ class DeviceBase(QtCore.QObject):
     read_mode_changed       = pyqtSignal(object)
     write_mode_changed      = pyqtSignal(object)
 
+    parameter_changed       = pyqtSignal(int, object)
+
     def __init__(self, app_device, read_mode, write_mode, parent=None):
         """
         app_device: app_model.Device
@@ -65,6 +67,9 @@ class DeviceBase(QtCore.QObject):
         self.app_device.cfg_profile_changed.connect(self.cfg_profile_changed)
 
         self.app_device.config_applied_changed.connect(self.config_applied_changed)
+
+        self.app_device.hw_parameter_changed.connect(self._on_hw_parameter_changed)
+        self.app_device.cfg_parameter_changed.connect(self._on_cfg_parameter_changed)
 
         self._read_mode  = read_mode
         self._write_mode = write_mode
@@ -159,6 +164,10 @@ class DeviceBase(QtCore.QObject):
     def _on_hardware_set(self, app_device, old, new):
         self.hardware_set.emit(self, old, new)
 
+    def _on_hw_parameter_changed(self, address, value):
+        if self.read_mode & util.HARDWARE:
+            self.parameter_changed.emit(address, value)
+
     # ===== CFG =====
     def get_cfg_parameter(self, address_or_name):
         address = self.profile[address_or_name].address
@@ -174,3 +183,7 @@ class DeviceBase(QtCore.QObject):
 
     def _on_config_set(self, app_device, old, new):
         self.config_set.emit(self, old, new)
+
+    def _on_cfg_parameter_changed(self, address, value):
+        if self.read_mode & util.CONFIG:
+            self.parameter_changed.emit(address, value)
