@@ -446,7 +446,6 @@ class DeviceTableView(QtGui.QTableView):
         self.write_mode = model.write_mode
 
         try:
-            print self.table_model.get_profile()
             if not len(self.profile.get_parameter_names()):
                 self.setColumnHidden(COL_NAME, True)
         except IDCConflict:
