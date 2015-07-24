@@ -2,13 +2,14 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-voltage_10  = { 'label': 'V',    'name': 'volt', 'factor': 10.0 }
-tcomp_slope = { 'label': 'V/°C', 'name': 'volt_per_deg', 'factor': 1000.0, 'offset': -10.0 }
+voltage_10  = { 'label': 'V',    'name': 'volt',            'factor': 10.0 }
+tcomp_slope = { 'label': 'V/°C', 'name': 'volt_per_deg',    'factor': 1000.0, 'offset': -10.0 }
+microamps   = { 'label': 'µA',   'name': 'microamps',       'factor': 1000.0 }
 
 idc = 27
 
 profile_dict = {
-        'name': 'MHV-4-800V',
+        'name': 'MHV-4',
         'idc': idc,
         'parameters': [
             # Enable. Mark channel enable setting as critical. 
@@ -45,21 +46,21 @@ profile_dict = {
             { 'address': 25,  'name': 'channel3_voltage_limit_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [voltage_10] },
 
             # Current warning limits
-            { 'address':  8,  'name': 'channel0_current_limit_write', 'index': 0, 'units': [{'label': 'µA', 'factor': 1000.0}] },
-            { 'address':  9,  'name': 'channel1_current_limit_write', 'index': 1, 'units': [{'label': 'µA', 'factor': 1000.0}] },
-            { 'address': 10,  'name': 'channel2_current_limit_write', 'index': 2, 'units': [{'label': 'µA', 'factor': 1000.0}] },
-            { 'address': 11,  'name': 'channel3_current_limit_write', 'index': 3, 'units': [{'label': 'µA', 'factor': 1000.0}] },
+            { 'address':  8,  'name': 'channel0_current_limit_write', 'index': 0, 'units': [microamps] },
+            { 'address':  9,  'name': 'channel1_current_limit_write', 'index': 1, 'units': [microamps] },
+            { 'address': 10,  'name': 'channel2_current_limit_write', 'index': 2, 'units': [microamps] },
+            { 'address': 11,  'name': 'channel3_current_limit_write', 'index': 3, 'units': [microamps] },
 
-            { 'address': 40,  'name': 'channel0_current_limit_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [{'label': 'µA', 'factor': 1000.0}] },
-            { 'address': 41,  'name': 'channel1_current_limit_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [{'label': 'µA', 'factor': 1000.0}] },
-            { 'address': 42,  'name': 'channel2_current_limit_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [{'label': 'µA', 'factor': 1000.0}] },
-            { 'address': 43,  'name': 'channel3_current_limit_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': 'µA', 'factor': 1000.0}] },
+            { 'address': 40,  'name': 'channel0_current_limit_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [microamps] },
+            { 'address': 41,  'name': 'channel1_current_limit_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [microamps] },
+            { 'address': 42,  'name': 'channel2_current_limit_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [microamps] },
+            { 'address': 43,  'name': 'channel3_current_limit_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [microamps] },
 
             # Current
-            { 'address': 50,  'name': 'channel0_current_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [{'label': 'µA', 'factor': 1000.0}] },
-            { 'address': 51,  'name': 'channel1_current_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [{'label': 'µA', 'factor': 1000.0}] },
-            { 'address': 52,  'name': 'channel2_current_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [{'label': 'µA', 'factor': 1000.0}] },
-            { 'address': 53,  'name': 'channel3_current_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': 'µA', 'factor': 1000.0}] },
+            { 'address': 50,  'name': 'channel0_current_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [microamps] },
+            { 'address': 51,  'name': 'channel1_current_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [microamps] },
+            { 'address': 52,  'name': 'channel2_current_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [microamps] },
+            { 'address': 53,  'name': 'channel3_current_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [microamps] },
 
             # Temperature
             { 'address': 26,  'name': 'sensor0_temp_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },

@@ -261,7 +261,7 @@ qlineargradient(spread:pad, x1:0.648, y1:0.617455, x2:0.915, y2:0.950545, stop:0
 }</string>
          </property>
          <property name="maximum">
-          <number>1000</number>
+          <number>800</number>
          </property>
          <property name="orientation">
           <enum>Qt::Vertical</enum>
@@ -285,7 +285,7 @@ qlineargradient(spread:pad, x1:0.648, y1:0.617455, x2:0.915, y2:0.950545, stop:0
         </widget>
        </item>
        <item row="3" column="0" colspan="2">
-        <widget class="QDoubleSpinBox" name="spin_target_voltage">
+        <widget class="DelayedDoubleSpinBox" name="spin_target_voltage">
          <property name="suffix">
           <string> V</string>
          </property>
@@ -319,6 +319,13 @@ qlineargradient(spread:pad, x1:0.648, y1:0.617455, x2:0.915, y2:0.950545, stop:0
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>DelayedDoubleSpinBox</class>
+   <extends>QDoubleSpinBox</extends>
+   <header location="global">mesycontrol.util</header>
+  </customwidget>
+ </customwidgets>
  <tabstops>
   <tabstop>pb_channelstate</tabstop>
   <tabstop>slider_target_voltage</tabstop>

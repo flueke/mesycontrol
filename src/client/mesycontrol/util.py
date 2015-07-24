@@ -557,7 +557,9 @@ class DelayedSpinBox(QtGui.QSpinBox):
 class DelayedDoubleSpinBox(QtGui.QDoubleSpinBox):
     delayed_valueChanged = pyqtSignal(object)
 
-    def __init__(self, delay=0.5, parent=None):
+    # Swapped order of arguments because of uic passing parent as first
+    # argument if used in a .ui file...
+    def __init__(self, parent=None, delay=0.5):
         super(DelayedDoubleSpinBox, self).__init__(parent)
 
         def delayed_slt():

@@ -2,8 +2,10 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
+from qt import QtCore
 from qt import QtGui
 
+import collections
 import logging
 import traceback
 import weakref
@@ -13,6 +15,19 @@ import util
 import future
 
 log = logging.getLogger(__name__)
+
+class ReadWriteProfile(collections.namedtuple('ReadWriteProfile', 'read write')):
+    def get_unit(self, unit_name):
+        return self.write.get_unit(unit_name)
+
+    def get_range(self):
+        return self.write.range
+
+    def get_units(self):
+        return self.write.units
+
+    range = property(get_range)
+    units = property(get_units)
 
 class AbstractParameterBinding(object):
     def __init__(self, device, profile, target, display_mode, write_mode=None, **kwargs):
@@ -38,12 +53,29 @@ class AbstractParameterBinding(object):
     def populate(self):
         """Gets the value of this bindings parameter and updates the target
         display once the value is retrieved."""
-        dev = self.device.cfg if self.display_mode == util.CONFIG else self.device.hw
-        f = dev.get_parameter(self.address).add_done_callback(self._update_wrapper)
-        log.debug("populate: target=%s, addr=%d, future=%s", self.target, self.address, f)
+
+        # For RW parameters the read address is used if hardware is present
+        # otherwise the write address is used as only that is actually stored
+        # in the config.
+        dev     = self.device.cfg if self.display_mode == util.CONFIG else self.device.hw
+        address = self.read_address if dev is self.device.hw else self.write_address
+        f       = dev.get_parameter(address).add_done_callback(self._update_wrapper)
+        log.debug("populate: target=%s, addr=%d, future=%s", self.target, address, f)
 
     def get_address(self):
         return self.profile.address
+
+    def get_read_address(self):
+        try:
+            return self.profile.read.address
+        except AttributeError:
+            return self.address
+
+    def get_write_address(self):
+        try:
+            return self.profile.write.address
+        except AttributeError:
+            return self.address
 
     def get_display_mode(self):
         return self._display_mode
@@ -56,9 +88,14 @@ class AbstractParameterBinding(object):
     def get_device(self):
         return self._device()
 
-    device = property(fget=get_device)
-    address = property(fget=get_address)
-    display_mode = property(fget=get_display_mode, fset=set_display_mode)
+    def has_rw_profile(self):
+        return isinstance(self.profile, ReadWriteProfile)
+
+    device          = property(fget=get_device)
+    address         = property(fget=get_address)
+    read_address    = property(fget=get_read_address)
+    write_address   = property(fget=get_write_address)
+    display_mode    = property(fget=get_display_mode, fset=set_display_mode)
 
     def add_update_callback(self, method_or_func, *args, **kwargs):
         """Adds a callback to be invoked when this binding updates its target.
@@ -114,23 +151,29 @@ class AbstractParameterBinding(object):
             new_cfg.parameter_changed.connect(self._on_cfg_parameter_changed)
 
     def _on_hw_parameter_changed(self, address, value):
-        if address == self.address and self.display_mode == util.HARDWARE:
-            f = self.device.hw.get_parameter(self.address).add_done_callback(self._update_wrapper)
-            log.debug("_on_hw_parameter_changed: target=%s, addr=%d, future=%s", self.target, self.address, f)
+        if address == self.read_address and self.display_mode == util.HARDWARE:
+            f = self.device.hw.get_parameter(self.read_address).add_done_callback(self._update_wrapper)
+            log.debug("_on_hw_parameter_changed: target=%s, addr=%d, future=%s", self.target, self.read_address, f)
 
     def _on_cfg_parameter_changed(self, address, value):
-        if address == self.address and self.display_mode == util.CONFIG:
-            f = self.device.cfg.get_parameter(self.address).add_done_callback(self._update_wrapper)
-            log.debug("_on_cfg_parameter_changed: target=%s, addr=%d, future=%s", self.target, self.address, f)
+        if address == self.write_address and self.display_mode == util.CONFIG:
+            f = self.device.cfg.get_parameter(self.write_address).add_done_callback(self._update_wrapper)
+            log.debug("_on_cfg_parameter_changed: target=%s, addr=%d, future=%s", self.target, self.write_address, f)
 
+    # TODO: minor: shorten _write_value and _write_value_rw
     def _write_value(self, value):
-        log.debug("_write_value: target=%s, %d=%d", self.target, self.address, value)
+        log.debug("_write_value: target=%s, %d=%d", self.target, self.write_address, value)
+
+        if self.has_rw_profile():
+            self._write_value_rw(value)
+            return
+
+        # Profile has a single address
 
         if self.write_mode == util.COMBINED:
-
             def on_cfg_set(f):
                 try:
-                    if not f.exception():
+                    if f.exception() is None:
                         self.device.hw.set_parameter(self.address, value
                                 ).add_done_callback(self._update_wrapper)
                     else:
@@ -144,20 +187,55 @@ class AbstractParameterBinding(object):
             dev = self.device.cfg if self.write_mode == util.CONFIG else self.device.hw
             dev.set_parameter(self.address, value).add_done_callback(self._update_wrapper)
 
+    def _write_value_rw(self, value):
+        # Profile is split into read and write addresses.
+
+        if self.write_mode == util.CONFIG:
+            self.device.cfg.set_parameter(self.write_address, value
+                    ).add_done_callback(self._update_wrapper)
+
+        elif self.write_mode == util.HARDWARE:
+            self.device.hw.set_parameter(self.write_address, value
+                    ).add_done_callback(self._update_wrapper)
+
+        elif self.write_mode == util.COMBINED:
+            def on_cfg_set(f_cfg_set):
+                if f_cfg_set.cancelled():
+                    return
+
+                if (f_cfg_set.exception() is not None or
+                        (isinstance(f_cfg_set.result(), bm.SetResult) and
+                            not f_cfg_set.result())):
+                    self._update_wrapper(f_cfg_set)
+                    return
+
+                self.device.hw.set_parameter(self.write_address, value
+                        ).add_done_callback(self._update_wrapper)
+
+            self.device.cfg.set_parameter(self.write_address, value
+                    ).add_done_callback(on_cfg_set)
+
     def _update_wrapper(self, result_future):
         log.debug("_update_wrapper: target=%s, addr=%d, result_future=%s",
-                self.target, self.address, result_future)
+                self.target, self.read_address, result_future)
 
         self._update(result_future)
-
         self._exec_callbacks(result_future)
 
     def _update(self, result_future):
+        """This method will be passed the Future of the last operation that
+        should result in an update to this bindings target.
+        The result_future will in most cases contain either ReadResult or a
+        SetResult depending on which operation triggered the update."""
         raise NotImplementedError()
 
     def _get_tooltip(self, result_future):
-        tt  = ("name=%s, " % self.profile.name) if self.profile.is_named() else str()
-        tt += "addr=%d" % self.address
+        if self.has_rw_profile():
+            tt  = "name=(r=%s,w=%s), " % (self.profile.read.name, self.profile.write.name)
+            tt += "addr=(r=%d,w=%d)" % (self.read_address, self.write_address)
+        else:
+            tt  = "name=%s, " % self.profile.name
+            tt += "addr=%d" % self.address
 
         if result_future.cancelled():
             return tt
@@ -176,7 +254,7 @@ class AbstractParameterBinding(object):
 
             if len(self.profile.units) > 1:
                 unit = self.profile.units[1]
-                tt += ", %f%s" % (unit.unit_value(value), unit.label)
+                tt += ", %f %s" % (unit.unit_value(value), QtCore.QString.fromUtf8(unit.label))
 
         return tt
 
@@ -277,8 +355,8 @@ class DoubleSpinBoxParameterBinding(DefaultParameterBinding):
 
         if self.profile.range is not None:
             with util.block_signals(self.target):
-                self.target.setMinimum(self.unit.unit_value(profile.range[0]))
-                self.target.setMaximum(self.unit.unit_value(profile.range[1]))
+                self.target.setMinimum(self.unit.unit_value(self.profile.range[0]))
+                self.target.setMaximum(self.unit.unit_value(self.profile.range[1]))
 
         if hasattr(self.target, 'delayed_valueChanged'):
             self.target.delayed_valueChanged.connect(self._value_changed)
@@ -357,6 +435,37 @@ class RadioButtonGroupParameterBinding(DefaultParameterBinding):
         return (isinstance(target, QtGui.QButtonGroup) and
                 all(isinstance(b, QtGui.QRadioButton) for b in target.buttons()))
 
+class LCDNumberParameterBinding(DefaultParameterBinding):
+    def __init__(self, unit_name=None, precision=2, **kwargs):
+        super(LCDNumberParameterBinding, self).__init__(**kwargs)
+        self.unit_name = unit_name
+        self.precision = precision
+
+    def _update(self, rf):
+        super(LCDNumberParameterBinding, self)._update(rf)
+        if self.unit_name is None:
+            self.target.display(str(int(rf)))
+        else:
+            unit  = self.profile.get_unit(self.unit_name)
+            value = unit.unit_value(int(rf))
+            text  = "%%.%df" % self.precision
+            text  = text % value
+            self.target.display(text)
+
+class SliderParameterBinding(DefaultParameterBinding):
+    def __init__(self, unit_name=None, **kwargs):
+        super(SliderParameterBinding, self).__init__(**kwargs)
+        self.unit_name = unit_name
+
+    def _update(self, rf):
+        super(SliderParameterBinding, self)._update(rf)
+        if self.unit_name is None:
+            self.target.setValue(int(rf))
+        else:
+            unit  = self.profile.get_unit(self.unit_name)
+            value = unit.unit_value(int(rf))
+            self.target.setValue(value)
+
 factory = Factory()
 
 factory.append_classinfo_binding(
@@ -376,6 +485,12 @@ factory.append_classinfo_binding(
 
 factory.append_predicate_binding(
         RadioButtonGroupParameterBinding.predicate, RadioButtonGroupParameterBinding)
+
+factory.append_classinfo_binding(
+        QtGui.QLCDNumber, LCDNumberParameterBinding)
+
+factory.append_classinfo_binding(
+        QtGui.QSlider, SliderParameterBinding)
 
 if __name__ == "__main__":
     import mock
