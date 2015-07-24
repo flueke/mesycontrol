@@ -265,10 +265,7 @@ class MSCF16(DeviceBase):
             # auto_pz = 0 means auto pz is not currently running
             # 0 < auto_pz < NUM_CHANNELS means auto pz is running for that channel
             # self._auto_pz_channel is the last channel that auto pz was running for
-            print "===== _on_hw_parameter_changed: is auto_pz", address, value
-
             if 0 < self._auto_pz_channel <= NUM_CHANNELS:
-                print "=============== refreshing pz value for channel", self._auto_pz_channel
                 self.read_hw_parameter('pz_value_channel%d' % (self._auto_pz_channel-1))
 
             self._auto_pz_channel = value
@@ -322,27 +319,6 @@ class MSCF16Widget(QtGui.QWidget):
 
         return False
 
-def make_apply_common_button_layout(input_spinbox, tooltip, on_clicked):
-
-    # Wrapper to invoke the clicked handler without the boolean arg that's
-    # passed from QPushButton.clicked().
-    def _on_clicked(_ignored):
-        on_clicked()
-
-    button = QtGui.QPushButton(clicked=_on_clicked)
-    button.setIcon(QtGui.QIcon(":/arrow-bottom.png"))
-    button.setMaximumHeight(input_spinbox.sizeHint().height())
-    button.setMaximumWidth(16)
-    button.setToolTip(tooltip)
-
-    layout = QtGui.QHBoxLayout()
-    layout.addWidget(input_spinbox)
-    layout.addWidget(button)
-    layout.setContentsMargins(0, 0, 0, 0)
-    layout.setSpacing(1)
-
-    return (layout, button)
-
 class GainPage(QtGui.QGroupBox):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(GainPage, self).__init__("Gain", parent)
@@ -371,7 +347,7 @@ class GainPage(QtGui.QGroupBox):
 
         self.bindings.append(b)
 
-        common_layout = make_apply_common_button_layout(
+        common_layout = util.make_apply_common_button_layout(
                 self.gain_common, "Apply to groups", self._apply_common_gain)[0]
         layout.addLayout(common_layout, 0, 1)
 
@@ -517,10 +493,10 @@ class ShapingPage(QtGui.QGroupBox):
 
         self.bindings.append(b)
 
-        sht_common_layout = make_apply_common_button_layout(
+        sht_common_layout = util.make_apply_common_button_layout(
                 self.spin_sht_common, "Apply to groups", self._apply_common_sht)[0]
 
-        pz_common_layout  = make_apply_common_button_layout(
+        pz_common_layout  = util.make_apply_common_button_layout(
                 self.spin_pz_common, "Apply to channels", self._apply_common_pz)[0]
 
         self.pb_auto_pz_all  = QtGui.QPushButton("A")
@@ -664,7 +640,6 @@ class ShapingPage(QtGui.QGroupBox):
         self.device.get_effective_shaping_time(group).add_done_callback(done)
 
     def _on_device_auto_pz_channel_changed(self, value):
-        print "====== gui: _on_device_auto_pz_channel_changed", value
         for i, pz_stack in enumerate(self.pz_stacks):
             try:
                 button = self.pz_buttons[i]
@@ -710,7 +685,7 @@ class TimingPage(QtGui.QGroupBox):
             write_mode=write_mode,
             target=self.threshold_common))
 
-        threshold_common_layout = make_apply_common_button_layout(
+        threshold_common_layout = util.make_apply_common_button_layout(
                 self.threshold_common, "Apply to channels", self._apply_common_threshold)[0]
 
         layout = QtGui.QGridLayout(self)
