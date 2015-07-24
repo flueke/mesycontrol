@@ -585,3 +585,25 @@ class FixedWidthVerticalToolBar(QtGui.QWidget):
         self.layout().addWidget(b, 0, Qt.AlignHCenter)
         self.layout().addStretch(1)
         self.setFixedWidth(self.sizeHint().width())
+
+def make_apply_common_button_layout(input_spinbox, tooltip, on_clicked):
+
+    # Wrapper to invoke the clicked handler without the boolean arg that's
+    # passed from QPushButton.clicked().
+    def _on_clicked(_ignored):
+        on_clicked()
+
+    button = QtGui.QPushButton(clicked=_on_clicked)
+    button.setIcon(QtGui.QIcon(":/arrow-bottom.png"))
+    button.setMaximumHeight(input_spinbox.sizeHint().height())
+    button.setMaximumWidth(16)
+    button.setToolTip(tooltip)
+
+    layout = QtGui.QHBoxLayout()
+    layout.addWidget(input_spinbox)
+    layout.addWidget(button)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(1)
+
+    return (layout, button)
+
