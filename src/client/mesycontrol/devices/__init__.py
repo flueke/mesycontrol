@@ -3,8 +3,8 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 __all__ = [
-    'mcfd16_ng',
-    'mhv4_ng' ,
-    'mscf16_ng',
-    'stm16_ng',
+    'mcfd16',
+    'mhv4' ,
+    'mscf16',
+    'stm16',
     ]

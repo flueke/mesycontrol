@@ -13,16 +13,14 @@ from functools import partial
 import math
 import weakref
 
+from .. import parameter_binding as pb
 from .. import util
 from .. specialized_device import DeviceBase
 
-import device_profile_mhv4
-
-# TODO: improve modified state for ChannelSettingsWidget and
-# GlobalSettingsWidget: compare spinbox value to old value and set modified
-# state accordingly
+import mhv4_profile
 
 NUM_CHANNELS = 4
+
 RAMP_SPEEDS = {
         0:   '5 V/s',
         1:  '25 V/s',
@@ -39,18 +37,22 @@ TCOMP_SOURCES = {
         }
 
 TEMP_NO_SENSOR = 999
-
-MAX_VOLTAGE_V = 800.0
+MAX_VOLTAGE_V  = 800.0
 
 class Polarity(object):
     negative = 0
     positive = 1
 
+    @staticmethod
+    def switch(pol):
+        if pol == Polarity.positive:
+            return Polarity.negative
+        return Polarity.positive
+
 # ==========  Device ========== 
 class MHV4(DeviceBase):
     def __init__(self, app_device, display_mode, write_mode, parent=None):
         super(MHV4, self).__init__(app_device, display_mode, write_mode, parent)
-        self.log = util.make_logging_source_adapter(__name__, self)
 
 # ==========  GUI ========== 
 class WheelEventFilter(QtCore.QObject):
@@ -61,24 +63,36 @@ class WheelEventFilter(QtCore.QObject):
     def eventFilter(self, obj, event):
         return event.type() == QtCore.QEvent.Wheel
 
-class ChannelWidget(QtGui.QWidget):
-    target_voltage_changed          = pyqtSignal(float)
-    channel_state_changed           = pyqtSignal(bool)
+class PolarityLabelBinding(pb.DefaultParameterBinding):
+    def __init__(self, pixmaps, **kwargs):
+        super(PolarityLabelBinding, self).__init__(**kwargs)
 
-    def __init__(self, mhv4, channel, display_mode, write_mode, parent=None):
+        self._pixmaps = pixmaps
+
+    def _update(self, rf):
+        try:
+            self.target.setPixmap(self._pixmaps[int(rf)])
+        except Exception:
+            pass
+
+class ChannelWidget(QtGui.QWidget):
+    def __init__(self, device, channel, display_mode, write_mode, parent=None):
         super(ChannelWidget, self).__init__(parent)
         util.loadUi(":/ui/mhv4_channel.ui", self)
-        self.mhv4    = weakref.ref(mhv4)
+        self.device  = device
         self.channel = channel
+        self.bindings = list()
 
         self.pb_channelstate.installEventFilter(self)
         sz  = self.label_polarity.minimumSize()
 
-        self.pixmap_positive = QtGui.QPixmap(":/ui/list-add.png").scaled(
-                sz, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.polarity_pixmaps = {
+                Polarity.positive: QtGui.QPixmap(":/polarity-positive.png").scaled(
+                    sz, Qt.KeepAspectRatio, Qt.SmoothTransformation),
 
-        self.pixmap_negative = QtGui.QPixmap(":/ui/list-remove.png").scaled(
-                sz, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                Polarity.negative: QtGui.QPixmap(":/polarity-negative.png").scaled(
+                    sz, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                }
 
         self._last_temperature      = None
         self._last_tcomp_source     = None
@@ -87,12 +101,47 @@ class ChannelWidget(QtGui.QWidget):
 
         self.slider_target_voltage.installEventFilter(WheelEventFilter(self))
 
-    def set_voltage(self, voltage):
-        if voltage < 100.0:
-            t = "%.2f" % voltage
-        else:
-            t = "%.1f" % voltage
-        self.lcd_voltage.display(t)
+        self.bindings.append(pb.factory.make_binding(
+            device=device,
+            profile=device.profile['channel%d_voltage_write' % channel],
+            display_mode=display_mode,
+            write_mode=write_mode,
+            target=self.spin_target_voltage,
+            unit_name='volt'))
+
+        self.bindings.append(pb.factory.make_binding(
+            device=device,
+            profile=device.profile['channel%d_voltage_write' % channel],
+            display_mode=display_mode,
+            write_mode=write_mode,
+            target=self.slider_target_voltage,
+            unit_name='volt'))
+        
+        self.bindings.append(PolarityLabelBinding(
+            device=device, profile=device.profile['channel%d_polarity_read' % channel],
+            target=self.label_polarity, display_mode=display_mode, write_mode=write_mode,
+            pixmaps=self.polarity_pixmaps))
+
+        self.bindings.append(pb.factory.make_binding(
+            device=device, profile=device.profile['channel%d_voltage_read' % channel],
+            target=self.lcd_voltage, display_mode=display_mode, write_mode=write_mode,
+            unit_name='volt', precision=2))
+
+        self.bindings.append(pb.factory.make_binding(
+            device=device, profile=device.profile['channel%d_current_read' % channel],
+            target=self.lcd_current, display_mode=display_mode, write_mode=write_mode,
+            unit_name='microamps', precision=3))
+
+        # TODO: voltage slider binding
+        # TODO: channel state (on/off) binding
+        # TODO: gray out/disable hw-only things
+        # TODO: current display coloring
+        # TODO: temperature display
+
+    def showEvent(self, event):
+        if not event.spontaneous():
+            for b in self.bindings:
+                b.populate()
 
     def set_target_voltage(self, voltage):
         if self.spin_target_voltage.maximum() < voltage:
@@ -198,22 +247,25 @@ class ChannelWidget(QtGui.QWidget):
 
     @pyqtSlot()
     def on_slider_target_voltage_sliderReleased(self):
-        self.target_voltage_changed.emit(self.slider_target_voltage.value())
+        pass
+        # TODO: write value
+        #self.target_voltage_changed.emit(self.slider_target_voltage.value())
 
     @pyqtSlot(float)
     def on_spin_target_voltage_valueChanged(self, value):
         with util.block_signals(self.slider_target_voltage):
             self.slider_target_voltage.setValue(value)
-        self.target_voltage_changed.emit(value)
+        #self.target_voltage_changed.emit(value)
 
-    @pyqtSlot()
-    def on_spin_target_voltage_editingFinished(self):
-        self.target_voltage_changed.emit(self.spin_target_voltage.value())
+    #@pyqtSlot()
+    #def on_spin_target_voltage_editingFinished(self):
+    #    pass
+    #    #self.target_voltage_changed.emit(self.spin_target_voltage.value())
 
-    @pyqtSlot(bool)
-    def on_pb_channelstate_toggled(self, value):
-        c = self.pb_channelstate.isChecked()
-        self.channel_state_changed.emit(c)
+    #@pyqtSlot(bool)
+    #def on_pb_channelstate_toggled(self, value):
+    #    c = self.pb_channelstate.isChecked()
+    #    self.channel_state_changed.emit(c)
 
     def eventFilter(self, watched_object, event):
         if watched_object == self.pb_channelstate:
@@ -393,8 +445,8 @@ class MHV4Widget(QtGui.QWidget):
             groupbox_layout.addWidget(channel_widget)
             channel_layout.addWidget(groupbox)
 
-            channel_widget.target_voltage_changed.connect(self.set_target_voltage)
-            channel_widget.channel_state_changed.connect(self.set_channel_state)
+            #channel_widget.target_voltage_changed.connect(self.set_target_voltage)
+            #channel_widget.channel_state_changed.connect(self.set_channel_state)
 
             self.channels.append(weakref.ref(channel_widget))
 
@@ -492,7 +544,8 @@ class MHV4Widget(QtGui.QWidget):
         self.channel_settings[channel]().set_current_limit(unit_value)
 
     def channel_state_changed(self, channel, value):
-        self.channels[channel]().set_channel_state(value)
+        pass
+        #self.channels[channel]().set_channel_state(value)
 
     def polarity_changed(self, channel, value):
         self.channels[channel]().set_polarity(value)
@@ -606,8 +659,7 @@ class MHV4Widget(QtGui.QWidget):
                 setter=d.set_ramp_speed)
 
         gsw.modified = False
-
 idc             = 27
 device_class    = MHV4
 device_ui_class = MHV4Widget
-profile_dict    = device_profile_mhv4.profile_dict
+profile_dict    = mhv4_profile.profile_dict
