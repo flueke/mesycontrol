@@ -609,3 +609,8 @@ def make_apply_common_button_layout(input_spinbox, tooltip, on_clicked):
 
     return (layout, button)
 
+def make_icon(source):
+    return QtGui.QIcon(QtGui.QPixmap(source))
+
+def make_standard_icon(icon, option=None, widget=None):
+    return QtGui.QApplication.instance().style().standardIcon(icon, option, widget)

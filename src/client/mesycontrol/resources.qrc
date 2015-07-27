@@ -10,9 +10,19 @@
     <file alias="polarity-positive.png">ui/list-add.png</file>
     <file alias="unlinked.png">ui/link-intact-2x.png</file>
 
+    <file alias="open-setup.png">ui/document-open.png</file>
+    <file alias="load-setup.png">ui/document-open.png</file>
+    <file alias="save-setup.png">ui/document-save.png</file>
+    <file alias="save-setup-as.png">ui/document-save-as.png</file>
+    <file alias="open-device-table.png">ui/spreadsheet-2x.png</file>
+    <file alias="open-device-widget.png">ui/dial-2x.png</file>
+    <file alias="select-display-mode.png">ui/eye-2x.png</file>
+    <file alias="select-write-mode.png">ui/pencil-2x.png</file>
+
+    <file alias="apply-config-to-hardware.png">ui/arrow-circle-left-2x.png</file>
+    <file alias="apply-hardware-to-config.png">ui/arrow-circle-right-2x.png</file>
+
     <file>ui/applications-utilities.png</file>
-    <file>ui/arrow-circle-left-2x.png</file>
-    <file>ui/arrow-circle-right-2x.png</file>
     <file>ui/ban-2x.png</file>
     <file>ui/bolt-2x.png</file>
     <file>ui/check-2x.png</file>

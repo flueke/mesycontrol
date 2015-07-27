@@ -3,11 +3,12 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 from functools import partial
+import collections
 import copy
 import logging
 import os
-import weakref
 import sys
+import weakref
 
 import pyqtgraph.console
 pg = pyqtgraph
@@ -21,6 +22,8 @@ from mc_treeview import MCTreeView
 from model_util import add_mrc_connection
 from ui.dialogs import AddDeviceDialog
 from ui.dialogs import AddMRCDialog
+from util import make_icon
+from util import make_standard_icon
 import basic_model as bm
 import config_gui
 import config_model as cm
@@ -258,7 +261,6 @@ class GUIApplication(QtCore.QObject):
 
         # Treeview
         self.treeview = self.mainwindow.treeview
-        self.treeview.linked_mode_changed.connect(self.set_linked_mode)
 
         self.treeview.cfg_context_menu_requested.connect(self._cfg_context_menu)
         self.treeview.hw_context_menu_requested.connect(self._hw_context_menu)
@@ -283,6 +285,241 @@ class GUIApplication(QtCore.QObject):
 
         self.app_registry.hw.mrc_added.connect(self._hw_mrc_added)
 
+        self._create_actions()
+        self._populate_menus()
+        self._populate_toolbar()
+        self._populate_treeview()
+
+    def _create_actions(self):
+        self.actions = collections.OrderedDict()
+
+        # Linked Mode
+        link_icons = {
+                True:  make_icon(":/linked.png"),
+                False: make_icon(":/unlinked.png")
+                }
+
+        action = QtGui.QAction(link_icons[self.linked_mode], "Toggle linked mode",
+                self, toggled=self.set_linked_mode)
+
+        action.icons = link_icons
+        action.setToolTip("Link Hardware & Config Views")
+        action.setStatusTip(action.toolTip())
+        action.setCheckable(True)
+        action.setChecked(self.linked_mode)
+        action.treeview_splitter = True
+        self.actions['toggle_linked_mode'] = action
+
+        # Open setup
+        action = QtGui.QAction(make_icon(":/open-setup.png"),
+        #action = QtGui.QAction(make_standard_icon(QtGui.QStyle.SP_DialogOpenButton),
+                "Open setup", self, triggered=self._open_setup)
+
+        action.setToolTip("Open a setup file")
+        action.setStatusTip(action.toolTip())
+        action.setShortcut(QtGui.QKeySequence.Open)
+        action.toolbar = True
+        self.actions['open_setup'] = action
+
+        # Save setup
+        action = QtGui.QAction(make_icon(":/save-setup.png"),
+        #action = QtGui.QAction(make_standard_icon(QtGui.QStyle.SP_DialogSaveButton),
+                "Save setup", self, triggered=self._save_setup)
+
+        action.setToolTip("Save setup")
+        action.setStatusTip(action.toolTip())
+        action.setShortcut(QtGui.QKeySequence.Save)
+        action.toolbar = True
+        self.actions['save_setup'] = action
+
+        # Save setup as
+        action = QtGui.QAction(make_icon(":/save-setup-as.png"),
+        #action = QtGui.QAction(make_standard_icon(QtGui.QStyle.SP_DialogSaveButton),
+                "Save setup as", self, triggered=self._save_setup_as)
+
+        action.setToolTip("Save setup as")
+        action.setStatusTip(action.toolTip())
+        action.setShortcut(QtGui.QKeySequence.SaveAs)
+        action.toolbar = True
+        self.actions['save_setup_as'] = action
+
+        # Close setup
+        #action = QtGui.QAction(make_icon(":/close-setup.png"),
+        action = QtGui.QAction(make_standard_icon(QtGui.QStyle.SP_DialogCloseButton),
+                "Close setup", self, triggered=self._close_setup)
+
+        action.setToolTip("Close setup")
+        action.setStatusTip(action.toolTip())
+        action.setShortcut(QtGui.QKeySequence.Close)
+        action.toolbar = True
+        self.actions['close_setup'] = action
+
+        # Separator
+        action = QtGui.QAction(self)
+        action.setSeparator(True)
+        action.toolbar = True
+        self.actions['sep1'] = action
+
+        # Widget window
+        action = QtGui.QAction(make_icon(":/open-device-widget.png"),
+                "Open device widget", self, triggered=self._open_device_widget)
+
+        action.setToolTip("Open device widget")
+        action.setStatusTip(action.toolTip())
+        action.toolbar = True
+        self.actions['open_device_widget'] = action
+
+        # Table window
+        action = QtGui.QAction(make_icon(":/open-device-table.png"),
+                "Open device table", self, triggered=self._open_device_table)
+
+        action.setToolTip("Open device table")
+        action.setStatusTip(action.toolTip())
+        action.toolbar = True
+        self.actions['open_device_table'] = action
+
+        # Separator
+        action = QtGui.QAction(self)
+        action.setSeparator(True)
+        action.toolbar = True
+        self.actions['sep2'] = action
+
+        # Display mode
+        group = QtGui.QActionGroup(self)
+        self.actions['display_hw']          = QtGui.QAction("Hardware", group, checkable=True)
+        self.actions['display_cfg']         = QtGui.QAction("Config", group, checkable=True)
+        self.actions['display_combined']    = QtGui.QAction("Combined", group, checkable=True, checked=True)
+
+        action = QtGui.QAction(make_icon(":/select-display-mode.png"),
+                "Toggle display mode", self)
+
+        action.setToolTip("Toggle display mode")
+        action.setStatusTip(action.toolTip())
+        action.toolbar = True
+        action.setMenu(QtGui.QMenu())
+        action.menu().addActions(group.actions())
+        self.actions['toggle_display_mode'] = action
+
+        # Write mode
+        group = QtGui.QActionGroup(self)
+        self.actions['write_hw']            = QtGui.QAction("Hardware", group, checkable=True)
+        self.actions['write_cfg']           = QtGui.QAction("Config", group, checkable=True)
+        self.actions['write_combined']      = QtGui.QAction("Combined", group, checkable=True, checked=True)
+        action = QtGui.QAction(make_icon(":/select-write-mode.png"),
+                "Toggle write mode", self)
+
+        action.setToolTip("Toggle write mode")
+        action.setStatusTip(action.toolTip())
+        action.toolbar = True
+        action.setMenu(QtGui.QMenu())
+        action.menu().addActions(group.actions())
+        self.actions['toggle_write_mode'] = action
+
+        # Config to Hardware
+        action = QtGui.QAction(make_icon(":/apply-config-to-hardware.png"),
+                "Apply config to hardware", self, triggered=self._apply_config_to_hardware)
+        action.treeview_splitter = True
+        self.actions['apply_config_to_hardware'] = action
+
+        # Hardware to Config
+        action = QtGui.QAction(make_icon(":/apply-hardware-to-config.png"),
+                "Copy hardware values to config", self, triggered=self._apply_hardware_to_config)
+        action.treeview_splitter = True
+        self.actions['apply_hardware_to_config'] = action
+
+        # Quit
+        action = QtGui.QAction("&Quit", self, triggered=self.mainwindow.close)
+        action.setShortcut(QtGui.QKeySequence.Quit)
+        action.setShortcutContext(Qt.ApplicationShortcut)
+        self.actions['quit'] = action
+
+        # Next Window
+        action = QtGui.QAction("&Next Window", self,
+                triggered=self.mainwindow.mdiArea.activateNextSubWindow)
+        action.setShortcut(QtGui.QKeySequence.NextChild)
+        self.actions['next_window'] = action
+
+        # Previous Window
+        action = QtGui.QAction("&Previous Window", self,
+                triggered=self.mainwindow.mdiArea.activatePreviousSubWindow)
+        action.setShortcut(QtGui.QKeySequence.PreviousChild)
+        self.actions['previous_window'] = action
+
+        # Cascade Windows
+        action = QtGui.QAction("&Cascade Windows", self,
+                triggered=self.mainwindow.mdiArea.cascadeSubWindows)
+        self.actions['cascade_windows'] = action
+
+        # Tile Windows
+        action = QtGui.QAction("&Tile Windows", self,
+                triggered=self.mainwindow.mdiArea.tileSubWindows)
+        self.actions['tile_windows'] = action
+
+    def _populate_menus(self):
+        menu_file = self.mainwindow.menu_file
+        menu_file.addAction(self.actions['open_setup'])
+        menu_file.addAction(self.actions['save_setup'])
+        menu_file.addAction(self.actions['save_setup_as'])
+        menu_file.addSeparator()
+        menu_file.addAction(self.actions['quit'])
+
+        menu_window = self.mainwindow.menu_window
+        menu_window.addAction(self.actions['next_window'])
+        menu_window.addAction(self.actions['previous_window'])
+        menu_window.addSeparator()
+        menu_window.addAction(self.actions['cascade_windows'])
+        menu_window.addAction(self.actions['tile_windows'])
+        menu_window.addSeparator()
+
+    def _populate_toolbar(self):
+        tb = self.mainwindow.toolbar
+        f  = lambda a: hasattr(a, 'toolbar') and a.toolbar
+
+        for action in filter(f, self.actions.values()):
+            tb.addAction(action)
+            if action.menu() is not None:
+                tb.widgetForAction(action).setPopupMode(QtGui.QToolButton.InstantPopup)
+
+    def _populate_treeview(self):
+        tvs = self.treeview.splitter_buttons
+        f   = lambda a: hasattr(a, 'treeview_splitter') and a.treeview_splitter
+
+        for action in filter(f, self.actions.values()):
+            tvs.addAction(action)
+
+    # ===== Action implementations =====
+    def _open_setup(self):
+        run_open_setup_dialog(context=self.context, parent_widget=self.mainwindow)
+
+    def _save_setup(self):
+        run_save_setup(context=self.context, parent_widget=self.mainwindow)
+
+    def _save_setup_as(self):
+        run_save_setup_as_dialog(context=self.context, parent_widget=self.mainwindow)
+
+    def _close_setup(self):
+        run_close_setup(context=self.context, parent_widget=self.mainwindow)
+
+    def _open_device_widget(self):
+        #open_device_widget(self.selected_device) # FIXME: no info about which side this was opened from!
+        # but i can get this from the currently selected node!
+
+        pass
+    def _open_device_table(self):
+        pass # FIXME: same as above
+
+    def _apply_config_to_hardware(self):
+        # Cases:
+        # Apply Setup
+        # Apply MRC
+        # Apply Bus
+        # Apply Device
+        # depending on the selected node
+        pass
+
+    def _apply_hardware_to_config(self):
+        pass
+        # Same cases as above
 
     def quit(self):
         """Non-blocking method to quit the application. Needs a running event
@@ -394,7 +631,11 @@ class GUIApplication(QtCore.QObject):
     def set_linked_mode(self, linked_mode):
         if self._linked_mode == linked_mode:
             return
-        self._linked_mode = linked_mode
+
+        self._linked_mode = bool(linked_mode)
+        self.treeview.linked_mode = self.linked_mode
+        action = self.actions['toggle_linked_mode']
+        action.setIcon(action.icons[self.linked_mode])
 
         # TODO: linked mode transition
         if linked_mode:

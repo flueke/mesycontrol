@@ -2,9 +2,11 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-voltage_10  = { 'label': 'V',    'name': 'volt',            'factor': 10.0 }
-tcomp_slope = { 'label': 'V/°C', 'name': 'volt_per_deg',    'factor': 1000.0, 'offset': -10.0 }
-microamps   = { 'label': 'µA',   'name': 'microamps',       'factor': 1000.0 }
+voltage_10  = { 'label': 'V',       'name': 'volt',             'factor': 10.0 }
+voltage_80  = { 'label': 'V',       'name': 'volt_prec',        'factor': 80.0 }
+tcomp_slope = { 'label': 'V/°C',    'name': 'volt_per_deg',     'factor': 1000.0, 'offset': -10.0 }
+microamps   = { 'label': 'µA',      'name': 'microamps',        'factor': 1000.0 }
+celcius_10  = { 'label': '°C',      'name': 'degree_celcius',   'factor': 10.0}
 
 idc = 27
 
@@ -63,10 +65,10 @@ profile_dict = {
             { 'address': 53,  'name': 'channel3_current_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [microamps] },
 
             # Temperature
-            { 'address': 26,  'name': 'sensor0_temp_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
-            { 'address': 27,  'name': 'sensor1_temp_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
-            { 'address': 28,  'name': 'sensor2_temp_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
-            { 'address': 29,  'name': 'sensor3_temp_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
+            { 'address': 26,  'name': 'sensor0_temp_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [celcius_10] },
+            { 'address': 27,  'name': 'sensor1_temp_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [celcius_10] },
+            { 'address': 28,  'name': 'sensor2_temp_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [celcius_10] },
+            { 'address': 29,  'name': 'sensor3_temp_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [celcius_10] },
 
             # Temperature compensation slope
             { 'address': 64,  'name': 'channel0_tcomp_slope_write', 'index': 0, 'range': (0, 19999), 'units': [tcomp_slope] },
@@ -80,15 +82,15 @@ profile_dict = {
             { 'address': 103,  'name': 'channel3_tcomp_slope_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [tcomp_slope] },
 
             # Temperature compensation offset
-            { 'address': 68,  'name': 'channel0_tcomp_offset_write', 'index': 0, 'range': (0, 500), 'units': [{'label': '°C', 'factor': 10.0}] },
-            { 'address': 69,  'name': 'channel1_tcomp_offset_write', 'index': 1, 'range': (0, 500), 'units': [{'label': '°C', 'factor': 10.0}] },
-            { 'address': 70,  'name': 'channel2_tcomp_offset_write', 'index': 2, 'range': (0, 500), 'units': [{'label': '°C', 'factor': 10.0}] },
-            { 'address': 71,  'name': 'channel3_tcomp_offset_write', 'index': 3, 'range': (0, 500), 'units': [{'label': '°C', 'factor': 10.0}] },
+            { 'address': 68,  'name': 'channel0_tcomp_offset_write', 'index': 0, 'range': (0, 500), 'units': [celcius_10] },
+            { 'address': 69,  'name': 'channel1_tcomp_offset_write', 'index': 1, 'range': (0, 500), 'units': [celcius_10] },
+            { 'address': 70,  'name': 'channel2_tcomp_offset_write', 'index': 2, 'range': (0, 500), 'units': [celcius_10] },
+            { 'address': 71,  'name': 'channel3_tcomp_offset_write', 'index': 3, 'range': (0, 500), 'units': [celcius_10] },
 
-            { 'address': 104,  'name': 'channel0_tcomp_offset_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
-            { 'address': 105,  'name': 'channel1_tcomp_offset_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
-            { 'address': 106,  'name': 'channel2_tcomp_offset_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
-            { 'address': 107,  'name': 'channel3_tcomp_offset_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': '°C', 'factor': 10.0}] },
+            { 'address': 104,  'name': 'channel0_tcomp_offset_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [celcius_10] },
+            { 'address': 105,  'name': 'channel1_tcomp_offset_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [celcius_10] },
+            { 'address': 106,  'name': 'channel2_tcomp_offset_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [celcius_10] },
+            { 'address': 107,  'name': 'channel3_tcomp_offset_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [celcius_10] },
 
             # Temperature compensation source
             { 'address': 72,  'name': 'channel0_tcomp_source_write', 'index': 0, 'range': (0, 4)},
@@ -103,15 +105,15 @@ profile_dict = {
 
             # Voltage precision
             # Set to not be stored/loaded as this interferes with channelN_voltage_write.
-            { 'address': 76,   'name': 'channel0_voltage_prec_write', 'index': 0, 'range': (0, 64000), 'units': [{'label': 'V', 'factor': 80.0 }], 'do_not_store': True },
-            { 'address': 77,   'name': 'channel1_voltage_prec_write', 'index': 1, 'range': (0, 64000), 'units': [{'label': 'V', 'factor': 80.0 }], 'do_not_store': True },
-            { 'address': 78,   'name': 'channel2_voltage_prec_write', 'index': 2, 'range': (0, 64000), 'units': [{'label': 'V', 'factor': 80.0 }], 'do_not_store': True },
-            { 'address': 79,   'name': 'channel3_voltage_prec_write', 'index': 3, 'range': (0, 64000), 'units': [{'label': 'V', 'factor': 80.0 }], 'do_not_store': True },
+            { 'address': 76,   'name': 'channel0_voltage_prec_write', 'index': 0, 'range': (0, 64000), 'units': [voltage_80], 'do_not_store': True },
+            { 'address': 77,   'name': 'channel1_voltage_prec_write', 'index': 1, 'range': (0, 64000), 'units': [voltage_80], 'do_not_store': True },
+            { 'address': 78,   'name': 'channel2_voltage_prec_write', 'index': 2, 'range': (0, 64000), 'units': [voltage_80], 'do_not_store': True },
+            { 'address': 79,   'name': 'channel3_voltage_prec_write', 'index': 3, 'range': (0, 64000), 'units': [voltage_80], 'do_not_store': True },
 
-            { 'address': 112,  'name': 'channel0_voltage_prec_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 80.0 }] },
-            { 'address': 113,  'name': 'channel1_voltage_prec_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 80.0 }] },
-            { 'address': 114,  'name': 'channel2_voltage_prec_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 80.0 }] },
-            { 'address': 115,  'name': 'channel3_voltage_prec_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [{'label': 'V', 'factor': 80.0 }] },
+            { 'address': 112,  'name': 'channel0_voltage_prec_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [voltage_80] },
+            { 'address': 113,  'name': 'channel1_voltage_prec_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [voltage_80] },
+            { 'address': 114,  'name': 'channel2_voltage_prec_read', 'index': 2, 'read_only': True, 'poll': True, 'units': [voltage_80] },
+            { 'address': 115,  'name': 'channel3_voltage_prec_read', 'index': 3, 'read_only': True, 'poll': True, 'units': [voltage_80] },
 
             # Misc
             { 'address': 44,  'name': 'rc_enable', 'read_only': True },

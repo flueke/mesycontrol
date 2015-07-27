@@ -348,8 +348,8 @@ class MCTreeView(QtGui.QWidget):
 
         self.splitter_actions['connect'] = action
 
-        for action in self.splitter_actions.values():
-            self.splitter_buttons.addAction(action)
+        #for action in self.splitter_actions.values():
+        #    self.splitter_buttons.addAction(action)
 
         #self.splitter_buttons.addAction(toggle_link_mode_action)
         #self.splitter_buttons.addAction(connect_action)
