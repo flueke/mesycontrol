@@ -31,6 +31,7 @@ import config_tree_model as ctm
 import config_xml
 import device_tableview
 import future
+import gui_util
 import hardware_tree_model as htm
 import log_view
 import resources
@@ -267,7 +268,6 @@ class GUIApplication(QtCore.QObject):
 
         self.treeview.node_activated.connect(self._tree_node_activated)
         self.treeview.node_selected.connect(self._tree_node_selected)
-        self.treeview.node_clicked.connect(self._tree_node_clicked)
 
         # Logview setup: show logged and unhandled exceptions in the log view
         self.logview = self.mainwindow.logview
@@ -280,39 +280,41 @@ class GUIApplication(QtCore.QObject):
 
         # Load device modules
         context.init_device_registry()
+
         # Clean resources on exit
         context.add_shutdown_callback(resources.qCleanupResources)
 
-        self.app_registry.hw.mrc_added.connect(self._hw_mrc_added)
-
+        # Actions
         self._create_actions()
         self._populate_menus()
         self._populate_toolbar()
         self._populate_treeview()
 
+        # Model changes
+        self.app_registry.hw.mrc_added.connect(self._hw_mrc_added)
+        self.app_registry.config_set.connect(self._setup_changed)
+
+        # Init
+        self._setup_changed(self.app_registry, None, self.app_registry.cfg)
+        self._tree_node_selected(None)
+
+    def _setup_changed(self, app_registry, old, new):
+        print old, new
+        if old:
+            old.modified_changed.disconnect(self._setup_modified_changed)
+
+        if new:
+            new.modified_changed.connect(self._setup_modified_changed)
+            self._setup_modified_changed(new.modified)
+
+    def _setup_modified_changed(self, modified):
+        self.actions['save_setup'].setEnabled(modified)
+
     def _create_actions(self):
         self.actions = collections.OrderedDict()
 
-        # Linked Mode
-        link_icons = {
-                True:  make_icon(":/linked.png"),
-                False: make_icon(":/unlinked.png")
-                }
-
-        action = QtGui.QAction(link_icons[self.linked_mode], "Toggle linked mode",
-                self, toggled=self.set_linked_mode)
-
-        action.icons = link_icons
-        action.setToolTip("Link Hardware & Config Views")
-        action.setStatusTip(action.toolTip())
-        action.setCheckable(True)
-        action.setChecked(self.linked_mode)
-        action.treeview_splitter = True
-        self.actions['toggle_linked_mode'] = action
-
         # Open setup
         action = QtGui.QAction(make_icon(":/open-setup.png"),
-        #action = QtGui.QAction(make_standard_icon(QtGui.QStyle.SP_DialogOpenButton),
                 "Open setup", self, triggered=self._open_setup)
 
         action.setToolTip("Open a setup file")
@@ -323,7 +325,6 @@ class GUIApplication(QtCore.QObject):
 
         # Save setup
         action = QtGui.QAction(make_icon(":/save-setup.png"),
-        #action = QtGui.QAction(make_standard_icon(QtGui.QStyle.SP_DialogSaveButton),
                 "Save setup", self, triggered=self._save_setup)
 
         action.setToolTip("Save setup")
@@ -334,7 +335,6 @@ class GUIApplication(QtCore.QObject):
 
         # Save setup as
         action = QtGui.QAction(make_icon(":/save-setup-as.png"),
-        #action = QtGui.QAction(make_standard_icon(QtGui.QStyle.SP_DialogSaveButton),
                 "Save setup as", self, triggered=self._save_setup_as)
 
         action.setToolTip("Save setup as")
@@ -344,7 +344,6 @@ class GUIApplication(QtCore.QObject):
         self.actions['save_setup_as'] = action
 
         # Close setup
-        #action = QtGui.QAction(make_icon(":/close-setup.png"),
         action = QtGui.QAction(make_standard_icon(QtGui.QStyle.SP_DialogCloseButton),
                 "Close setup", self, triggered=self._close_setup)
 
@@ -386,46 +385,34 @@ class GUIApplication(QtCore.QObject):
 
         # Display mode
         group = QtGui.QActionGroup(self)
-        self.actions['display_hw']          = QtGui.QAction("Hardware", group, checkable=True)
-        self.actions['display_cfg']         = QtGui.QAction("Config", group, checkable=True)
-        self.actions['display_combined']    = QtGui.QAction("Combined", group, checkable=True, checked=True)
+        self.actions['display_hw']          = QtGui.QAction("Hardware", group, checkable=True, enabled=False)
+        self.actions['display_cfg']         = QtGui.QAction("Config", group, checkable=True, enabled=False)
+        self.actions['display_combined']    = QtGui.QAction("Combined", group, checkable=True, enabled=False)
 
         action = QtGui.QAction(make_icon(":/select-display-mode.png"),
-                "Toggle display mode", self)
+                "Set display mode", self, enabled=False)
 
         action.setToolTip("Toggle display mode")
         action.setStatusTip(action.toolTip())
         action.toolbar = True
         action.setMenu(QtGui.QMenu())
         action.menu().addActions(group.actions())
-        self.actions['toggle_display_mode'] = action
+        self.actions['select_display_mode'] = action
 
         # Write mode
         group = QtGui.QActionGroup(self)
-        self.actions['write_hw']            = QtGui.QAction("Hardware", group, checkable=True)
-        self.actions['write_cfg']           = QtGui.QAction("Config", group, checkable=True)
-        self.actions['write_combined']      = QtGui.QAction("Combined", group, checkable=True, checked=True)
+        self.actions['write_hw']            = QtGui.QAction("Hardware", group, checkable=True, enabled=False)
+        self.actions['write_cfg']           = QtGui.QAction("Config", group, checkable=True, enabled=False)
+        self.actions['write_combined']      = QtGui.QAction("Combined", group, checkable=True, enabled=False)
         action = QtGui.QAction(make_icon(":/select-write-mode.png"),
-                "Toggle write mode", self)
+                "Set write mode", self, enabled=False)
 
         action.setToolTip("Toggle write mode")
         action.setStatusTip(action.toolTip())
         action.toolbar = True
         action.setMenu(QtGui.QMenu())
         action.menu().addActions(group.actions())
-        self.actions['toggle_write_mode'] = action
-
-        # Config to Hardware
-        action = QtGui.QAction(make_icon(":/apply-config-to-hardware.png"),
-                "Apply config to hardware", self, triggered=self._apply_config_to_hardware)
-        action.treeview_splitter = True
-        self.actions['apply_config_to_hardware'] = action
-
-        # Hardware to Config
-        action = QtGui.QAction(make_icon(":/apply-hardware-to-config.png"),
-                "Copy hardware values to config", self, triggered=self._apply_hardware_to_config)
-        action.treeview_splitter = True
-        self.actions['apply_hardware_to_config'] = action
+        self.actions['select_write_mode'] = action
 
         # Quit
         action = QtGui.QAction("&Quit", self, triggered=self.mainwindow.close)
@@ -454,6 +441,44 @@ class GUIApplication(QtCore.QObject):
         action = QtGui.QAction("&Tile Windows", self,
                 triggered=self.mainwindow.mdiArea.tileSubWindows)
         self.actions['tile_windows'] = action
+
+        # Linked Mode
+        link_icons = {
+                True:  make_icon(":/linked.png"),
+                False: make_icon(":/unlinked.png")
+                }
+
+        action = QtGui.QAction(link_icons[self.linked_mode], "Toggle linked mode",
+                self, toggled=self.set_linked_mode)
+
+        action.icons = link_icons
+        action.setToolTip("Link Hardware & Config Views")
+        action.setStatusTip(action.toolTip())
+        action.setCheckable(True)
+        action.setChecked(self.linked_mode)
+        action.treeview_splitter = True
+        self.actions['toggle_linked_mode'] = action
+
+        # Config to Hardware
+        action = QtGui.QAction(make_icon(":/apply-config-to-hardware.png"),
+                "Apply config to hardware", self, triggered=self._apply_config_to_hardware)
+        action.treeview_splitter = True
+        self.actions['apply_config_to_hardware'] = action
+
+        # Hardware to Config
+        action = QtGui.QAction(make_icon(":/apply-hardware-to-config.png"),
+                "Copy hardware values to config", self, triggered=self._apply_hardware_to_config)
+        action.treeview_splitter = True
+        self.actions['apply_hardware_to_config'] = action
+
+        # Connect
+        action = QtGui.QAction(make_icon(":/connect.png"), "&Connect", self)
+
+        # Disconnect
+        action = QtGui.QAction(make_icon(":/disconnect.png"), "&Disconnect", self)
+
+        # Refresh
+        action = QtGui.QAction(make_icon(":/refresh.png"), "&Refresh", self)
 
     def _populate_menus(self):
         menu_file = self.mainwindow.menu_file
@@ -501,12 +526,10 @@ class GUIApplication(QtCore.QObject):
         run_close_setup(context=self.context, parent_widget=self.mainwindow)
 
     def _open_device_widget(self):
-        #open_device_widget(self.selected_device) # FIXME: no info about which side this was opened from!
-        # but i can get this from the currently selected node!
-
         pass
+
     def _open_device_table(self):
-        pass # FIXME: same as above
+        pass
 
     def _apply_config_to_hardware(self):
         # Cases:
@@ -527,13 +550,45 @@ class GUIApplication(QtCore.QObject):
         QtCore.QMetaObject.invokeMethod(self.mainwindow, "close", Qt.QueuedConnection)
 
     def _on_subwindow_activated(self, window):
-        if hasattr(window, 'device') and hasattr(window, 'view_mode'):
-            device = window.device
-            view_mode = window.view_mode
-            if view_mode & util.CONFIG:
+        act_display = self.actions['select_display_mode']
+        act_write   = self.actions['select_write_mode']
+
+        if isinstance(window, gui_util.DeviceSubWindow):
+            device       = window.device
+            display_mode = window.display_mode
+            write_mode   = window.write_mode
+
+            if display_mode & util.CONFIG:
                 self.treeview.select_config_node_by_ref(device)
-            elif view_mode & util.HARDWARE:
+            elif display_mode & util.HARDWARE:
                 self.treeview.select_hardware_node_by_ref(device)
+
+            act_display.setEnabled(True)
+            act_write.setEnabled(True)
+
+            # TODO: conditionally enable/disable choices here!
+            if display_mode == util.COMBINED:
+                self.actions['display_combined'].setChecked(True)
+                self.actions['display_combined'].setEnabled(True)
+            elif display_mode == util.HARDWARE:
+                self.actions['display_hw'].setChecked(True)
+                self.actions['display_hw'].setEnabled(True)
+            else:
+                self.actions['display_cfg'].setChecked(True)
+                self.actions['display_cfg'].setEnabled(True)
+
+            if write_mode == util.COMBINED:
+                self.actions['write_combined'].setChecked(True)
+                self.actions['write_combined'].setEnabled(True)
+            elif display_mode == util.HARDWARE:
+                self.actions['write_hw'].setChecked(True)
+                self.actions['write_hw'].setEnabled(True)
+            else:
+                self.actions['write_cfg'].setChecked(True)
+                self.actions['write_cfg'].setEnabled(True)
+        else:
+            act_display.setEnabled(False)
+            act_write.setEnabled(False)
 
     def _show_device_windows(self, device, show_cfg, show_hw):
         """Shows existing device windows. Return True if at least one window
@@ -543,9 +598,9 @@ class GUIApplication(QtCore.QObject):
 
         def window_filter(window):
             try:
-                view_mode = window.widget().get_view_mode()
-                return ((show_cfg and view_mode & util.CONFIG)
-                        or (show_hw and view_mode & util.HARDWARE))
+                display_mode = window.widget().get_view_mode()
+                return ((show_cfg and display_mode & util.CONFIG)
+                        or (show_hw and display_mode & util.HARDWARE))
             except AttributeError:
                 pass
 
@@ -572,6 +627,8 @@ class GUIApplication(QtCore.QObject):
             window.close()
 
     def _tree_node_activated(self, node):
+        print "_tree_node_activated", node
+
         is_device_cfg = isinstance(node, ctm.DeviceNode)
         is_device_hw  = isinstance(node, htm.DeviceNode)
 
@@ -580,6 +637,19 @@ class GUIApplication(QtCore.QObject):
 
             self._show_or_create_device_window(device, is_device_cfg, is_device_hw)
 
+    def _tree_node_selected(self, node):
+        print "_tree_node_selected", node
+        is_device_cfg = isinstance(node, ctm.DeviceNode)
+        is_device_hw  = isinstance(node, htm.DeviceNode)
+        is_device     = is_device_cfg or is_device_hw
+
+        self.actions['open_device_widget'].setEnabled(is_device and node.ref.has_widget_class())
+        self.actions['open_device_table'].setEnabled(is_device)
+
+        if is_device and not self._show_device_windows(node.ref, is_device_cfg, is_device_hw):
+            # No window for the clicked node: make no window active in the mdi area
+            self.mainwindow.mdiArea.setActiveSubWindow(None)
+
     def _show_or_create_device_window(self, device, from_config_side, from_hw_side):
         if from_config_side or from_hw_side:
 
@@ -587,13 +657,13 @@ class GUIApplication(QtCore.QObject):
                 return
 
             if self.linked_mode and not device.idc_conflict:
-                view_mode = write_mode = util.COMBINED
+                display_mode = write_mode = util.COMBINED
             elif from_config_side:
-                view_mode = write_mode = util.CONFIG
+                display_mode = write_mode = util.CONFIG
             elif from_hw_side:
-                view_mode = write_mode = util.HARDWARE
+                display_mode = write_mode = util.HARDWARE
 
-            subwin = self._add_device_table_window(device, view_mode, write_mode)
+            subwin = self._add_device_table_window(device, display_mode, write_mode)
 
             if subwin.isMinimized():
                 subwin.showNormal()
@@ -610,20 +680,6 @@ class GUIApplication(QtCore.QObject):
 
         if subwin.isMinimized():
             subwin.showNormal()
-
-    def _tree_node_selected(self, node):
-        # For now only mouse clicks are used
-        pass
-
-    def _tree_node_clicked(self, node):
-        is_device_cfg = isinstance(node, ctm.DeviceNode)
-        is_device_hw  = isinstance(node, htm.DeviceNode)
-
-        if is_device_cfg or is_device_hw:
-            device = node.ref
-            if not self._show_device_windows(device, is_device_cfg, is_device_hw):
-                # No window for the clicked node: make no window active in the mdi area
-                self.mainwindow.mdiArea.setActiveSubWindow(None)
 
     def get_mainwindow(self):
         return self._mainwindow()
@@ -681,39 +737,29 @@ class GUIApplication(QtCore.QObject):
         self.logview.append("Disconnected from %s" % mrc.get_display_url())
 
     # Device table window creation
-    def _add_device_table_window(self, device, view_mode, write_mode):
-        self.log.debug("Adding device table for %s with view_mode=%d, write_mode=%d",
-                device, view_mode, write_mode)
+    def _add_device_table_window(self, device, display_mode, write_mode):
+        self.log.debug("Adding device table for %s with display_mode=%d, write_mode=%d",
+                device, display_mode, write_mode)
 
-        subwin = DeviceTableSubWindow(
-                device=device,
-                view_mode=view_mode,
-                write_mode=write_mode,
-                device_registry=self.device_registry)
-        
+        widget = device_tableview.DeviceTableWidget(device, display_mode, write_mode)
+        subwin = gui_util.DeviceTableSubWindow(widget=widget)
+        return self._register_device_subwindow(subwin)
+
+    def _add_device_widget_window(self, app_device, display_mode, write_mode):
+        self.log.debug("Adding device widget for %s with display_mode=%d, write_mode=%d",
+                app_device, display_mode, write_mode)
+
+        widget = app_device.make_device_widget(display_mode, write_mode)
+        subwin = gui_util.DeviceWidgetSubWindow(widget=widget)
+        return self._register_device_subwindow(subwin)
+
+    def _register_device_subwindow(self, subwin):
+        self.log.debug("registering subwin %s for device %s", subwin, subwin.device)
         self.mainwindow.mdiArea.addSubWindow(subwin)
         subwin.installEventFilter(self)
         restore_subwindow_state(subwin, self.context.make_qsettings())
         subwin.show()
-        # TODO: use a list or queue instead of a set and update the order to
-        # reflect the window activation order. then raise the windows in the
-        # correct order so that the last active window for the device is at the
-        # top.
-        self._device_window_map.setdefault(device, set()).add(subwin)
-        return subwin
-
-    def _add_device_widget_window(self, app_device, read_mode, write_mode):
-        widget = app_device.make_device_widget(read_mode, write_mode)
-
-        subwin = DeviceWidgetSubWindow(
-                widget=widget,
-                device_registry=self.device_registry)
-
-        self.mainwindow.mdiArea.addSubWindow(subwin)
-        subwin.installEventFilter(self)
-        restore_subwindow_state(subwin, self.context.make_qsettings())
-        subwin.show()
-        self._device_window_map.setdefault(app_device, set()).add(subwin)
+        self._device_window_map.setdefault(subwin.device, set()).add(subwin)
         return subwin
 
     def _cfg_context_menu(self, node, idx, pos, view):
@@ -936,11 +982,6 @@ class GUIApplication(QtCore.QObject):
                 self.log.debug("removing subwin %s for device %s", watched_object, watched_object.device)
                 self._device_window_map[watched_object.device].remove(watched_object)
 
-            if (hasattr(watched_object, 'app_device')
-                    and watched_object.app_device in self._device_window_map):
-                self.log.debug("removing subwin %s for device %s", watched_object, watched_object.app_device)
-                self._device_window_map[watched_object.app_device].remove(watched_object)
-
         elif (event.type() == QtCore.QEvent.Close
                 and watched_object is self.mainwindow):
             run_close_setup(self.context, self.mainwindow)
@@ -1051,192 +1092,3 @@ class MainWindow(QtGui.QMainWindow):
     def closeEvent(self, event):
         self.store_settings()
         super(MainWindow, self).closeEvent(event)
-
-class DeviceTableSubWindow(QtGui.QMdiSubWindow):
-    def __init__(self, device, view_mode, write_mode, device_registry, parent=None):
-        super(DeviceTableSubWindow, self).__init__(parent)
-        self.device_registry = device_registry
-        widget = device_tableview.DeviceTableWidget(device, view_mode, write_mode)
-        self.setWidget(widget)
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        self.update_title_and_name()
-
-        device.config_set.connect(self._on_device_config_set)
-        device.hardware_set.connect(self._on_device_hardware_set)
-        device.idc_conflict_changed.connect(self.update_title_and_name)
-        device.mrc_changed.connect(self.update_title_and_name)
-        self._on_device_config_set(device, None, device.cfg)
-        self._on_device_hardware_set(device, None, device.hw)
-
-    def _on_device_config_set(self, app_device, old_cfg, new_cfg):
-        signals = ['modified_changed', 'name_changed']
-
-        if old_cfg is not None:
-            for signal in signals:
-                getattr(old_cfg, signal).disconnect(self.update_title_and_name)
-
-        if new_cfg is not None:
-            for signal in signals:
-                getattr(new_cfg, signal).connect(self.update_title_and_name)
-
-        #if self.view_mode == device_tableview.SHOW_CFG and new_cfg is None:
-        #    self.close()
-
-        #if self.view_mode == device_tableview.COMBINED and new_cfg is None and app_device.hw is None:
-        #    self.close()
-
-    def _on_device_hardware_set(self, app_device, old_hw, new_hw):
-        pass
-        #if self.view_mode == device_tableview.SHOW_HW and new_hw is None:
-        #    self.close()
-
-        #if self.view_mode == device_tableview.COMBINED and new_hw is None and app_device.cfg is None:
-        #    self.close()
-
-    def get_device(self):
-        return self.widget().device
-
-    def get_view_mode(self):
-        return self.widget().view_mode
-
-    device = property(fget=get_device)
-    view_mode = property(fget=get_view_mode)
-
-    def update_title_and_name(self):
-        """Updates the window title and the object name taking into account the
-        view_mode and the device state."""
-        # TODO: display IDC conflict and address conflict in title
-        device      = self.widget().device
-        view_mode   = self.widget().view_mode
-        idc         = None
-        if device.hw is not None:
-            idc = device.hw.idc
-        elif device.cfg is not None:
-            idc = device.cfg.idc
-
-        if idc is None:
-            # The device is about to disappear and this window should close. Do
-            # not attempt to update the title as no idc is known and device.mrc
-            # will not be set.
-            return
-
-        if view_mode == util.COMBINED:
-            prefix = 'combined'
-        elif view_mode & util.HARDWARE:
-            prefix = 'hw'
-        elif view_mode & util.CONFIG:
-            prefix = 'cfg'
-
-        device_name = self.device_registry.get_device_name(idc)
-        name        = "table_%s_(%s, %d, %d)" % (prefix, device.mrc.url, device.bus, device.address)
-        title       = "%s @ (%s, %d, %d)" % (device_name, device.mrc.get_display_url(),
-                device.bus, device.address)
-
-        if ((view_mode & util.CONFIG)
-                and device.cfg is not None
-                and len(device.cfg.name)):
-            title = "%s - %s" % (device.cfg.name, title)
-
-        self.setWindowTitle(title)
-        self.setObjectName(name)
-
-class DeviceWidgetSubWindow(QtGui.QMdiSubWindow):
-    def __init__(self, widget, device_registry, parent=None):
-        super(DeviceWidgetSubWindow, self).__init__(parent)
-        self.device_registry = device_registry
-        self.setWidget(widget)
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        self.update_title_and_name()
-
-        self.device.config_set.connect(self._on_device_config_set)
-        self.device.hardware_set.connect(self._on_device_hardware_set)
-        self.device.idc_conflict_changed.connect(self.update_title_and_name)
-        self.device.mrc_changed.connect(self.update_title_and_name)
-        self.device.read_mode_changed.connect(self._on_device_read_mode_changed)
-        self.device.write_mode_changed.connect(self._on_device_write_mode_changed)
-
-        self._on_device_config_set(self.device, None, self.device.cfg)
-        self._on_device_hardware_set(self.device, None, self.device.hw)
-
-    def _on_device_config_set(self, app_device, old_cfg, new_cfg):
-        signals = ['modified_changed', 'name_changed']
-
-        if old_cfg is not None:
-            for signal in signals:
-                getattr(old_cfg, signal).disconnect(self.update_title_and_name)
-
-        if new_cfg is not None:
-            for signal in signals:
-                getattr(new_cfg, signal).connect(self.update_title_and_name)
-
-    def _on_device_hardware_set(self, app_device, old_hw, new_hw):
-        pass
-
-    def _on_device_read_mode_changed(self, read_mode):
-        pass
-
-    def _on_device_write_mode_changed(self, write_mode):
-        pass
-
-    def get_device(self):
-        return self.widget().device
-
-    def get_app_device(self):
-        return self.widget().device.app_device
-
-    def get_read_mode(self):
-        return self.device.read_mode
-
-    def set_read_mode(self, mode):
-        self.device.read_mode = mode
-
-    def get_write_mode(self):
-        return self.device.write_mode
-
-    def set_write_mode(self, mode):
-        self.device.write_mode = mode
-
-    device = property(fget=get_device)
-    read_mode = property(fget=get_read_mode, fset=set_read_mode)
-    write_mode = property(fget=get_write_mode, fset=set_write_mode)
-    app_device = property(fget=get_app_device)
-
-    def update_title_and_name(self):
-        """Updates the window title and the object name taking into account the
-        view_mode and the device state."""
-        # TODO: display IDC conflict and address conflict in title
-        device      = self.device
-        read_mode   = device.read_mode
-        write_mode  = device.write_mode
-
-        idc         = None
-        if device.hw is not None:
-            idc = device.hw.idc
-        elif device.cfg is not None:
-            idc = device.cfg.idc
-
-        if idc is None:
-            # The device is about to disappear and this window should close. Do
-            # not attempt to update the title as no idc is known and device.mrc
-            # will not be set.
-            return
-
-        if write_mode == util.COMBINED:
-            prefix = 'combined'
-        elif write_mode & util.HARDWARE:
-            prefix = 'hw'
-        elif write_mode & util.CONFIG:
-            prefix = 'cfg'
-
-        device_name = self.device_registry.get_device_name(idc)
-        name        = "widget_%s_(%s, %d, %d)" % (prefix, device.mrc.url, device.bus, device.address)
-        title       = "%s @ (%s, %d, %d)" % (device_name, device.mrc.get_display_url(),
-                device.bus, device.address)
-
-        if ((read_mode & util.CONFIG)
-                and device.cfg is not None
-                and len(device.cfg.name)):
-            title = "%s - %s" % (device.cfg.name, title)
-
-        self.setWindowTitle(title)
-        self.setObjectName(name)

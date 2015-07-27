@@ -7,13 +7,10 @@ from qt import pyqtSignal
 from qt import Qt
 from qt import QtCore
 from qt import QtGui
-import collections
 
 import config_tree_model as ctm
 import hardware_tree_model as htm
 import util
-
-# TODO: context menu and display for virtual items
 
 class ConfigTreeView(QtGui.QTreeView):
     def __init__(self, parent=None):
@@ -50,7 +47,6 @@ class MCTreeDirector(object):
         self.cfg_model = ctm.ConfigTreeModel(device_registry=device_registry)
 
         self.hw_model  = htm.HardwareTreeModel(device_registry=device_registry)
-        self.hw_model.rowsInserted.connect(self._hw_rows_inserted)
 
         self._linked_mode = linked_mode_on
         self._populate_models()
@@ -255,25 +251,14 @@ class MCTreeDirector(object):
         if hw_node is not None:
             self.hw_model.remove_node(hw_node)
 
-    ######################
-    def _hw_rows_inserted(self, parent_idx, start, end):
-        pass
-
 class MCTreeView(QtGui.QWidget):
     hw_context_menu_requested   = pyqtSignal(object, object, object, object) #: node, idx, position, view
     cfg_context_menu_requested  = pyqtSignal(object, object, object, object) #: node, idx, position, view
 
-    #cfg_node_activated  = pyqtSignal(object) # the config_tree_model node
-    #hw_node_activated   = pyqtSignal(object) # the hardware_tree_model node
     node_activated      = pyqtSignal(object) # config or hardware node
-    node_selected       = pyqtSignal(object)
-    node_clicked        = pyqtSignal(object)
+    node_selected       = pyqtSignal(object) # config or hardware node
 
-    #node_selected               = pyqtSignal(object, object, object) #: node, idx, view
-    #hw_node_selected            = pyqtSignal(object, object, object) #: node, idx, view
-    #cfg_node_selected           = pyqtSignal(object, object, object) #: node, idx, view
-
-    linked_mode_changed         = pyqtSignal(bool)
+    linked_mode_changed = pyqtSignal(bool)
 
     def __init__(self, app_registry, device_registry, linked_mode_on=False, parent=None):
         super(MCTreeView, self).__init__(parent)
@@ -294,11 +279,8 @@ class MCTreeView(QtGui.QWidget):
         self.cfg_view.collapsed.connect(self._cfg_collapsed)
         self.cfg_view.setItemDelegate(MCTreeItemDelegate(self._director))
 
-        self.cfg_view.selectionModel().currentChanged.connect(self._cfg_selection_current_changed)
         self.cfg_view.selectionModel().selectionChanged.connect(self._cfg_selection_changed)
-        self.cfg_view.clicked.connect(self._cfg_view_clicked)
         self.cfg_view.activated.connect(self._cfg_view_activated)
-        self.cfg_view.pressed.connect(self._cfg_view_pressed)
 
         self.hw_view   = HardwareTreeView()
         self.hw_view.setModel(self.hw_model)
@@ -310,49 +292,13 @@ class MCTreeView(QtGui.QWidget):
         self.hw_view.setItemDelegate(MCTreeItemDelegate(self._director))
         self.hw_view.setFirstColumnSpanned(0, QtCore.QModelIndex(), True)
 
-        self.hw_view.selectionModel().currentChanged.connect(self._hw_selection_current_changed)
         self.hw_view.selectionModel().selectionChanged.connect(self._hw_selection_changed)
-        self.hw_view.clicked.connect(self._hw_view_clicked)
         self.hw_view.activated.connect(self._hw_view_activated)
-        self.hw_view.pressed.connect(self._hw_view_pressed)
 
         self.cfg_view.expandAll()
         self.hw_view.expandAll()
 
         self.splitter_buttons = util.FixedWidthVerticalToolBar()
-        self.splitter_actions = collections.OrderedDict()
-
-        link_icons = {
-                True:  QtGui.QIcon(QtGui.QPixmap(":/linked.png")),
-                False: QtGui.QIcon(QtGui.QPixmap(":/unlinked.png"))
-                }
-
-        action = QtGui.QAction(link_icons[self.linked_mode], "Toggle linked mode", self)
-        action.setToolTip("Link Hardware & Config Views")
-        action.setStatusTip("Link Hardware & Config Views")
-        action.setCheckable(True)
-        action.setChecked(self.linked_mode)
-
-        # Wrapper to avoid late binding trouble
-        def wrapper(action=action):
-            def toggle_linked_mode(b):
-                self.linked_mode = b
-                action.setIcon(link_icons[self.linked_mode])
-            return toggle_linked_mode
-
-        action.toggled.connect(wrapper())
-
-        self.splitter_actions['toggle_linked_mode'] = action
-
-        action = QtGui.QAction("C", self)
-
-        self.splitter_actions['connect'] = action
-
-        #for action in self.splitter_actions.values():
-        #    self.splitter_buttons.addAction(action)
-
-        #self.splitter_buttons.addAction(toggle_link_mode_action)
-        #self.splitter_buttons.addAction(connect_action)
 
         splitter = DoubleClickSplitter()
         splitter.setChildrenCollapsible(False)
@@ -438,9 +384,6 @@ class MCTreeView(QtGui.QWidget):
         else:
             self.hw_view.clearSelection()
 
-        #self.node_selected.emit(node, idx, self.cfg_view)
-        #self.cfg_node_selected.emit(node, idx, self.cfg_view)
-
     def _hw_index_becomes_active(self, idx):
         node = idx.internalPointer()
         idc_conflict = isinstance(node, htm.DeviceNode) and node.ref.idc_conflict
@@ -449,16 +392,6 @@ class MCTreeView(QtGui.QWidget):
             self.cfg_view.setCurrentIndex(self.cfg_idx_for_hw_idx(idx))
         else:
             self.cfg_view.clearSelection()
-
-        #self.node_selected.emit(node, idx, self.hw_view)
-        #self.hw_node_selected.emit(node, idx, self.hw_view)
-
-    # selection current changed
-    def _cfg_selection_current_changed(self, current, previous):
-        self._cfg_index_becomes_active(current)
-
-    def _hw_selection_current_changed(self, current, previous):
-        self._hw_index_becomes_active(current)
 
     # selection changed
     def _cfg_selection_changed(self, selected, deselected):
@@ -477,30 +410,16 @@ class MCTreeView(QtGui.QWidget):
         except IndexError:
             pass
 
-    # clicked
-    def _cfg_view_clicked(self, idx):
-        self._cfg_index_becomes_active(idx)
-        self.node_clicked.emit(idx.internalPointer())
-
-    def _hw_view_clicked(self, idx):
-        self._hw_index_becomes_active(idx)
-        self.node_clicked.emit(idx.internalPointer())
-
     # activated
     def _cfg_view_activated(self, idx):
+        print "_cfg_view_activated"
         self._cfg_index_becomes_active(idx)
         self.node_activated.emit(idx.internalPointer())
 
     def _hw_view_activated(self, idx):
+        print "_hw_view_activated"
         self._hw_index_becomes_active(idx)
         self.node_activated.emit(idx.internalPointer())
-
-    # pressed
-    def _cfg_view_pressed(self, idx):
-        self._cfg_index_becomes_active(idx)
-
-    def _hw_view_pressed(self, idx):
-        self._hw_index_becomes_active(idx)
 
 class DoubleClickSplitterHandle(QtGui.QSplitterHandle):
     """Double click support for QSplitterHandle.

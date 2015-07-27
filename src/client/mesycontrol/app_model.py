@@ -66,6 +66,8 @@ class MRCRegistry(AppObject):
     def __init__(self, hw_reg, cfg_reg, parent=None):
         super(MRCRegistry, self).__init__(hardware=hw_reg, config=cfg_reg, parent=parent)
         self.log  = util.make_logging_source_adapter(__name__, self)
+
+
         self._mrcs = list()
 
     def add_mrc(self, mrc):
@@ -318,7 +320,6 @@ class Device(AppObject):
         if not self.idc_conflict:
             self.idc_changed.emit(idc)
 
-    # ===== profile ===== #
     def get_profile(self):
         return self.get_module().profile
 
@@ -498,15 +499,24 @@ class Device(AppObject):
     def make_specialized_device(self, read_mode, write_mode):
         return self.module.device_class(self, read_mode, write_mode)
 
-    def make_device_widget(self, read_mode, write_mode, parent=None):
+    def make_device_widget(self, display_mode, write_mode, parent=None):
         return self.module.device_ui_class(
-                device=self.make_specialized_device(read_mode, write_mode),
-                display_mode=read_mode,
+                device=self.make_specialized_device(display_mode, write_mode),
+                display_mode=display_mode,
                 write_mode=write_mode,
                 parent=parent)
 
+    def has_specialized_class(self):
+        return hasattr(self.module, 'device_class')
+
     def has_widget_class(self):
         return hasattr(self.module, 'device_ui_class')
+
+    def get_device_name(self):
+        return self.profile.name
+
+    def has_address_conflict(self):
+        return self.has_hw and self.hw.address_conflict
 
     mrc             = pyqtProperty(object, get_mrc, set_mrc, notify=mrc_changed)
 
@@ -524,6 +534,7 @@ class Device(AppObject):
     cfg_profile     = pyqtProperty(object, get_cfg_profile, notify=cfg_profile_changed)
 
     config_applied  = pyqtProperty(bool, is_config_applied, notify=config_applied_changed)
+    address_conflict = pyqtProperty(bool, has_address_conflict)
 
 class Director(object):
     """Manages the app_model tree.
