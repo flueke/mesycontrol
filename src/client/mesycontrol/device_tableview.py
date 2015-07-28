@@ -316,8 +316,12 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
 
             if cfg is None:
                 cfg = self.device.create_config()
+
+            def set_hw(f):
+                if not f.exception() and  self.write_mode == util.COMBINED:
+                    self.device.hw.set_parameter(row, value)
                 
-            cfg.set_parameter(row, value)
+            cfg.set_parameter(row, value).add_done_callback(set_hw)
 
             return True
 
