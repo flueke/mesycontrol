@@ -25,13 +25,16 @@ class DeviceSubWindow(QtGui.QMdiSubWindow):
         return self.widget().display_mode
 
     def set_display_mode(self, mode):
-        return self.widget().set_display_mode(mode)
+        self.widget().display_mode = mode
 
     def get_write_mode(self):
         return self.widget().write_mode
 
     def set_write_mode(self, mode):
-        return self.widget().set_write_mode(mode)
+        self.widget().write_mode = mode
+
+    def has_combined_display(self):
+        raise NotImplementedError()
 
     device          = property(lambda s: s.get_device())
     display_mode    = property(get_display_mode, set_display_mode)
@@ -110,8 +113,14 @@ class DeviceWidgetSubWindow(DeviceSubWindow):
     def get_specialized_device(self):
         return self.widget().device
 
+    def has_combined_display(self):
+        return False
+
 class DeviceTableSubWindow(DeviceSubWindow):
     def __init__(self, widget, parent=None):
         super(DeviceTableSubWindow, self).__init__(
                 widget=widget, window_name_prefix='table',
                 parent=parent)
+
+    def has_combined_display(self):
+        return True
