@@ -39,6 +39,8 @@ import util
 
 log = logging.getLogger(__name__)
 
+# TODO: enable/disable display actions on hw/cfg state change (disconnect, closed, ...)
+
 # ===== MRC =====
 def run_add_mrc_config_dialog(registry, parent_widget=None):
     urls_in_use = [mrc.url for mrc in registry.cfg.get_mrcs()]
@@ -256,6 +258,8 @@ class GUIApplication(QtCore.QObject):
         self.context        = context
         self._linked_mode   = False
         self._device_window_map = dict() # app_model.Device -> list of QMdiSubWindow
+        self._selected_tree_node = None  # The currently selected tree node
+        self._selected_device = None
 
         self.mainwindow.installEventFilter(self)
         self.mainwindow.mdiArea.subWindowActivated.connect(self._on_subwindow_activated)
@@ -299,7 +303,6 @@ class GUIApplication(QtCore.QObject):
         self._tree_node_selected(None)
 
     def _setup_changed(self, app_registry, old, new):
-        print old, new
         if old:
             old.modified_changed.disconnect(self._setup_modified_changed)
 
@@ -385,9 +388,12 @@ class GUIApplication(QtCore.QObject):
 
         # Display mode
         group = QtGui.QActionGroup(self)
-        self.actions['display_hw']          = QtGui.QAction("Hardware", group, checkable=True, enabled=False)
-        self.actions['display_cfg']         = QtGui.QAction("Config", group, checkable=True, enabled=False)
-        self.actions['display_combined']    = QtGui.QAction("Combined", group, checkable=True, enabled=False)
+        self.actions['display_hw']          = QtGui.QAction("Hardware", group,
+                checkable=True, enabled=False, toggled=self._on_display_hw_toggled)
+        self.actions['display_cfg']         = QtGui.QAction("Config", group,
+                checkable=True, enabled=False, toggled=self._on_display_cfg_toggled)
+        self.actions['display_combined']    = QtGui.QAction("Combined", group,
+                checkable=True, enabled=False, toggled=self._on_display_combined_toggled)
 
         action = QtGui.QAction(make_icon(":/select-display-mode.png"),
                 "Set display mode", self, enabled=False)
@@ -401,9 +407,13 @@ class GUIApplication(QtCore.QObject):
 
         # Write mode
         group = QtGui.QActionGroup(self)
-        self.actions['write_hw']            = QtGui.QAction("Hardware", group, checkable=True, enabled=False)
-        self.actions['write_cfg']           = QtGui.QAction("Config", group, checkable=True, enabled=False)
-        self.actions['write_combined']      = QtGui.QAction("Combined", group, checkable=True, enabled=False)
+        self.actions['write_hw']            = QtGui.QAction("Hardware", group,
+                checkable=True, enabled=False, toggled=self._on_write_hw_toggled)
+        self.actions['write_cfg']           = QtGui.QAction("Config", group,
+                checkable=True, enabled=False, toggled=self._on_write_cfg_toggled)
+        self.actions['write_combined']      = QtGui.QAction("Combined", group,
+                checkable=True, enabled=False, toggled=self._on_write_combined_toggled)
+
         action = QtGui.QAction(make_icon(":/select-write-mode.png"),
                 "Set write mode", self, enabled=False)
 
@@ -441,6 +451,11 @@ class GUIApplication(QtCore.QObject):
         action = QtGui.QAction("&Tile Windows", self,
                 triggered=self.mainwindow.mdiArea.tileSubWindows)
         self.actions['tile_windows'] = action
+
+        # Close all windows
+        action = QtGui.QAction("Cl&ose all Windows", self,
+                triggered=self.mainwindow.mdiArea.closeAllSubWindows)
+        self.actions['close_all_windows'] = action
 
         # Linked Mode
         link_icons = {
@@ -495,6 +510,7 @@ class GUIApplication(QtCore.QObject):
         menu_window.addAction(self.actions['cascade_windows'])
         menu_window.addAction(self.actions['tile_windows'])
         menu_window.addSeparator()
+        menu_window.addAction(self.actions['close_all_windows'])
 
     def _populate_toolbar(self):
         tb = self.mainwindow.toolbar
@@ -526,10 +542,18 @@ class GUIApplication(QtCore.QObject):
         run_close_setup(context=self.context, parent_widget=self.mainwindow)
 
     def _open_device_widget(self):
-        pass
+        node = self._selected_tree_node
+        is_device_cfg = isinstance(node, ctm.DeviceNode)
+        is_device_hw  = isinstance(node, htm.DeviceNode)
+
+        self._create_device_widget_window(self._selected_device, is_device_cfg, is_device_hw)
 
     def _open_device_table(self):
-        pass
+        node = self._selected_tree_node
+        is_device_cfg = isinstance(node, ctm.DeviceNode)
+        is_device_hw  = isinstance(node, htm.DeviceNode)
+
+        self._create_device_table_window(self._selected_device, is_device_cfg, is_device_hw)
 
     def _apply_config_to_hardware(self):
         # Cases:
@@ -558,62 +582,94 @@ class GUIApplication(QtCore.QObject):
             display_mode = window.display_mode
             write_mode   = window.write_mode
 
+            self.log.debug("_on_subwindow_activated: d=%s, has_hw=%s, has_cfg=%s, display_mode=%d, write_mode=%d",
+                    device, device.has_hw, device.has_cfg, display_mode, write_mode)
+
             if display_mode & util.CONFIG:
                 self.treeview.select_config_node_by_ref(device)
             elif display_mode & util.HARDWARE:
                 self.treeview.select_hardware_node_by_ref(device)
 
+            # Enable the parent actions
             act_display.setEnabled(True)
             act_write.setEnabled(True)
 
-            # TODO: conditionally enable/disable choices here!
             if display_mode == util.COMBINED:
                 self.actions['display_combined'].setChecked(True)
-                self.actions['display_combined'].setEnabled(True)
             elif display_mode == util.HARDWARE:
                 self.actions['display_hw'].setChecked(True)
-                self.actions['display_hw'].setEnabled(True)
             else:
                 self.actions['display_cfg'].setChecked(True)
-                self.actions['display_cfg'].setEnabled(True)
 
             if write_mode == util.COMBINED:
                 self.actions['write_combined'].setChecked(True)
-                self.actions['write_combined'].setEnabled(True)
             elif display_mode == util.HARDWARE:
                 self.actions['write_hw'].setChecked(True)
-                self.actions['write_hw'].setEnabled(True)
             else:
                 self.actions['write_cfg'].setChecked(True)
-                self.actions['write_cfg'].setEnabled(True)
+
+            self.actions['display_combined'].setEnabled(window.has_combined_display()
+                    and device.has_hw and device.has_cfg)
+            self.actions['write_combined'].setEnabled(device.has_hw and device.has_cfg)
+            self.actions['display_hw'].setEnabled(device.has_hw)
+            self.actions['write_hw'].setEnabled(device.has_hw)
+            self.actions['display_cfg'].setEnabled(device.has_cfg)
+            self.actions['write_cfg'].setEnabled(device.has_cfg)
         else:
+            # Disable the parent actions
             act_display.setEnabled(False)
             act_write.setEnabled(False)
+
+    def active_subwindow(self):
+        return self.mainwindow.mdiArea.activeSubWindow()
+
+    # Note: The toggled() signal is emitted on user action _and_ on
+    # setChecked() and similar calls. In contrast triggered() is only emitted
+    # on user action.
+    def _on_display_hw_toggled(self, b):
+        if b:
+            w = self.active_subwindow()
+            w.display_mode = util.HARDWARE
+
+    def _on_display_cfg_toggled(self, b):
+        if b:
+            w = self.active_subwindow()
+            w.display_mode = util.CONFIG
+
+    def _on_display_combined_toggled(self, b):
+        if b:
+            w = self.active_subwindow()
+            w.display_mode = util.COMBINED
+
+    def _on_write_hw_toggled(self, b):
+        if b:
+            w = self.active_subwindow()
+            w.write_mode = util.HARDWARE
+
+    def _on_write_cfg_toggled(self, b):
+        if b:
+            w = self.active_subwindow()
+            w.write_mode = util.CONFIG
+
+    def _on_write_combined_toggled(self, b):
+        if b:
+            w = self.active_subwindow()
+            w.write_mode = util.COMBINED
 
     def _show_device_windows(self, device, show_cfg, show_hw):
         """Shows existing device windows. Return True if at least one window
         was shown, False otherwise."""
         if device not in self._device_window_map:
+            self.log.debug("No window for %s", device)
             return False
 
         def window_filter(window):
-            try:
-                display_mode = window.widget().get_view_mode()
-                return ((show_cfg and display_mode & util.CONFIG)
-                        or (show_hw and display_mode & util.HARDWARE))
-            except AttributeError:
-                pass
-
-            try:
-                write_mode = window.write_mode
-                return ((show_cfg and write_mode & util.CONFIG)
-                        or (show_hw and write_mode & util.HARDWARE))
-            except AttributeError:
-                pass
-
-            return False
+            return ((show_cfg and window.display_mode & util.CONFIG)
+                    or (show_hw and window.display_mode & util.HARDWARE))
 
         windows = filter(window_filter, self._device_window_map[device])
+
+        self.log.debug("Found %d windows for %s", len(windows), device)
 
         for subwin in windows:
             if subwin.isMinimized():
@@ -627,8 +683,6 @@ class GUIApplication(QtCore.QObject):
             window.close()
 
     def _tree_node_activated(self, node):
-        print "_tree_node_activated", node
-
         is_device_cfg = isinstance(node, ctm.DeviceNode)
         is_device_hw  = isinstance(node, htm.DeviceNode)
 
@@ -638,35 +692,40 @@ class GUIApplication(QtCore.QObject):
             self._show_or_create_device_window(device, is_device_cfg, is_device_hw)
 
     def _tree_node_selected(self, node):
-        print "_tree_node_selected", node
         is_device_cfg = isinstance(node, ctm.DeviceNode)
         is_device_hw  = isinstance(node, htm.DeviceNode)
         is_device     = is_device_cfg or is_device_hw
 
-        self.actions['open_device_widget'].setEnabled(is_device and node.ref.has_widget_class())
-        self.actions['open_device_table'].setEnabled(is_device)
+        self._selected_tree_node = node
+        self._selected_device = device = node.ref if is_device else None
 
-        if is_device and not self._show_device_windows(node.ref, is_device_cfg, is_device_hw):
-            # No window for the clicked node: make no window active in the mdi area
+        self.actions['open_device_widget'].setEnabled(is_device and device.has_widget_class())
+        self.actions['open_device_table'].setEnabled(is_device)
+        self.actions['apply_config_to_hardware'].setEnabled(self.linked_mode and is_device
+                and device.has_hw and device.has_cfg)
+        self.actions['apply_hardware_to_config'].setEnabled(self.linked_mode and is_device
+                and device.has_hw)
+
+        if is_device and not self._show_device_windows(device, is_device_cfg, is_device_hw):
+            # No window for the selected node: make no window active in the mdi area
             self.mainwindow.mdiArea.setActiveSubWindow(None)
 
     def _show_or_create_device_window(self, device, from_config_side, from_hw_side):
         if from_config_side or from_hw_side:
+            self._create_device_widget_window(device, from_config_side, from_hw_side)
 
-            if self._show_device_windows(device, from_config_side, from_hw_side):
-                return
+    def _create_device_table_window(self, app_device, from_config_side, from_hw_side):
+        if self.linked_mode and not app_device.idc_conflict:
+            display_mode = write_mode = util.COMBINED
+        elif from_config_side:
+            display_mode = write_mode = util.CONFIG
+        elif from_hw_side:
+            display_mode = write_mode = util.HARDWARE
 
-            if self.linked_mode and not device.idc_conflict:
-                display_mode = write_mode = util.COMBINED
-            elif from_config_side:
-                display_mode = write_mode = util.CONFIG
-            elif from_hw_side:
-                display_mode = write_mode = util.HARDWARE
+        subwin = self._add_device_table_window(app_device, display_mode, write_mode)
 
-            subwin = self._add_device_table_window(device, display_mode, write_mode)
-
-            if subwin.isMinimized():
-                subwin.showNormal()
+        if subwin.isMinimized():
+            subwin.showNormal()
 
     def _create_device_widget_window(self, app_device, from_config_side, from_hw_side):
         if self.linked_mode and app_device.has_hw and app_device.has_cfg:
