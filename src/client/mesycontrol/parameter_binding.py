@@ -39,7 +39,7 @@ class AbstractParameterBinding(object):
         self._device        = weakref.ref(device)
         self.profile        = profile
         self._display_mode  = display_mode
-        self.write_mode     = write_mode if write_mode is not None else display_mode
+        self._write_mode    = write_mode if write_mode is not None else display_mode
         self.target         = target
         self._update_callbacks = list()
         self._update_method_callbacks = list()
@@ -77,6 +77,12 @@ class AbstractParameterBinding(object):
         except AttributeError:
             return self.address
 
+    def get_write_mode(self):
+        return self._write_mode
+
+    def set_write_mode(self, mode):
+        self._write_mode = mode
+
     def get_display_mode(self):
         return self._display_mode
 
@@ -96,6 +102,7 @@ class AbstractParameterBinding(object):
     read_address    = property(fget=get_read_address)
     write_address   = property(fget=get_write_address)
     display_mode    = property(fget=get_display_mode, fset=set_display_mode)
+    write_mode      = property(fget=get_write_mode, fset=set_write_mode)
 
     def add_update_callback(self, method_or_func, *args, **kwargs):
         """Adds a callback to be invoked when this binding updates its target.
