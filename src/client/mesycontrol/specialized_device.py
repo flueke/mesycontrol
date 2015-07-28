@@ -5,6 +5,7 @@
 from qt import pyqtProperty
 from qt import pyqtSignal
 from qt import QtCore
+from qt import QtGui
 
 import future
 import util
@@ -187,3 +188,50 @@ class DeviceBase(QtCore.QObject):
     def _on_cfg_parameter_changed(self, address, value):
         if self.read_mode & util.CONFIG:
             self.parameter_changed.emit(address, value)
+
+# Note: Widget display and write modes are independent of DeviceBase display
+# and write modes. Reason: The current AbstractParameterBinding implementations
+# all write directly to the device config and/or hardware. This makes it
+# possible to have multiple Widgets in different read/write modes.
+class DeviceWidgetBase(QtGui.QWidget):
+    def __init__(self, specialized_device, display_mode, write_mode, parent=None):
+        super(DeviceWidgetBase, self).__init__(parent)
+        self.device = specialized_device
+        self._display_mode = display_mode
+        self._write_mode   = write_mode
+
+    def get_display_mode(self):
+        return self._display_mode
+
+    def set_display_mode(self, display_mode):
+        self._display_mode = display_mode
+
+        for binding in self.get_parameter_bindings():
+            binding.display_mode = display_mode
+
+    def get_write_mode(self):
+        return self._write_mode
+
+    def set_write_mode(self, write_mode):
+        self._write_mode = write_mode
+
+        for binding in self.get_parameter_bindings():
+            binding.write_mode = write_mode
+
+    display_mode = property(
+            fget=lambda s: s.get_display_mode(),
+            fset=lambda s,v: s.set_display_mode(v))
+
+    write_mode   = property(
+            fget=lambda s: s.get_write_mode(),
+            fset=lambda s, v: s.set_write_mode(v))
+
+    def get_parameter_bindings(self):
+        raise NotImplementedError()
+
+    def showEvent(self, event):
+        if not event.spontaneous():
+            for binding in self.get_parameter_bindings():
+                binding.populate()
+
+        super(DeviceWidgetBase, self).showEvent(event)
