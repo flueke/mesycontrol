@@ -15,7 +15,7 @@ class LogView(QtGui.QTextEdit):
     def __init__(self, max_lines=10000, parent=None):
         super(LogView, self).__init__(parent)
         self.setReadOnly(True)
-        self.setLineWrapMode(QtGui.QTextEdit.NoWrap)
+        #self.setLineWrapMode(QtGui.QTextEdit.NoWrap)
         self.document().setMaximumBlockCount(max_lines)
 
         self.formatter = logging.Formatter(
