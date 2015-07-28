@@ -320,6 +320,8 @@ class MCTreeView(QtGui.QWidget):
         layout = QtGui.QGridLayout(self)
         layout.addWidget(splitter, 0, 0)
 
+        self._ignore_next_selection = False
+
     def set_linked_mode(self, on_off):
         if self.linked_mode != on_off:
             self._director.set_linked_mode(on_off)
@@ -376,25 +378,34 @@ class MCTreeView(QtGui.QWidget):
     # ========================================= #
 
     def _cfg_index_becomes_active(self, idx):
+        self.log.debug("_cfg_index_becomes_active")
         node = idx.internalPointer()
         idc_conflict = isinstance(node, ctm.DeviceNode) and node.ref.idc_conflict
 
         if self.linked_mode and not idc_conflict:
+            self._ignore_next_selection = True
             self.hw_view.setCurrentIndex(self.hw_idx_for_cfg_idx(idx))
         else:
             self.hw_view.clearSelection()
 
     def _hw_index_becomes_active(self, idx):
+        self.log.debug("_hw_index_becomes_active")
         node = idx.internalPointer()
         idc_conflict = isinstance(node, htm.DeviceNode) and node.ref.idc_conflict
 
         if self.linked_mode and not idc_conflict:
+            self._ignore_next_selection = True
             self.cfg_view.setCurrentIndex(self.cfg_idx_for_hw_idx(idx))
         else:
             self.cfg_view.clearSelection()
 
     # selection changed
     def _cfg_selection_changed(self, selected, deselected):
+        if self._ignore_next_selection:
+            self.log.debug("_cfg_selection_changed: early return")
+            self._ignore_next_selection = False
+            return
+
         try:
             idx = selected.indexes()[0]
             self._cfg_index_becomes_active(idx)
@@ -403,6 +414,11 @@ class MCTreeView(QtGui.QWidget):
             pass
 
     def _hw_selection_changed(self, selected, deselected):
+        if self._ignore_next_selection:
+            self.log.debug("_hw_selection_changed: early return")
+            self._ignore_next_selection = False
+            return
+
         try:
             idx = selected.indexes()[0]
             self._hw_index_becomes_active(idx)
@@ -412,14 +428,16 @@ class MCTreeView(QtGui.QWidget):
 
     # activated
     def _cfg_view_activated(self, idx):
-        print "_cfg_view_activated"
+        self.log.debug("_cfg_view_activated")
         self._cfg_index_becomes_active(idx)
         self.node_activated.emit(idx.internalPointer())
+        self._ignore_next_selection = False
 
     def _hw_view_activated(self, idx):
-        print "_hw_view_activated"
+        self.log.debug("_hw_view_activated")
         self._hw_index_becomes_active(idx)
         self.node_activated.emit(idx.internalPointer())
+        self._ignore_next_selection = False
 
 class DoubleClickSplitterHandle(QtGui.QSplitterHandle):
     """Double click support for QSplitterHandle.
