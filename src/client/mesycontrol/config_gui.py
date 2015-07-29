@@ -241,3 +241,77 @@ class ApplyDeviceConfigsRunner(config_util.GeneratorRunner):
     def _progress_update(self, progress):
         super(ApplyDeviceConfigsRunner, self)._progress_update(progress)
         self.progress_changed.emit(progress)
+
+class FillDeviceConfigsRunner(config_util.GeneratorRunner):
+    progress_changed = pyqtSignal(object)
+
+    def __init__(self, devices, parent_widget, parent=None):
+        super(FillDeviceConfigsRunner, self).__init__(parent=parent)
+
+        self.devices = devices
+        self.parent_widget = parent_widget
+
+    def _start(self):
+        self.generator = config_util.fill_device_configs(self.devices)
+
+    def _object_yielded(self, obj):
+        if isinstance(obj, config_util.SetParameterError):
+            set_result = obj.set_result
+            device     = obj.device
+
+            try:
+                param_name = device.profile[set_result.address].name
+                param_name = "'%s' (address=%d)" % (param_name, set_result.address)
+            except KeyError:
+                param_name = "address=%d" % (set_result.address,)
+
+            msg = "(%s, %d, %d): Error setting %s to %d. Result: %d" % (
+                    device.mrc.get_display_url(), device.bus, device.address,
+                    param_name, set_result.requested_value, set_result.value)
+
+            answer = QMB.question(
+                    self.parent_widget,
+                    "Set parameter error",
+                    msg,
+                    buttons=QMB.Ignore | QMB.Abort,
+                    defaultButton=QMB.Abort)
+
+            return (std_button_to_cfg_action(answer), False)
+
+        if isinstance(obj, hardware_controller.TimeoutError):
+
+            answer = QMB.question(
+                    self.parent_widget,
+                    "Connection error",
+                    "Timeout connecting to %s" % obj.args[0],
+                    buttons=QMB.Retry | QMB.Ignore | QMB.Abort,
+                    defaultButton=QMB.Retry)
+
+            return (std_button_to_cfg_action(answer), False)
+
+        if isinstance(obj, config_util.MissingDestinationDevice):
+
+            answer = QMB.question(
+                    self.parent_widget,
+                    "Missing Device",
+                    "No device at %s, %d, %d" % (util.display_url(obj.url), obj.bus, obj.dev),
+                    buttons=QMB.Retry | QMB.Ignore | QMB.Abort,
+                    defaultButton=QMB.Retry)
+
+            return (std_button_to_cfg_action(answer), False)
+
+        if isinstance(obj, config_util.IDCConflict):
+            answer = QMB.question(
+                    self.parent_widget,
+                    "IDC Conflict",
+                    str(obj),
+                    buttons=QMB.Retry | QMB.Ignore | QMB.Abort,
+                    defaultButton=QMB.Retry)
+
+            return (std_button_to_cfg_action(answer), False)
+
+        raise ValueError("unhandled object: %s" % obj)
+
+    def _progress_update(self, progress):
+        super(FillDeviceConfigsRunner, self)._progress_update(progress)
+        self.progress_changed.emit(progress)
