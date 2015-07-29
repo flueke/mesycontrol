@@ -189,10 +189,6 @@ class DeviceBase(QtCore.QObject):
         if self.read_mode & util.CONFIG:
             self.parameter_changed.emit(address, value)
 
-# Note: Widget display and write modes are independent of DeviceBase display
-# and write modes. Reason: The current AbstractParameterBinding implementations
-# all write directly to the device config and/or hardware. This makes it
-# possible to have multiple Widgets in different read/write modes.
 class DeviceWidgetBase(QtGui.QWidget):
     def __init__(self, specialized_device, display_mode, write_mode, parent=None):
         super(DeviceWidgetBase, self).__init__(parent)
@@ -201,19 +197,19 @@ class DeviceWidgetBase(QtGui.QWidget):
         self._write_mode   = write_mode
 
     def get_display_mode(self):
-        return self._display_mode
+        return self.device.read_mode
 
     def set_display_mode(self, display_mode):
-        self._display_mode = display_mode
+        self.device.read_mode = display_mode
 
         for binding in self.get_parameter_bindings():
             binding.display_mode = display_mode
 
     def get_write_mode(self):
-        return self._write_mode
+        return self.device.write_mode
 
     def set_write_mode(self, write_mode):
-        self._write_mode = write_mode
+        self.device.write_mode = write_mode
 
         for binding in self.get_parameter_bindings():
             binding.write_mode = write_mode
