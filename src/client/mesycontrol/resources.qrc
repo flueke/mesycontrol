@@ -1,34 +1,40 @@
 <!DOCTYPE RCC><RCC version="1.0">
 <qresource>
+    <!-- icons -->
+    <file alias="add-config.png">ui/plus-2x.png</file>
+    <file alias="add-mrc.png">ui/plus-2x.png</file>
+    <file alias="apply-config-to-hardware.png">ui/arrow-circle-left-2x.png</file>
+    <file alias="apply-hardware-to-config.png">ui/arrow-circle-right-2x.png</file>
     <file alias="arrow-bottom.png">ui/arrow-bottom-2x.png</file>
+    <file alias="check-config.png">ui/check-2x.png</file>
+    <file alias="close-setup.png">ui/process-stop.png</file>
     <file alias="connected.png">ui/connected.png</file>
     <file alias="connecting.png">ui/loop-circular-2x.png</file>
     <file alias="connection-error.png">ui/warning-2x.png</file>
-    <file alias="disconnected.png">ui/disconnected.png</file>
-    <file alias="linked.png">ui/link-broken-2x.png</file>
-    <file alias="polarity-negative.png">ui/list-remove.png</file>
-    <file alias="polarity-positive.png">ui/list-add.png</file>
-    <file alias="unlinked.png">ui/link-intact-2x.png</file>
-
     <file alias="connect.png">ui/connected.png</file>
+    <file alias="disconnected.png">ui/disconnected.png</file>
     <file alias="disconnect.png">ui/disconnected.png</file>
-    <file alias="refresh.png">ui/loop-circular-2x.png</file>
-
+    <file alias="linked.png">ui/link-broken-2x.png</file>
     <file alias="open-device-table.png">ui/spreadsheet-2x.png</file>
     <file alias="open-device-widget.png">ui/dial-2x.png</file>
     <file alias="open-setup.png">ui/document-open.png</file>
+    <file alias="polarity-negative.png">ui/list-remove.png</file>
+    <file alias="polarity-positive.png">ui/list-add.png</file>
+    <file alias="polling.png">ui/timer-2x.png</file>
+    <file alias="refresh.png">ui/loop-circular-2x.png</file>
+    <file alias="remove-config.png">ui/minus-2x.png</file>
+    <file alias="remove-mrc.png">ui/minus-2x.png</file>
     <file alias="save-setup-as.png">ui/document-save-as.png</file>
     <file alias="save-setup.png">ui/document-save.png</file>
     <file alias="select-display-mode.png">ui/eye-2x.png</file>
     <file alias="select-write-mode.png">ui/pencil-2x.png</file>
+    <file alias="unlinked.png">ui/link-intact-2x.png</file>
+    <file alias="window-icon.png">ui/window-icon.png</file>
 
-    <file alias="apply-config-to-hardware.png">ui/arrow-circle-left-2x.png</file>
-    <file alias="apply-hardware-to-config.png">ui/arrow-circle-right-2x.png</file>
 
     <file>ui/applications-utilities.png</file>
     <file>ui/ban-2x.png</file>
     <file>ui/bolt-2x.png</file>
-    <file>ui/check-2x.png</file>
     <file>ui/circle-x-2x.png</file>
     <file>ui/cog-2x.png</file>
     <file>ui/data-transfer-download-2x.png</file>
@@ -42,10 +48,10 @@
     <file>ui/process-stop.png</file>
     <file>ui/reload-2x.png</file>
     <file>ui/task-2x.png</file>
-    <file>ui/timer-2x.png</file>
     <file>ui/wrench-2x.png</file>
     <file>ui/x-2x.png</file>
 
+    <!-- Designer UI files -->
     <file>ui/connect_dialog.ui</file>
     <file>ui/device_tableview_settings.ui</file>
     <file>ui/mainwin.ui</file>
@@ -58,3 +64,5 @@
     <file>ui/subprogress_widget.ui</file>
 </qresource>
 </RCC>
+<!-- vim:ft=xml
+     -->

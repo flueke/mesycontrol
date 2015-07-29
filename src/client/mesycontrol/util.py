@@ -588,6 +588,32 @@ class FixedWidthVerticalToolBar(QtGui.QWidget):
         self.layout().addStretch(1)
         self.setFixedWidth(self.sizeHint().width())
 
+class SimpleToolBar(QtGui.QWidget):
+    def __init__(self, orientation=Qt.Horizontal, parent=None):
+        super(SimpleToolBar, self).__init__(parent)
+        self.orientation = orientation
+        if orientation == Qt.Horizontal:
+            self.setLayout(QtGui.QHBoxLayout())
+        else:
+            self.setLayout(QtGui.QVBoxLayout())
+
+        self.layout().setSpacing(2)
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().addStretch(1)
+
+    def addAction(self, action):
+        super(SimpleToolBar, self).addAction(action)
+        b = QtGui.QToolButton()
+        b.setDefaultAction(action)
+        self.addWidget(b)
+
+    def addWidget(self, widget):
+        self.layout().takeAt(self.layout().count()-1)
+        self.layout().addWidget(widget, 0, Qt.AlignCenter)
+        self.layout().addStretch(1)
+        if self.orientation == Qt.Vertical:
+            self.setFixedWidth(self.sizeHint().width())
+
 def make_apply_common_button_layout(input_spinbox, tooltip, on_clicked):
 
     # Wrapper to invoke the clicked handler without the boolean arg that's

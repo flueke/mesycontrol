@@ -20,6 +20,7 @@ from .. import future
 from .. import parameter_binding as pb
 from .. import util
 from .. specialized_device import DeviceBase
+from .. specialized_device import DeviceWidgetBase
 from .. util import hline
 from .. util import make_spinbox
 from .. util import make_title_label
@@ -371,23 +372,26 @@ class MCFD16(DeviceBase):
 # ==========  GUI ========== 
 dynamic_label_style = "QLabel { background-color: lightgrey; }"
 
-class MCFD16Widget(QtGui.QWidget):
+class MCFD16Widget(DeviceWidgetBase):
     def __init__(self, device, display_mode, write_mode, parent=None):
-        super(MCFD16Widget, self).__init__(parent)
+        super(MCFD16Widget, self).__init__(device, display_mode, write_mode, parent)
 
-        self.device = device
+        self.toolbox = QtGui.QToolBox()
 
-        toolbox = QtGui.QToolBox()
-
-        toolbox.addItem(MCFD16ControlsWidget(device, display_mode, write_mode, self),
+        self.toolbox.addItem(MCFD16ControlsWidget(device, display_mode, write_mode, self),
                 "Preamp / CFD")
 
-        toolbox.addItem(MCFD16SetupWidget(device, display_mode, write_mode, self),
+        self.toolbox.addItem(MCFD16SetupWidget(device, display_mode, write_mode, self),
                 "Trigger / Coincidence Setup")
 
         layout = QtGui.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(toolbox)
+        layout.addWidget(self.toolbox)
+
+    def get_parameter_bindings(self):
+        tb  = self.toolbox
+        gen = (tb.widget(i).get_parameter_bindings() for i in range(tb.count()))
+        return itertools.chain(*gen)
 
 def make_dynamic_label(initial_value="", longest_value=None, fixed_width=True, fixed_height=False,
         alignment=Qt.AlignRight | Qt.AlignVCenter):
@@ -1034,15 +1038,13 @@ class MCFD16ControlsWidget(QtGui.QWidget):
         vbox.addStretch(1)
         layout.addItem(vbox)
 
-    def showEvent(self, event):
-        if not event.spontaneous():
-            for b in itertools.chain(
-                    self.bindings,
-                    self.preamp_page.bindings,
-                    self.discriminator_page.bindings,
-                    self.width_deadtime_page.bindings):
-                b.populate()
-
+    def get_parameter_bindings(self):
+        return itertools.chain(
+                self.bindings,
+                self.preamp_page.bindings,
+                self.discriminator_page.bindings,
+                self.width_deadtime_page.bindings)
+                
 class BitPatternHelper(QtCore.QObject):
     value_changed = pyqtSignal(int)
 
@@ -1469,10 +1471,8 @@ class TriggerSetupWidget(QtGui.QWidget):
     def _update_label_gg_te_delay(self, rf):
         self.label_gg_te_delay.setText("%d ns" % CONV_TABLE_GATEGEN_NS[int(rf.result())])
 
-    def showEvent(self, event):
-        if not event.spontaneous():
-            for b in self.bindings:
-                b.populate()
+    def get_parameter_bindings(self):
+        return self.bindings
 
 class PairCoincidenceSetupWidget(QtGui.QWidget):
     """Pair coincidence matrix display."""
@@ -1546,27 +1546,31 @@ class PairCoincidenceSetupWidget(QtGui.QWidget):
                 cb.setToolTip("pair_pattern%d_low, pair_pattern%d_high" % (i+1, i+1))
                 cb.setStatusTip(cb.toolTip())
 
-    def showEvent(self, event):
-        if not event.spontaneous():
-            for b in self.bindings:
-                b.populate()
+    def get_parameter_bindings(self):
+        return self.bindings
 
 class MCFD16SetupWidget(QtGui.QWidget):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(MCFD16SetupWidget, self).__init__(parent)
+
+        self.trigger_widget     = TriggerSetupWidget(
+                device, display_mode, write_mode, self)
+
+        self.coincidence_widget = PairCoincidenceSetupWidget(
+                device, display_mode, write_mode, self)
 
         gbs = list()
 
         gb = QtGui.QGroupBox("Trigger setup")
         gb_layout = QtGui.QHBoxLayout(gb)
         gb_layout.setContentsMargins(0, 0, 0, 0)
-        gb_layout.addWidget(TriggerSetupWidget(device, display_mode, write_mode, self))
+        gb_layout.addWidget(self.trigger_widget)
         gbs.append(gb)
 
         gb = QtGui.QGroupBox("Pair coincidence")
         gb_layout = QtGui.QHBoxLayout(gb)
         gb_layout.setContentsMargins(0, 0, 0, 0)
-        gb_layout.addWidget(PairCoincidenceSetupWidget(device, display_mode, write_mode, self))
+        gb_layout.addWidget(self.coincidence_widget)
         gbs.append(gb)
 
         layout = QtGui.QVBoxLayout(self)
@@ -1579,6 +1583,11 @@ class MCFD16SetupWidget(QtGui.QWidget):
             layout.addLayout(h_layout)
 
         layout.addStretch(1)
+
+    def get_parameter_bindings(self):
+        return itertools.chain(
+                self.trigger_widget.get_parameter_bindings(),
+                self.coincidence_widget.get_parameter_bindings())
 
 # ==========  Module ========== 
 idc             = 26

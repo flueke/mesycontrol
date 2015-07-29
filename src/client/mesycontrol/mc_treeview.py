@@ -298,13 +298,29 @@ class MCTreeView(QtGui.QWidget):
         self.cfg_view.expandAll()
         self.hw_view.expandAll()
 
-        self.splitter_buttons = util.FixedWidthVerticalToolBar()
+        self.splitter_toolbar   = util.SimpleToolBar(Qt.Vertical)
+        self.cfg_toolbar        = util.SimpleToolBar(Qt.Horizontal)
+        self.cfg_toolbar.layout().setContentsMargins(0, 0, 0, 0)
+        self.hw_toolbar         = util.SimpleToolBar(Qt.Horizontal)
+        self.hw_toolbar.layout().setContentsMargins(2, 0, 2, 0)
+
+        cfg_widget = QtGui.QWidget()
+        cfg_layout = QtGui.QVBoxLayout(cfg_widget)
+        cfg_layout.setContentsMargins(0, 0, 0, 0)
+        cfg_layout.addWidget(self.cfg_toolbar)
+        cfg_layout.addWidget(self.cfg_view)
+
+        hw_widget = QtGui.QWidget()
+        hw_layout = QtGui.QVBoxLayout(hw_widget)
+        hw_layout.setContentsMargins(0, 0, 0, 0)
+        hw_layout.addWidget(self.hw_toolbar)
+        hw_layout.addWidget(self.hw_view)
 
         splitter = DoubleClickSplitter()
         splitter.setChildrenCollapsible(False)
-        splitter.addWidget(self.hw_view)
-        splitter.addWidget(self.splitter_buttons)
-        splitter.addWidget(self.cfg_view)
+        splitter.addWidget(hw_widget)
+        splitter.addWidget(self.splitter_toolbar)
+        splitter.addWidget(cfg_widget)
 
         def on_handle_double_clicked():
             # make hw and cfg views the same size which will result in the

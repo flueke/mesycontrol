@@ -333,9 +333,13 @@ class GUIApplication(QtCore.QObject):
 
     def _setup_modified_changed(self, modified):
         self.actions['save_setup'].setEnabled(modified)
+        self.actions['save_setup_as'].setEnabled(len(self.context.setup))
 
     def _create_actions(self):
+        # Actions will be added to toolbars in dictionary insertion order.
         self.actions = collections.OrderedDict()
+
+        # ===== Config ===== #
 
         # Open setup
         action = QtGui.QAction(make_icon(":/open-setup.png"),
@@ -344,7 +348,7 @@ class GUIApplication(QtCore.QObject):
         action.setToolTip("Open a setup file")
         action.setStatusTip(action.toolTip())
         action.setShortcut(QtGui.QKeySequence.Open)
-        action.toolbar = True
+        action.cfg_toolbar = True
         self.actions['open_setup'] = action
 
         # Save setup
@@ -354,7 +358,7 @@ class GUIApplication(QtCore.QObject):
         action.setToolTip("Save setup")
         action.setStatusTip(action.toolTip())
         action.setShortcut(QtGui.QKeySequence.Save)
-        action.toolbar = True
+        action.cfg_toolbar = True
         self.actions['save_setup'] = action
 
         # Save setup as
@@ -364,24 +368,86 @@ class GUIApplication(QtCore.QObject):
         action.setToolTip("Save setup as")
         action.setStatusTip(action.toolTip())
         action.setShortcut(QtGui.QKeySequence.SaveAs)
-        action.toolbar = True
+        action.cfg_toolbar = True
         self.actions['save_setup_as'] = action
 
         # Close setup
-        action = QtGui.QAction(make_standard_icon(QtGui.QStyle.SP_DialogCloseButton),
-                "Close setup", self, triggered=self._close_setup)
+        action = QtGui.QAction(make_icon(":/close-setup.png"),
+                "&Close setup", self, triggered=self._close_setup)
 
-        action.setToolTip("&Close setup")
+        action.setToolTip("Close setup")
         action.setStatusTip(action.toolTip())
-        action.setShortcut(QtGui.QKeySequence.Close)
-        action.toolbar = True
+        action.cfg_toolbar = True
         self.actions['close_setup'] = action
 
-        # Separator
-        action = QtGui.QAction(self)
-        action.setSeparator(True)
-        action.toolbar = True
-        self.actions['sep1'] = action
+        # Add config
+        action = QtGui.QAction(make_icon(":/add-config.png"), "Add config", self,
+                triggered=self._add_config)
+        action.cfg_toolbar = True
+        self.actions['add_config'] = action
+
+        # Remove config
+        action = QtGui.QAction(make_icon(":/remove-config.png"), "Remove config", self,
+                triggered=self._remove_config)
+        action.cfg_toolbar = True
+        self.actions['remove_config'] = action
+
+        # ===== Hardware ===== #
+
+        # Connect/Disconnect
+        icons = {
+                'connect':      make_icon(":/connect.png"),
+                'disconnect':   make_icon(":/disconnect.png")
+                }
+
+        action = QtGui.QAction(icons['connect'], "&Connect", self,
+                triggered=self._connect_or_disconnect)
+        action.icons = icons
+        action.hw_toolbar = True
+        self.actions['connect_disconnect'] = action
+
+        # Refresh / Scanbus
+        # FIXME: what does this do? split into scanbus and refresh?!?!?!
+        action = QtGui.QAction(make_icon(":/refresh.png"), "&Refresh", self,
+                triggered=self._refresh)
+        action.hw_toolbar = True
+        self.actions['refresh'] = action
+
+        # Toggle polling
+        action = QtGui.QAction(make_icon(":/polling.png"), "Toggle Polling", self,
+                checkable=True, triggered=self._toggle_polling)
+        action.hw_toolbar = True
+        self.actions['toggle_polling'] = action
+
+        # Add connection
+        action = QtGui.QAction(make_icon(":/add-mrc.png"), "Add MRC connection", self,
+                triggered=self._add_mrc_connection)
+        action.hw_toolbar = True
+        self.actions['add_mrc_connection'] = action
+
+        # Remove connection
+        action = QtGui.QAction(make_icon(":/remove-mrc.png"), "Remove MRC connection", self,
+                triggered=self._remove_mrc_connection)
+        action.hw_toolbar = True
+        self.actions['remove_mrc_connection'] = action
+
+        # ===== Splitter =====
+        # Linked Mode
+        link_icons = {
+                True:  make_icon(":/linked.png"),
+                False: make_icon(":/unlinked.png")
+                }
+
+        action = QtGui.QAction(link_icons[self.linked_mode], "Toggle linked mode",
+                self, toggled=self.set_linked_mode)
+
+        action.icons = link_icons
+        action.setToolTip("Link Hardware & Config Views")
+        action.setStatusTip(action.toolTip())
+        action.setCheckable(True)
+        action.setChecked(self.linked_mode)
+        action.splitter_toolbar = True
+        self.actions['toggle_linked_mode'] = action
 
         # Widget window
         action = QtGui.QAction(make_icon(":/open-device-widget.png"),
@@ -389,7 +455,7 @@ class GUIApplication(QtCore.QObject):
 
         action.setToolTip("Open device widget")
         action.setStatusTip(action.toolTip())
-        action.toolbar = True
+        action.splitter_toolbar = True
         self.actions['open_device_widget'] = action
 
         # Table window
@@ -398,14 +464,28 @@ class GUIApplication(QtCore.QObject):
 
         action.setToolTip("Open device table")
         action.setStatusTip(action.toolTip())
-        action.toolbar = True
+        action.splitter_toolbar = True
         self.actions['open_device_table'] = action
 
-        # Separator
-        action = QtGui.QAction(self)
-        action.setSeparator(True)
-        action.toolbar = True
-        self.actions['sep2'] = action
+        # Check config
+        action = QtGui.QAction(make_icon(":/check-config.png"), "Check config", self,
+                triggered=self._check_config)
+        action.splitter_toolbar = True
+        self.actions['check_config'] = action
+
+        # Config to Hardware
+        action = QtGui.QAction(make_icon(":/apply-config-to-hardware.png"),
+                "Apply config to hardware", self, triggered=self._apply_config_to_hardware)
+        action.splitter_toolbar = True
+        self.actions['apply_config_to_hardware'] = action
+
+        # Hardware to Config
+        action = QtGui.QAction(make_icon(":/apply-hardware-to-config.png"),
+                "Copy hardware values to config", self, triggered=self._apply_hardware_to_config)
+        action.splitter_toolbar = True
+        self.actions['apply_hardware_to_config'] = action
+
+        # ===== Mainwindow toolbar =====
 
         # Display mode
         group = QtGui.QActionGroup(self)
@@ -478,44 +558,6 @@ class GUIApplication(QtCore.QObject):
                 triggered=self.mainwindow.mdiArea.closeAllSubWindows)
         self.actions['close_all_windows'] = action
 
-        # Linked Mode
-        link_icons = {
-                True:  make_icon(":/linked.png"),
-                False: make_icon(":/unlinked.png")
-                }
-
-        action = QtGui.QAction(link_icons[self.linked_mode], "Toggle linked mode",
-                self, toggled=self.set_linked_mode)
-
-        action.icons = link_icons
-        action.setToolTip("Link Hardware & Config Views")
-        action.setStatusTip(action.toolTip())
-        action.setCheckable(True)
-        action.setChecked(self.linked_mode)
-        action.treeview_splitter = True
-        self.actions['toggle_linked_mode'] = action
-
-        # Config to Hardware
-        action = QtGui.QAction(make_icon(":/apply-config-to-hardware.png"),
-                "Apply config to hardware", self, triggered=self._apply_config_to_hardware)
-        action.treeview_splitter = True
-        self.actions['apply_config_to_hardware'] = action
-
-        # Hardware to Config
-        action = QtGui.QAction(make_icon(":/apply-hardware-to-config.png"),
-                "Copy hardware values to config", self, triggered=self._apply_hardware_to_config)
-        action.treeview_splitter = True
-        self.actions['apply_hardware_to_config'] = action
-
-        # Connect
-        action = QtGui.QAction(make_icon(":/connect.png"), "&Connect", self)
-
-        # Disconnect
-        action = QtGui.QAction(make_icon(":/disconnect.png"), "&Disconnect", self)
-
-        # Refresh
-        action = QtGui.QAction(make_icon(":/refresh.png"), "&Refresh", self)
-
     def _populate_menus(self):
         menu_file = self.mainwindow.menu_file
         menu_file.addAction(self.actions['open_setup'])
@@ -536,7 +578,7 @@ class GUIApplication(QtCore.QObject):
 
     def _populate_toolbar(self):
         tb = self.mainwindow.toolbar
-        f  = lambda a: hasattr(a, 'toolbar') and a.toolbar
+        f  = lambda a: getattr(a, 'toolbar', False)
 
         for action in filter(f, self.actions.values()):
             tb.addAction(action)
@@ -544,11 +586,23 @@ class GUIApplication(QtCore.QObject):
                 tb.widgetForAction(action).setPopupMode(QtGui.QToolButton.InstantPopup)
 
     def _populate_treeview(self):
-        tvs = self.treeview.splitter_buttons
-        f   = lambda a: hasattr(a, 'treeview_splitter') and a.treeview_splitter
+        # Splitter
+        f = lambda a: getattr(a, 'splitter_toolbar', False)
 
         for action in filter(f, self.actions.values()):
-            tvs.addAction(action)
+            self.treeview.splitter_toolbar.addAction(action)
+
+        # Config
+        f = lambda a: getattr(a, 'cfg_toolbar', False)
+
+        for action in filter(f, self.actions.values()):
+            self.treeview.cfg_toolbar.addAction(action)
+
+        # Hardware
+        f = lambda a: getattr(a, 'hw_toolbar', False)
+
+        for action in filter(f, self.actions.values()):
+            self.treeview.hw_toolbar.addAction(action)
 
     # ===== Action implementations =====
     def _open_setup(self):
@@ -564,6 +618,71 @@ class GUIApplication(QtCore.QObject):
         run_close_setup(context=self.context, parent_widget=self.mainwindow)
         self.context.make_qsettings().remove('Files/last_setup_file')
 
+    def _add_config(self):
+        node = self._selected_tree_node
+
+        if is_setup(node):
+            run_add_mrc_config_dialog(
+                    registry=self.app_registry,
+                    parent_widget=self.mainwindow)
+
+        if is_mrc(node):
+            run_add_device_config_dialog(
+                    registry=self.app_registry,
+                    device_registry=self.context.device_registry,
+                    mrc=node.ref,
+                    parent_widget=self.mainwindow)
+
+        if is_bus(node):
+            run_add_device_config_dialog(
+                    registry=self.app_registry,
+                    device_registry=self.context.device_registry,
+                    mrc=node.parent.ref,
+                    bus=node.bus_number,
+                    parent_widget=self.mainwindow)
+
+    def _remove_config(self):
+        node = self._selected_tree_node
+
+        if is_mrc(node):
+            self.app_registry.cfg.remove_mrc(node.ref.cfg)
+
+        if is_device(node):
+            device = node.ref
+            self._close_device_windows(device)
+            device.mrc.cfg.remove_device(device.cfg)
+
+    def _connect_or_disconnect(self):
+        node = self._selected_tree_node
+
+        if is_mrc(node):
+            if node.ref.hw.is_disconnected():
+                node.ref.hw.connect()
+            else:
+                node.ref.hw.disconnect()
+
+    def _refresh(self):
+        raise NotImplementedError()
+
+    def _toggle_polling(self):
+        node = self._selected_tree_node
+
+        if is_mrc(node) or is_device(node):
+            node.ref.polling = not node.ref.polling
+
+    def _add_mrc_connection(self):
+        run_add_mrc_connection_dialog(
+                registry=self.app_registry,
+                parent_widget=self.mainwindow)
+
+    def _remove_mrc_connection(self):
+        node = self._selected_tree_node
+
+        def do_remove(f_ignored):
+            self.app_registry.hw.remove_mrc(node.ref.hw)
+
+        node.ref.hw.disconnect.add_done_callback(do_remove)
+
     def _open_device_widget(self):
         node = self._selected_tree_node
 
@@ -575,6 +694,9 @@ class GUIApplication(QtCore.QObject):
 
         self._create_device_table_window(self._selected_device,
                 is_device_cfg(node), is_device_hw(node))
+
+    def _check_config(self):
+        pass
 
     def _apply_config_to_hardware(self):
         node = self._selected_tree_node
@@ -934,6 +1056,37 @@ class GUIApplication(QtCore.QObject):
     def _cfg_context_menu(self, node, idx, pos, view):
         menu = QtGui.QMenu()
 
+        def add_action(action):
+            if action.isEnabled():
+                menu.addAction(action)
+
+        if is_setup(node):
+            add_action(self.actions['open_setup'])
+            add_action(self.actions['save_setup'])
+            add_action(self.actions['save_setup_as'])
+            add_action(self.actions['close_setup'])
+            menu.addSeparator()
+            add_action(self.actions['add_config'])
+
+        if is_mrc(node):
+            add_action(self.actions['add_config'])
+            add_action(self.actions['remove_config'])
+
+        if is_bus(node):
+            add_action(self.actions['add_config'])
+
+        if is_device(node):
+            add_action(self.actions['open_device_widget'])
+            add_action(self.actions['open_device_table'])
+            menu.addSeparator()
+            add_action(self.actions['remove_config'])
+
+        if not menu.isEmpty():
+            menu.exec_(view.mapToGlobal(pos))
+
+    def _cfg_context_menu_old(self, node, idx, pos, view):
+        menu = QtGui.QMenu()
+
         if isinstance(node, ctm.SetupNode):
             setup = node.ref.cfg
 
@@ -1074,6 +1227,35 @@ class GUIApplication(QtCore.QObject):
     def _hw_context_menu(self, node, idx, pos, view):
         menu = QtGui.QMenu()
 
+        def add_action(action):
+            if action.isEnabled():
+                menu.addAction(action)
+
+        if is_registry(node):
+            add_action(self.actions['add_mrc_connection'])
+
+        if is_mrc(node):
+            add_action(self.actions['connect_disconnect'])
+            add_action(self.actions['refresh'])
+            add_action(self.actions['toggle_polling'])
+            menu.addSeparator()
+            add_action(self.actions['remove_mrc_connection'])
+
+        if is_bus(node):
+            add_action(self.actions['refresh'])
+
+        if is_device(node):
+            add_action(self.actions['open_device_widget'])
+            add_action(self.actions['open_device_table'])
+            add_action(self.actions['toggle_polling'])
+            add_action(self.actions['refresh'])
+
+        if not menu.isEmpty():
+            menu.exec_(view.mapToGlobal(pos))
+
+    def _hw_context_menu_old(self, node, idx, pos, view):
+        menu = QtGui.QMenu()
+
         if isinstance(node, htm.RegistryNode):
             menu.addAction("Add MRC Connection").triggered.connect(partial(run_add_mrc_connection_dialog,
                 registry=self.app_registry, parent_widget=self.treeview))
@@ -1195,6 +1377,7 @@ class MainWindow(QtGui.QMainWindow):
         self.log = util.make_logging_source_adapter(__name__, self)
         self.context = context
         util.loadUi(":/ui/mainwin.ui", self)
+        self.setWindowIcon(make_icon(":/window-icon.png"))
 
         # Treeview
         self.treeview = MCTreeView(app_registry=context.app_registry,

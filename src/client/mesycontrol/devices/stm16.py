@@ -8,11 +8,14 @@ from .. qt import Qt
 from .. qt import QtCore
 from .. qt import QtGui
 
+import itertools
+
 from .. future import set_result_on
 from .. import future
 from .. import parameter_binding as pb
 from .. import util
 from .. specialized_device import DeviceBase
+from .. specialized_device import DeviceWidgetBase
 from .. util import hline
 from .. util import make_spinbox
 from .. util import make_title_label
@@ -200,9 +203,9 @@ class TimingPage(QtGui.QGroupBox):
                 unit_name='percent',
                 target=label_threshold))
 
-class STM16Widget(QtGui.QWidget):
+class STM16Widget(DeviceWidgetBase):
     def __init__(self, device, display_mode, write_mode, parent=None):
-        super(STM16Widget, self).__init__(parent)
+        super(STM16Widget, self).__init__(device, display_mode, write_mode, parent)
         self.device  = device
 
         self.gain_page   = GainPage(device, display_mode, write_mode, self)
@@ -221,27 +224,8 @@ class STM16Widget(QtGui.QWidget):
             layout.addItem(vbox)
             page.installEventFilter(self)
 
-    def set_display_mode(self, display_mode):
-        for page in self.pages:
-            for binding in page.bindings:
-                binding.set_display_mode(display_mode)
-
-    def set_write_mode(self, write_mode):
-        for page in self.pages:
-            for binding in page.bindings:
-                binding.set_write_mode(write_mode)
-
-    def eventFilter(self, watched_object, event):
-        # Populate pages on show events
-
-        if (event.type() == QtCore.QEvent.Show
-                and not event.spontaneous()
-                and hasattr(watched_object, 'bindings')):
-
-            for b in watched_object.bindings:
-                b.populate()
-
-        return False
+    def get_parameter_bindings(self):
+        return itertools.chain(*(p.bindings for p in self.pages))
 
 idc             = 19
 device_class    = STM16

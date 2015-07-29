@@ -12,6 +12,7 @@ import weakref
 from mesycontrol import app_context
 from mesycontrol import gui
 from mesycontrol import util
+from mesycontrol.qt import Qt
 from mesycontrol.qt import QtCore
 from mesycontrol.qt import QtGui
 
@@ -81,6 +82,7 @@ if __name__ == "__main__":
     QtCore.QLocale.setDefault(QtCore.QLocale.c())
     app = QtGui.QApplication(sys.argv)
     app.setStyle(QtGui.QStyleFactory.create("Windows"))
+    app.setAttribute(Qt.AA_DontShowIconsInMenus, False)
 
     # Let the interpreter run every 500 ms to be able to react to signals
     # arriving from the OS.

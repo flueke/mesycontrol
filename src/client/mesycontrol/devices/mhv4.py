@@ -10,12 +10,14 @@ from .. qt import QtCore
 from .. qt import QtGui
 
 from functools import partial
+import itertools
 import math
 import weakref
 
 from .. import parameter_binding as pb
 from .. import util
 from .. specialized_device import DeviceBase
+from .. specialized_device import DeviceWidgetBase
 
 import mhv4_profile
 
@@ -137,11 +139,6 @@ class ChannelWidget(QtGui.QWidget):
         # TODO: gray out/disable hw-only things
         # TODO: current display coloring
         # TODO: temperature display
-
-    def showEvent(self, event):
-        if not event.spontaneous():
-            for b in self.bindings:
-                b.populate()
 
     def set_target_voltage(self, voltage):
         if self.spin_target_voltage.maximum() < voltage:
@@ -424,10 +421,9 @@ def set_if_differs(cur, new, setter):
         return True
     return False
 
-class MHV4Widget(QtGui.QWidget):
+class MHV4Widget(DeviceWidgetBase):
     def __init__(self, device, display_mode, write_mode, parent=None):
-        super(MHV4Widget, self).__init__(parent)
-        self.device  = device
+        super(MHV4Widget, self).__init__(device, display_mode, write_mode, parent)
 
         self.channels = list()
         self.channel_settings = list()
@@ -659,6 +655,10 @@ class MHV4Widget(QtGui.QWidget):
                 setter=d.set_ramp_speed)
 
         gsw.modified = False
+
+    def get_parameter_bindings(self):
+        return itertools.chain(*(cw().bindings for cw in self.channels))
+
 idc             = 27
 device_class    = MHV4
 device_ui_class = MHV4Widget
