@@ -249,6 +249,24 @@ def run_close_setup(context, parent_widget):
 
     context.reset_setup()
 
+def is_setup(node):
+    return isinstance(node, (ctm.SetupNode, htm.RegistryNode))
+
+def is_mrc(node):
+    return isinstance(node, (ctm.MRCNode, htm.MRCNode))
+
+def is_bus(node):
+    return isinstance(node, (ctm.BusNode, htm.BusNode))
+
+def is_device(node):
+    return isinstance(node, (ctm.DeviceNode, htm.DeviceNode))
+
+def is_device_cfg(node):
+    return isinstance(node, ctm.DeviceNode)
+
+def is_device_hw(node):
+    return isinstance(node, htm.DeviceNode)
+
 class GUIApplication(QtCore.QObject):
     """GUI logic"""
     def __init__(self, context, mainwindow):
@@ -543,26 +561,65 @@ class GUIApplication(QtCore.QObject):
 
     def _open_device_widget(self):
         node = self._selected_tree_node
-        is_device_cfg = isinstance(node, ctm.DeviceNode)
-        is_device_hw  = isinstance(node, htm.DeviceNode)
 
-        self._create_device_widget_window(self._selected_device, is_device_cfg, is_device_hw)
+        self._create_device_widget_window(self._selected_device,
+                is_device_cfg(node), is_device_hw(node))
 
     def _open_device_table(self):
         node = self._selected_tree_node
-        is_device_cfg = isinstance(node, ctm.DeviceNode)
-        is_device_hw  = isinstance(node, htm.DeviceNode)
 
-        self._create_device_table_window(self._selected_device, is_device_cfg, is_device_hw)
+        self._create_device_table_window(self._selected_device,
+                is_device_cfg(node), is_device_hw(node))
 
     def _apply_config_to_hardware(self):
-        # Cases:
-        # Apply Setup
-        # Apply MRC
-        # Apply Bus
-        # Apply Device
-        # depending on the selected node
-        pass
+        # XXX: leftoff
+        node = self._selected_tree_node
+        runner = None
+        progress_dialog = None
+
+        if is_setup(node):
+            devices = [d for mrc in node.ref for d in mrc if d.has_cfg]
+
+            runner = config_gui.ApplyDeviceConfigsRunner(
+                    devices=devices,
+                    parent_widget=self.mainwindow)
+
+            progress_dialog = config_gui.SubProgressDialog()
+
+        elif is_mrc(node):
+            devices = [d for d in node.ref if d.has_cfg]
+
+            runner = config_gui.ApplyDeviceConfigsRunner(
+                    devices=devices,
+                    parent_widget=self.mainwindow)
+
+            progress_dialog = config_gui.SubProgressDialog()
+
+        elif is_bus(node):
+            devices = [d for d in node.parent.ref.get_devices(bus=node.bus_number) if d.has_cfg]
+
+            runner = config_gui.ApplyDeviceConfigsRunner(
+                    devices=devices,
+                    parent_widget=self.mainwindow)
+
+            progress_dialog = config_gui.SubProgressDialog()
+
+        elif is_device(node):
+            runner = config_gui.ApplyDeviceConfigRunner(
+                    device=node.ref, parent_widget=self.mainwindow)
+
+            progress_dialog = QtGui.QProgressDialog()
+
+        runner.progress_changed.connect(progress_dialog.set_progress)
+        progress_dialog.canceled.connect(runner.close)
+        f = runner.start()
+        fo = future.FutureObserver(f)
+        fo.done.connect(progress_dialog.close)
+        progress_dialog.exec_()
+
+        if f.done() and f.exception() is not None:
+            log.error("Apply config: %s", f.exception())
+            QtGui.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
 
     def _apply_hardware_to_config(self):
         pass
@@ -683,30 +740,35 @@ class GUIApplication(QtCore.QObject):
             window.close()
 
     def _tree_node_activated(self, node):
-        is_device_cfg = isinstance(node, ctm.DeviceNode)
-        is_device_hw  = isinstance(node, htm.DeviceNode)
-
-        if is_device_cfg or is_device_hw:
+        if is_device(node):
             device = node.ref
 
-            self._show_or_create_device_window(device, is_device_cfg, is_device_hw)
+            self._show_or_create_device_window(device,
+                    is_device_cfg(node), is_device_hw(node))
 
     def _tree_node_selected(self, node):
-        is_device_cfg = isinstance(node, ctm.DeviceNode)
-        is_device_hw  = isinstance(node, htm.DeviceNode)
-        is_device     = is_device_cfg or is_device_hw
-
         self._selected_tree_node = node
-        self._selected_device = device = node.ref if is_device else None
+        self._selected_device = device = node.ref if is_device(node) else None
 
-        self.actions['open_device_widget'].setEnabled(is_device and device.has_widget_class())
-        self.actions['open_device_table'].setEnabled(is_device)
-        self.actions['apply_config_to_hardware'].setEnabled(self.linked_mode and is_device
-                and device.has_hw and device.has_cfg)
-        self.actions['apply_hardware_to_config'].setEnabled(self.linked_mode and is_device
-                and device.has_hw)
+        self.actions['open_device_widget'].setEnabled(is_device(node) and device.has_widget_class())
+        self.actions['open_device_table'].setEnabled(is_device(node))
 
-        if is_device and not self._show_device_windows(device, is_device_cfg, is_device_hw):
+        a = self.actions['apply_config_to_hardware']
+        a.setEnabled(self.linked_mode and (
+            (is_setup(node) and node.ref.has_cfg) or
+            (is_mrc(node) and node.ref.has_cfg) or
+            (is_bus(node) and node.parent.ref.has_cfg) or
+            (is_device(node) and node.ref.has_cfg)))
+
+        a = self.actions['apply_hardware_to_config']
+        a.setEnabled(self.linked_mode and (
+            (is_setup(node) and node.ref.has_hw) or
+            (is_mrc(node) and node.ref.has_hw) or
+            (is_bus(node) and node.parent.ref.has_hw) or
+            (is_device(node) and node.ref.has_hw)))
+
+        if is_device(node) and not self._show_device_windows(device,
+                is_device_cfg(node), is_device_hw(node)):
             # No window for the selected node: make no window active in the mdi area
             self.mainwindow.mdiArea.setActiveSubWindow(None)
 
