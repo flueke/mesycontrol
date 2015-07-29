@@ -172,9 +172,10 @@ class ProgressUpdate(object):
         return "%d/%d: %s" % (self.current, self.total, self.text)
 
 class SetParameterError(RuntimeError):
-    def __init__(self, set_result):
+    def __init__(self, set_result, device=None):
         self.set_result = set_result
         self.url = None
+        self.device = device
 
     def __str__(self):
         if self.url is not None:
@@ -216,10 +217,10 @@ def apply_device_config(device):
 
             if isinstance(obj, SetParameterError):
                 obj.url = device.mrc.url
+                obj.device = device
 
             arg = yield obj
         except StopIteration:
-            #non_criticals = obj # XXX: why this line?
             break
         except GeneratorExit:
             gen.close()
@@ -582,3 +583,99 @@ def apply_setup(app_registry, device_registry):
             except GeneratorExit:
                 gen.close()
                 return
+
+
+def apply_device_configs(devices):
+    """Applies config values to the hardware for each of the given devices.
+    Required MRC connections are established.
+    """
+    skipped_mrcs    = set()
+    mrcs_to_connect = set(d.mrc for d in devices if (not d.mrc.has_hw or not d.mrc.hw.is_connected()))
+
+    progress             = ProgressUpdate(current=0, total=len(mrcs_to_connect) + len(devices))
+    progress.subprogress = ProgressUpdate(current=0, total=0)
+
+    yield progress
+
+    for device in devices:
+        mrc = device.mrc
+
+        if mrc.hw is None:
+            model_util.add_mrc_connection(
+                    hardware_registry=mrc.mrc_registry.hw,
+                    url=mrc.url, do_connect=False)
+
+        if mrc in skipped_mrcs:
+            continue
+
+        if mrc.hw.is_connecting():
+            # Cancel active connection attempts as we need the Future returned
+            # by connect().
+            yield mrc.hw.disconnect()
+
+        if mrc.hw.is_disconnected():
+            progress.text = "Connecting to %s" % mrc.get_display_url()
+            yield progress
+
+            action = ACTION_RETRY
+
+            while action == ACTION_RETRY:
+                f = yield mrc.hw.connect()
+
+                try:
+                    f.result()
+                    break
+                except hardware_controller.TimeoutError as e:
+                    action = yield e
+
+                    if action == ACTION_SKIP:
+                        skipped_mrcs.add(mrc)
+                        break
+
+            if action == ACTION_SKIP:
+                yield progress.increment()
+                continue
+
+        (yield mrc.hw.scanbus(0)).result()
+        (yield mrc.hw.scanbus(1)).result()
+        progress.text = "Connected to %s" % mrc.cfg.get_display_url()
+        yield progress.increment()
+
+        action = ACTION_RETRY
+
+        while device.hw is None and action == ACTION_RETRY:
+            action = yield MissingDestinationDevice(
+                    url=device.mrc.url, bus=device.bus, dev=device.address)
+
+            if action == ACTION_SKIP:
+                break
+
+        if action == ACTION_SKIP:
+            yield progress.increment()
+            continue
+
+        progress.text = "Current device: (%s, %d, %d)" % (
+                device.mrc.get_display_url(), device.bus, device.address)
+        yield progress
+
+        gen = apply_device_config(device)
+        arg = None
+
+        while True:
+            try:
+                obj = gen.send(arg)
+
+                if isinstance(obj, ProgressUpdate):
+                    progress.subprogress = obj
+                    yield progress
+                    arg = None
+                else:
+                    arg = yield obj
+
+            except StopIteration:
+                break
+            except GeneratorExit:
+                gen.close()
+                return
+
+        yield progress.increment()
