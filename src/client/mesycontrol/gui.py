@@ -252,6 +252,9 @@ def run_close_setup(context, parent_widget):
 def is_setup(node):
     return isinstance(node, (ctm.SetupNode, htm.RegistryNode))
 
+def is_registry(node):
+    return is_setup(node)
+
 def is_mrc(node):
     return isinstance(node, (ctm.MRCNode, htm.MRCNode))
 
@@ -336,7 +339,7 @@ class GUIApplication(QtCore.QObject):
 
         # Open setup
         action = QtGui.QAction(make_icon(":/open-setup.png"),
-                "Open setup", self, triggered=self._open_setup)
+                "&Open setup", self, triggered=self._open_setup)
 
         action.setToolTip("Open a setup file")
         action.setStatusTip(action.toolTip())
@@ -346,7 +349,7 @@ class GUIApplication(QtCore.QObject):
 
         # Save setup
         action = QtGui.QAction(make_icon(":/save-setup.png"),
-                "Save setup", self, triggered=self._save_setup)
+                "&Save setup", self, triggered=self._save_setup)
 
         action.setToolTip("Save setup")
         action.setStatusTip(action.toolTip())
@@ -356,7 +359,7 @@ class GUIApplication(QtCore.QObject):
 
         # Save setup as
         action = QtGui.QAction(make_icon(":/save-setup-as.png"),
-                "Save setup as", self, triggered=self._save_setup_as)
+                "S&ave setup as", self, triggered=self._save_setup_as)
 
         action.setToolTip("Save setup as")
         action.setStatusTip(action.toolTip())
@@ -368,7 +371,7 @@ class GUIApplication(QtCore.QObject):
         action = QtGui.QAction(make_standard_icon(QtGui.QStyle.SP_DialogCloseButton),
                 "Close setup", self, triggered=self._close_setup)
 
-        action.setToolTip("Close setup")
+        action.setToolTip("&Close setup")
         action.setStatusTip(action.toolTip())
         action.setShortcut(QtGui.QKeySequence.Close)
         action.toolbar = True
@@ -518,6 +521,7 @@ class GUIApplication(QtCore.QObject):
         menu_file.addAction(self.actions['open_setup'])
         menu_file.addAction(self.actions['save_setup'])
         menu_file.addAction(self.actions['save_setup_as'])
+        menu_file.addAction(self.actions['close_setup'])
         menu_file.addSeparator()
         menu_file.addAction(self.actions['quit'])
 
@@ -558,6 +562,7 @@ class GUIApplication(QtCore.QObject):
 
     def _close_setup(self):
         run_close_setup(context=self.context, parent_widget=self.mainwindow)
+        self.context.make_qsettings().remove('Files/last_setup_file')
 
     def _open_device_widget(self):
         node = self._selected_tree_node
@@ -572,7 +577,6 @@ class GUIApplication(QtCore.QObject):
                 is_device_cfg(node), is_device_hw(node))
 
     def _apply_config_to_hardware(self):
-        # XXX: leftoff
         node = self._selected_tree_node
         runner = None
         progress_dialog = None
@@ -605,10 +609,11 @@ class GUIApplication(QtCore.QObject):
             progress_dialog = config_gui.SubProgressDialog()
 
         elif is_device(node):
-            runner = config_gui.ApplyDeviceConfigRunner(
-                    device=node.ref, parent_widget=self.mainwindow)
+            runner = config_gui.ApplyDeviceConfigsRunner(
+                    devices=[node.ref],
+                    parent_widget=self.mainwindow)
 
-            progress_dialog = QtGui.QProgressDialog()
+            progress_dialog = config_gui.SubProgressDialog()
 
         runner.progress_changed.connect(progress_dialog.set_progress)
         progress_dialog.canceled.connect(runner.close)
@@ -622,8 +627,46 @@ class GUIApplication(QtCore.QObject):
             QtGui.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
 
     def _apply_hardware_to_config(self):
-        pass
-        # Same cases as above
+        # FIXME: this does not work for MRCs that have never been connected as
+        # the device list will be empty which will cause the runners generator
+        # to do nothing. Instead of specifying the devices here a list of MRCs
+        # could be passed and the list of devices would be built dynamically.
+
+        node = self._selected_tree_node
+        runner = None
+        progress_dialog = None
+
+        if is_registry(node):
+            devices = [d for mrc in node.ref for d in mrc if d.has_hw]
+            runner  = config_gui.FillDeviceConfigsRunner(
+                    devices=devices, parent_widget=self.mainwindow)
+            progress_dialog = config_gui.SubProgressDialog()
+        elif is_mrc(node):
+            devices = [d for d in node.ref if d.has_hw]
+            runner  = config_gui.FillDeviceConfigsRunner(
+                    devices=devices, parent_widget=self.mainwindow)
+            progress_dialog = config_gui.SubProgressDialog()
+        elif is_bus(node):
+            devices = [d for d in node.parent.ref.get_devices(bus=node.bus_number) if d.has_hw]
+            runner  = config_gui.FillDeviceConfigsRunner(
+                    devices=devices, parent_widget=self.mainwindow)
+            progress_dialog = config_gui.SubProgressDialog()
+        elif is_device(node):
+            devices = [node.ref]
+            runner  = config_gui.FillDeviceConfigsRunner(
+                    devices=devices, parent_widget=self.mainwindow)
+            progress_dialog = config_gui.SubProgressDialog()
+
+        runner.progress_changed.connect(progress_dialog.set_progress)
+        progress_dialog.canceled.connect(runner.close)
+        f = runner.start()
+        fo = future.FutureObserver(f)
+        fo.done.connect(progress_dialog.close)
+        progress_dialog.exec_()
+
+        if f.done() and f.exception() is not None:
+            log.error("Fill config: %s", f.exception())
+            QtGui.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
 
     def quit(self):
         """Non-blocking method to quit the application. Needs a running event
@@ -761,11 +804,11 @@ class GUIApplication(QtCore.QObject):
             (is_device(node) and node.ref.has_cfg)))
 
         a = self.actions['apply_hardware_to_config']
-        a.setEnabled(self.linked_mode and (
+        a.setEnabled(
             (is_setup(node) and node.ref.has_hw) or
             (is_mrc(node) and node.ref.has_hw) or
             (is_bus(node) and node.parent.ref.has_hw) or
-            (is_device(node) and node.ref.has_hw)))
+            (is_device(node) and node.ref.has_hw))
 
         if is_device(node) and not self._show_device_windows(device,
                 is_device_cfg(node), is_device_hw(node)):
@@ -773,8 +816,13 @@ class GUIApplication(QtCore.QObject):
             self.mainwindow.mdiArea.setActiveSubWindow(None)
 
     def _show_or_create_device_window(self, device, from_config_side, from_hw_side):
-        if from_config_side or from_hw_side:
+        if self._show_device_windows(device, from_config_side, from_hw_side):
+            return
+
+        if device.has_widget_class():
             self._create_device_widget_window(device, from_config_side, from_hw_side)
+        else:
+            self._create_device_table_window(device, from_config_side, from_hw_side)
 
     def _create_device_table_window(self, app_device, from_config_side, from_hw_side):
         if self.linked_mode and not app_device.idc_conflict:
