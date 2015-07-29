@@ -296,22 +296,9 @@ class MSCF16Widget(DeviceWidgetBase):
             vbox.addWidget(page)
             vbox.addStretch(1)
             layout.addItem(vbox)
-            #page.installEventFilter(self)
 
     def get_parameter_bindings(self):
         return itertools.chain(*(p.bindings for p in self.pages))
-
-    #def eventFilter(self, watched_object, event):
-    #    # Populate pages on show events
-
-    #    if (event.type() == QtCore.QEvent.Show
-    #            and not event.spontaneous()
-    #            and hasattr(watched_object, 'bindings')):
-
-    #        for b in watched_object.bindings:
-    #            b.populate()
-
-    #    return False
 
 class GainPage(QtGui.QGroupBox):
     def __init__(self, device, display_mode, write_mode, parent=None):
