@@ -232,16 +232,18 @@ class Device(AppObject):
 
         super(Device, self).__init__(hardware=hw_device, config=cfg_device, parent=parent)
 
+        self.log.debug("am.Device(b=%d, a=%d, hw_device=%s, cfg_device=%s, hw_mod=%s, cfg_mod=%s",
+                bus, address, hw_device, cfg_device, hw_module, cfg_module)
+
         self._mrc               = None
-        self._hw_module         = None
-        self._cfg_module        = None
+        self._hw_module         = hw_module
+        self._cfg_module        = cfg_module
         self._idc_conflict      = False # Set by _update_idc_conflict()
         self._config_applied    = False # Set by _update_config_applied()
         self._config_addresses  = set() # Filled by set_module()
 
         self.mrc        = mrc
-        self.hw_module  = hw_module
-        self.cfg_module = cfg_module
+        self._update_config_addresses()
 
         self.hardware_set.connect(self._on_hardware_set)
         self.config_set.connect(self._on_config_set)
@@ -327,6 +329,7 @@ class Device(AppObject):
         return self.hw_module.profile
 
     def get_cfg_profile(self):
+        print "get_cfg_profile", self.cfg_module, self._cfg_module, self._hw_module
         return self.cfg_module.profile
 
     # ===== module ===== #
@@ -464,11 +467,11 @@ class Device(AppObject):
         return cfg
 
     def get_config_parameters(self):
-        if self.module is not None and hasattr(self.module, 'get_config_parameters'):
-            return self.module.get_config_parameters(self)
+        if self.cfg_module is not None and hasattr(self.cfg_module, 'get_config_parameters'):
+            return self.cfg_module.get_config_parameters(self)
 
         return future.Future().set_result(
-                self.profile.get_config_parameters())
+                self.cfg_profile.get_config_parameters())
 
     def get_critical_config_parameters(self):
         ret = future.Future()
