@@ -281,6 +281,7 @@ class GUIApplication(QtCore.QObject):
         self._device_window_map = dict() # app_model.Device -> list of QMdiSubWindow
         self._selected_tree_node = None  # The currently selected tree node
         self._selected_device = None
+        self._subwindow_toolbar = None
 
         self.mainwindow.installEventFilter(self)
         self.mainwindow.mdiArea.subWindowActivated.connect(self._on_subwindow_activated)
@@ -656,7 +657,9 @@ class GUIApplication(QtCore.QObject):
         node = self._selected_tree_node
 
         if is_mrc(node):
-            if node.ref.hw.is_disconnected():
+            if not node.ref.has_hw:
+                add_mrc_connection(self.app_registry.hw, node.ref.url, True)
+            elif node.ref.hw.is_disconnected():
                 node.ref.hw.connect()
             else:
                 node.ref.hw.disconnect()
@@ -796,6 +799,10 @@ class GUIApplication(QtCore.QObject):
         QtCore.QMetaObject.invokeMethod(self.mainwindow, "close", Qt.QueuedConnection)
 
     def _on_subwindow_activated(self, window):
+        if self._subwindow_toolbar is not None:
+            self.mainwindow.removeToolBar(self._subwindow_toolbar)
+            self._subwindow_toolbar = None
+
         act_display = self.actions['select_display_mode']
         act_write   = self.actions['select_write_mode']
 
@@ -841,6 +848,14 @@ class GUIApplication(QtCore.QObject):
             # Disable the parent actions
             act_display.setEnabled(False)
             act_write.setEnabled(False)
+
+        if hasattr(window, 'has_toolbar') and window.has_toolbar():
+            self._subwindow_toolbar = tb = window.get_toolbar()
+            tb.setIconSize(QtCore.QSize(16, 16))
+            tb.setWindowTitle("Subwindow Toolbar")
+            tb.setObjectName("subwindow_toolbar")
+            self.mainwindow.addToolBar(tb)
+            tb.show()
 
     def active_subwindow(self):
         return self.mainwindow.mdiArea.activeSubWindow()
