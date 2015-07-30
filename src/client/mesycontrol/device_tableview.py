@@ -4,6 +4,8 @@ from PyQt4.QtCore import pyqtProperty
 from PyQt4.QtCore import QModelIndex
 from PyQt4.QtCore import Qt
 
+import collections
+
 from basic_model import IDCConflict
 import future
 import basic_model as bm
@@ -238,7 +240,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 except future.IncompleteFuture:
                     return "<reading>"
                 except KeyError:
-                    return "<not set>" # FIXME: editing this yiels a QLineEdit editor!
+                    return "<not set>"
 
             elif col in (COL_HW_UNIT_VALUE, COL_CFG_UNIT_VALUE):
                 try:
@@ -443,17 +445,40 @@ class DeviceTableView(QtGui.QTableView):
         self.setItemDelegate(DeviceTableItemDelegate())
         self.setMouseTracking(True)
         self.setWordWrap(False)
+        self.setSelectionMode(QtGui.QAbstractItemView.ContiguousSelection)
         self.resizeColumnsToContents()
         self.resizeRowsToContents()
 
-        self.display_mode  = model.display_mode
-        self.write_mode = model.write_mode
+        self.display_mode   = model.display_mode
+        self.write_mode     = model.write_mode
+
+        self._actions = collections.OrderedDict()
+        self._toolbar = None
+        self._clipboard = QtGui.QApplication.clipboard()
+
+        self._create_actions()
+
+        self.selectionModel().selectionChanged.connect(self._on_selection_changed)
 
         try:
             if not len(self.profile.get_parameter_names()):
                 self.setColumnHidden(COL_NAME, True)
         except IDCConflict:
             pass
+
+    def _create_actions(self):
+        a = QtGui.QAction(QtGui.QIcon.fromTheme("edit-copy"), "&Copy", self,
+                triggered=self._copy_action)
+
+        a.setShortcut(QtGui.QKeySequence.Copy)
+        a.setEnabled(False)
+        self._actions['copy'] = a
+
+        a = QtGui.QAction(QtGui.QIcon.fromTheme("edit-paste"), "&Paste", self,
+                triggered=self._paste_action)
+        a.setShortcut(QtGui.QKeySequence.Paste)
+        a.setEnabled(False)
+        self._actions['paste'] = a
 
     def get_display_mode(self):
         return self.table_model.display_mode
@@ -480,7 +505,14 @@ class DeviceTableView(QtGui.QTableView):
         return self.display_mode & util.CONFIG
 
     def contextMenuEvent(self, event):
-        pass
+        menu = QtGui.QMenu()
+
+        for a in self._actions.itervalues():
+            if a.isEnabled():
+                menu.addAction(a)
+
+        if not menu.isEmpty():
+            menu.exec_(self.mapToGlobal(event.pos()))
 
     def get_profile(self):
         return self.table_model.profile
@@ -494,6 +526,80 @@ class DeviceTableView(QtGui.QTableView):
 
     display_mode   = property(fget=get_display_mode, fset=set_display_mode)
     write_mode  = property(fget=get_write_mode, fset=set_write_mode)
+
+    def get_toolbar(self):
+        if self._toolbar is None:
+            self._toolbar = tb = QtGui.QToolBar()
+            for a in self._actions.values():
+                tb.addAction(a)
+        return self._toolbar
+
+    def _has_selection(self):
+        return self.selectionModel().hasSelection()
+
+    def _get_selected_indexes(self):
+        return sorted(self.sort_model.mapSelectionToSource(
+            self.selectionModel().selection()).indexes())
+
+    def _on_selection_changed(self, selected, deselected):
+        self._actions['copy'].setEnabled(self._has_selection())
+        self._actions['paste'].setEnabled(False)
+
+        if self._has_selection():
+            selected = self._get_selected_indexes()
+            col0     = selected[0].column()
+
+            self._actions['paste'].setEnabled(
+                    self._clipboard.mimeData().hasText() and
+                    col0 in (COL_HW_VALUE, COL_CFG_VALUE) and
+                    (not self.isColumnHidden(col0)) and
+                    all((idx.column() == col0 for idx in selected)))
+
+    def _copy_action(self):
+        selected = self._get_selected_indexes()
+        row = selected[0].row()
+        row_data = list()
+        row_data.append(list())
+
+        for idx in selected:
+            if self.isColumnHidden(idx.column()):
+                continue
+
+            if idx.row() != row:
+                row_data.append(list())
+                row = idx.row()
+
+            row_data[-1].append(str(self.table_model.data(idx)))
+
+        text  = '\n'.join(['\t'.join(s) for s in row_data])
+
+        self._clipboard.setText(text)
+
+    def _paste_action(self):
+        selected = self._get_selected_indexes()
+        row, col = selected[0].row(), selected[0].column()
+        values = str(self._clipboard.text()).split('\n')
+        try:
+            values = [int(value) for value in values]
+        except ValueError:
+            return
+
+        for value in values:
+            min_, max_ = bm.SET_VALUE_MIN, bm.SET_VALUE_MAX
+
+            try:
+                pp = self.profile[row]
+                if pp.range is not None:
+                    min_, max_ = pp.range.to_tuple()
+            except (KeyError, AttributeError):
+                pass
+
+            idx = self.model().index(row, col)
+
+            if min_ <= value <= max_ and self.model().flags(idx) & Qt.ItemIsEditable:
+                self.model().setData(idx, value)
+
+            row += 1
 
         #selection_model = self.selectionModel()
 
@@ -580,6 +686,9 @@ class DeviceTableWidget(QtGui.QWidget):
         layout.addWidget(settings)
         layout.addWidget(self.view)
         self.setLayout(layout)
+
+    def get_toolbar(self):
+        return self.view.get_toolbar()
 
     display_mode   = property(
             fget=lambda s: s.view.display_mode,
