@@ -36,6 +36,12 @@ class DeviceSubWindow(QtGui.QMdiSubWindow):
     def has_combined_display(self):
         raise NotImplementedError()
 
+    def has_toolbar(self):
+        return False
+
+    def get_toolbar(self):
+        raise NotImplementedError()
+
     device          = property(lambda s: s.get_device())
     display_mode    = property(get_display_mode, set_display_mode)
     write_mode      = property(get_write_mode, set_write_mode)
@@ -124,3 +130,9 @@ class DeviceTableSubWindow(DeviceSubWindow):
 
     def has_combined_display(self):
         return True
+
+    def has_toolbar(self):
+        return True
+
+    def get_toolbar(self):
+        return self.widget().get_toolbar()
