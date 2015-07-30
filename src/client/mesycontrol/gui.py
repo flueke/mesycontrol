@@ -39,7 +39,7 @@ import util
 
 log = logging.getLogger(__name__)
 
-# TODO: enable/disable display actions on hw/cfg state change (disconnect, closed, ...)
+# TODO: enable/disable display actions on hw/cfg state change , closed, ...)
 
 # ===== MRC =====
 def run_add_mrc_config_dialog(registry, parent_widget=None):
@@ -270,6 +270,12 @@ def is_device_cfg(node):
 def is_device_hw(node):
     return isinstance(node, htm.DeviceNode)
 
+def is_config_node(node):
+    return isinstance(node, (ctm.SetupNode, ctm.MRCNode, ctm.BusNode, ctm.DeviceNode))
+
+def is_hardware_node(node):
+    return isinstance(node, (htm.RegistryNode, htm.MRCNode, htm.BusNode, htm.DeviceNode))
+
 class GUIApplication(QtCore.QObject):
     """GUI logic"""
     def __init__(self, context, mainwindow):
@@ -340,6 +346,20 @@ class GUIApplication(QtCore.QObject):
         # Actions will be added to toolbars in dictionary insertion order.
         self.actions = collections.OrderedDict()
 
+        # Notes about action enabling/disabling/checking: Some action depend
+        # only on the node type that is selected.  Other actions depend on the
+        # node and the nodes state. If the state changes (e.g. connected) the
+        # action might need to be enabled/disabled and its tooltip and icon
+        # might need to change.
+        # Actions and their dependencies:
+        # open_setup: always active
+        # save_setup: len(setup) > 0 and setup.modified
+        # save_setup_as: len(setup) > 0
+        # close_setup: len(setup) > 0 or just keep it always active
+        # add_config: (linked mode and one of reg, mrc or bus selected) or one of reg, mrc, bus in the config tree selected
+        # remove_config: (linked mode and one of mrc, device with a config
+        #       selected) or one of mrc, device with a config in the config tree selected
+
         # ===== Config ===== #
 
         # Open setup
@@ -392,6 +412,10 @@ class GUIApplication(QtCore.QObject):
                 triggered=self._remove_config)
         action.cfg_toolbar = True
         self.actions['remove_config'] = action
+
+        action = QtGui.QAction("Rename", self,
+                triggered=self._rename_config)
+        self.actions['rename_config'] = action
 
         # ===== Hardware ===== #
 
@@ -653,16 +677,28 @@ class GUIApplication(QtCore.QObject):
             self._close_device_windows(device)
             device.mrc.cfg.remove_device(device.cfg)
 
+    def _rename_config(self):
+        node = self._selected_tree_node
+
+        if (is_config_node(node) and
+                (is_mrc(node) or is_device(node)) and
+                node.ref.has_cfg):
+            self.treeview.cfg_view.edit(
+                    self.treeview.cfg_model.index_for_ref(node.ref))
+
     def _connect_or_disconnect(self):
         node = self._selected_tree_node
+        a = self.actions['connect_disconnect']
 
         if is_mrc(node):
             if not node.ref.has_hw:
                 add_mrc_connection(self.app_registry.hw, node.ref.url, True)
             elif node.ref.hw.is_disconnected():
                 node.ref.hw.connect()
+                a.setIcon(a.icons['disconnect'])
             else:
                 node.ref.hw.disconnect()
+                a.setIcon(a.icons['connect'])
 
     def _refresh(self):
         raise NotImplementedError()
@@ -670,8 +706,8 @@ class GUIApplication(QtCore.QObject):
     def _toggle_polling(self):
         node = self._selected_tree_node
 
-        if is_mrc(node) or is_device(node):
-            node.ref.polling = not node.ref.polling
+        if (is_mrc(node) or is_device(node)) and node.ref.has_hw:
+            node.ref.hw.polling = not node.ref.hw.polling
 
     def _add_mrc_connection(self):
         run_add_mrc_connection_dialog(
@@ -684,7 +720,7 @@ class GUIApplication(QtCore.QObject):
         def do_remove(f_ignored):
             self.app_registry.hw.remove_mrc(node.ref.hw)
 
-        node.ref.hw.disconnect.add_done_callback(do_remove)
+        node.ref.hw.disconnect().add_done_callback(do_remove)
 
     def _open_device_widget(self):
         node = self._selected_tree_node
@@ -927,10 +963,12 @@ class GUIApplication(QtCore.QObject):
                     is_device_cfg(node), is_device_hw(node))
 
     def _tree_node_selected(self, node):
+        last_node = self._selected_tree_node
         self._selected_tree_node = node
         self._selected_device = device = node.ref if is_device(node) else None
 
-        self.actions['open_device_widget'].setEnabled(is_device(node) and device.has_widget_class())
+        self.actions['open_device_widget'].setEnabled(is_device(node)
+                and device.has_widget_class())
         self.actions['open_device_table'].setEnabled(is_device(node))
 
         a = self.actions['apply_config_to_hardware']
@@ -942,10 +980,19 @@ class GUIApplication(QtCore.QObject):
 
         a = self.actions['apply_hardware_to_config']
         a.setEnabled(
-            (is_setup(node) and node.ref.has_hw) or
+            (is_setup(node) and node.ref.has_hw and len(node.ref.hw)) or
             (is_mrc(node) and node.ref.has_hw) or
             (is_bus(node) and node.parent.ref.has_hw) or
             (is_device(node) and node.ref.has_hw))
+
+        if (is_mrc(last_node) or is_device(last_node)) and last_node.ref.has_hw:
+            hw = last_node.ref.hw
+            hw.polling_changed.disconnect(self.actions['toggle_polling'].setChecked)
+
+        if (is_mrc(node) or is_device(node)) and node.ref.has_hw:
+            hw = node.ref.hw
+            hw.polling_changed.connect(self.actions['toggle_polling'].setChecked)
+            self.actions['toggle_polling'].setChecked(hw.polling)
 
         if is_device(node) and not self._show_device_windows(device,
                 is_device_cfg(node), is_device_hw(node)):
@@ -1084,6 +1131,7 @@ class GUIApplication(QtCore.QObject):
             add_action(self.actions['add_config'])
 
         if is_mrc(node):
+            add_action(self.actions['rename_config'])
             add_action(self.actions['add_config'])
             add_action(self.actions['remove_config'])
 
@@ -1093,6 +1141,7 @@ class GUIApplication(QtCore.QObject):
         if is_device(node):
             add_action(self.actions['open_device_widget'])
             add_action(self.actions['open_device_table'])
+            add_action(self.actions['rename_config'])
             menu.addSeparator()
             add_action(self.actions['remove_config'])
 
