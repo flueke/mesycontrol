@@ -149,6 +149,16 @@ class DeviceBase(QtCore.QObject):
             dev = self.hw if self.write_mode == util.HARDWARE else self.cfg
             dev.set_extension(name, value)
 
+    def get_module(self):
+        return self.cfg_module if self.read_mode & util.CONFIG else self.hw_module
+
+    module = property(fget=get_module)
+
+    def get_profile(self):
+        return self.module.profile
+
+    profile = property(fget=get_profile)
+
     # ===== HW =====
     def get_hw_parameter(self, address_or_name):
         address = self.profile[address_or_name].address
@@ -196,6 +206,8 @@ class DeviceWidgetBase(QtGui.QWidget):
         self._display_mode = display_mode
         self._write_mode   = write_mode
 
+        self.device.hardware_set.connect(self._on_device_hardware_set)
+
     def get_display_mode(self):
         return self.device.read_mode
 
@@ -230,4 +242,14 @@ class DeviceWidgetBase(QtGui.QWidget):
             for binding in self.get_parameter_bindings():
                 binding.populate()
 
+            if self.device.has_hw:
+                self.device.add_default_polling_subscription(self)
+
         super(DeviceWidgetBase, self).showEvent(event)
+
+    def _on_device_hardware_set(self, device, old, new):
+        if old is not None:
+            old.remove_polling_subscriber(self)
+
+        if new is not None:
+            self.device.add_default_polling_subscription(self)

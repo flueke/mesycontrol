@@ -3,7 +3,6 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 from qt import Qt
-from qt import QtCore
 from qt import QtGui
 
 import logging
@@ -69,8 +68,10 @@ class DeviceSubWindow(QtGui.QMdiSubWindow):
 
         if device.hw is not None:
             idc = device.hw.idc
+            profile = device.hw_profile
         elif device.cfg is not None:
             idc = device.cfg.idc
+            profile = device.cfg_profile
 
         if idc is None:
             # The device is about to disappear and this window should close. Do
@@ -84,7 +85,7 @@ class DeviceSubWindow(QtGui.QMdiSubWindow):
                 util.CONFIG:    'cfg',
                 }
 
-        device_name = device.get_device_name()
+        device_name = profile.name
 
         name = "%s_%s_(%s, %d, %d)" % (
                 self.window_name_prefix, prefixes[self.display_mode],
@@ -217,8 +218,7 @@ def run_add_device_config_dialog(device_registry, registry, mrc, bus=None, paren
         QtGui.QMessageBox.critical(parent_widget, "Error", str(e))
 
 def run_load_device_config(device, context, parent_widget):
-    directory_hint = os.path.dirname(str(context.make_qsettings().value(
-            'Files/last_config_file', QtCore.QString()).toString()))
+    directory_hint = context.get_config_directory_hint()
 
     filename = str(QtGui.QFileDialog.getOpenFileName(parent_widget, "Load Device config",
         directory=directory_hint, filter="XML files (*.xml);;"))
@@ -236,7 +236,7 @@ def run_load_device_config(device, context, parent_widget):
         mrc = device.mrc.cfg
         mrc.remove_device(device.cfg)
         mrc.add_device(config)
-        context.make_qsettings().setValue('Files/last_config_file', filename)
+        context.set_config_directory_hint(filename)
         return True
     except Exception as e:
         log.exception(e)
@@ -245,8 +245,7 @@ def run_load_device_config(device, context, parent_widget):
         return False
 
 def run_save_device_config(device, context, parent_widget):
-    directory_hint = os.path.dirname(str(context.make_qsettings().value(
-            'Files/last_config_file', QtCore.QString()).toString()))
+    directory_hint = context.get_config_directory_hint()
 
     filename = str(QtGui.QFileDialog.getSaveFileName(parent_widget, "Save Device config as",
         directory=directory_hint, filter="XML files (*.xml);;"))
@@ -262,7 +261,7 @@ def run_save_device_config(device, context, parent_widget):
     try:
         config_xml.write_device_config(device_config=device.cfg, dest=filename,
                 parameter_names=context.device_registry.get_parameter_names(device.cfg.idc))
-        context.make_qsettings().setValue('Files/last_config_file', filename)
+        context.set_config_directory_hint(filename)
         return True
     except Exception as e:
         log.exception(e)
@@ -294,8 +293,7 @@ def run_save_setup_as_dialog(context, parent_widget):
     if len(setup.filename):
         directory_hint = setup.filename
     else:
-        directory_hint = os.path.dirname(str(context.make_qsettings().value(
-                'Files/last_setup_file', QtCore.QString()).toString()))
+        directory_hint = context.get_setup_directory_hint()
 
     filename = str(QtGui.QFileDialog.getSaveFileName(parent_widget, "Save setup as",
             directory=directory_hint, filter="XML files (*.xml);; *"))
@@ -314,7 +312,8 @@ def run_save_setup_as_dialog(context, parent_widget):
 
         setup.filename = filename
         setup.modified = False
-        context.make_qsettings().setValue('Files/last_setup_file', filename)
+
+        context.set_setup_directory_hint(filename)
         return True
     except Exception as e:
         log.exception(e)
@@ -332,11 +331,11 @@ def run_open_setup_dialog(context, parent_widget):
             if not run_save_setup_as_dialog(context, parent_widget):
                 return False
 
-    directory_hint = os.path.dirname(str(context.make_qsettings().value(
-            'Files/last_setup_file', QtCore.QString()).toString()))
+    directory_hint = context.get_setup_directory_hint()
 
-    filename = QtGui.QFileDialog.getOpenFileName(parent_widget, "Open setup file",
-            directory=directory_hint, filter="XML files (*.xml);; *")
+    filename = str(QtGui.QFileDialog.getOpenFileName(
+        parent_widget, "Open setup file",
+        directory=directory_hint, filter="XML files (*.xml);; *"))
 
     if not len(filename):
         return False

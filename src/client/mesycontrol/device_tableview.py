@@ -79,7 +79,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         return self._device
 
     def get_profile(self):
-        if self.display_mode == util.COMBINED:
+        if self.display_mode == util.COMBINED and not self.device.idc_conflict:
             return self.device.get_profile()
         elif self.display_mode & util.CONFIG:
             return self.device.get_cfg_profile()
@@ -111,8 +111,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
             for signal, slot in signal_slot_map.iteritems():
                 getattr(new_hw, signal).connect(slot)
 
-            for addr in app_device.profile.get_volatile_addresses():
-                new_hw.add_poll_item(self, addr)
+            app_device.add_default_polling_subscription(self)
 
         self._all_fields_changed()
 
@@ -181,7 +180,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         flags       = Qt.ItemIsSelectable | Qt.ItemIsEnabled
         hw          = self.device.hw
         try:
-            pp = self.device.profile[row]
+            pp = self.profile[row]
         except (IndexError, AttributeError):
             pp = None
 
@@ -203,7 +202,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         col = idx.column()
         hw  = self.device.hw
         cfg = self.device.cfg
-        profile = self.device.profile
+        profile = self.profile
 
         try:
             pp = profile[row] # parameter profile
@@ -342,8 +341,10 @@ class DeviceTableItemDelegate(QtGui.QStyledItemDelegate):
             min_, max_ = bm.SET_VALUE_MIN, bm.SET_VALUE_MAX
 
             try:
-                device = idx.model().device
-                pp = device.profile[idx.row()]
+                #device = idx.model().device
+                #pp = device.profile[idx.row()]
+                profile = idx.model().profile
+                pp = profile[idx.row()]
                 if pp.range is not None:
                     min_, max_ = pp.range.to_tuple()
             except (KeyError, AttributeError):
@@ -403,8 +404,7 @@ class DeviceTableSortFilterProxyModel(QtGui.QSortFilterProxyModel):
         return self._filter_static
 
     def filterAcceptsRow(self, src_row, src_parent):
-        device  = self.sourceModel().device
-        profile = device.profile[src_row]
+        profile = self.sourceModel().profile
 
         if self.filter_unknown and profile is None:
             return False
@@ -594,10 +594,10 @@ class DeviceTableView(QtGui.QTableView):
             except (KeyError, AttributeError):
                 pass
 
-            idx = self.model().index(row, col)
+            idx = self.table_model.index(row, col)
 
-            if min_ <= value <= max_ and self.model().flags(idx) & Qt.ItemIsEditable:
-                self.model().setData(idx, value)
+            if min_ <= value <= max_ and self.table_model.flags(idx) & Qt.ItemIsEditable:
+                self.table_model.setData(idx, QtCore.QVariant(value))
 
             row += 1
 

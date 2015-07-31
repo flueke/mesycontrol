@@ -43,6 +43,15 @@ class DeviceRegistry(object):
         self.modules[module.idc]    = module
         module.profile              = device_profile.from_dict(module.profile_dict)
 
+        def has_specialized_class():
+            return hasattr(module, 'device_class')
+
+        def has_widget_class():
+            return hasattr(module, 'device_ui_class')
+
+        module.has_specialized_class = has_specialized_class
+        module.has_widget_class = has_widget_class
+
         self.log.debug("Loaded device module from '%s' for idc=%d, name=%s",
                 module_name, module.idc, module.profile.name)
 

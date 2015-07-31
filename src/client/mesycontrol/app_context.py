@@ -4,6 +4,7 @@
 
 from qt import QtCore
 import contextlib
+import os
 
 import app_model as am
 import basic_model as bm
@@ -65,11 +66,43 @@ class Context(QtCore.QObject):
             raise RuntimeError("No MRC configurations found in %s" % filename)
 
         self.setup = setup
-        self.make_qsettings().setValue('Files/last_setup_file', filename)
+        self.set_setup_directory_hint(filename)
         return setup
 
     def reset_setup(self):
         self.app_registry.setup = cm.Setup()
+
+    def get_setup_directory_hint(self):
+        s = self.make_qsettings()
+
+        v = s.value('Files/last_setup_file', QtCore.QString()).toString()
+        v = os.path.dirname(str(v))
+
+        if not len(v):
+            v = str(s.value('Files/last_setup_directory', QtCore.QString()).toString())
+
+        return v
+
+    def set_setup_directory_hint(self, filename):
+        s = self.make_qsettings()
+        s.setValue('Files/last_setup_file', filename)
+        s.setValue('Files/last_setup_directory', os.path.dirname(filename))
+
+    def get_config_directory_hint(self):
+        s = self.make_qsettings()
+
+        v = s.value('Files/last_config_file', QtCore.QString()).toString()
+        v = os.path.dirname(str(v))
+
+        if not len(v):
+            v = str(s.value('Files/last_config_dir', QtCore.QString()).toString())
+
+        return v
+
+    def set_config_directory_hint(self, filename):
+        s = self.make_qsettings()
+        s.setValue('Files/last_config_file', filename)
+        s.setValue('Files/last_config_dir', os.path.dirname(filename))
 
     setup = property(
             fget=lambda self: self.app_registry.get_config(),

@@ -214,7 +214,7 @@ class Device(AppObject):
     hw_profile_changed      = pyqtSignal(object)
     cfg_profile_changed     = pyqtSignal(object)
 
-    config_applied_changed  = pyqtSignal(object)
+    config_applied_changed  = pyqtSignal(object) # True, False or None with None meaning "unknown"
 
     hw_parameter_changed    = pyqtSignal(int, object)
     cfg_parameter_changed   = pyqtSignal(int, object)
@@ -239,7 +239,9 @@ class Device(AppObject):
         self._hw_module         = hw_module
         self._cfg_module        = cfg_module
         self._idc_conflict      = False # Set by _update_idc_conflict()
-        self._config_applied    = False # Set by _update_config_applied()
+        # _config_applied can take three values: True, False or None with the
+        # latter representing the unknown state.
+        self._config_applied    = None  # Set by _update_config_applied()
         self._config_addresses  = set() # Filled by set_module()
 
         self.mrc        = mrc
@@ -329,7 +331,6 @@ class Device(AppObject):
         return self.hw_module.profile
 
     def get_cfg_profile(self):
-        print "get_cfg_profile", self.cfg_module, self._cfg_module, self._hw_module
         return self.cfg_module.profile
 
     # ===== module ===== #
@@ -402,11 +403,14 @@ class Device(AppObject):
         """True if hardware and config IDCs differ."""
         return self._idc_conflict
 
+    # ===== config ==== #
     def _update_config_applied(self):
         old_state = self.is_config_applied()
         new_state = False
 
-        if not self.has_idc_conflict() and self.has_hw and self.has_cfg:
+        if self.idc_conflict:
+            new_state = False
+        elif self.has_hw and self.has_cfg:
             hw_mem  = self.hw.get_cached_memory_ref()
             cfg_mem = self.cfg.get_cached_memory_ref()
 
@@ -415,9 +419,10 @@ class Device(AppObject):
                 new_state = all((hw_mem[k] == cfg_mem[k] for k in self._config_addresses))
             except KeyError:
                 self.log.debug("_update_config_applied: Key(s) missing from mem cache")
-                pass
+                new_state = None # Unknown
 
-            new_state = new_state and self.hw.get_extensions() == self.cfg.get_extensions()
+            if new_state is not None:
+                new_state = new_state and self.hw.get_extensions() == self.cfg.get_extensions()
 
         if new_state != old_state:
             self._config_applied = new_state
@@ -426,6 +431,11 @@ class Device(AppObject):
         self.log.debug("%s: config_applied=%s", self, new_state)
 
     def _update_config_addresses(self):
+        if self.idc_conflict:
+            self._config_addresses = set()
+            self._update_config_applied()
+            return
+
         def on_done(f):
             self._config_addresses = set((p.address for p in f.result()))
             self.log.debug("_update_config_addresses: %s", self._config_addresses)
@@ -499,27 +509,54 @@ class Device(AppObject):
 
         return ret
 
+    # ===== specialized device & device widget ===== #
     def make_specialized_device(self, read_mode, write_mode):
-        return self.module.device_class(self, read_mode, write_mode)
+        try:
+            module = self.module
+        except IDCConflict:
+            module = self.cfg_module if read_mode & util.CONFIG else self.hw_module
+
+        return module.device_class(self, read_mode, write_mode)
 
     def make_device_widget(self, display_mode, write_mode, parent=None):
-        return self.module.device_ui_class(
+        try:
+            module = self.module
+        except IDCConflict:
+            module = self.cfg_module if display_mode & util.CONFIG else self.hw_module
+
+        return module.device_ui_class(
                 device=self.make_specialized_device(display_mode, write_mode),
                 display_mode=display_mode,
                 write_mode=write_mode,
                 parent=parent)
 
     def has_specialized_class(self):
-        return hasattr(self.module, 'device_class')
+        return self.module.has_specialized_class()
 
     def has_widget_class(self):
-        return hasattr(self.module, 'device_ui_class')
+        return self.module.has_widget_class()
 
     def get_device_name(self):
         return self.profile.name
 
     def has_address_conflict(self):
         return self.has_hw and self.hw.address_conflict
+
+    # ===== polling ===== #
+    def add_default_polling_subscription(self, subscriber):
+        if not self.has_hw:
+            raise RuntimeError("Hardware not present")
+
+        for addr in self.hw_profile.get_volatile_addresses():
+            self.hw.add_poll_item(subscriber, addr)
+
+    def remove_polling_subscriber(self, subscriber):
+        if not self.has_hw:
+            raise RuntimeError("Hardware not present")
+        try:
+            self.hw.remove_polling_subscriber(subscriber)
+        except KeyError:
+            pass
 
     mrc             = pyqtProperty(object, get_mrc, set_mrc, notify=mrc_changed)
 

@@ -30,6 +30,7 @@
     <file alias="select-write-mode.png">ui/pencil-2x.png</file>
     <file alias="unlinked.png">ui/link-intact-2x.png</file>
     <file alias="window-icon.png">ui/window-icon.png</file>
+    <file alias="question-mark.png">ui/question-mark-2x.png</file>
 
 
     <file>ui/applications-utilities.png</file>

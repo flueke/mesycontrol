@@ -16,6 +16,7 @@ from qt import Qt
 from qt import QtCore
 from qt import QtGui
 
+from basic_model import IDCConflict
 from gui_util import is_setup, is_registry, is_mrc, is_bus, is_device, is_device_cfg, is_device_hw
 from gui_util import is_config_node
 from model_util import add_mrc_connection
@@ -97,7 +98,7 @@ class GUIApplication(QtCore.QObject):
             self._setup_modified_changed(new.modified)
 
     def _setup_modified_changed(self, modified):
-        self.actions['save_setup'].setEnabled(modified)
+        self.actions['save_setup'].setEnabled(modified and len(self.context.setup))
         self.actions['save_setup_as'].setEnabled(len(self.context.setup))
 
     def _create_actions(self):
@@ -174,6 +175,16 @@ class GUIApplication(QtCore.QObject):
         action = QtGui.QAction("Rename", self,
                 triggered=self._rename_config)
         self.actions['rename_config'] = action
+
+        # Open device config
+        action = QtGui.QAction(QtGui.QIcon.fromTheme("document-open"),
+                "Open device config", self, triggered=self._open_device_config)
+        self.actions['open_device_config'] = action
+
+        # Save device config
+        action = QtGui.QAction(QtGui.QIcon.fromTheme("document-save"),
+                "Save device config", self, triggered=self._save_device_config)
+        self.actions['save_device_config'] = action
 
         # ===== Hardware ===== #
 
@@ -587,6 +598,30 @@ class GUIApplication(QtCore.QObject):
             log.error("Fill config: %s", f.exception())
             QtGui.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
 
+    def _open_device_config(self):
+        device = self._selected_tree_node.ref
+        mrc    = device.mrc
+
+        if gui_util.run_load_device_config(device=device, context=self.context,
+                parent_widget=self.mainwindow):
+            # If the device did not have a hardware model prior to loading the
+            # config it will have been completely removed and a new
+            # app_model.Device will have been created. Query the mrc to get the
+            # newly created Device.
+            device = mrc.get_device(device.bus, device.address)
+
+            # Select the hardware node before the config node to end up
+            # with focus in the config tree.
+            if self.linked_mode and not device.idc_conflict:
+                self.treeview.select_hardware_node_by_ref(device)
+
+            self.treeview.select_config_node_by_ref(device)
+
+    def _save_device_config(self):
+        device = self._selected_tree_node.ref
+        gui_util.run_save_device_config(device=device, context=self.context,
+                parent_widget=self.mainwindow)
+
     def quit(self):
         """Non-blocking method to quit the application. Needs a running event
         loop."""
@@ -725,8 +760,9 @@ class GUIApplication(QtCore.QObject):
         self._selected_tree_node = node
         self._selected_device = device = node.ref if is_device(node) else None
 
-        self.actions['open_device_widget'].setEnabled(is_device(node)
-                and device.has_widget_class())
+        self.actions['open_device_widget'].setEnabled(
+                (is_device_cfg(node) and device.cfg_module.has_widget_class()) or
+                (is_device_hw(node) and device.hw_module.has_widget_class()))
         self.actions['open_device_table'].setEnabled(is_device(node))
 
         a = self.actions['apply_config_to_hardware']
@@ -757,11 +793,22 @@ class GUIApplication(QtCore.QObject):
             # No window for the selected node: make no window active in the mdi area
             self.mainwindow.mdiArea.setActiveSubWindow(None)
 
+        self.actions['open_device_config'].setEnabled(is_device_cfg(node))
+        self.actions['save_device_config'].setEnabled(is_device_cfg(node))
+
+        self.actions['save_setup'].setEnabled(is_config_node(node) and self.context.setup.modified and len(self.context.setup))
+        self.actions['save_setup_as'].setEnabled(is_config_node(node) and len(self.context.setup))
+
     def _show_or_create_device_window(self, device, from_config_side, from_hw_side):
         if self._show_device_windows(device, from_config_side, from_hw_side):
             return
 
-        if device.has_widget_class():
+        try:
+            module = device.module
+        except IDCConflict:
+            module = device.cfg_module if from_config_side else device.hw_module
+
+        if module.has_widget_class():
             self._create_device_widget_window(device, from_config_side, from_hw_side)
         else:
             self._create_device_table_window(device, from_config_side, from_hw_side)
@@ -901,6 +948,9 @@ class GUIApplication(QtCore.QObject):
             add_action(self.actions['open_device_table'])
             add_action(self.actions['rename_config'])
             menu.addSeparator()
+            add_action(self.actions['open_device_config'])
+            if node.ref.has_cfg:
+                add_action(self.actions['save_device_config'])
             add_action(self.actions['remove_config'])
 
         if not menu.isEmpty():

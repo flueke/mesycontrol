@@ -29,6 +29,10 @@ class ReadWriteProfile(collections.namedtuple('ReadWriteProfile', 'read write'))
     range = property(get_range)
     units = property(get_units)
 
+class ParameterUnavailable(Exception):
+    def __init__(self):
+        super(ParameterUnavailable, self).__init__("Parameter not available")
+
 class AbstractParameterBinding(object):
     def __init__(self, device, profile, target, display_mode, write_mode=None, **kwargs):
         """
@@ -53,6 +57,10 @@ class AbstractParameterBinding(object):
     def populate(self):
         """Gets the value of this bindings parameter and updates the target
         display once the value is retrieved."""
+
+        if self.display_mode == util.CONFIG and self.read_profile.read_only:
+            self._update_wrapper(future.Future().set_exception(ParameterUnavailable()))
+            return
 
         # For RW parameters the read address is used if hardware is present
         # otherwise the write address is used as only that is actually stored
@@ -97,12 +105,24 @@ class AbstractParameterBinding(object):
     def has_rw_profile(self):
         return isinstance(self.profile, ReadWriteProfile)
 
+    def get_read_profile(self):
+        if self.has_rw_profile():
+            return self.profile.read
+        return self.profile
+
+    def get_write_profile(self):
+        if self.has_rw_profile():
+            return self.profile.write
+        return self.profile
+
     device          = property(fget=get_device)
     address         = property(fget=get_address)
     read_address    = property(fget=get_read_address)
     write_address   = property(fget=get_write_address)
     display_mode    = property(fget=get_display_mode, fset=set_display_mode)
     write_mode      = property(fget=get_write_mode, fset=set_write_mode)
+    read_profile    = property(fget=get_read_profile)
+    write_profile   = property(fget=get_write_profile)
 
     def add_update_callback(self, method_or_func, *args, **kwargs):
         """Adds a callback to be invoked when this binding updates its target.
@@ -167,7 +187,6 @@ class AbstractParameterBinding(object):
             f = self.device.cfg.get_parameter(self.write_address).add_done_callback(self._update_wrapper)
             log.debug("_on_cfg_parameter_changed: target=%s, addr=%d, future=%s", self.target, self.write_address, f)
 
-    # TODO: minor: shorten _write_value and _write_value_rw
     def _write_value(self, value):
         log.debug("_write_value: target=%s, %d=%d", self.target, self.write_address, value)
 
@@ -176,6 +195,8 @@ class AbstractParameterBinding(object):
             return
 
         # Profile has a single address
+        if self.profile.read_only:
+            raise RuntimeError("Attempting to write to a read-only address")
 
         if self.write_mode == util.COMBINED:
             def on_cfg_set(f):
@@ -232,8 +253,12 @@ class AbstractParameterBinding(object):
     def _update(self, result_future):
         """This method will be passed the Future of the last operation that
         should result in an update to this bindings target.
-        The result_future will in most cases contain either ReadResult or a
-        SetResult depending on which operation triggered the update."""
+
+        The result_future will in most cases contain either a ReadResult or a
+        SetResult depending on which operation triggered the update.
+
+        In case of a hardware-only parameter without any connected hardware a
+        ParameterUnavailable instance will be set in result_future."""
         raise NotImplementedError()
 
     def _get_tooltip(self, result_future):
@@ -317,6 +342,7 @@ class DefaultParameterBinding(AbstractParameterBinding):
         self.target.setPalette(pal)
         self.target.setToolTip(self._get_tooltip(result_future))
         self.target.setStatusTip(self.target.toolTip())
+        self.target.setEnabled(not isinstance(result_future.exception(), ParameterUnavailable))
 
     def _get_palette(self, rf):
         pal = QtGui.QApplication.palette()
@@ -450,14 +476,17 @@ class LCDNumberParameterBinding(DefaultParameterBinding):
 
     def _update(self, rf):
         super(LCDNumberParameterBinding, self)._update(rf)
-        if self.unit_name is None:
-            self.target.display(str(int(rf)))
-        else:
-            unit  = self.profile.get_unit(self.unit_name)
-            value = unit.unit_value(int(rf))
-            text  = "%%.%df" % self.precision
-            text  = text % value
-            self.target.display(text)
+        try:
+            if self.unit_name is None:
+                self.target.display(str(int(rf)))
+            else:
+                unit  = self.profile.get_unit(self.unit_name)
+                value = unit.unit_value(int(rf))
+                text  = "%%.%df" % self.precision
+                text  = text % value
+                self.target.display(text)
+        except Exception:
+            pass
 
 class SliderParameterBinding(DefaultParameterBinding):
     def __init__(self, unit_name=None, **kwargs):

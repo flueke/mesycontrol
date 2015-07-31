@@ -11,6 +11,7 @@ import weakref
 
 from mesycontrol import app_context
 from mesycontrol import gui
+from mesycontrol import gui_mainwindow
 from mesycontrol import util
 from mesycontrol.qt import Qt
 from mesycontrol.qt import QtCore
@@ -113,7 +114,7 @@ if __name__ == "__main__":
         setup_file = str(settings.value('Files/last_setup_file', str()).toString())
 
     with app_context.use(context):
-        mainwindow      = gui.MainWindow(context)
+        mainwindow      = gui_mainwindow.MainWindow(context)
         gui_application = gui.GUIApplication(context, mainwindow)
         sigint_handler.set_app(gui_application)
         mainwindow.show()
