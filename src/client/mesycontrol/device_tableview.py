@@ -55,19 +55,23 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         self.device     = device
 
     def set_device(self, device):
+        signals_slots = {
+                'config_set': self._on_device_config_set,
+                'hardware_set': self._on_device_hardware_set,
+                'idc_conflict_changed': self._on_device_idc_conflict_changed,
+                }
+
         self.beginResetModel()
 
         if self.device is not None:
-            self.device.config_set.disconnect(self._on_device_config_set)
-            self.device.hardware_set.disconnect(self._on_device_hardware_set)
-            self.device.idc_conflict_changed.disconnect(self._on_device_idc_conflict_changed)
+            for signal, slot in signals_slots.iteritems():
+                getattr(self.device, signal).disconnect(slot)
 
         self._device = device
 
         if self.device is not None:
-            self.device.config_set.connect(self._on_device_config_set)
-            self.device.hardware_set.connect(self._on_device_hardware_set)
-            self.device.idc_conflict_changed.connect(self._on_device_idc_conflict_changed)
+            for signal, slot in signals_slots.iteritems():
+                getattr(self.device, signal).connect(slot)
 
             self._on_device_config_set(self.device, None, self.device.cfg)
             self._on_device_hardware_set(self.device, None, self.device.hw)
@@ -96,6 +100,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 'connecting': self._all_fields_changed,
                 'disconnected': self._all_fields_changed,
                 'connection_error': self._all_fields_changed,
+                'address_conflict_changed': self._all_fields_changed
                 }
 
         if old_hw is not None:
@@ -184,12 +189,19 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         except (IndexError, AttributeError):
             pp = None
 
-        if (col == COL_HW_VALUE and hw is not None and hw.is_connected() and
-                pp is not None and not pp.read_only and hw.has_cached_parameter(row)):
+        if (col == COL_HW_VALUE
+                and hw is not None
+                and hw.is_connected()
+                and not hw.address_conflict
+                and pp is not None 
+                and not pp.read_only
+                and hw.has_cached_parameter(row)):
             flags |= Qt.ItemIsEditable
 
-        if (col == COL_CFG_VALUE and pp is not None and not pp.read_only and
-                not pp.do_not_store):
+        if (col == COL_CFG_VALUE
+                and pp is not None
+                and not pp.read_only
+                and not pp.do_not_store):
             flags |= Qt.ItemIsEditable
 
         return flags
@@ -222,6 +234,9 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 if hw.is_connecting():
                     return "<connecting>"
 
+                if hw.address_conflict:
+                    return "<address conflict>"
+
                 try:
                     return int(hw.get_parameter(row))
                 except future.IncompleteFuture:
@@ -247,7 +262,10 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 except (IndexError, AttributeError):
                     return None
 
-                if col == COL_HW_UNIT_VALUE and hw is not None and hw.is_connected():
+                if (col == COL_HW_UNIT_VALUE
+                        and hw is not None
+                        and hw.is_connected()
+                        and not hw.address_conflict):
                     try:
                         raw = int(hw.get_parameter(row))
                     except future.IncompleteFuture:
@@ -298,33 +316,33 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
 
         row             = idx.row()
         col             = idx.column()
+        value, ok       = value.toInt()
 
-        if col == COL_HW_VALUE:
-            value, ok = value.toInt()
-            if not ok:
-                return False
+        if not ok:
+            return False
 
-            self.device.hw.set_parameter(row, value)
+        try:
+            if col == COL_HW_VALUE:
+                self.device.hw.set_parameter(row, value)
+                return True
 
-            return True
+            if col == COL_CFG_VALUE:
+                if not self.device.has_cfg:
+                    self.device.create_config()
 
-        if col == COL_CFG_VALUE:
-            value, ok = value.toInt()
-            if not ok:
-                return False
+                cfg = self.device.cfg
 
-            cfg = self.device.cfg
+                def set_hw(f):
+                    if not f.exception() and  self.write_mode == util.COMBINED:
+                        self.device.hw.set_parameter(row, value)
 
-            if cfg is None:
-                cfg = self.device.create_config()
+                cfg.set_parameter(row, value).add_done_callback(set_hw)
 
-            def set_hw(f):
-                if not f.exception() and  self.write_mode == util.COMBINED:
-                    self.device.hw.set_parameter(row, value)
-                
-            cfg.set_parameter(row, value).add_done_callback(set_hw)
-
-            return True
+                return True
+        except Exception:
+            self.log.exception("Error setting parameter %d to %d on %s",
+                    row, value, self.device)
+            return False
 
 class DeviceTableItemDelegate(QtGui.QStyledItemDelegate):
     def __init__(self, parent=None):

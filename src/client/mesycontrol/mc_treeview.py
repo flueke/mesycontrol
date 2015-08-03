@@ -348,15 +348,37 @@ class MCTreeView(QtGui.QWidget):
 
     linked_mode = pyqtProperty(bool, get_linked_mode, set_linked_mode, notify=linked_mode_changed)
 
+    def select_node(self, node):
+        return (self.select_config_node(node)
+                or self.select_hardware_node(node))
+
+    def select_config_node(self, node):
+        idx = self.cfg_model.index_for_node(node)
+        if idx.isValid():
+            self.cfg_view.setCurrentIndex(idx)
+            return True
+        return False
+
     def select_config_node_by_ref(self, ref):
         idx  = self.cfg_model.index_for_ref(ref)
         if idx.isValid():
             self.cfg_view.setCurrentIndex(idx)
+            return True
+        return False
+
+    def select_hardware_node(self, node):
+        idx = self.hw_model.index_for_node(node)
+        if idx.isValid():
+            self.hw_view.setCurrentIndex(idx)
+            return True
+        return False
 
     def select_hardware_node_by_ref(self, ref):
         idx = self.hw_model.index_for_ref(ref)
         if idx.isValid():
             self.hw_view.setCurrentIndex(idx)
+            return True
+        return False
 
     def _cfg_context_menu(self, pos):
         idx  = self.cfg_view.indexAt(pos)

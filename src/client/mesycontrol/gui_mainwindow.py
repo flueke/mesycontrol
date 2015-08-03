@@ -13,6 +13,10 @@ import gui_util
 import log_view
 import util
 
+class MCMdiArea(QtGui.QMdiArea):
+    def __init__(self, parent=None):
+        super(MCMdiArea, self).__init__(parent)
+
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, context, parent=None):
         super(MainWindow, self).__init__(parent)

@@ -359,6 +359,7 @@ def run_close_setup(context, parent_widget):
 
     context.reset_setup()
 
+# ===== node classifiers ===== #
 def is_setup(node):
     return isinstance(node, (ctm.SetupNode, htm.RegistryNode))
 
@@ -374,17 +375,17 @@ def is_bus(node):
 def is_device(node):
     return isinstance(node, (ctm.DeviceNode, htm.DeviceNode))
 
-def is_device_cfg(node):
-    return isinstance(node, ctm.DeviceNode)
-
-def is_device_hw(node):
-    return isinstance(node, htm.DeviceNode)
-
-def is_config_node(node):
+def is_config(node):
     return isinstance(node, (ctm.SetupNode, ctm.MRCNode, ctm.BusNode, ctm.DeviceNode))
 
-def is_hardware_node(node):
+def is_hardware(node):
     return isinstance(node, (htm.RegistryNode, htm.MRCNode, htm.BusNode, htm.DeviceNode))
+
+def is_device_cfg(node):
+    return is_device(node) and is_config(node)
+
+def is_device_hw(node):
+    return is_device(node) and is_hardware(node)
 
 def store_subwindow_state(subwin, settings):
     name = str(subwin.objectName())
