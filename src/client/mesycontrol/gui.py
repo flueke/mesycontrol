@@ -22,19 +22,14 @@ from gui_util import is_config
 from model_util import add_mrc_connection
 from util import make_icon
 import app_model as am
-import basic_model as bm
 import config_gui
-import config_tree_model as ctm
 import device_tableview
 import future
 import gui_util
-import hardware_tree_model as htm
 import resources
 import util
 
 log = logging.getLogger(__name__)
-
-# TODO: enable/disable display actions on hw/cfg state change , closed, ...)
 
 class GUIApplication(QtCore.QObject):
     """GUI logic"""
@@ -556,23 +551,10 @@ class GUIApplication(QtCore.QObject):
                 for sig in app_signals:
                     getattr(node.ref, sig).connect(self._update_actions)
 
-        # XXX: leftoff
-
-        # _setup_changed:
-        #   modified_changed
-        #
-        # _on_subwindow_activated:
-        #   select correct nodes
-        #   check display mode of subwin
-        #   enable/disable select_XXX_mode actions depending on subwin display
-        #
-        # _tree_node_selected:
-        #   enable/disable actions depending on node type and state
-        #   disconnect old node signals
-        #   connect new node signals
-        #
-        # set_linked_mode
-        #   update linked mode action depending on state
+        if is_device(node) and not self._show_device_windows(
+                node.ref, is_device_cfg(node), is_device_hw(node)):
+            # No window for the selected node: make no window active in the mdi area
+            self.mainwindow.mdiArea.setActiveSubWindow(None)
 
     # ===== Action implementations =====
     def _open_setup(self):
