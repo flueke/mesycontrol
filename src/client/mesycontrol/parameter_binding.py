@@ -489,18 +489,33 @@ class LCDNumberParameterBinding(DefaultParameterBinding):
             pass
 
 class SliderParameterBinding(DefaultParameterBinding):
-    def __init__(self, unit_name=None, **kwargs):
+    def __init__(self, unit_name=None, update_on='value_changed', **kwargs):
+        """update_on = value_changed | slider_released
+        """
         super(SliderParameterBinding, self).__init__(**kwargs)
-        self.unit_name = unit_name
+
+        self.unit = self.profile.get_unit(unit_name) if unit_name is not None else None
+
+        if update_on == 'value_changed':
+            self.target.valueChanged.connect(self._value_changed)
+        elif update_on == 'slider_released':
+            self.target.sliderReleased.connect(self._slider_released)
+        else:
+            raise ValueError("invalid value for 'update_on': %s" % update_on)
 
     def _update(self, rf):
         super(SliderParameterBinding, self)._update(rf)
-        if self.unit_name is None:
+        if self.unit is None:
             self.target.setValue(int(rf))
         else:
-            unit  = self.profile.get_unit(self.unit_name)
-            value = unit.unit_value(int(rf))
+            value = self.unit.unit_value(int(rf))
             self.target.setValue(value)
+
+    def _value_changed(self, dvalue):
+        self._write_value(self.unit.raw_value(dvalue))
+
+    def _slider_released(self):
+        self._write_value(self.unit.raw_value(self.target.value()))
 
 factory = Factory()
 

@@ -77,6 +77,28 @@ class PolarityLabelBinding(pb.DefaultParameterBinding):
         except Exception:
             pass
 
+class ChannelEnablePolarityBinding(pb.DefaultParameterBinding):
+    """Used for the polarity label. Disables/enables the label depending on the
+    channels enable state."""
+    def __init__(self, **kwargs):
+        super(ChannelEnablePolarityBinding, self).__init__(**kwargs)
+
+    def _update(self, rf):
+        self.target.setEnabled(int(rf))
+
+class ChannelEnableButtonBinding(pb.DefaultParameterBinding):
+    def __init__(self, **kwargs):
+        super(ChannelEnableButtonBinding, self).__init__(**kwargs)
+        self.target.clicked.connect(self._button_clicked)
+
+    def _update(self, rf):
+        is_enabled = int(rf)
+        self.target.setChecked(is_enabled)
+        self.target.setText("On" if is_enabled else "Off")
+
+    def _button_clicked(self, checked):
+        self._write_value(int(checked))
+
 class ChannelWidget(QtGui.QWidget):
     def __init__(self, device, channel, display_mode, write_mode, parent=None):
         super(ChannelWidget, self).__init__(parent)
@@ -117,69 +139,62 @@ class ChannelWidget(QtGui.QWidget):
             display_mode=display_mode,
             write_mode=write_mode,
             target=self.slider_target_voltage,
-            unit_name='volt'))
+            unit_name='volt', update_on='slider_released'))
         
         self.bindings.append(PolarityLabelBinding(
             device=device, profile=device.profile['channel%d_polarity_read' % channel],
             target=self.label_polarity, display_mode=display_mode, write_mode=write_mode,
             pixmaps=self.polarity_pixmaps))
 
+        self.bindings.append(ChannelEnablePolarityBinding(
+            device=device, profile=device.profile['channel%d_enable_read' % channel],
+            target=self.label_polarity, display_mode=display_mode, write_mode=write_mode))
+
+        self.bindings.append(ChannelEnableButtonBinding(
+            device=device, profile=pb.ReadWriteProfile(
+                device.profile['channel%d_enable_read' % channel],
+                device.profile['channel%d_enable_write' % channel]),
+            target=self.pb_channelstate, display_mode=display_mode, write_mode=write_mode))
+            
         self.bindings.append(pb.factory.make_binding(
             device=device, profile=device.profile['channel%d_voltage_read' % channel],
             target=self.lcd_voltage, display_mode=display_mode, write_mode=write_mode,
             unit_name='volt', precision=2))
 
+        # TODO: current display coloring should also be updated on current_limit_read change
         self.bindings.append(pb.factory.make_binding(
             device=device, profile=device.profile['channel%d_current_read' % channel],
             target=self.lcd_current, display_mode=display_mode, write_mode=write_mode,
-            unit_name='microamps', precision=3))
+            unit_name='microamps', precision=3).add_update_callback(self._current_changed))
 
-        # TODO: voltage slider binding
-        # TODO: channel state (on/off) binding
+        self.bindings.append(pb.factory.make_binding(
+            device=device, profile=device.profile['channel%d_voltage_limit_read' % channel],
+            target=self.label_upper_voltage_limit, display_mode=display_mode, write_mode=write_mode,
+            unit_name='volt').add_update_callback(self._voltage_limit_changed))
+
         # TODO: gray out/disable hw-only things
-        # TODO: current display coloring
         # TODO: temperature display
 
-    def set_target_voltage(self, voltage):
-        if self.spin_target_voltage.maximum() < voltage:
-            self.set_voltage_limit(voltage)
-
-        with util.block_signals(self.slider_target_voltage):
-            self.slider_target_voltage.setValue(voltage)
-
-        with util.block_signals(self.spin_target_voltage):
-            self.spin_target_voltage.setValue(voltage)
-
-    def set_voltage_limit(self, voltage):
+    def _voltage_limit_changed(self, rf):
+        unit = self.device.profile[rf.result().address].get_unit('volt')
+        voltage = unit.unit_value(int(rf))
         self.spin_target_voltage.setMaximum(voltage)
         self.slider_target_voltage.setMaximum(voltage)
-        self.slider_target_voltage.setTickInterval(100 if voltage > 100.0 else 10)
-        self.label_upper_voltage_limit.setText("%.1f V" % voltage)
+        self.slider_target_voltage.setTickInterval(100 if voltage > 200.0 else 10)
 
-    def set_current(self, current):
-        self._last_current = current
-        self._update_current_display()
+    def _current_changed(self, f_current):
+        microamps = self.device.profile[
+                'channel%d_current_limit_read' % self.channel].get_unit('microamps')
 
-    def set_current_limit(self, current):
-        self._last_current_limit = current
-        self._update_current_display()
+        def limit_read(f_limit):
+            limit   = microamps.unit_value(int(f_limit))
+            current = math.fabs(microamps.unit_value(int(f_current)))
+            color   = 'red' if current >= limit else 'black'
+            css     = 'QLCDNumber { color: %s; }' % color
+            self.lcd_current.setStyleSheet(css)
 
-    def _update_current_display(self):
-        if self._last_current is None:
-            return
-
-        self.lcd_current.display(float(self._last_current))
-
-        if (self._last_current_limit is not None
-                and math.fabs(self._last_current) >= self._last_current_limit):
-            self.lcd_current.setStyleSheet('QLCDNumber { color: red; }')
-        else:
-            self.lcd_current.setStyleSheet('QLCDNumber { color: black; }')
-
-        if self._last_current_limit is not None:
-            text = QtCore.QString.fromUtf8("Limit: %.3f µA" % self._last_current_limit)
-            self.lcd_current.setToolTip(text)
-            self.lcd_current.setStatusTip(text)
+        self.device.get_parameter('channel%d_current_limit_read' % self.channel
+                ).add_done_callback(limit_read)
 
     def set_channel_state(self, on_off):
         with util.block_signals(self.pb_channelstate):

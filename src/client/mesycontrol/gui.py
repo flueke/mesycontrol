@@ -1094,19 +1094,20 @@ class GUIApplication(QtCore.QObject):
 
         if is_mrc(node):
             add_action(self.actions['connect_disconnect'])
-            add_action(self.actions['refresh'])
+            #add_action(self.actions['refresh'])
             add_action(self.actions['toggle_polling'])
             menu.addSeparator()
             add_action(self.actions['remove_mrc_connection'])
 
         if is_bus(node):
-            add_action(self.actions['refresh'])
+            pass
+            #add_action(self.actions['refresh'])
 
         if is_device(node):
             add_action(self.actions['open_device_widget'])
             add_action(self.actions['open_device_table'])
             add_action(self.actions['toggle_polling'])
-            add_action(self.actions['refresh'])
+            #add_action(self.actions['refresh'])
 
         if not menu.isEmpty():
             menu.exec_(view.mapToGlobal(pos))
