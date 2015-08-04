@@ -25,6 +25,12 @@ HARDWARE = 1
 CONFIG   = 2
 COMBINED = 3
 
+RW_MODE_NAMES = {
+        HARDWARE: 'hardware',
+        CONFIG: 'config',
+        COMBINED: 'combined'
+        }
+
 class GarbageCollector(QObject):
     '''
     Disable automatic garbage collection and instead collect manually
