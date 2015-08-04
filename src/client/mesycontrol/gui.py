@@ -21,6 +21,7 @@ from gui_util import is_setup, is_registry, is_mrc, is_bus, is_device, is_device
 from gui_util import is_config
 from model_util import add_mrc_connection
 from util import make_icon
+import app_model as am
 import basic_model as bm
 import config_gui
 import config_tree_model as ctm
@@ -49,7 +50,7 @@ class GUIApplication(QtCore.QObject):
         self._selected_device    = None  # The currently selected device or None if no device is selected
         self._previous_subwindow = None
         self._current_subwindow  = None
-        self._subwindow_toolbar  = None  #
+        self._subwindow_toolbar  = None
 
         self.mainwindow.installEventFilter(self)
         self.mainwindow.mdiArea.subWindowActivated.connect(self._on_subwindow_activated)
@@ -106,28 +107,6 @@ class GUIApplication(QtCore.QObject):
     def _create_actions(self):
         # Actions will be added to toolbars in dictionary insertion order.
         self.actions = collections.OrderedDict()
-
-        # Notes about action enabling/disabling/checking: Some action depend
-        # only on the node type that is selected.  Other actions depend on the
-        # node and the nodes state. If the state changes (e.g. connected) the
-        # action might need to be enabled/disabled and its tooltip and icon
-        # might need to change.
-        # Actions and their dependencies:
-        # open_setup: always active
-        # save_setup: len(setup) > 0 and setup.modified
-        # save_setup_as: len(setup) > 0
-        # close_setup: len(setup) > 0 or just keep it always active
-        # add_config: (linked mode and one of reg, mrc or bus selected) or one of reg, mrc, bus in the config tree selected
-        # remove_config: (linked mode and one of mrc, device with a config
-        #       selected) or one of mrc, device with a config in the config tree selected
-        # connect:
-        #       icon needs to be updated depending on connection state
-        #       active for reg, hw_mrc, hw_bus, hw_dev and in linked mode for mrc, bus, dev
-        #       tooltip needs to change
-        #
-        # refresh:
-        #       active for reg, mrc, bus, device
-        #       
 
         # ===== Config ===== #
 
@@ -212,16 +191,22 @@ class GUIApplication(QtCore.QObject):
 
         # Refresh / Scanbus
         # FIXME: what does this do? split into scanbus and refresh?!?!?!
-        action = QtGui.QAction(make_icon(":/refresh.png"), "&Refresh", self,
-                triggered=self._refresh)
-        action.hw_toolbar = True
-        self.actions['refresh'] = action
+        #action = QtGui.QAction(make_icon(":/refresh.png"), "&Refresh", self,
+        #        triggered=self._refresh)
+        #action.hw_toolbar = True
+        #self.actions['refresh'] = action
 
         # Toggle polling
         action = QtGui.QAction(make_icon(":/polling.png"), "Toggle Polling", self,
                 checkable=True, triggered=self._toggle_polling)
         action.hw_toolbar = True
         self.actions['toggle_polling'] = action
+
+        # Toggle RC
+        action = QtGui.QAction(make_icon(":/remote-control.png"), "Toggle RC", self,
+                checkable=True, triggered=self._toggle_rc)
+        action.hw_toolbar = True
+        self.actions['toggle_rc'] = action
 
         # Add connection
         action = QtGui.QAction(make_icon(":/add-mrc.png"), "Add MRC connection", self,
@@ -441,6 +426,8 @@ class GUIApplication(QtCore.QObject):
                 a.setIcon(a.icons['connect'])
                 a.setToolTip("Connect all MRCs")
 
+            a.setText(a.toolTip())
+
         if a.isEnabled() and is_mrc(node):
             if node.ref.has_hw and node.ref.hw.is_connected():
                 a.setIcon(a.icons['disconnect'])
@@ -453,8 +440,17 @@ class GUIApplication(QtCore.QObject):
         a.setEnabled((is_mrc(node) or is_device(node)) and node.ref.has_hw)
 
         if a.isEnabled():
-            a.setChecked(node.ref.polling)
-            a.polling_changed.connect(self._update_actions)
+            a.setChecked(node.ref.hw.polling)
+            a.setToolTip("Disable polling" if a.isChecked() else "Enable polling")
+            a.setText(a.toolTip())
+
+        a = self.actions['toggle_rc']
+        a.setEnabled(is_device(node) and node.ref.has_hw and not node.ref.hw.address_conflict)
+
+        if a.isEnabled():
+            a.setChecked(node.ref.hw.rc)
+            a.setToolTip("Disable RC" if a.isChecked() else "Enable RC")
+            a.setText(a.toolTip())
 
         self.actions['remove_mrc_connection'].setEnabled(is_mrc(node) and node.ref.has_hw)
 
@@ -465,6 +461,100 @@ class GUIApplication(QtCore.QObject):
                 (is_device_hw(node) and node.ref.hw_module.has_widget_class()))
 
         self.actions['open_device_table'].setEnabled(is_device(node))
+
+        self.actions['apply_config_to_hardware'].setEnabled(
+                self.linked_mode
+                and ((is_setup(node) and node.ref.has_cfg)
+                    or (is_mrc(node) and node.ref.has_cfg)
+                    or (is_bus(node) and node.parent.ref.has_cfg)
+                    or (is_device(node)
+                        and not node.ref.idc_conflict
+                        and not node.ref.address_conflict
+                        and node.ref.has_cfg)))
+
+        self.actions['apply_hardware_to_config'].setEnabled(
+                (is_setup(node) and node.ref.has_hw and len(node.ref.hw))
+                or (is_mrc(node) and node.ref.has_hw and len(node.ref.hw))
+                or (is_bus(node)
+                    and node.parent.ref.has_hw
+                    and len(node.parent.ref.hw.get_devices(node.bus_number)))
+                or (is_device(node)
+                    and not node.ref.idc_conflict
+                    and not node.ref.address_conflict
+                    and node.ref.has_hw))
+
+        for a in self.actions.values():
+            if len(a.toolTip()):
+                a.setStatusTip(a.toolTip())
+
+    def _tree_node_selected(self, node):
+        self.log.debug("_tree_node_selected: %s", node)
+
+        self._previous_tree_node = prev_node = self._selected_tree_node
+        self._selected_tree_node = node
+        self._selected_device    = node.ref if is_device(node) else None
+
+        self._update_actions()
+
+        hw_signals = [
+                'address_conflict_changed',
+                'polling_changed',
+                'connected',
+                'connecting',
+                'disconnected',
+                'connection_error'
+                ]
+
+        device_signals = [
+                'idc_conflict_changed',
+                'idc_changed',
+                'cfg_idc_changed',
+                'hw_idc_changed'
+                ]
+
+        app_signals = [
+                'hardware_set',
+                'config_set'
+                ]
+
+        if prev_node is not None:
+            if (is_mrc(prev_node) or is_device(prev_node)) and prev_node.ref.has_hw:
+                for sig in hw_signals:
+                    try:
+                        getattr(prev_node.ref.hw, sig).disconnect(self._update_actions)
+                    except TypeError:
+                        pass
+
+            if is_device(prev_node):
+                for sig in device_signals:
+                    try:
+                        getattr(prev_node.ref, sig).disconnect(self._update_actions)
+                    except TypeError:
+                        pass
+
+            if isinstance(prev_node.ref, am.AppObject):
+                for sig in app_signals:
+                    try:
+                        getattr(prev_node.ref, sig).disconnect(self._update_actions)
+                    except TypeError:
+                        pass
+
+        if node is not None:
+            if (is_mrc(node) or is_device(node)) and node.ref.has_hw:
+                self.log.debug("_tree_node_selected: connecting hw_signals for node %s", node)
+                for sig in hw_signals:
+                    getattr(node.ref.hw, sig).connect(self._update_actions)
+
+            if is_device(node):
+                self.log.debug("_tree_node_selected: connecting device_signals for node %s", node)
+                for sig in device_signals:
+                    getattr(node.ref, sig).connect(self._update_actions)
+
+            if isinstance(node.ref, am.AppObject):
+                self.log.debug("_tree_node_selected: connecting app_signals for node %s", node)
+                for sig in app_signals:
+                    getattr(node.ref, sig).connect(self._update_actions)
+
         # XXX: leftoff
 
         # _setup_changed:
@@ -562,6 +652,12 @@ class GUIApplication(QtCore.QObject):
 
         if (is_mrc(node) or is_device(node)) and node.ref.has_hw:
             node.ref.hw.polling = not node.ref.hw.polling
+
+    def _toggle_rc(self):
+        node = self._selected_tree_node
+
+        if is_device(node) and node.ref.has_hw:
+            node.ref.hw.set_rc(not node.ref.hw.rc)
 
     def _add_mrc_connection(self):
         gui_util.run_add_mrc_connection_dialog(
@@ -840,54 +936,6 @@ class GUIApplication(QtCore.QObject):
             self._show_or_create_device_window(device,
                     is_device_cfg(node), is_device_hw(node))
 
-    def _tree_node_selected(self, node):
-        self.log.debug("_tree_node_selected: %s", node)
-        last_node = self._selected_tree_node
-        self._selected_tree_node = node
-        self._selected_device = device = node.ref if is_device(node) else None
-
-        self.actions['open_device_widget'].setEnabled(
-                (is_device_cfg(node) and device.cfg_module.has_widget_class()) or
-                (is_device_hw(node) and device.hw_module.has_widget_class()))
-        self.actions['open_device_table'].setEnabled(is_device(node))
-
-        a = self.actions['apply_config_to_hardware']
-        a.setEnabled(self.linked_mode and (
-            (is_setup(node) and node.ref.has_cfg) or
-            (is_mrc(node) and node.ref.has_cfg) or
-            (is_bus(node) and node.parent.ref.has_cfg) or
-            (is_device(node) and node.ref.has_cfg)))
-
-        a = self.actions['apply_hardware_to_config']
-        a.setEnabled(
-            (is_setup(node) and node.ref.has_hw and len(node.ref.hw)) or
-            (is_mrc(node) and node.ref.has_hw) or
-            (is_bus(node) and node.parent.ref.has_hw) or
-            (is_device(node) and node.ref.has_hw))
-
-        if (is_mrc(last_node) or is_device(last_node)) and last_node.ref.has_hw:
-            hw = last_node.ref.hw
-            try:
-                hw.polling_changed.disconnect(self.actions['toggle_polling'].setChecked)
-            except TypeError:
-                self.log.exception("_tree_node_selected: toggle_polling signal disconnect raised")
-
-        if (is_mrc(node) or is_device(node)) and node.ref.has_hw:
-            hw = node.ref.hw
-            hw.polling_changed.connect(self.actions['toggle_polling'].setChecked)
-            self.actions['toggle_polling'].setChecked(hw.polling)
-
-        if is_device(node) and not self._show_device_windows(device,
-                is_device_cfg(node), is_device_hw(node)):
-            # No window for the selected node: make no window active in the mdi area
-            self.mainwindow.mdiArea.setActiveSubWindow(None)
-
-        self.actions['open_device_config'].setEnabled(is_device_cfg(node))
-        self.actions['save_device_config'].setEnabled(is_device_cfg(node))
-
-        self.actions['save_setup'].setEnabled(is_config(node) and self.context.setup.modified and len(self.context.setup))
-        self.actions['save_setup_as'].setEnabled(is_config(node) and len(self.context.setup))
-
     def _show_or_create_device_window(self, device, from_config_side, from_hw_side):
         if self._show_device_windows(device, from_config_side, from_hw_side):
             return
@@ -916,12 +964,16 @@ class GUIApplication(QtCore.QObject):
             subwin.showNormal()
 
     def _create_device_widget_window(self, app_device, from_config_side, from_hw_side):
-        if self.linked_mode and app_device.has_hw and app_device.has_cfg:
-            write_mode = util.COMBINED
+        if self.linked_mode:
+            if app_device.has_hw and app_device.has_cfg:
+                write_mode = util.COMBINED
+                read_mode  = util.CONFIG if from_config_side else util.HARDWARE
+            elif app_device.has_hw:
+                write_mode = read_mode = util.HARDWARE
+            else:
+                write_mode = read_mode = util.CONFIG
         else:
-            write_mode = util.CONFIG if from_config_side else util.HARDWARE
-
-        read_mode = util.CONFIG if from_config_side else util.HARDWARE
+            write_mode = read_mode = util.CONFIG if from_config_side else util.HARDWARE
 
         subwin = self._add_device_widget_window(app_device, read_mode, write_mode)
 
@@ -1088,6 +1140,8 @@ class GUIApplication(QtCore.QObject):
 
         elif (event.type() == QtCore.QEvent.Close
                 and watched_object is self.mainwindow):
-            gui_util.run_close_setup(self.context, self.mainwindow)
+            if not gui_util.run_close_setup(self.context, self.mainwindow):
+                event.ignore()
+                return True
 
         return False
