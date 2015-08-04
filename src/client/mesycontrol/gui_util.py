@@ -106,6 +106,11 @@ class DeviceSubWindow(QtGui.QMdiSubWindow):
         if self.device.address_conflict:
             title = "%s - address conflict" % title
 
+        title = "%s | display_mode=%s, write_mode=%s" % (
+                title,
+                util.RW_MODE_NAMES[self.display_mode],
+                util.RW_MODE_NAMES[self.write_mode])
+
         if self.device.has_cfg and self.device.cfg.modified:
             title += " *"
 
