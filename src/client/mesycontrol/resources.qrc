@@ -21,7 +21,9 @@
     <file alias="polarity-negative.png">ui/list-remove.png</file>
     <file alias="polarity-positive.png">ui/list-add.png</file>
     <file alias="polling.png">ui/timer-2x.png</file>
+    <file alias="question-mark.png">ui/question-mark-2x.png</file>
     <file alias="refresh.png">ui/loop-circular-2x.png</file>
+    <file alias="remote-control.png">ui/wifi-2x.png</file>
     <file alias="remove-config.png">ui/minus-2x.png</file>
     <file alias="remove-mrc.png">ui/minus-2x.png</file>
     <file alias="save-setup-as.png">ui/document-save-as.png</file>
@@ -30,7 +32,6 @@
     <file alias="select-write-mode.png">ui/pencil-2x.png</file>
     <file alias="unlinked.png">ui/link-intact-2x.png</file>
     <file alias="window-icon.png">ui/window-icon.png</file>
-    <file alias="question-mark.png">ui/question-mark-2x.png</file>
 
 
     <file>ui/applications-utilities.png</file>
