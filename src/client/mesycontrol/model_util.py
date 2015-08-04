@@ -2,9 +2,13 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
+import logging
+
 import hardware_controller
 import hardware_model as hm
 import mrc_connection
+
+log = logging.getLogger(__name__)
 
 def add_mrc_connection(hardware_registry, url, do_connect, connect_timeout_ms=10000):
     """Adds an MRC connection using the given url to the hardware_registry.
@@ -25,7 +29,17 @@ def add_mrc_connection(hardware_registry, url, do_connect, connect_timeout_ms=10
     return None
 
 def set_default_device_extensions(device, device_registry):
+    existing_exts = list()
+    new_exts = list()
+
     p = device_registry.get_device_profile(device.idc)
+
     for name, value in p.get_extensions().iteritems():
         if not device.has_extension(name):
             device.set_extension(name, value)
+            new_exts.append((name, value))
+        else:
+            existing_exts.append((name, value))
+
+    log.debug("set default extensions for %s: existing=%s, new=%s",
+            device, existing_exts, new_exts)
