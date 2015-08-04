@@ -422,7 +422,7 @@ class DeviceTableSortFilterProxyModel(QtGui.QSortFilterProxyModel):
         return self._filter_static
 
     def filterAcceptsRow(self, src_row, src_parent):
-        profile = self.sourceModel().profile
+        profile = self.sourceModel().profile[src_row]
 
         if self.filter_unknown and profile is None:
             return False
