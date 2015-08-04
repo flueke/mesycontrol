@@ -35,26 +35,14 @@ class STM16(DeviceBase):
     def __init__(self, app_device, read_mode, write_mode, parent=None):
         super(STM16, self).__init__(app_device, read_mode, write_mode, parent)
 
-        # Init gain adjust from the device profile
-        self._gain_adjust = self.profile.get_extension('gain_adjust')
-
         self.config_set.connect(self._on_config_set)
 
     def get_gain_adjust(self):
-        if self.has_cfg:
-            return self.cfg.get_extension('gain_adjust')
-
-        return self._gain_adjust
+        return self.get_extension('gain_adjust')
 
     def set_gain_adjust(self, gain_adjust):
-        changed = self.get_gain_adjust() != gain_adjust
-
-        if self.has_cfg:
-            self.cfg.set_extension('gain_adjust', int(gain_adjust))
-        else:
-            self._gain_adjust = int(gain_adjust)
-
-        if changed:
+        if self.get_gain_adjust() != gain_adjust:
+            self.set_extension('gain_adjust', gain_adjust)
             self.gain_adjust_changed.emit(self.get_gain_adjust())
 
     def get_total_gain(self, group):
