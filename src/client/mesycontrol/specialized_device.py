@@ -48,6 +48,13 @@ class DeviceBase(QtCore.QObject):
 
         super(DeviceBase, self).__init__(parent)
 
+        self.log = util.make_logging_source_adapter(__name__, self)
+
+        self.log.debug("DeviceBase(d=%s, r_mode=%s, w_mode=%s)",
+                app_device,
+                util.RW_MODE_NAMES[read_mode],
+                util.RW_MODE_NAMES[write_mode])
+
         self.app_device = app_device
         self.app_device.mrc_changed.connect(self.mrc_changed)
 
