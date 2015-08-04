@@ -476,6 +476,7 @@ class GUIApplication(QtCore.QObject):
                 (is_setup(node) and node.ref.has_hw and len(node.ref.hw))
                 or (is_mrc(node) and node.ref.has_hw and len(node.ref.hw))
                 or (is_bus(node)
+                    and node.parent is not None
                     and node.parent.ref.has_hw
                     and len(node.parent.ref.hw.get_devices(node.bus_number)))
                 or (is_device(node)
@@ -945,6 +946,8 @@ class GUIApplication(QtCore.QObject):
         except IDCConflict:
             module = device.cfg_module if from_config_side else device.hw_module
 
+        self.log.debug("_show_or_create_device_window: using module %s", module)
+
         if module.has_widget_class():
             self._create_device_widget_window(device, from_config_side, from_hw_side)
         else:
@@ -964,7 +967,7 @@ class GUIApplication(QtCore.QObject):
             subwin.showNormal()
 
     def _create_device_widget_window(self, app_device, from_config_side, from_hw_side):
-        if self.linked_mode:
+        if self.linked_mode and not app_device.idc_conflict:
             if app_device.has_hw and app_device.has_cfg:
                 write_mode = util.COMBINED
                 read_mode  = util.CONFIG if from_config_side else util.HARDWARE
