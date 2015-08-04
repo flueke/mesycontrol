@@ -322,12 +322,16 @@ def run_save_setup_as_dialog(context, parent_widget):
     
 def run_open_setup_dialog(context, parent_widget):
     if context.setup.modified and len(context.setup):
-        do_save = QtGui.QMessageBox.question(parent_widget,
+        answer = QtGui.QMessageBox.question(parent_widget,
                 "Setup modified",
                 "The current setup is modified. Do you want to save it?",
-                QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                QtGui.QMessageBox.Yes | QtGui.QMessageBox.No | QtGui.QMessageBox.Cancel,
                 QtGui.QMessageBox.Yes)
-        if do_save == QtGui.QMessageBox.Yes:
+
+        if answer == QtGui.QMessageBox.Cancel:
+            return
+
+        if answer == QtGui.QMessageBox.Yes:
             if not run_save_setup_as_dialog(context, parent_widget):
                 return False
 
@@ -349,15 +353,20 @@ def run_open_setup_dialog(context, parent_widget):
 
 def run_close_setup(context, parent_widget):
     if context.setup.modified and len(context.setup):
-        do_save = QtGui.QMessageBox.question(parent_widget,
+        answer = QtGui.QMessageBox.question(parent_widget,
                 "Setup modified",
                 "The current setup is modified. Do you want to save it?",
-                QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                QtGui.QMessageBox.Yes | QtGui.QMessageBox.No | QtGui.QMessageBox.Cancel,
                 QtGui.QMessageBox.Yes)
-        if do_save == QtGui.QMessageBox.Yes:
+
+        if answer == QtGui.QMessageBox.Cancel:
+            return False
+
+        if answer == QtGui.QMessageBox.Yes:
             run_save_setup_as_dialog(context, parent_widget)
 
     context.reset_setup()
+    return True
 
 # ===== node classifiers ===== #
 def is_setup(node):
