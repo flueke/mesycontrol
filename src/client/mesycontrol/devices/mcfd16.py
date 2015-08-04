@@ -11,7 +11,7 @@ from .. qt import pyqtSignal
 from .. qt import Qt
 from .. qt import QtCore
 from .. qt import QtGui
-import pyqtgraph as pg
+import pyqtgraph.widgets.VerticalLabel as vlabel
 
 from .. future import future_progress_dialog
 from .. future import set_exception_on
@@ -1236,7 +1236,7 @@ class TriggerSetupWidget(QtGui.QWidget):
             helper = BitPatternHelper(box_list)
             self.trigger_source_helpers.append(helper)
 
-            label = pg.VerticalLabel("0", forceWidth=True)
+            label = vlabel.VerticalLabel("0", forceWidth=True)
             label.setStyleSheet(dynamic_label_style)
             layout.addWidget(label, label_row, i+1)
             self.trigger_source_labels.append(label)
@@ -1251,7 +1251,7 @@ class TriggerSetupWidget(QtGui.QWidget):
 
 
         # Set the label column to a fixed minimum height to work around a
-        # problem with pg.VerticalLabel which does not honor setFixedSize() at
+        # problem with vlabel.VerticalLabel which does not honor setFixedSize() at
         # all and thus resizes depending on it's contents which causes ugly
         # re-layouts.
         layout.setRowMinimumHeight(label_row, 24)
@@ -1274,7 +1274,7 @@ class TriggerSetupWidget(QtGui.QWidget):
             self.gg_checkboxes.append(cb)
 
         self.gg_source_helper = BitPatternHelper(self.gg_checkboxes)
-        self.gg_source_label  = pg.VerticalLabel("0")
+        self.gg_source_label  = vlabel.VerticalLabel("0")
         self.gg_source_label.setStyleSheet(dynamic_label_style)
         layout.addWidget(self.gg_source_label, label_row, gg_col)
 
