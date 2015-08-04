@@ -37,10 +37,10 @@ profile_dict = {
             { 'address': 49,  'name': 'channel3_polarity_read', 'index': 3, 'read_only': True, 'poll': True },
 
             # Voltage limits
-            { 'address': 18,  'name': 'channel0_voltage_limit_write', 'index': 0, 'range': (0, 8000), 'units': [voltage_10] },
-            { 'address': 19,  'name': 'channel1_voltage_limit_write', 'index': 1, 'range': (0, 8000), 'units': [voltage_10] },
-            { 'address': 20,  'name': 'channel2_voltage_limit_write', 'index': 2, 'range': (0, 8000), 'units': [voltage_10] },
-            { 'address': 21,  'name': 'channel3_voltage_limit_write', 'index': 3, 'range': (0, 8000), 'units': [voltage_10] },
+            { 'address': 18,  'name': 'channel0_voltage_limit_write', 'index': 0, 'range': (0, 8000), 'units': [voltage_10], 'default': 8000 },
+            { 'address': 19,  'name': 'channel1_voltage_limit_write', 'index': 1, 'range': (0, 8000), 'units': [voltage_10], 'default': 8000 },
+            { 'address': 20,  'name': 'channel2_voltage_limit_write', 'index': 2, 'range': (0, 8000), 'units': [voltage_10], 'default': 8000 },
+            { 'address': 21,  'name': 'channel3_voltage_limit_write', 'index': 3, 'range': (0, 8000), 'units': [voltage_10], 'default': 8000 },
 
             { 'address': 22,  'name': 'channel0_voltage_limit_read', 'index': 0, 'read_only': True, 'poll': True, 'units': [voltage_10] },
             { 'address': 23,  'name': 'channel1_voltage_limit_read', 'index': 1, 'read_only': True, 'poll': True, 'units': [voltage_10] },
