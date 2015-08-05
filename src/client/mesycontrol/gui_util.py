@@ -28,6 +28,7 @@ class DeviceSubWindow(QtGui.QMdiSubWindow):
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.window_name_prefix = window_name_prefix
         self.update_title_and_name()
+        self.setWindowIcon(util.make_icon(":/window-icon.png"))
 
         self.device.config_set.connect(self._on_device_config_set)
         self._on_device_config_set(self.device, None, self.device.cfg)
