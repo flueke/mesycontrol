@@ -290,46 +290,6 @@ class AbstractParameterBinding(object):
 
         return tt
 
-class Factory(object):
-    def __init__(self):
-        self.predicate_binding_class_pairs = list()
-        self.classinfo_bindings = list()
-
-    def append_predicate_binding(self, predicate, binding_class):
-        self.predicate_binding_class_pairs.append((predicate, binding_class))
-
-    def insert_predicate_binding(self, idx, predicate, binding_class):
-        self.predicate_binding_class_pairs.insert(idx, (predicate, binding_class))
-
-    def append_classinfo_binding(self, target_classinfo, binding_class):
-        self.classinfo_bindings.append((target_classinfo, binding_class))
-
-    def insert_classinfo_binding(self, idx, target_classinfo, binding_class):
-        self.classinfo_bindings.insert(idx, (target_classinfo, binding_class))
-
-    def get_binding_class(self, target_object):
-        for pred, cls in self.predicate_binding_class_pairs:
-            if pred(target_object):
-                return cls
-
-        for cls_info, cls in self.classinfo_bindings:
-            if isinstance(target_object, cls_info):
-                return cls
-
-        return None
-
-    def make_binding(self, **kwargs):
-        cls = self.get_binding_class(kwargs['target'])
-
-        if cls is not None:
-            try:
-                return cls(**kwargs)
-            except Exception as e:
-                e.args = e.args + ("class=%s, kwargs=%s" % (cls.__name__, kwargs),)
-                raise
-
-        raise ValueError("Could not find binding class for target %s" % kwargs['target'])
-
 class DefaultParameterBinding(AbstractParameterBinding):
     def __init__(self, **kwargs):
         super(DefaultParameterBinding, self).__init__(**kwargs)
@@ -526,6 +486,46 @@ class SliderParameterBinding(DefaultParameterBinding):
 
     def _slider_released(self):
         self._write_value(self.unit.raw_value(self.target.value()))
+
+class Factory(object):
+    def __init__(self):
+        self.predicate_binding_class_pairs = list()
+        self.classinfo_bindings = list()
+
+    def append_predicate_binding(self, predicate, binding_class):
+        self.predicate_binding_class_pairs.append((predicate, binding_class))
+
+    def insert_predicate_binding(self, idx, predicate, binding_class):
+        self.predicate_binding_class_pairs.insert(idx, (predicate, binding_class))
+
+    def append_classinfo_binding(self, target_classinfo, binding_class):
+        self.classinfo_bindings.append((target_classinfo, binding_class))
+
+    def insert_classinfo_binding(self, idx, target_classinfo, binding_class):
+        self.classinfo_bindings.insert(idx, (target_classinfo, binding_class))
+
+    def get_binding_class(self, target_object):
+        for pred, cls in self.predicate_binding_class_pairs:
+            if pred(target_object):
+                return cls
+
+        for cls_info, cls in self.classinfo_bindings:
+            if isinstance(target_object, cls_info):
+                return cls
+
+        return None
+
+    def make_binding(self, **kwargs):
+        cls = self.get_binding_class(kwargs['target'])
+
+        if cls is not None:
+            try:
+                return cls(**kwargs)
+            except Exception as e:
+                e.args = e.args + ("class=%s, kwargs=%s" % (cls.__name__, kwargs),)
+                raise
+
+        raise ValueError("Could not find binding class for target %s" % kwargs['target'])
 
 factory = Factory()
 
