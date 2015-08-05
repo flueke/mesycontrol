@@ -16,6 +16,8 @@ import util
 class MCMdiArea(QtGui.QMdiArea):
     def __init__(self, parent=None):
         super(MCMdiArea, self).__init__(parent)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, context, parent=None):
