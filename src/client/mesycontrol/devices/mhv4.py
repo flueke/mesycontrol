@@ -2,16 +2,12 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-from .. qt import pyqtProperty
-from .. qt import pyqtSignal
 from .. qt import pyqtSlot
 from .. qt import Qt
 from .. qt import QtCore
 from .. qt import QtGui
 
-from functools import partial
 import itertools
-import math
 import weakref
 
 from .. import parameter_binding as pb
@@ -20,8 +16,6 @@ from .. specialized_device import DeviceBase
 from .. specialized_device import DeviceWidgetBase
 
 import mhv4_profile
-
-# TODO: mhv4 gui: make config only mode work
 
 NUM_CHANNELS = 4
 
@@ -532,6 +526,7 @@ class MHV4Widget(DeviceWidgetBase):
 
     def get_parameter_bindings(self):
         bindings = list()
+
         for cw in self.channels:
             bindings.append(cw().bindings)
 
