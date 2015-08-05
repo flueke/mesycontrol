@@ -21,6 +21,8 @@ from .. specialized_device import DeviceWidgetBase
 
 import mhv4_profile
 
+# TODO: mhv4 gui: make config only mode work
+
 NUM_CHANNELS = 4
 
 RAMP_SPEEDS = {
@@ -38,6 +40,9 @@ TCOMP_SOURCES = {
         4: 'off'
         }
 
+TCOMP_SOURCE_OFF = 4
+
+NUM_TEMP_SENSORS = 4
 TEMP_NO_SENSOR = 999
 MAX_VOLTAGE_V  = 800.0
 
@@ -120,11 +125,10 @@ class ChannelWidget(QtGui.QWidget):
 
         self._last_temperature      = None
         self._last_tcomp_source     = None
-        self._last_current          = None
-        self._last_current_limit    = None
 
         self.slider_target_voltage.installEventFilter(WheelEventFilter(self))
 
+        # Voltage write
         self.bindings.append(pb.factory.make_binding(
             device=device,
             profile=device.profile['channel%d_voltage_write' % channel],
@@ -141,13 +145,19 @@ class ChannelWidget(QtGui.QWidget):
             target=self.slider_target_voltage,
             unit_name='volt', update_on='slider_released'))
         
+        # Polarity
         self.bindings.append(PolarityLabelBinding(
-            device=device, profile=device.profile['channel%d_polarity_read' % channel],
+            device=device, profile=pb.ReadWriteProfile(
+                device.profile['channel%d_polarity_read' % channel],
+                device.profile['channel%d_polarity_write' % channel]),
             target=self.label_polarity, display_mode=display_mode, write_mode=write_mode,
             pixmaps=self.polarity_pixmaps))
 
+        # Channel enable
         self.bindings.append(ChannelEnablePolarityBinding(
-            device=device, profile=device.profile['channel%d_enable_read' % channel],
+            device=device, profile=pb.ReadWriteProfile(
+                device.profile['channel%d_enable_read' % channel],
+                device.profile['channel%d_enable_write' % channel]),
             target=self.label_polarity, display_mode=display_mode, write_mode=write_mode))
 
         self.bindings.append(ChannelEnableButtonBinding(
@@ -156,88 +166,133 @@ class ChannelWidget(QtGui.QWidget):
                 device.profile['channel%d_enable_write' % channel]),
             target=self.pb_channelstate, display_mode=display_mode, write_mode=write_mode))
             
+        # Voltage
         self.bindings.append(pb.factory.make_binding(
             device=device, profile=device.profile['channel%d_voltage_read' % channel],
             target=self.lcd_voltage, display_mode=display_mode, write_mode=write_mode,
             unit_name='volt', precision=2))
 
-        # TODO: current display coloring should also be updated on current_limit_read change
+        # Voltage limit
+        self.bindings.append(pb.factory.make_binding(
+            device=device, profile=pb.ReadWriteProfile(
+                device.profile['channel%d_voltage_limit_read' % channel],
+                device.profile['channel%d_voltage_limit_write' % channel]),
+            target=self.label_upper_voltage_limit, display_mode=display_mode, write_mode=write_mode,
+            unit_name='volt').add_update_callback(self._voltage_limit_updated))
+
+        # Current
         self.bindings.append(pb.factory.make_binding(
             device=device, profile=device.profile['channel%d_current_read' % channel],
             target=self.lcd_current, display_mode=display_mode, write_mode=write_mode,
-            unit_name='microamps', precision=3).add_update_callback(self._current_changed))
+            unit_name='microamps', precision=3
+            ).add_update_callback(self._current_updated))
 
-        self.bindings.append(pb.factory.make_binding(
-            device=device, profile=device.profile['channel%d_voltage_limit_read' % channel],
-            target=self.label_upper_voltage_limit, display_mode=display_mode, write_mode=write_mode,
-            unit_name='volt').add_update_callback(self._voltage_limit_changed))
+        # Current limit
+        self.bindings.append(pb.TargetlessParameterBinding(
+            device=device, profile=device.profile['channel%d_current_limit_read' % channel],
+            display_mode=display_mode, write_mode=write_mode
+            ).add_update_callback(self._current_limit_updated))
 
-        # TODO: gray out/disable hw-only things
-        # TODO: temperature display
+        # Sensors
+        for i in range(NUM_TEMP_SENSORS):
+            self.bindings.append(pb.TargetlessParameterBinding(
+                device=device, profile=device.profile['sensor%d_temp_read' % i],
+                display_mode=display_mode, write_mode=write_mode
+                ).add_update_callback(self._sensor_temperature_changed))
 
-    def _voltage_limit_changed(self, rf):
-        unit = self.device.profile[rf.result().address].get_unit('volt')
+        # TComp source
+        self.bindings.append(pb.TargetlessParameterBinding(
+            device=device, profile=pb.ReadWriteProfile(
+                device.profile['channel%d_tcomp_source_read' % channel],
+                device.profile['channel%d_tcomp_source_write' % channel]),
+            #device.profile['channel%d_tcomp_source_read' % channel],
+            display_mode=display_mode, write_mode=write_mode
+            ).add_update_callback(self._tcomp_source_changed))
+
+    def _voltage_limit_updated(self, rf):
+        unit    = self.device.profile[rf.result().address].get_unit('volt')
         voltage = unit.unit_value(int(rf))
+
         self.spin_target_voltage.setMaximum(voltage)
         self.slider_target_voltage.setMaximum(voltage)
         self.slider_target_voltage.setTickInterval(100 if voltage > 200.0 else 10)
 
-    def _current_changed(self, f_current):
-        microamps = self.device.profile[
-                'channel%d_current_limit_read' % self.channel].get_unit('microamps')
-
-        def limit_read(f_limit):
-            limit   = microamps.unit_value(int(f_limit))
-            current = math.fabs(microamps.unit_value(int(f_current)))
-            color   = 'red' if current >= limit else 'black'
-            css     = 'QLCDNumber { color: %s; }' % color
-            self.lcd_current.setStyleSheet(css)
+    def _current_updated(self, f_current):
+        print "_current_updated"
+        def done(f_current_limit):
+            self._update_current_lcd_color(f_current, f_current_limit)
 
         self.device.get_parameter('channel%d_current_limit_read' % self.channel
-                ).add_done_callback(limit_read)
+                ).add_done_callback(done)
 
-    def set_channel_state(self, on_off):
-        with util.block_signals(self.pb_channelstate):
-            self.pb_channelstate.setChecked(on_off)
-            self.pb_channelstate.setText("On" if on_off else "Off")
+    def _current_limit_updated(self, f_current_limit):
+        print "_current_limit_updated"
+        def done(f_current):
+            self._update_current_lcd_color(f_current, f_current_limit)
 
-        self.label_polarity.setEnabled(on_off)
+        self.device.get_parameter('channel%d_current_read' % self.channel
+                ).add_done_callback(done)
 
-    def set_polarity(self, polarity):
-        if polarity == Polarity.positive:
-            pixmap = self.pixmap_positive
-            tooltip = 'Polarity: positive'
+    def _update_current_lcd_color(self, f_current, f_current_limit):
+        # Set LCD color to red if current limit is exceeded
+        try:
+            limit       = int(f_current_limit)
+            current     = abs(int(f_current))
+
+            color       = 'red' if current >= limit else 'black'
+            css         = 'QLCDNumber { color: %s; }' % color
+
+            self.lcd_current.setStyleSheet(css)
+        except (KeyError, TypeError):
+            pass
+
+    def _sensor_temperature_changed(self, rf_sensor):
+        sensor_profile  = self.device.profile[rf_sensor.result().address]
+        sensor_num      = sensor_profile.index
+
+        def tcomp_source_done(rf_source):
+            source = int(rf_source)
+
+            if source == sensor_num:
+                self._update_temperature_display(rf_source, rf_sensor)
+
+        self.device.get_parameter('channel%d_tcomp_source_read' % self.channel
+                ).add_done_callback(tcomp_source_done)
+
+    def _tcomp_source_changed(self, rf_source):
+        source = int(rf_source)
+
+        if source == TCOMP_SOURCE_OFF:
+            self._update_temperature_display(rf_source, None)
         else:
-            pixmap = self.pixmap_negative
-            tooltip = 'Polarity: negative'
+            def sensor_read_done(rf_sensor):
+                self._update_temperature_display(rf_source, rf_sensor)
 
-        self.label_polarity.setPixmap(pixmap)
-        self.label_polarity.setToolTip(tooltip)
-        self.label_polarity.setStatusTip(tooltip)
+            self.device.get_parameter('sensor%d_temp_read' % source
+                    ).add_done_callback(sensor_read_done)
 
-    def set_temperature(self, deg_celsius):
-        self._last_temperature = deg_celsius
-        self._update_temperature_display()
+    def _update_temperature_display(self, f_source, f_sensor):
 
-    def set_tcomp_source(self, source):
-        self._last_tcomp_source = source
-        self._update_temperature_display()
-
-    def _update_temperature_display(self):
-        if (self._last_tcomp_source is None
-                or TCOMP_SOURCES[self._last_tcomp_source] == 'off'):
+        if f_sensor is None:
             self.label_temperature.clear()
-            return
-
-        if self._last_temperature is None:
-            text = "Temp: -"
         else:
-            text = QtCore.QString.fromUtf8("Temp: %.1f °C" % self._last_temperature)
+            source_str  = TCOMP_SOURCES[int(f_source)]
+            try:
+                temp_raw    = int(f_sensor)
+            except (KeyError, IndexError):
+                temp_raw    = TEMP_NO_SENSOR
 
-        if self._last_tcomp_source is not None:
-            text += ", Src: %s" % TCOMP_SOURCES[self._last_tcomp_source]
+            if temp_raw == TEMP_NO_SENSOR:
+                text = "Temp: -, Src: %s" % source_str
+            else:
+                unit = self.device.profile['sensor0_temp_read'].get_unit(
+                        'degree_celcius')
 
-        self.label_temperature.setText(text)
+                temperature = unit.unit_value(temp_raw)
+
+                text = "Temp: %.1f °C, Src: %s" % (temperature, source_str)
+
+            self.label_temperature.setText(QtCore.QString.fromUtf8(text))
 
     @pyqtSlot(int)
     def on_slider_target_voltage_valueChanged(self, value):
@@ -256,28 +311,6 @@ class ChannelWidget(QtGui.QWidget):
                     QtCore.QPoint(0, 0), global_pos)
 
             QtGui.QApplication.sendEvent(slider, tooltip_event)
-
-    @pyqtSlot()
-    def on_slider_target_voltage_sliderReleased(self):
-        pass
-        # TODO: write value
-        #self.target_voltage_changed.emit(self.slider_target_voltage.value())
-
-    @pyqtSlot(float)
-    def on_spin_target_voltage_valueChanged(self, value):
-        with util.block_signals(self.slider_target_voltage):
-            self.slider_target_voltage.setValue(value)
-        #self.target_voltage_changed.emit(value)
-
-    #@pyqtSlot()
-    #def on_spin_target_voltage_editingFinished(self):
-    #    pass
-    #    #self.target_voltage_changed.emit(self.spin_target_voltage.value())
-
-    #@pyqtSlot(bool)
-    #def on_pb_channelstate_toggled(self, value):
-    #    c = self.pb_channelstate.isChecked()
-    #    self.channel_state_changed.emit(c)
 
     def eventFilter(self, watched_object, event):
         if watched_object == self.pb_channelstate:
@@ -298,143 +331,154 @@ class ChannelWidget(QtGui.QWidget):
         return False
 
 class ChannelSettingsWidget(QtGui.QWidget):
-    apply_settings      = pyqtSignal()
-    modified_changed    = pyqtSignal(bool)
-
-    def __init__(self, mhv4, channel, display_mode, write_mode, labels_on=True, parent=None):
+    def __init__(self, device, channel, display_mode, write_mode, labels_on=True, parent=None):
         super(ChannelSettingsWidget, self).__init__(parent)
 
-        self.mhv4    = weakref.ref(mhv4)
-        self.channel = channel
         util.loadUi(":/ui/mhv4_channel_settings.ui", self)
+        self.device  = device
+        self.channel = channel
+        self.bindings = list()
+
+        self.display_mode = display_mode
+        self.write_mode   = write_mode
 
         if not labels_on:
             for label in self.findChildren(QtGui.QLabel, QtCore.QRegExp("label_\\d+")):
                 label.hide()
 
-        self.spin_target_voltage_limit.setMaximum(MAX_VOLTAGE_V)
-        self.pb_apply.clicked.connect(self.apply_settings)
-        self.pb_discard.clicked.connect(self.discard)
+        # Voltage limit
+        self.bindings.append(pb.factory.make_binding(
+            device=device, profile=pb.ReadWriteProfile(
+                device.profile['channel%d_voltage_limit_read' % channel],
+                device.profile['channel%d_voltage_limit_write' % channel]),
+            display_mode=display_mode, write_mode=write_mode,
+            target=self.spin_actual_voltage_limit, unit_name='volt'))
 
-        self.spin_target_voltage_limit.valueChanged.connect(partial(self.set_modified, True))
-        self.spin_target_current_limit.valueChanged.connect(partial(self.set_modified, True))
-        self.combo_target_polarity.currentIndexChanged.connect(partial(self.set_modified, True))
-        self.spin_target_tcomp_slope.valueChanged.connect(partial(self.set_modified, True))
-        self.spin_target_tcomp_offset.valueChanged.connect(partial(self.set_modified, True))
-        self.combo_target_tcomp_source.currentIndexChanged.connect(partial(self.set_modified, True))
-        self._modified = False
+        self.bindings.append(pb.factory.make_binding(
+            device=device, profile=pb.ReadWriteProfile(
+                device.profile['channel%d_voltage_limit_read' % channel],
+                device.profile['channel%d_voltage_limit_write' % channel]),
+            display_mode=display_mode, write_mode=write_mode,
+            target=self.spin_target_voltage_limit, unit_name='volt'))
 
-    def set_modified(self, is_modified):
-        if self.modified != is_modified:
-            self._modified = is_modified
-            self.modified_changed.emit(is_modified)
+        # Current limit
+        self.bindings.append(pb.factory.make_binding(
+            device=device, profile=pb.ReadWriteProfile(
+                device.profile['channel%d_current_limit_read' % channel],
+                device.profile['channel%d_current_limit_write' % channel]),
+            display_mode=display_mode, write_mode=write_mode,
+            target=self.spin_actual_current_limit, unit_name='microamps'))
 
-    def is_modified(self):
-        return self._modified
+        self.bindings.append(pb.factory.make_binding(
+            device=device, profile=pb.ReadWriteProfile(
+                device.profile['channel%d_current_limit_read' % channel],
+                device.profile['channel%d_current_limit_write' % channel]),
+            display_mode=display_mode, write_mode=write_mode,
+            target=self.spin_target_current_limit, unit_name='microamps'))
 
-    def set_voltage_limit(self, value):
-        self.spin_actual_voltage_limit.setValue(value)
-        with util.block_signals(self.spin_target_voltage_limit):
-            self.spin_target_voltage_limit.setValue(value)
+        # Polarity
+        self.bindings.append(pb.factory.make_binding(
+            device=device, profile=pb.ReadWriteProfile(
+                device.profile['channel%d_polarity_read' % channel],
+                device.profile['channel%d_polarity_write' % channel]),
+            display_mode=display_mode, write_mode=write_mode,
+            target=self.combo_target_polarity
+            ).add_update_callback(self._polarity_updated))
 
-    def set_current_limit(self, value):
-        self.spin_actual_current_limit.setValue(value)
-        with util.block_signals(self.spin_target_current_limit):
-            self.spin_target_current_limit.setValue(value)
+        # TComp Slope
+        self.bindings.append(pb.factory.make_binding(
+            device=device, profile=pb.ReadWriteProfile(
+                device.profile['channel%d_tcomp_slope_read' % channel],
+                device.profile['channel%d_tcomp_slope_write' % channel]),
+            display_mode=display_mode, write_mode=write_mode,
+            target=self.spin_actual_tcomp_slope, unit_name='volt_per_deg'))
 
-    def set_polarity(self, value):
-        text = "positive" if value == Polarity.positive else "negative"
-        self.le_actual_polarity.setText(text)
-        with util.block_signals(self.combo_target_polarity):
-            self.combo_target_polarity.setCurrentIndex(value)
+        self.bindings.append(pb.factory.make_binding(
+            device=device, profile=pb.ReadWriteProfile(
+                device.profile['channel%d_tcomp_slope_read' % channel],
+                device.profile['channel%d_tcomp_slope_write' % channel]),
+            display_mode=display_mode, write_mode=write_mode,
+            target=self.spin_target_tcomp_slope, unit_name='volt_per_deg'))
 
-    def set_tcomp_slope(self, value):
-        self.spin_actual_tcomp_slope.setValue(value)
-        with util.block_signals(self.spin_target_tcomp_slope):
-            self.spin_target_tcomp_slope.setValue(value)
+        # TComp Offset
+        self.bindings.append(pb.factory.make_binding(
+            device=device, profile=pb.ReadWriteProfile(
+                device.profile['channel%d_tcomp_offset_read' % channel],
+                device.profile['channel%d_tcomp_offset_write' % channel]),
+            display_mode=display_mode, write_mode=write_mode,
+            target=self.spin_actual_tcomp_offset, unit_name='degree_celcius'))
 
-    def set_tcomp_offset(self, value):
-        self.spin_actual_tcomp_offset.setValue(value)
-        with util.block_signals(self.spin_target_tcomp_offset):
-            self.spin_target_tcomp_offset.setValue(value)
+        self.bindings.append(pb.factory.make_binding(
+            device=device, profile=pb.ReadWriteProfile(
+                device.profile['channel%d_tcomp_offset_read' % channel],
+                device.profile['channel%d_tcomp_offset_write' % channel]),
+            display_mode=display_mode, write_mode=write_mode,
+            target=self.spin_target_tcomp_offset, unit_name='degree_celcius'))
 
-    def set_tcomp_source(self, value):
-        self.le_actual_tcomp_source.setText(TCOMP_SOURCES[value])
-        with util.block_signals(self.combo_target_tcomp_source):
-            self.combo_target_tcomp_source.setCurrentIndex(value)
+        # TComp Source
+        self.bindings.append(pb.factory.make_binding(
+            device=device, profile=pb.ReadWriteProfile(
+                device.profile['channel%d_tcomp_source_read' % channel],
+                device.profile['channel%d_tcomp_source_write' % channel]),
+            display_mode=display_mode, write_mode=write_mode,
+            target=self.combo_target_tcomp_source
+            ).add_update_callback(self._tcomp_source_updated))
 
-    def get_voltage_limit(self):
-        return self.spin_target_voltage_limit.value()
+    def _polarity_updated(self, rf):
+        dev = self.device.cfg if self.display_mode == util.CONFIG else self.device.hw
+        rw  = 'read' if dev is self.device.hw else 'write'
 
-    def get_current_limit(self):
-        return self.spin_target_current_limit.value()
+        n = 'channel%d_polarity_%s' % (self.channel, rw)
+        p = self.device.profile[n]
+        r = rf.result()
 
-    def get_polarity(self):
-        return self.combo_target_polarity.currentIndex()
+        if r.address == p.address:
+            text = self.combo_target_polarity.itemData(r.value, Qt.DisplayRole).toString()
+            self.le_actual_polarity.setText(text)
 
-    def get_tcomp_slope(self):
-        return self.spin_target_tcomp_slope.value()
+    def _tcomp_source_updated(self, rf):
+        dev = self.device.cfg if self.display_mode == util.CONFIG else self.device.hw
+        rw  = 'read' if dev is self.device.hw else 'write'
 
-    def get_tcomp_offset(self):
-        return self.spin_target_tcomp_offset.value()
+        n = 'channel%d_tcomp_source_%s' % (self.channel, rw)
+        p = self.device.profile[n]
+        r = rf.result()
 
-    def get_tcomp_source(self):
-        return self.combo_target_tcomp_source.currentIndex()
-
-    def discard(self):
-        self.spin_target_voltage_limit.setValue(self.spin_actual_voltage_limit.value())
-        self.spin_target_current_limit.setValue(self.spin_actual_current_limit.value())
-        self.combo_target_polarity.setCurrentIndex(self.mhv4().get_polarity(self.channel))
-        self.spin_target_tcomp_slope.setValue(self.spin_actual_tcomp_slope.value())
-        self.spin_target_tcomp_offset.setValue(self.spin_actual_tcomp_offset.value())
-        self.combo_target_tcomp_source.setCurrentIndex(self.mhv4().get_tcomp_source(self.channel))
-        self.modified = False
-
-    modified = pyqtProperty(bool, is_modified, set_modified, notify=modified_changed)
+        if r.address == p.address:
+            text = self.combo_target_tcomp_source.itemData(r.value, Qt.DisplayRole).toString()
+            self.le_actual_tcomp_source.setText(text)
 
 class GlobalSettingsWidget(QtGui.QWidget):
-    apply_settings      = pyqtSignal()
-    modified_changed    = pyqtSignal(bool)
-
-    def __init__(self, mhv4, display_mode, write_mode, parent=None):
+    def __init__(self, device, display_mode, write_mode, parent=None):
         super(GlobalSettingsWidget, self).__init__(parent)
 
         util.loadUi(":/ui/mhv4_global_settings.ui", self)
-        self.mhv4 = weakref.ref(mhv4)
-        self.pb_apply.clicked.connect(self.apply_settings)
-        self.pb_discard.clicked.connect(self.discard)
+        self.device = device
+        self.bindings = list()
 
-        self.combo_target_ramp_speed.currentIndexChanged.connect(partial(self.set_modified, True))
+        self.display_mode = display_mode
+        self.write_mode   = write_mode
 
-        self._modified = False
+        # Ramp speed
+        self.bindings.append(pb.factory.make_binding(
+            device=device, profile=pb.ReadWriteProfile(
+                device.profile['ramp_speed_read'],
+                device.profile['ramp_speed_write']),
+            display_mode=display_mode, write_mode=write_mode,
+            target=self.combo_target_ramp_speed
+            ).add_update_callback(self._ramp_speed_updated))
 
-    def set_modified(self, is_modified):
-        if self.modified != is_modified:
-            self._modified = is_modified
-            self.modified_changed.emit(is_modified)
+    def _ramp_speed_updated(self, rf):
+        dev = self.device.cfg if self.display_mode == util.CONFIG else self.device.hw
+        rw  = 'read' if dev is self.device.hw else 'write'
 
-    def is_modified(self):
-        return self._modified
+        n = 'ramp_speed_%s' % rw
+        p = self.device.profile[n]
+        r = rf.result()
 
-    def set_ramp_speed(self, value):
-        with util.block_signals(self.combo_target_ramp_speed):
-            self.combo_target_ramp_speed.setCurrentIndex(value)
-        self.le_actual_ramp_speed.setText(self.combo_target_ramp_speed.currentText())
-
-    def get_ramp_speed(self):
-        return self.combo_target_ramp_speed.currentIndex()
-
-    def discard(self):
-        self.combo_target_ramp_speed.setCurrentIndex(self.mhv4().get_ramp_speed())
-        self.modified = False
-
-    modified = pyqtProperty(bool, is_modified, set_modified, notify=modified_changed)
-
-def set_if_differs(cur, new, setter):
-    if cur != new:
-        setter(new)
-        return True
-    return False
+        if r.address == p.address:
+            text = self.combo_target_ramp_speed.itemData(r.value, Qt.DisplayRole).toString()
+            self.le_actual_ramp_speed.setText(text)
 
 class MHV4Widget(DeviceWidgetBase):
     def __init__(self, device, display_mode, write_mode, parent=None):
@@ -456,9 +500,6 @@ class MHV4Widget(DeviceWidgetBase):
             groupbox_layout.addWidget(channel_widget)
             channel_layout.addWidget(groupbox)
 
-            #channel_widget.target_voltage_changed.connect(self.set_target_voltage)
-            #channel_widget.channel_state_changed.connect(self.set_channel_state)
-
             self.channels.append(weakref.ref(channel_widget))
 
         # Channel settings
@@ -467,15 +508,11 @@ class MHV4Widget(DeviceWidgetBase):
 
         for i in range(NUM_CHANNELS):
             settings_widget = ChannelSettingsWidget(device, i, display_mode, write_mode)
-            settings_widget.apply_settings.connect(self.apply_channel_settings)
-            settings_widget.modified_changed.connect(self._on_channel_settings_modified)
             channel_settings_tabs.addTab(settings_widget, "Channel %d" % (i+1))
             self.channel_settings.append(weakref.ref(settings_widget))
 
         # Global settings
         global_settings_widget = GlobalSettingsWidget(device, display_mode, write_mode)
-        global_settings_widget.apply_settings.connect(self.apply_global_settings)
-        global_settings_widget.modified_changed.connect(self._on_global_settings_modified)
         self.global_settings = weakref.ref(global_settings_widget)
         channel_settings_tabs.addTab(global_settings_widget, "Global")
 
@@ -485,7 +522,7 @@ class MHV4Widget(DeviceWidgetBase):
         toolbox = QtGui.QToolBox()
         toolbox.addItem(channels_widget, QtGui.QIcon(":/ui/applications-utilities.png"),
                 'Channel Control')
-        toolbox.addItem(channel_settings_tabs, QtGui.QIcon("mesycontrol/ui/preferences-system.png"),
+        toolbox.addItem(channel_settings_tabs, QtGui.QIcon(":/ui/preferences-system.png"),
                 'Settings')
 
         layout = QtGui.QVBoxLayout() 
@@ -493,186 +530,17 @@ class MHV4Widget(DeviceWidgetBase):
         layout.addWidget(toolbox)
         self.setLayout(layout)
 
-        #self.device.actual_voltage_changed.connect(self.actual_voltage_changed)
-        #self.device.target_voltage_changed.connect(self.target_voltage_changed)
-        #self.device.voltage_limit_changed.connect(self.voltage_limit_changed)
-        #self.device.actual_current_changed.connect(self.actual_current_changed)
-        #self.device.current_limit_changed.connect(self.current_limit_changed)
-        #self.device.channel_state_changed.connect(self.channel_state_changed)
-        #self.device.polarity_changed.connect(self.polarity_changed)
-        #self.device.temperature_changed[object].connect(self.temperature_changed)
-        #self.device.tcomp_slope_changed[object].connect(self.tcomp_slope_changed)
-        #self.device.tcomp_offset_changed[object].connect(self.tcomp_offset_changed)
-        #self.device.tcomp_source_changed[object].connect(self.tcomp_source_changed)
-        #self.device.ramp_speed_changed.connect(self.ramp_speed_changed)
-
-        # Initialize the GUI with the current state of the device. This is
-        # needed to make newly created widgets work even if all static
-        # parameters are known (static parameters won't get refreshed and thus
-        # no change signals will be emitted).
-        #self.device.propagate_state()
-
-    @pyqtSlot(float)
-    def set_target_voltage(self, voltage):
-        self.device.set_target_voltage(self.sender().channel, voltage, 'V')
-
-    @pyqtSlot(float)
-    def set_voltage_limit(self, voltage):
-        self.device.set_voltage_limit(self.sender().channel, voltage, 'V')
-
-    @pyqtSlot(float)
-    def set_current_limit(self, current):
-        self.device.set_current_limit(self.sender().channel, current, 'µA')
-
-    @pyqtSlot(bool)
-    def set_channel_state(self, on_off):
-        self.device.set_channel_state(self.sender().channel, on_off)
-
-    @pyqtSlot(int)
-    def set_polarity(self, polarity):
-        self.device.set_polarity(self.sender().channel, polarity)
-
-    def actual_voltage_changed(self, channel, value):
-        unit_value = self.device.profile['channel0_voltage_read'].get_unit('V').unit_value(value)
-        self.channels[channel]().set_voltage(unit_value)
-
-    def target_voltage_changed(self, channel, value):
-        unit_value = self.device.profile['channel0_voltage_write'].get_unit('V').unit_value(value)
-        self.channels[channel]().set_target_voltage(unit_value)
-
-    def voltage_limit_changed(self, channel, value):
-        unit_value = self.device.profile['channel0_voltage_limit_write'].get_unit('V').unit_value(value)
-        self.channels[channel]().set_voltage_limit(unit_value)
-        self.channel_settings[channel]().set_voltage_limit(unit_value)
-
-    def actual_current_changed(self, channel, value):
-        unit_value = self.device.profile['channel0_current_read'].get_unit('µA').unit_value(value)
-        self.channels[channel]().set_current(unit_value)
-
-    def current_limit_changed(self, channel, value):
-        unit_value = self.device.profile['channel0_current_limit_read'].get_unit('µA').unit_value(value)
-        self.channels[channel]().set_current_limit(unit_value)
-        self.channel_settings[channel]().set_current_limit(unit_value)
-
-    def channel_state_changed(self, channel, value):
-        pass
-        #self.channels[channel]().set_channel_state(value)
-
-    def polarity_changed(self, channel, value):
-        self.channels[channel]().set_polarity(value)
-        self.channel_settings[channel]().set_polarity(value)
-
-    def temperature_changed(self, bp):
-        if bp.value == TEMP_NO_SENSOR:
-            value = None
-        else:
-            value = bp.get_value('°C')
-
-        sensor = bp.index
-
-        # Update temperature for channels using this sensor
-        for i in range(NUM_CHANNELS):
-            try:
-                src = self.device.get_tcomp_source(i)
-                if src == sensor:
-                    self.channels[i]().set_temperature(value)
-            except KeyError:
-                pass
-
-    def tcomp_slope_changed(self, bp):
-        self.channel_settings[bp.index]().set_tcomp_slope(bp.get_value('V/°C'))
-
-    def tcomp_offset_changed(self, bp):
-        self.channel_settings[bp.index]().set_tcomp_offset(bp.get_value('°C'))
-
-    def tcomp_source_changed(self, bp):
-        self.channels[bp.index]().set_tcomp_source(bp.value)
-        self.channel_settings[bp.index]().set_tcomp_source(bp.value)
-        if TCOMP_SOURCES[bp.value] == 'off':
-            return
-
-        try:
-            temp = self.device.get_temperature(bp.value)
-            self.channels[bp.index]().set_temperature(temp)
-        except KeyError:
-            pass
-
-    def ramp_speed_changed(self, value):
-        self.global_settings().set_ramp_speed(value)
-
-    def _on_channel_settings_modified(self, is_modified):
-        csw = self.sender()
-        c   = csw.channel
-
-        text = "Channel %d" % (c+1)
-        if is_modified:
-            text += "*"
-
-        idx = self.channel_settings_tabs().indexOf(csw)
-        self.channel_settings_tabs().setTabText(idx, text)
-
-    def _on_global_settings_modified(self, is_modified):
-        gsw = self.sender()
-        text = "Global Settings"
-        if is_modified:
-            text += "*"
-
-        idx = self.channel_settings_tabs().indexOf(gsw)
-        self.channel_settings_tabs().setTabText(idx, text)
-
-    def apply_channel_settings(self):
-        csw = self.sender()
-        d   = self.device
-        c   = csw.channel
-
-        changed = set_if_differs(
-                cur=d.get_polarity(c),
-                new=csw.get_polarity(),
-                setter=partial(d.set_polarity, c))
-
-        if changed:
-            self.channels[c]().set_target_voltage(0)
-
-        set_if_differs(
-                cur=d.get_current_limit(c, 'µA'),
-                new=csw.get_current_limit(),
-                setter=partial(d.set_current_limit, c, unit_label='µA'))
-
-        set_if_differs(
-                cur=d.get_voltage_limit(c, 'V'),
-                new=csw.get_voltage_limit(),
-                setter=partial(d.set_voltage_limit, c, unit_label='V'))
-
-        set_if_differs(
-                cur=d.get_tcomp_slope(c, 'V/°C'),
-                new=csw.get_tcomp_slope(),
-                setter=partial(d.set_tcomp_slope, c, unit_label='V/°C'))
-
-        set_if_differs(
-                cur=d.get_tcomp_offset(c, '°C'),
-                new=csw.get_tcomp_offset(),
-                setter=partial(d.set_tcomp_offset, c, unit_label='°C'))
-
-        set_if_differs(
-                cur=d.get_tcomp_source(c),
-                new=csw.get_tcomp_source(),
-                setter=partial(d.set_tcomp_source, c))
-
-        csw.modified = False
-
-    def apply_global_settings(self):
-        gsw = self.sender()
-        d   = self.device
-
-        set_if_differs(
-                cur=d.get_ramp_speed(),
-                new=gsw.get_ramp_speed(),
-                setter=d.set_ramp_speed)
-
-        gsw.modified = False
-
     def get_parameter_bindings(self):
-        return itertools.chain(*(cw().bindings for cw in self.channels))
+        bindings = list()
+        for cw in self.channels:
+            bindings.append(cw().bindings)
+
+        for csw in self.channel_settings:
+            bindings.append(csw().bindings)
+
+        bindings.append(self.global_settings().bindings)
+
+        return itertools.chain(*bindings)
 
 idc             = 27
 device_class    = MHV4
