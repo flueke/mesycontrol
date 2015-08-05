@@ -103,6 +103,7 @@ class DeviceBase(QtCore.QObject):
 
     read_mode       = pyqtProperty(object, get_read_mode, set_read_mode, notify=read_mode_changed)
     write_mode      = pyqtProperty(object, get_write_mode, set_write_mode, notify=write_mode_changed)
+    idc_conflict    = pyqtProperty(bool, lambda s: s.has_idc_conflict(), notify=idc_conflict_changed)
 
     # ===== mode dependent =====
     def get_parameter(self, address_or_name):
