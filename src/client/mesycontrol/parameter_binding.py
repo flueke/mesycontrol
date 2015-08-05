@@ -58,7 +58,7 @@ class AbstractParameterBinding(object):
         """Gets the value of this bindings parameter and updates the target
         display once the value is retrieved."""
 
-        if self.display_mode == util.CONFIG and self.read_profile.read_only:
+        if not self.has_rw_profile() and self.display_mode == util.CONFIG and self.profile.read_only:
             self._update_wrapper(future.Future().set_exception(ParameterUnavailable()))
             return
 
@@ -334,6 +334,7 @@ class DefaultParameterBinding(AbstractParameterBinding):
     def __init__(self, **kwargs):
         super(DefaultParameterBinding, self).__init__(**kwargs)
         self.log = util.make_logging_source_adapter(__name__, self)
+        self._original_palette = QtGui.QPalette(self.target.palette())
 
     def _update(self, result_future):
         self.log.debug("_update: target=%s, result_future=%s", self.target, result_future)
@@ -345,7 +346,7 @@ class DefaultParameterBinding(AbstractParameterBinding):
         self.target.setEnabled(not isinstance(result_future.exception(), ParameterUnavailable))
 
     def _get_palette(self, rf):
-        pal = QtGui.QApplication.palette()
+        pal = QtGui.QPalette(self._original_palette)
 
         try:
             result = rf.result()
@@ -355,6 +356,15 @@ class DefaultParameterBinding(AbstractParameterBinding):
             pal.setColor(QtGui.QPalette.Base, QtGui.QColor('red'))
 
         return pal
+
+class TargetlessParameterBinding(AbstractParameterBinding):
+    """Usefull if there's no target widget but the add_update_callback()
+    functionality is needed."""
+    def __init__(self, **kwargs):
+        super(TargetlessParameterBinding, self).__init__(target=None, **kwargs)
+
+    def _update(self, result_future):
+        pass
 
 class SpinBoxParameterBinding(DefaultParameterBinding):
     def __init__(self, **kwargs):
