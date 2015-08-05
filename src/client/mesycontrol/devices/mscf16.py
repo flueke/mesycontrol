@@ -256,12 +256,16 @@ class MSCF16(DeviceBase):
                 pass
 
         if new is not None:
+            if new.idc != idc:
+                print "_on_hardware_set: idc=", idc, "new.idc=", new.idc
+
             new.parameter_changed.connect(self._on_hw_parameter_changed)
 
             for addr in self.profile.get_volatile_addresses():
                 new.add_poll_item(self, addr)
 
     def _on_hw_parameter_changed(self, address, value):
+        print self.profile
         if address == self.profile['auto_pz'].address:
             # Refresh the channels PZ value once auto pz is done.
             # auto_pz = 0 means auto pz is not currently running
@@ -441,6 +445,7 @@ class ShapingPage(QtGui.QGroupBox):
 
         self.device = device
         self.device.auto_pz_channel_changed.connect(self._on_device_auto_pz_channel_changed)
+        self.device.hardware_set.connect(self._on_hardware_set)
 
         self.stop_icon  = QtGui.QIcon(':/ui/process-stop.png')
         self.sht_inputs = list()
@@ -596,6 +601,17 @@ class ShapingPage(QtGui.QGroupBox):
         row += 1
         layout.addWidget(QtGui.QLabel("BLR enable"), row, 0)
         layout.addWidget(self.check_blr_enable, row, 1)
+
+        self._on_hardware_set(device, None, device.hw)
+
+    def _on_hardware_set(self, device, old, new):
+        print "_on_hardware_set", idc
+        hw_is_ok = new is not None and new.idc == idc
+
+        self.pb_auto_pz_all.setEnabled(hw_is_ok)
+
+        for b in self.pz_buttons:
+            b.setEnabled(hw_is_ok)
 
     @future_progress_dialog()
     def _apply_common_sht(self):
@@ -776,6 +792,8 @@ class MiscPage(QtGui.QWidget):
         self.device = device
         self.bindings = list()
 
+        self.device.hardware_set.connect(self._on_hardware_set)
+
         layout = QtGui.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
@@ -850,7 +868,7 @@ class MiscPage(QtGui.QWidget):
         monitor_layout.addWidget(self.combo_monitor, 0, 0)
 
         # Channel mode
-        self.rb_mode_single = QtGui.QRadioButton("Single")
+        self.rb_mode_single = QtGui.QRadioButton("Individual")
         self.rb_mode_common = QtGui.QRadioButton("Common")
 
         self.bindings.append(ChannelModeBinding(
@@ -905,6 +923,16 @@ class MiscPage(QtGui.QWidget):
         layout.addWidget(mode_box)
         layout.addWidget(copy_box)
         layout.addWidget(version_box)
+
+        self._on_hardware_set(device, None, device.hw)
+
+    def _on_hardware_set(self, device, old, new):
+        print "_on_hardware_set", idc
+        hw_is_ok = new is not None and new.idc == idc
+
+        self.pb_copy_panel2rc.setEnabled(hw_is_ok)
+        self.pb_copy_rc2panel.setEnabled(hw_is_ok)
+        self.pb_copy_common2single.setEnabled(hw_is_ok)
 
     def _copy_panel2rc(self):
         def progress(f):
