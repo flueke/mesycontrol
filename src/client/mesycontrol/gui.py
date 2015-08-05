@@ -1009,6 +1009,7 @@ class GUIApplication(QtCore.QObject):
                 self.logview.append("Connected to %s" % mrc.get_display_url())
             except Exception as e:
                 self.logview.append("Error connecting to %s: %s" % (mrc.get_display_url(), e))
+            self._update_actions()
 
         def progress(f):
             txt = f.progress_text()
@@ -1019,6 +1020,7 @@ class GUIApplication(QtCore.QObject):
 
     def _hw_mrc_disconnected(self, mrc):
         self.logview.append("Disconnected from %s" % mrc.get_display_url())
+        self._update_actions()
 
     # Device table window creation
     def _add_device_table_window(self, device, display_mode, write_mode):
