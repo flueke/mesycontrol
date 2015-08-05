@@ -294,7 +294,8 @@ class DefaultParameterBinding(AbstractParameterBinding):
     def __init__(self, **kwargs):
         super(DefaultParameterBinding, self).__init__(**kwargs)
         self.log = util.make_logging_source_adapter(__name__, self)
-        self._original_palette = QtGui.QPalette(self.target.palette())
+        if isinstance(self.target, QtGui.QWidget):
+            self._original_palette = QtGui.QPalette(self.target.palette())
 
     def _update(self, result_future):
         self.log.debug("_update: target=%s, result_future=%s", self.target, result_future)
