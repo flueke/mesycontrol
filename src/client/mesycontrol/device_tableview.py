@@ -587,7 +587,7 @@ class DeviceTableView(QtGui.QTableView):
                 row_data.append(list())
                 row = idx.row()
 
-            row_data[-1].append(str(self.table_model.data(idx)))
+            row_data[-1].append(unicode(self.table_model.data(idx)))
 
         text  = '\n'.join(['\t'.join(s) for s in row_data])
 
