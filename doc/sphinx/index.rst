@@ -11,22 +11,19 @@ Introduction
 mesycontrol is a remote control solution for detector readout systems by
 mesytec. mesycontrol makes use of the mesytec RC bus controllers (MRC-1/MRCC)
 to communicate with the actual devices. For user interaction a GUI application
-is provided. Automated device control can be achieved via scripting support
-built into the application.
+is provided.
 
 Features
 ^^^^^^^^
-* MRC-1/MRCC connectivity via USB, serial port and network
+* MRC-1/MRCC connectivity via USB, serial port and network.
 * Client-server architecture using plain TCP as the transport. This enables the
   graphical frontend to run and operate on machines without direct access to
-  the mesytec hardware
+  the mesytec hardware.
 * Storing and loading of single device configurations and complete setups
-  (multiple devices and multiple MRCs)
+  (multiple devices and multiple MRCs).
 * Tabular view of the device memory
-* Specialized panels for MHV-4 and MSCF-16
+* Specialized GUIs for MHV-4, MSCF-16, STM-16 and MCFD-16
 * Polling of frequently changing parameters (e.g. voltage or current)
-* Scripting support (Python) to automate device control
-* Silent mode to temporarily disable any mesytec eventbus communication
 * Cross-platform: both, client and server, work on Linux and Windows
 
 Installation and dependencies
@@ -41,10 +38,10 @@ installation will most likely result in errors about missing libraries.
 The installation itself is simple: unpack the tar.bz2 archive and execute the
 *mesycontrol_gui* binary to get started:::
 
-  $ tar xf mesycontrol-0.3-36-g75d9fdf.tar.bz2
-  $ ./mesycontrol-0.3-36-g75d9fdf/bin/mesycontrol_gui
+  $ tar xf mesycontrol-0.5.tar.bz2
+  $ ./mesycontrol-0.5/bin/mesycontrol_gui
 
-Note: so far mesycontrol has only been tested on Debian Wheezy, Ubuntu 14.04
+Note: so far mesycontrol has only been tested on Debian Wheezy, Ubuntu 12.04
 and OpenSUSE 12.1 but it should work on other distributions and versions as
 long as the C++ and Qt libraries stay binary compatible.
 
