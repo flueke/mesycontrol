@@ -23,12 +23,6 @@ for mod in maybe_includes:
     except ImportError:
         pass
 
-# amd64
-# /usr/lib/liblapack.so.3
-
-# ubuntu1204-i386
-# /usr/lib/liblapack.so.3gf
-
 include_files = [ (pjoin(CSD, 'mesycontrol/ui'), 'mesycontrol/ui') ]
 maybe_include_files = [
     '/usr/lib/liblapack.so.3',
@@ -45,14 +39,6 @@ for fn in maybe_include_files:
         tup = (fn, os.path.basename(fn))
         include_files.append(tup)
 
-#if sys.platform != 'win32':
-#    include_files.extend([
-#            ('/usr/lib/liblapack.so.3', 'liblapack.so.3'),
-#            ('/usr/lib/liblapack.so.3gf', 'liblapack.so.3gf'),
-#            ('/usr/lib/libblas.so.3', 'libblas.so.3'),
-#            ('/usr/lib/libgfortran.so.3', 'libgfortran.so.3'),
-#            ])
-
 build_options = dict(
       packages = ['mesycontrol', 'mesycontrol.ui'],
 
@@ -65,15 +51,6 @@ build_options = dict(
 
       include_files = include_files,
 
-      #include_files = [
-      #    (pjoin(CSD, 'mesycontrol/ui'), 'mesycontrol/ui'),
-      #    # This will use the correct mpl data path but fails later on with Error 21: Is a directory.
-      #    # The created mpl-data directory also has bad permissions.
-      #    #(matplotlib.get_data_path(), 'mpl-data')
-      #    ],
-
-      #zip_includes  = [(pjoin(CSD, 'mesycontrol/ui/mainwin.ui'), 'mesycontrol/ui')],
-
       init_script = pjoin(CSD, 'cxfreeze_init.py'),
       path = sys.path + [CSD]
       )
@@ -82,7 +59,6 @@ base_gui = 'Win32GUI' if sys.platform=='win32' else None
 
 executables = [
     Executable(pjoin(CSD, 'mesycontrol_gui.py'), base=base_gui),
-    Executable(pjoin(CSD, 'mesycontrol_script_runner.py'), base=None)
 ]
 
 version = '0.0' if sys.platform == 'win32' else '@GIT_VERSION@'
