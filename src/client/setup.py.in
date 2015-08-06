@@ -32,9 +32,12 @@ for mod in maybe_includes:
 include_files = [ (pjoin(CSD, 'mesycontrol/ui'), 'mesycontrol/ui') ]
 maybe_include_files = [
     '/usr/lib/liblapack.so.3',
-    '/usr/lib/liblapack.so.3gf',
     '/usr/lib/libblas.so.3',
     '/usr/lib/x86_64-linux-gnu/libgfortran.so.3',
+
+    '/usr/lib/liblapack.so.3gf',
+    '/usr/lib/libblas/libblas.so.3gf',
+    '/usr/lib/i386-linux-gnu/libgfortran.so.3',
     ]
 
 for fn in maybe_include_files:
