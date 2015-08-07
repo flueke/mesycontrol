@@ -38,7 +38,6 @@ set(PYTHON_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/hardware_tree_model.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/__init__.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/log_view.py"
-    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/main.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/mc_treeview.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/model_util.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/mrc_connection.py"
