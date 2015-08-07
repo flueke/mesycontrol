@@ -354,14 +354,12 @@ class Device(AppObject):
         if module.idc != self.idc:
             raise IDCConflict()
 
-        if self.module != module:
-            self.set_hw_module(module)
-            self.set_cfg_module(module)
+        self.set_hw_module(module)
+        self.set_cfg_module(module)
 
-            self.module_changed.emit(self.module)
-            self.profile_changed.emit(self.profile)
-            return True
-        return False
+        self.module_changed.emit(self.module)
+        self.profile_changed.emit(self.profile)
+        return True
 
     def set_hw_module(self, module):
         if self.has_hw and self.hw_idc != module.idc:
@@ -606,7 +604,7 @@ class Director(object):
 
     def _maybe_update_device_module(self, app_device):
         if app_device.idc_conflict:
-            app_device.set_hw_module(self.device_registry.get_device_module(app_device.hw_idc))
+            app_device.set_hw_module(self.device_registry.get_device_module(app_device.hw.idc))
             app_device.set_cfg_module(self.device_registry.get_device_module(app_device.cfg.idc))
         else:
             app_device.set_module(self.device_registry.get_device_module(app_device.idc))
