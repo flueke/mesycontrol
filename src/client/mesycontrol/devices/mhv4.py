@@ -479,8 +479,7 @@ class MHV4Widget(DeviceWidgetBase):
         super(MHV4Widget, self).__init__(device, display_mode, write_mode, parent)
 
         self.channels = list()
-        self.channel_settings = list()
-        self.global_settings = None
+        self._toolbar = None
 
         # Channel controls
         channel_layout = QtGui.QHBoxLayout()
@@ -496,32 +495,9 @@ class MHV4Widget(DeviceWidgetBase):
 
             self.channels.append(weakref.ref(channel_widget))
 
-        # Channel settings
-        channel_settings_tabs = QtGui.QTabWidget()
-        self.channel_settings_tabs = weakref.ref(channel_settings_tabs)
-
-        for i in range(NUM_CHANNELS):
-            settings_widget = ChannelSettingsWidget(device, i, display_mode, write_mode)
-            channel_settings_tabs.addTab(settings_widget, "Channel %d" % (i+1))
-            self.channel_settings.append(weakref.ref(settings_widget))
-
-        # Global settings
-        global_settings_widget = GlobalSettingsWidget(device, display_mode, write_mode)
-        self.global_settings = weakref.ref(global_settings_widget)
-        channel_settings_tabs.addTab(global_settings_widget, "Global")
-
-        channels_widget = QtGui.QWidget()
-        channels_widget.setLayout(channel_layout)
-
-        toolbox = QtGui.QToolBox()
-        toolbox.addItem(channels_widget, QtGui.QIcon(":/ui/applications-utilities.png"),
-                'Channel Control')
-        toolbox.addItem(channel_settings_tabs, QtGui.QIcon(":/ui/preferences-system.png"),
-                'Settings')
-
         layout = QtGui.QVBoxLayout() 
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(toolbox)
+        layout.addLayout(channel_layout)
         self.setLayout(layout)
 
     def get_parameter_bindings(self):
@@ -530,12 +506,51 @@ class MHV4Widget(DeviceWidgetBase):
         for cw in self.channels:
             bindings.append(cw().bindings)
 
-        for csw in self.channel_settings:
-            bindings.append(csw().bindings)
-
-        bindings.append(self.global_settings().bindings)
-
         return itertools.chain(*bindings)
+
+    def has_toolbar(self):
+        return True
+
+    def get_toolbar(self):
+        if self._toolbar is None:
+            self._toolbar = tb = QtGui.QToolBar()
+
+            tb.addAction(util.make_icon(":/ui/preferences-system.png"),
+                    "MHV-4 Settings").triggered.connect(self._show_preferences)
+
+        return self._toolbar
+
+    def _show_preferences(self):
+        bindings = list()
+        tabs = QtGui.QTabWidget()
+
+        for i in range(NUM_CHANNELS):
+            csw = ChannelSettingsWidget(self.device, i, self.display_mode, self.write_mode)
+            tabs.addTab(csw, "Channel %d" % (i+1))
+            bindings.append(csw.bindings)
+
+        gsw = GlobalSettingsWidget(self.device, self.display_mode, self.write_mode)
+        tabs.addTab(gsw, "Global")
+        bindings.append(gsw.bindings)
+
+        d = QtGui.QDialog(self)
+        d.setModal(True)
+        d.setWindowTitle("MHV-4 Settings")
+
+        pb = QtGui.QPushButton("Close", clicked=d.close)
+        pb_l = QtGui.QHBoxLayout()
+        pb_l.addStretch(1)
+        pb_l.addWidget(pb)
+        pb_l.addStretch(1)
+
+        l = QtGui.QVBoxLayout(d)
+        l.addWidget(tabs)
+        l.addLayout(pb_l)
+
+        for b in itertools.chain(*bindings):
+            b.populate()
+
+        d.show()
 
 idc             = 27
 device_class    = MHV4
