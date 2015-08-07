@@ -144,6 +144,15 @@ class DeviceWidgetSubWindow(DeviceSubWindow):
     def has_combined_display(self):
         return False
 
+    def has_toolbar(self):
+        try:
+            return self.widget().has_toolbar()
+        except AttributeError:
+            return False
+
+    def get_toolbar(self):
+        return self.widget().get_toolbar()
+
 class DeviceTableSubWindow(DeviceSubWindow):
     def __init__(self, widget, parent=None):
         super(DeviceTableSubWindow, self).__init__(
