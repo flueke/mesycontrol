@@ -315,3 +315,22 @@ class FillDeviceConfigsRunner(config_util.GeneratorRunner):
     def _progress_update(self, progress):
         super(FillDeviceConfigsRunner, self)._progress_update(progress)
         self.progress_changed.emit(progress)
+
+class ReadConfigParametersRunner(config_util.GeneratorRunner):
+    progress_changed = pyqtSignal(object)
+
+    def __init__(self, devices, parent_widget, parent=None):
+        super(ReadConfigParametersRunner, self).__init__(parent=parent)
+        self.log = util.make_logging_source_adapter(__name__, self)
+        self.devices = devices
+        self.parent_widget = parent_widget
+
+    def _start(self):
+        self.generator = config_util.read_config_parameters(self.devices)
+
+    def _object_yielded(self, obj):
+        self.log.warning("unhandled object yieled: %s", obj)
+
+    def _progress_update(self, progress):
+        super(ReadConfigParametersRunner, self)._progress_update(progress)
+        self.progress_changed.emit(progress)

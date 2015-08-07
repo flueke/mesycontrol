@@ -776,3 +776,15 @@ def fill_device_configs(devices):
             device.cfg.set_extension(name, value)
 
         yield progress.increment()
+
+def read_config_parameters(devices):
+    progress = ProgressUpdate(current=0, total=len(devices))
+    yield progress
+
+    for device in devices:
+        params = (yield device.get_config_parameters()).result()
+
+        for param in params:
+            yield device.hw.read_parameter(param.address)
+
+        yield progress.increment()
