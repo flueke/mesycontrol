@@ -668,7 +668,22 @@ class GUIApplication(QtCore.QObject):
                 is_device_cfg(node), is_device_hw(node))
 
     def _check_config(self):
-        pass
+        predicate = lambda d: not d.idc_conflict and d.has_hw and d.has_cfg
+        devices = filter(predicate, (d for mrc in self.app_registry for d in mrc))
+
+        runner = config_gui.ReadConfigParametersRunner(
+                devices=devices,
+                parent_widget=self.mainwindow)
+
+        progress_dialog = QtGui.QProgressDialog()
+        progress_dialog.setMaximum(len(devices))
+        progress_dialog.canceled.connect(runner.close)
+
+        f = runner.start()
+        fo = future.FutureObserver(f)
+        fo.done.connect(progress_dialog.close)
+        fo.progress_changed.connect(progress_dialog.setValue)
+        progress_dialog.exec_()
 
     def _apply_config_to_hardware(self):
         node = self._selected_tree_node
