@@ -20,7 +20,8 @@ class ErrorResponse(RuntimeError):
     pass
 
 class TimeoutError(RuntimeError):
-    pass
+    def __str__(self):
+        return "Connection timed out"
 
 SCANBUS_INTERVAL_MSEC  = 5000
 POLL_MIN_INTERVAL_MSEC =  500
