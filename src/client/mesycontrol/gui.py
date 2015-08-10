@@ -992,15 +992,18 @@ class GUIApplication(QtCore.QObject):
         action = self.actions['toggle_linked_mode']
         action.setIcon(action.icons[self.linked_mode])
 
-        # TODO: linked mode transition
-        if linked_mode:
-            # transition to linked_mode
-            # for each DeviceTableWidget: set its mode to linked mode
-            pass
-        else:
-            # transition from linked_mode
-            # close all DeviceTableWidgets
-            pass
+        for device, window_list in self._device_window_map.iteritems():
+            # Use a copy of window_list here as closing windows will modify the
+            # original list.
+            for window in list(window_list):
+                try:
+                    if linked_mode and window.has_combined_display():
+                        window.display_mode = util.COMBINED
+                    elif not linked_mode:
+                        if util.COMBINED in (window.display_mode, window.write_mode):
+                            window.close()
+                except AttributeError:
+                    pass
 
     def get_linked_mode(self):
         return self._linked_mode
@@ -1018,20 +1021,25 @@ class GUIApplication(QtCore.QObject):
 
     def _hw_mrc_connecting(self, f, mrc):
         self.logview.append("Connecting to %s" % mrc.get_display_url())
-        def done(f):
+
+        fo = future.FutureObserver()
+
+        def done(f, fo=fo):
             try:
                 f.result()
                 self.logview.append("Connected to %s" % mrc.get_display_url())
             except Exception as e:
                 self.logview.append("Error connecting to %s: %s" % (mrc.get_display_url(), e))
+
+            fo.deleteLater()
             self._update_actions()
 
-        def progress(f):
-            txt = f.progress_text()
-            if txt:
-                self.logview.append("%s: %s" % (mrc.get_display_url(), txt))
+        def progress_text_changed(txt):
+            self.logview.append("%s: %s" % (mrc.get_display_url(), txt))
 
-        f.add_done_callback(done).add_progress_callback(progress)
+        f.add_done_callback(done)
+        fo.set_future(f)
+        fo.progress_text_changed.connect(progress_text_changed)
 
     def _hw_mrc_disconnected(self, mrc):
         self.logview.append("Disconnected from %s" % mrc.get_display_url())
