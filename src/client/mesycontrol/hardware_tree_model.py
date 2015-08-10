@@ -80,19 +80,41 @@ class MRCNode(HardwareTreeNode):
         if column == 0 and role == Qt.DisplayRole:
             return mrc.get_display_url()
 
-        if column == 0 and role == Qt.DecorationRole:
+        if column == 0:
             if mrc.hw is not None and not mrc.hw.is_connected() and mrc.hw.last_connection_error is not None:
-                return QtGui.QPixmap(":/connection-error.png")
-            elif mrc.hw is not None and mrc.hw.is_connecting():
-                return QtGui.QPixmap(":/connecting.png")
-            elif mrc.hw is None or mrc.hw.is_disconnected():
-                return QtGui.QPixmap(":/disconnected.png")
-            elif mrc.hw is not None and mrc.hw.is_connected() and any(d.address_conflict for d in mrc.hw):
-                return QtGui.QPixmap(":/connection-error.png")
-            elif mrc.hw is not None and mrc.hw.is_connected():
-                return QtGui.QPixmap(":/connected.png")
+                if role == Qt.DecorationRole:
+                    return QtGui.QPixmap(":/warning.png")
 
-            return None
+                if role in (Qt.ToolTipRole, Qt.StatusTipRole):
+                    return "%s: %s" % (mrc.get_display_url(), mrc.hw.last_connection_error)
+
+            elif mrc.hw is not None and mrc.hw.is_connecting():
+                if role == Qt.DecorationRole:
+                    return QtGui.QPixmap(":/connecting.png")
+
+                if role in (Qt.ToolTipRole, Qt.StatusTipRole):
+                    return "Connecting to %s" % (mrc.get_display_url(),)
+
+            elif mrc.hw is None or mrc.hw.is_disconnected():
+                if role == Qt.DecorationRole:
+                    return QtGui.QPixmap(":/disconnected.png")
+
+                if role in (Qt.ToolTipRole, Qt.StatusTipRole):
+                    return "Disconnected from %s" % (mrc.get_display_url(),)
+
+            elif mrc.hw is not None and mrc.hw.is_connected() and any(d.address_conflict for d in mrc.hw):
+                if role == Qt.DecorationRole:
+                    return QtGui.QPixmap(":/warning.png")
+
+                if role in (Qt.ToolTipRole, Qt.StatusTipRole):
+                    return "Address conflict detected"
+
+            elif mrc.hw is not None and mrc.hw.is_connected():
+                if role == Qt.DecorationRole:
+                    return QtGui.QPixmap(":/connected.png")
+
+                if role in (Qt.ToolTipRole, Qt.StatusTipRole):
+                    return "Connected to %s" % mrc.get_display_url()
 
 class BusNode(btm.BasicTreeNode):
     def __init__(self, bus_number, parent=None):
@@ -106,7 +128,7 @@ class BusNode(btm.BasicTreeNode):
         if column == 0 and role == Qt.DecorationRole:
             mrc = self.parent.ref.hw
             if mrc is not None and any(d.address_conflict for d in mrc.get_devices(self.bus_number)):
-                return QtGui.QPixmap(":/connection-error.png")
+                return QtGui.QPixmap(":/warning.png")
 
 class DeviceNode(HardwareTreeNode):
     def __init__(self, device, parent=None):
@@ -145,12 +167,11 @@ class DeviceNode(HardwareTreeNode):
         hw      = device.hw  # hardware_model.Device
         mrc     = device.mrc # app_model.MRC
 
-        if column == 0 and role == Qt.DisplayRole:
-            if hw is None:
-                if mrc.hw is None or not mrc.hw.is_connected():
-                    return "%X <no mrc connection>" % device.address
-                else:
-                    return "%X <device not connected>" % device.address
+        if column == 0 and role in (Qt.DisplayRole, Qt.ToolTipRole, Qt.StatusTipRole):
+            if mrc.hw is None or not mrc.hw.is_connected():
+                return "%X <no mrc connection>" % device.address
+            elif hw is None:
+                return "%X <device not connected>" % device.address
 
             try:
                 name = self.model.device_registry.get_device_name(hw.idc)
@@ -158,7 +179,8 @@ class DeviceNode(HardwareTreeNode):
             except KeyError:
                 data = "idc=%d" % hw.idc
 
-            return "%X %s" % (device.address, data)
+            if role == Qt.DisplayRole:
+                return "%X %s" % (device.address, data)
 
         if column == COL_RC and hw is not None and mrc.hw.is_connected():
             if role == Qt.DisplayRole:
@@ -166,31 +188,62 @@ class DeviceNode(HardwareTreeNode):
             if role == Qt.EditRole:
                 return hw.rc
 
-        if column == 0 and role == Qt.DecorationRole:
+        if column == 0:
             if hw is not None and hw.address_conflict:
-                return QtGui.QPixmap(":/connection-error.png")
-        
-            if mrc.hw is not None:
-                if mrc.hw.is_connecting():
-                    return QtGui.QPixmap(":/connecting.png")
+                if role == Qt.DecorationRole:
+                    return QtGui.QPixmap(":/warning.png")
 
-                if (mrc.hw.is_connected() and not hw) or mrc.hw.is_disconnected():
+                if role in (Qt.ToolTipRole, Qt.StatusTipRole):
+                    return "Address conflict"
+
+            if hw is not None and self.model.linked_mode and  device.idc_conflict:
+                if role in (Qt.ToolTipRole, Qt.StatusTipRole):
+                    return "IDC conflict"
+
+            if device.has_hw and device.has_cfg and device.hw.is_connected():
+                if role in (Qt.ToolTipRole, Qt.StatusTipRole):
+                    if device.config_applied:
+                        return "Hardware matches config"
+                    else:
+                        return "Hardware and config differ"
+
+            if mrc.hw is None or mrc.hw.is_disconnected():
+                if role == Qt.DecorationRole:
                     return QtGui.QPixmap(":/disconnected.png")
 
-                if not mrc.hw.is_connected() and mrc.hw.last_connection_error is not None:
-                    return QtGui.QPixmap(":/connection-error.png")
+                if role in (Qt.ToolTipRole, Qt.StatusTipRole):
+                    return "Disconnected from %s" % (mrc.get_display_url(),)
 
-                if mrc.hw.is_connected() and hw is not None:
+            if mrc.hw is not None and mrc.hw.is_connecting():
+                if role == Qt.DecorationRole:
+                    return QtGui.QPixmap(":/connecting.png")
+
+                if role in (Qt.ToolTipRole, Qt.StatusTipRole):
+                    return "Connecting to %s" % (mrc.get_display_url(),)
+
+            if mrc.hw is not None and mrc.hw.is_connected() and not hw:
+                if role == Qt.DecorationRole:
+                    return QtGui.QPixmap(":/disconnected.png")
+
+            if mrc.hw is not None and not mrc.hw.is_connected() and mrc.hw.last_connection_error is not None:
+                if role == Qt.DecorationRole:
+                    return QtGui.QPixmap(":/warning.png")
+
+                if role in (Qt.ToolTipRole, Qt.StatusTipRole):
+                    return "%s: %s" % (mrc.get_display_url(), mrc.hw.last_connection_error)
+
+            if mrc.hw is not None and mrc.hw.is_connected() and hw is not None:
+                if role == Qt.DecorationRole:
                     return QtGui.QPixmap(":/connected.png")
 
-            return QtGui.QPixmap(":/disconnected.png")
+                if role in (Qt.ToolTipRole, Qt.StatusTipRole):
+                    return "Connected"
 
         if role == Qt.BackgroundRole:
             if hw is not None and hw.address_conflict:
                 return QtGui.QColor('red')
 
-        if role == Qt.BackgroundRole and self.model.linked_mode:
-            if device.idc_conflict:
+            if device.idc_conflict and self.model.linked_mode:
                 return QtGui.QColor('red')
 
             if device.has_hw and device.has_cfg:
