@@ -112,7 +112,7 @@ class MRC(bm.MRC):
             device.clear_cached_memory()
 
     def set_connection_error(self, error):
-        self.log.debug("%s: set_connection_error: %s", self.url, error)
+        self.log.debug("%s: set_connection_error: %s (%s)", self.url, error, type(error))
         self._connected, self._connecting, self._disconnected = (False, False, True)
         self.last_connection_error = error
         self.connection_error.emit(error)
