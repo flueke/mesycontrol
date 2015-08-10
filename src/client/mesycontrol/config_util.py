@@ -778,13 +778,24 @@ def fill_device_configs(devices):
         yield progress.increment()
 
 def read_config_parameters(devices):
-    progress = ProgressUpdate(current=0, total=len(devices))
+    progress = ProgressUpdate(current=0, total=0, text="Getting config parameters")
     yield progress
 
-    for device in devices:
-        params = (yield device.get_config_parameters()).result()
+    d2f = dict()
 
+    for device in devices:
+        d2f[device] = device.get_config_parameters()
+
+    d2params = dict()
+
+    for device, f in d2f.iteritems():
+        d2params[device] = (yield f).result()
+
+    progress.total = sum(len(params) for params in d2params.values())
+    progress.text  = "Reading parameters"
+    yield progress
+
+    for device, params in d2params.iteritems():
         for param in params:
             yield device.hw.read_parameter(param.address)
-
-        yield progress.increment()
+            yield progress.increment()
