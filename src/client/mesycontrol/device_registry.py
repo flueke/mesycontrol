@@ -15,6 +15,12 @@ class VirtualDeviceModule(object):
         self.device_ui_class = None
         self.profile = device_profile.make_generic_profile(idc)
 
+    def has_specialized_class(self):
+        return False
+
+    def has_widget_class(self):
+        return False
+
 class DeviceRegistry(object):
     """Provides access to device modules."""
     def __init__(self, auto_load_modules=False):
