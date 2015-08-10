@@ -10,7 +10,7 @@
     <file alias="close-setup.png">ui/process-stop.png</file>
     <file alias="connected.png">ui/connected.png</file>
     <file alias="connecting.png">ui/loop-circular-2x.png</file>
-    <file alias="connection-error.png">ui/warning-2x.png</file>
+    <file alias="warning.png">ui/warning-2x.png</file>
     <file alias="connect.png">ui/connected.png</file>
     <file alias="disconnected.png">ui/disconnected.png</file>
     <file alias="disconnect.png">ui/disconnected.png</file>
