@@ -21,6 +21,7 @@ class ConfigTreeView(QtGui.QTreeView):
         self.setRootIsDecorated(False)
         self.setExpandsOnDoubleClick(False)
         self.setEditTriggers(QtGui.QAbstractItemView.EditKeyPressed)
+        self.setMouseTracking(True)
 
 class HardwareTreeView(QtGui.QTreeView):
     def __init__(self, parent=None):
@@ -31,6 +32,7 @@ class HardwareTreeView(QtGui.QTreeView):
         self.setRootIsDecorated(False)
         self.setExpandsOnDoubleClick(False)
         self.setEditTriggers(QtGui.QAbstractItemView.EditKeyPressed | QtGui.QAbstractItemView.DoubleClicked)
+        self.setMouseTracking(True)
 
 def find_insertion_index(items, test_fun):
     prev_item = next((o for o in items if test_fun(o)), None)
