@@ -302,6 +302,19 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                     return 0
 
         if role == Qt.BackgroundRole:
+            if (self.display_mode == util.COMBINED
+                    and hw is not None
+                    and cfg is not None
+                    and pp is not None
+                    and pp.should_be_stored()):
+                try:
+                    cfg_raw = int(cfg.get_parameter(row))
+                    hw_raw  = int(hw.get_parameter(row))
+                    if cfg_raw != hw_raw:
+                        return QtGui.QColor('orange')
+                except (future.IncompleteFuture, KeyError):
+                    pass
+
             if col == COL_HW_VALUE and pp is not None and pp.read_only:
                 return QtGui.QColor("lightgray")
 
