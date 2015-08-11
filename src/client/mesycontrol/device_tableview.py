@@ -11,18 +11,8 @@ import future
 import basic_model as bm
 import util
 
-# TODO: handle the case where an app_model.Device goes away completely (happens
-# if no config present and hardware device goes missing ->
-# app_model.Device.(hw,cfg) is (None, None) -> it gets removed by the Director.
-# If the device reappears after scanbus a new app_model.Device object is
-# created. The table view will not know about this new object and remain in a
-# "dead" state. -> close the window? store (url, bus, dev) -> window somewhere
-# and update the table models device once a new device is created?
-# => probably best to just close the window for now
-
 # TODO: handle the case where there's no device config present yet -> create one
 # TODO: handle failed sets. maybe display red background for a few seconds
-# FIXME: hw device is disconnected and connected again -> hw column still says disconnected
 
 column_titles = ('Address', 'Name', 'HW Value', 'Config Value', 'HW Unit Value', 'Config Unit Value')
 
@@ -312,7 +302,8 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                     hw_raw  = int(hw.get_parameter(row))
                     if cfg_raw != hw_raw:
                         return QtGui.QColor('orange')
-                except (future.IncompleteFuture, KeyError):
+                except (future.IncompleteFuture, KeyError,
+                        util.SocketError, util.Disconnected):
                     pass
 
             if col == COL_HW_VALUE and pp is not None and pp.read_only:
