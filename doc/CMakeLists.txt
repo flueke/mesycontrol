@@ -31,7 +31,7 @@ if (SPHINX_FOUND)
   # Then sphinx is run twice, once for HTML and once for latex output. To
   # generate the final PDF file from the latex sources a final make invocation
   # is needed.
-  add_custom_target(mesycontrol_docs ALL
+  add_custom_target(doc ALL
     COMMAND
     ${CMAKE_COMMAND}
     -E copy_directory
