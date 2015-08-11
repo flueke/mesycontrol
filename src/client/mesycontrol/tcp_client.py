@@ -13,24 +13,6 @@ from future import Future
 import protocol
 import util
 
-class SocketError(Exception):
-    def __init__(self, error_code, error_string):
-        self.error_code   = int(error_code)
-        self.error_string = str(error_string)
-
-    def __str__(self):
-        return self.error_string
-
-    def __int__(self):
-        return self.error_code
-
-class Disconnected(Exception):
-    def __str__(self):
-        s = super(Disconnected, self).__str__()
-        if not len(s):
-            return "Disconnected"
-        return s
-
 RequestResult = collections.namedtuple("RequestResult", "request response")
 
 class MCTCPClient(QtCore.QObject):
@@ -90,7 +72,7 @@ class MCTCPClient(QtCore.QObject):
                 self.log.error("Error connecting to %s:%d: %s", host, port,
                         self._socket.errorString())
                 dc()
-                ret.set_exception(SocketError(socket_error, self._socket.errorString()))
+                ret.set_exception(util.SocketError(socket_error, self._socket.errorString()))
                 self.log.error("%s", ret.exception())
 
             self._reset_state()
@@ -133,7 +115,7 @@ class MCTCPClient(QtCore.QObject):
             self.log.error("Socket error from %s:%d: %s", host, port,
                     self._socket.errorString())
             dc()
-            ret.set_exception(SocketError(socket_error, self._socket.errorString()))
+            ret.set_exception(util.SocketError(socket_error, self._socket.errorString()))
 
         self._socket.disconnected.connect(socket_disconnected)
         self._socket.error.connect(socket_error)
@@ -168,7 +150,7 @@ class MCTCPClient(QtCore.QObject):
         ret = Future()
 
         if not self.is_connected():
-            ret.set_exception(Disconnected())
+            ret.set_exception(util.Disconnected())
             return ret
 
         was_empty = self.get_queue_size() == 0
@@ -204,7 +186,7 @@ class MCTCPClient(QtCore.QObject):
         data = struct.pack('!H', len(data)) + data # prepend message size
         self.log.debug("_start_write_request: writing %s (len=%d)", request, len(data))
         if self._socket.write(data) == -1:
-            future.set_exception(SocketError(self._socket.error(), self._socket.errorString()))
+            future.set_exception(util.SocketError(self._socket.error(), self._socket.errorString()))
         else:
             def bytes_written():
                 self.log.debug("_start_write_request: request %s sent", request)
@@ -257,11 +239,11 @@ class MCTCPClient(QtCore.QObject):
                 self._socket_readyRead()
 
     def _socket_disconnected(self):
-        self._reset_state(Disconnected())
+        self._reset_state(util.Disconnected())
         self.disconnected.emit()
 
     def _socket_error(self, socket_error):
-        error = SocketError(socket_error, self._socket.errorString())
+        error = util.SocketError(socket_error, self._socket.errorString())
         self._reset_state(error)
         self.socket_error.emit(error)
         self.disconnected.emit()

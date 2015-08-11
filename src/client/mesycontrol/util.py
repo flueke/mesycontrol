@@ -77,6 +77,25 @@ class GarbageCollector(QObject):
 
 class URLParseError(Exception): pass
 
+class SocketError(Exception):
+    def __init__(self, error_code, error_string):
+        self.error_code   = int(error_code)
+        self.error_string = str(error_string)
+
+    def __str__(self):
+        return self.error_string
+
+    def __int__(self):
+        return self.error_code
+
+class Disconnected(Exception):
+    def __str__(self):
+        s = super(Disconnected, self).__str__()
+        if not len(s):
+            return "Disconnected"
+        return s
+
+
 def parse_connection_url(url):
     # TODO: add support for baud rate auto detection. make e.g. '/dev/ttyUSB0'
     # pass and use auto baud rate. => assume a serial port if nothing else matches
