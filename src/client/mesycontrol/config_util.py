@@ -157,12 +157,15 @@ class GeneratorRunner(QtCore.QObject):
 
 class ProgressUpdate(object):
     def __init__(self, current, total, text=str()):
-        self.current = current
-        self.total   = total
+        self._current = int(current)
+        self._total   = int(total)
         self.text    = text
 
+        self._check()
+
     def __iadd__(self, other):
-        self.current += other
+        self._current += other
+        self._check()
         return self
 
     def increment(self, delta=1):
@@ -171,8 +174,39 @@ class ProgressUpdate(object):
 
     def __str__(self):
         if not len(self.text):
-            return "%d/%d" % (self.current, self.total)
-        return "%d/%d: %s" % (self.current, self.total, self.text)
+            ret = "ProgressUpdate(%d/%d" % (self.current, self.total)
+        else:
+            ret = "ProgressUpdate(%d/%d: %s" % (self.current, self.total, self.text)
+
+        if hasattr(self, 'subprogress'):
+            sp = self.subprogress
+            if not len(sp.text):
+                sub = "%d/%d" % (sp.current, sp.total)
+            else:
+                sub = "%d/%d: %s" % (sp.current, sp.total, sp.text)
+            ret += ", subprogress: " + sub
+        ret += ')'
+        return ret
+
+    def _check(self):
+        assert self.current <= self.total
+
+    def get_current(self):
+        return self._current
+
+    def get_total(self):
+        return self._total
+
+    def set_current(self, cur):
+        self._current = cur
+        self._check()
+
+    def set_total(self, total):
+        self._total = total
+        self._check()
+
+    current = property(get_current, set_current)
+    total   = property(get_total, set_total)
 
 class SetParameterError(RuntimeError):
     def __init__(self, set_result, device=None):
@@ -497,7 +531,6 @@ def apply_device_configs(devices):
         (yield mrc.hw.scanbus(0)).result()
         (yield mrc.hw.scanbus(1)).result()
         progress.text = "Connected to %s" % mrc.get_display_url()
-        yield progress.increment()
 
         action = ACTION_RETRY
 
@@ -576,6 +609,7 @@ def fill_device_configs(devices):
 
                 try:
                     f.result()
+                    yield progress.increment()
                     break
                 except hardware_controller.TimeoutError as e:
                     action = yield e
@@ -585,13 +619,10 @@ def fill_device_configs(devices):
                         break
 
             if action == ACTION_SKIP:
-                yield progress.increment()
                 continue
 
         (yield mrc.hw.scanbus(0)).result()
         (yield mrc.hw.scanbus(1)).result()
-        progress.text = "Connected to %s" % mrc.get_display_url()
-        yield progress.increment()
 
         if not device.has_cfg:
             device.create_config()
@@ -671,7 +702,8 @@ def read_config_parameters(devices):
 
     for device in devices:
         params = (yield device.get_config_parameters()).result()
-        progress.subprogress.total = len(params)
+        progress.subprogress.current = 0
+        progress.subprogress.total   = len(params)
         progress.text  = "Reading from (%s, %d, %X)" % (
                 device.mrc.get_display_url(), device.bus, device.address)
         yield progress
@@ -731,12 +763,16 @@ def apply_parameters(source, dest, criticals, non_criticals):
     while True:
         try:
             obj = gen.send(arg)
-            arg = yield obj
+
+            if isinstance(obj, ProgressUpdate):
+                yield progress.increment()
+                arg = None
+            else:
+                arg = yield obj
+
             if isinstance(obj, future.Future) and not obj.exception():
                 r = obj.result()
                 values[r.address] = r.value
-            if isinstance(obj, ProgressUpdate):
-                yield progress.increment()
         except StopIteration:
             break
         except GeneratorExit:
@@ -755,9 +791,11 @@ def apply_parameters(source, dest, criticals, non_criticals):
     while True:
         try:
             obj = gen.send(arg)
-            arg = yield obj
             if isinstance(obj, ProgressUpdate):
                 yield progress.increment()
+                arg = None
+            else:
+                arg = yield obj
         except StopIteration:
             break
         except GeneratorExit:
@@ -776,9 +814,11 @@ def apply_parameters(source, dest, criticals, non_criticals):
     while True:
         try:
             obj = gen.send(arg)
-            arg = yield obj
             if isinstance(obj, ProgressUpdate):
                 yield progress.increment()
+                arg = None
+            else:
+                arg = yield obj
         except StopIteration:
             break
         except GeneratorExit:
@@ -798,9 +838,11 @@ def apply_parameters(source, dest, criticals, non_criticals):
     while True:
         try:
             obj = gen.send(arg)
-            arg = yield obj
             if isinstance(obj, ProgressUpdate):
                 yield progress.increment()
+                arg = None
+            else:
+                arg = yield obj
         except StopIteration:
             break
         except GeneratorExit:
