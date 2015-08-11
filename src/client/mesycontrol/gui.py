@@ -83,12 +83,12 @@ class GUIApplication(QtCore.QObject):
         # Model changes
         self.app_registry.hw.mrc_added.connect(self._hw_mrc_added)
         self.app_registry.config_set.connect(self._setup_changed)
+        self.app_registry.mrc_added.connect(self._app_mrc_added)
+        self.app_registry.mrc_about_to_be_removed.connect(self._app_mrc_about_to_be_removed)
 
         # Init
         self._setup_changed(self.app_registry, None, self.app_registry.cfg)
         self._update_actions()
-
-        #self._tree_node_selected(None)
 
     def _setup_changed(self, app_registry, old, new):
         if old:
@@ -98,6 +98,43 @@ class GUIApplication(QtCore.QObject):
             new.modified_changed.connect(self._update_actions)
 
         self._update_actions()
+
+    def _app_mrc_added(self, mrc):
+        mrc.device_added.connect(self._app_device_added)
+        mrc.device_about_to_be_removed.connect(self._app_device_about_to_be_removed)
+
+        for device in mrc:
+            self._app_device_added(device)
+
+    def _app_mrc_about_to_be_removed(self, mrc):
+        mrc.device_added.disconnect(self._app_device_added)
+        mrc.device_about_to_be_removed.disconnect(self._app_device_about_to_be_removed)
+
+    def _app_device_added(self, device):
+        device.hardware_set.connect(self._app_device_hardware_set)
+        device.config_set.connect(self._app_device_config_set)
+
+    def _app_device_about_to_be_removed(self, device):
+        device.hardware_set.disconnect(self._app_device_hardware_set)
+        device.config_set.disconnect(self._app_device_config_set)
+
+    def _app_device_hardware_set(self, device, old, new):
+        if device.idc_conflict:
+            for window in list(self._device_window_map.get(device, list())):
+                try:
+                    if util.COMBINED in (window.display_mode, window.write_mode):
+                        window.close()
+                except AttributeError:
+                    pass
+
+    def _app_device_config_set(self, device, old, new):
+        if device.idc_conflict:
+            for window in list(self._device_window_map.get(device, list())):
+                try:
+                    if util.COMBINED in (window.display_mode, window.write_mode):
+                        window.close()
+                except AttributeError:
+                    pass
 
     def _create_actions(self):
         # Actions will be added to toolbars in dictionary insertion order.
@@ -675,15 +712,18 @@ class GUIApplication(QtCore.QObject):
                 devices=devices,
                 parent_widget=self.mainwindow)
 
-        progress_dialog = QtGui.QProgressDialog()
-        progress_dialog.setMaximum(len(devices))
+        progress_dialog = config_gui.SubProgressDialog()
+        runner.progress_changed.connect(progress_dialog.set_progress)
         progress_dialog.canceled.connect(runner.close)
-
         f = runner.start()
         fo = future.FutureObserver(f)
         fo.done.connect(progress_dialog.close)
-        fo.progress_changed.connect(progress_dialog.setValue)
         progress_dialog.exec_()
+
+        if f.done() and f.exception() is not None:
+            log.error("Check config: %s", f.exception())
+            QtGui.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
+
 
     def _apply_config_to_hardware(self):
         node = self._selected_tree_node
