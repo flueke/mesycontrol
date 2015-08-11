@@ -249,7 +249,12 @@ def run_load_device_config(device, context, parent_widget):
         config.bus = device.bus
         config.address = device.address
         mrc = device.mrc.cfg
-        mrc.remove_device(device.cfg)
+
+        try:
+            mrc.remove_device(device.cfg)
+        except ValueError:
+            pass
+
         mrc.add_device(config)
         context.set_config_directory_hint(filename)
         return True
