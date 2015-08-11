@@ -118,6 +118,9 @@ class GUIApplication(QtCore.QObject):
         device.hardware_set.disconnect(self._app_device_hardware_set)
         device.config_set.disconnect(self._app_device_config_set)
 
+        for window in list(self._device_window_map.get(device, list())):
+            window.close()
+
     def _app_device_hardware_set(self, device, old, new):
         if device.idc_conflict:
             for window in list(self._device_window_map.get(device, list())):
@@ -724,6 +727,41 @@ class GUIApplication(QtCore.QObject):
             log.error("Check config: %s", f.exception())
             QtGui.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
 
+    def _run_config_creation_prompt(self, device):
+        QMB = QtGui.QMessageBox
+        mb  = QMB(QMB.Question,
+                "Create device config",
+                """
+Config for %s at (%s, %d, %X) does not exist yet.
+Initialize using the current hardware values or the device defaults?
+                """ % (device.get_device_name(), device.mrc.get_display_url(), device.bus, device.address),
+                buttons=QMB.Yes | QMB.No,
+                parent=self.mainwindow)
+
+        mb.button(QMB.Yes).setText("Hardware values")
+        mb.button(QMB.No).setText("Device defaults")
+
+        res = mb.exec_()
+        d = { QMB.Yes: 'hardware', QMB.No:  'defaults' }
+        return d.get(res, 'cancel')
+
+    def _run_create_config(self, device):
+        source = self._run_config_creation_prompt(device)
+
+        device.create_config()
+
+        if source == 'hardware':
+            progress_dialog = config_gui.SubProgressDialog()
+            runner = config_gui.FillDeviceConfigsRunner([device], self.mainwindow)
+            progress_dialog.canceled.connect(runner.close)
+            f = runner.start()
+            fo = future.FutureObserver(f)
+            fo.done.connect(progress_dialog.close)
+            progress_dialog.exec_()
+
+            if f.done() and f.exception() is not None:
+                log.error("Check config: %s", f.exception())
+                QtGui.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
 
     def _apply_config_to_hardware(self):
         node = self._selected_tree_node
@@ -991,6 +1029,9 @@ class GUIApplication(QtCore.QObject):
             self._create_device_table_window(device, from_config_side, from_hw_side)
 
     def _create_device_table_window(self, app_device, from_config_side, from_hw_side):
+        if self.linked_mode and not app_device.has_cfg:
+            self._run_create_config(app_device)
+
         if self.linked_mode and not app_device.idc_conflict:
             display_mode = write_mode = util.COMBINED
         elif from_config_side:
@@ -1004,6 +1045,9 @@ class GUIApplication(QtCore.QObject):
             subwin.showNormal()
 
     def _create_device_widget_window(self, app_device, from_config_side, from_hw_side):
+        if self.linked_mode and not app_device.has_cfg:
+            self._run_create_config(app_device)
+
         if self.linked_mode and not app_device.idc_conflict:
             if app_device.has_hw and app_device.has_cfg:
                 write_mode = util.COMBINED
