@@ -105,9 +105,9 @@ class MSCF16(DeviceBase):
         self._on_hardware_set(app_device, None, self.hw)
 
     # ===== version registers =====
-    def get_software_version(self):
+    def get_version(self):
         """Reads the 'version' register and returns a Future whose result is a
-        tuple of the form (major, minor)."""
+        namedtuple of the form (major, minor)."""
 
         ret = future.Future()
 
@@ -125,27 +125,62 @@ class MSCF16(DeviceBase):
         @set_result_on(ret)
         def done(f):
             version = f.result()
-            return version.major >= 5 and version.minor >= 3
+            return version >= Version(5, 3)
 
-        self.get_software_version().add_done_callback(done)
+        self.get_version().add_done_callback(done)
 
         return ret
+
+    def _get_detailed_version_parameter(self, param_name):
+        ret = future.Future()
+
+        @set_result_on(ret)
+        def get_param_done(f):
+            return int(f)
+
+        @set_exception_on(ret)
+        def has_versions_done(f):
+            if f.result():
+                self.get_parameter(param_name).add_done_callback(get_param_done)
+            else:
+                raise RuntimeError("Register '%s' (%d) register not supported" %
+                        (param_name, self.profile[param_name].address))
+
+        self.has_detailed_versions().add_done_callback(has_versions_done)
+
+        return ret
+
 
     def get_fpga_version(self):
         ret = future.Future()
 
         @set_result_on(ret)
-        def fpga_version_done(f):
+        def done(f):
             return Version(divmod(int(f), 256))
 
-        @set_exception_on(ret)
-        def has_versions_done(f):
-            if f.result():
-                self.get_parameter('fpga_version').add_done_callback(fpga_version_done)
-            else:
-                raise RuntimeError("FPGA version info not supported")
+        self._get_detailed_version_parameter('fpga_version').add_done_callback(done)
 
-        self.has_detailed_versions().add_done_callback(has_versions_done)
+        return ret
+
+    def get_cpu_software_version(self):
+        ret = future.Future()
+
+        @set_result_on(ret)
+        def done(f):
+            return Version(divmod(int(f), 256))
+
+        self._get_detailed_version_parameter('cpu_software_version').add_done_callback(done)
+
+        return ret
+
+    def get_hardware_info(self):
+        ret = future.Future()
+
+        @set_result_on(ret)
+        def done(f):
+            return HardwareInfo(int(f))
+
+        self._get_detailed_version_parameter('hardware_info').add_done_callback(done)
 
         return ret
 
@@ -913,7 +948,7 @@ class MiscPage(QtGui.QWidget):
         version_layout.setContentsMargins(2, 2, 2, 2)
 
         self.version_labels = dict()
-        for k in ("Software", "Hardware", "FPGA"):
+        for k in ("Version", "FPGA", "CPU"):
             self.version_labels[k] = label = QtGui.QLabel()
             label.setStyleSheet(dynamic_label_style)
             version_layout.addRow(k+":", label)
