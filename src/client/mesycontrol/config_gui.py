@@ -199,7 +199,7 @@ class ApplyDeviceConfigsRunner(config_util.GeneratorRunner):
                     self.parent_widget,
                     "Set parameter error",
                     msg,
-                    buttons=QMB.Ignore | QMB.Abort,
+                    buttons=QMB.Retry | QMB.Ignore | QMB.Abort,
                     defaultButton=QMB.Abort)
 
             return (std_button_to_cfg_action(answer), False)
