@@ -12,22 +12,22 @@ import util
 QMB = QtGui.QMessageBox
 
 def std_button_to_cfg_action(button):
-    if button == QMB.Retry:
-        return config_util.ACTION_RETRY
+    d = {
+            QMB.Retry: config_util.ACTION_RETRY,
+            QMB.Ignore: config_util.ACTION_SKIP,
+            QMB.Abort: config_util.ACTION_ABORT
+            }
+    if button in d:
+        return d[button]
 
-    if button == QMB.Ignore:
-        return config_util.ACTION_SKIP
-
-    if button == QMB.Abort:
-        return config_util.ACTION_ABORT
-
-    raise ValueError("unknown button")
+    raise ValueError("unknown button %d" % button)
 
 class SubProgressDialog(QtGui.QDialog):
     canceled = pyqtSignal()
 
     def __init__(self, parent=None):
         super(SubProgressDialog, self).__init__(parent)
+        self.log = util.make_logging_source_adapter(__name__, self)
         util.loadUi(":/ui/subprogress_widget.ui", self)
         self.cancel_button.clicked.connect(self.cancel)
         self._reset()
@@ -42,6 +42,7 @@ class SubProgressDialog(QtGui.QDialog):
             bar.setValue(0)
 
     def set_progress(self, progress):
+        self.log.debug("set_progress: %s", progress)
         self.progress_label.setText(progress.text)
         self.progressbar.setMaximum(progress.total)
         self.progressbar.setValue(progress.current)
