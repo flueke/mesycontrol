@@ -239,7 +239,7 @@ class DeviceNode(HardwareTreeNode):
                 if role in (Qt.ToolTipRole, Qt.StatusTipRole):
                     return "Connected"
 
-        if role == Qt.BackgroundRole:
+        if role == Qt.BackgroundRole and self.model.linked_mode:
             if hw is not None and hw.address_conflict:
                 return QtGui.QColor('red')
 
