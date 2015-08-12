@@ -25,6 +25,7 @@ class AddMRCDialog(QtGui.QDialog):
         self.urls_in_use = urls_in_use
         util.loadUi(":/ui/connect_dialog.ui", self)
 
+        self.setWindowTitle(title)
         self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(False)
         self.combo_serial_port.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+'), None))
         self.le_tcp_host.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+'), None))
