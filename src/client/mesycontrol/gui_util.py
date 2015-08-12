@@ -439,7 +439,9 @@ def restore_subwindow_state(subwin, settings):
     settings.beginGroup("MdiSubWindows")
     try:
         if settings.contains(name + "_size"):
-            subwin.resize(settings.value(name + "_size").toSize())
+            stored_size = settings.value(name + "_size").toSize()
+            stored_size = stored_size.expandedTo(subwin.sizeHint())
+            subwin.resize(stored_size)
 
         if settings.contains(name + "_pos"):
             subwin.move(settings.value(name + "_pos").toPoint())
