@@ -104,9 +104,12 @@ background color indicates that the hardware vs. config state is unknown
 meaning hardware parameters have not been read yet.
 
 Using the arrow buttons on the center bar device state can be copied from
-hardware to config and vice-versa. Pressing the checkmark icon will fetch any
-missing parameters from the hardware and compare them against the
-configuration.
+hardware to config and vice-versa. Pressing the checkmark icon will (re)read
+needed parameters from the hardware and compare them against the configuration.
+
+The two buttons just below the link mode button will open a specialized device
+widget (if one is available) and a tabular view of the devices parameters
+respectively.
 
 Device GUIs
 ^^^^^^^^^^^
