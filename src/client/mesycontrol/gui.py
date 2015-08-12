@@ -440,6 +440,15 @@ class GUIApplication(QtCore.QObject):
         self.actions['save_setup_as'].setEnabled(len(setup))
         self.actions['close_setup'].setEnabled(len(setup))
 
+        a = self.actions['add_config']
+        a.setEnabled(self.linked_mode or (is_config(node) and not is_device(node)))
+
+        if is_setup(node):
+            a.setText("Add MRC")
+
+        if is_mrc(node) or is_bus(node):
+            a.setText("Add Device")
+
         self.actions['remove_config'].setEnabled(
                 (is_mrc(node) or is_device(node))
                 and node.ref.has_cfg)
@@ -497,6 +506,8 @@ class GUIApplication(QtCore.QObject):
 
         self.actions['open_device_table'].setEnabled(is_device(node))
 
+        self.actions['check_config'].setEnabled(self.linked_mode)
+
         self.actions['apply_config_to_hardware'].setEnabled(
                 self.linked_mode
                 and ((is_setup(node) and node.ref.has_cfg)
@@ -505,10 +516,11 @@ class GUIApplication(QtCore.QObject):
                     or (is_device(node)
                         and not node.ref.idc_conflict
                         and not node.ref.address_conflict
-                        and node.ref.has_cfg)))
+                        and node.ref.has_cfg
+                        and node.ref.has_hw)))
 
         self.actions['apply_hardware_to_config'].setEnabled(
-                (is_setup(node) and node.ref.has_hw and len(node.ref.hw))
+                (is_setup(node) and node.ref.has_hw and node.ref.hw.contains_devices())
                 or (is_mrc(node) and node.ref.has_hw and len(node.ref.hw))
                 or (is_bus(node)
                     and node.parent is not None
