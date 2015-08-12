@@ -201,6 +201,47 @@ latex_elements = {
 # The paper size ('letterpaper' or 'a4paper').
 'papersize': 'a4paper',
 
+# Additional stuff for the LaTeX preamble.
+'preamble': r'''
+% lastpage is used to get the total number of pages
+\usepackage{lastpage}
+\newcommand{\mesyteccontact}{
+    \tiny{\textsf{mesytec GmbH \& Co. KG\\
+    Wernher-von-Braun-Str.1, D-85640 Putzbrunn, Germany\\
+    phone: +49 - 89 / 456007-30 fax: +49 - 89 / 456007-39\\
+    info@mesytec.com - www.mesytec.com\\}}}
+
+\makeatletter
+\fancypagestyle{normal}{
+    \fancyhf{}
+
+    \fancyhead[L]{\includegraphics[width=2cm]{mesytec-logo-bw.png}}
+    \fancyhead[C]{\@title}
+
+    \fancyfoot[C]{\mesyteccontact}
+    \fancyfoot[R]{\thepage/\pageref{LastPage}}
+
+    \renewcommand{\headrulewidth}{0.4pt}
+    \renewcommand{\footrulewidth}{0.4pt}
+}
+
+% Update the plain style so we get the page number & footer line,
+% but not a chapter or section title.  This is to keep the first
+% page of a chapter and the blank page between chapters `clean.'
+\fancypagestyle{plain}{
+    \fancyhf{}
+    \fancyhead[L]{\includegraphics[width=2cm]{mesytec-logo-bw.png}}
+    \fancyfoot[C]{\mesyteccontact}
+    \renewcommand{\headrulewidth}{0.0pt}
+    \renewcommand{\footrulewidth}{0.4pt}
+}
+\makeatother
+
+% Use \pagestyle{normal} as the primary pagestyle for text.
+\pagestyle{normal}
+\thispagestyle{plain}
+'''
+
 # The font size ('10pt', '11pt' or '12pt').
 #'pointsize': '10pt',
 
@@ -213,12 +254,13 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
   ('index', 'mesycontrol.tex', u'mesycontrol',
-   u'Florian Lüke', 'howto'),
+   u'', 'howto'),
+   #u'Florian Lüke', 'howto'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
-latex_logo = 'mesytec-logo-bw.png'
+#latex_logo = 'mesytec-logo-bw.png'
 
 
 # For "manual" documents, if this is true, then toplevel headings are parts,
