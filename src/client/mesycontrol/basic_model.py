@@ -67,6 +67,9 @@ class MRCRegistry(QtCore.QObject):
     def get_mrcs(self):
         return list(self._mrcs)
 
+    def contains_devices(self):
+        return any((len(mrc) for mrc in self))
+
     def __len__(self):
         return len(self._mrcs)
 
