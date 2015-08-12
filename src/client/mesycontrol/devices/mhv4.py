@@ -40,15 +40,7 @@ NUM_TEMP_SENSORS = 4
 TEMP_NO_SENSOR = 999
 MAX_VOLTAGE_V  = 800.0
 
-class Polarity(object):
-    negative = 0
-    positive = 1
-
-    @staticmethod
-    def switch(pol):
-        if pol == Polarity.positive:
-            return Polarity.negative
-        return Polarity.positive
+Polarity = mhv4_profile.Polarity
 
 # ==========  Device ========== 
 class MHV4(DeviceBase):
@@ -241,8 +233,11 @@ class ChannelWidget(QtGui.QWidget):
             pass
 
     def _sensor_temperature_changed(self, rf_sensor):
-        sensor_profile  = self.device.profile[rf_sensor.result().address]
-        sensor_num      = sensor_profile.index
+        try:
+            sensor_profile  = self.device.profile[rf_sensor.result().address]
+            sensor_num      = sensor_profile.index
+        except pb.ParameterUnavailable:
+            return
 
         def tcomp_source_done(rf_source):
             source = int(rf_source)
