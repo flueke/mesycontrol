@@ -26,8 +26,9 @@ Features
 * Tabular view/editing of device memory.
 * Custom GUIs for MHV-4, MSCF-16, STM-16 and MCFD-16.
 * Polling of frequently changing parameters (e.g. voltage or current)
-* Cross-platform: both client and server work on Linux and Windows
-* Offline editing: setups can be created/edited without access to the hardware.
+* Cross-platform: both client and server run on Linux and Windows
+* Offline editing: device configurations can be created/edited without access
+  to the hardware.
 
 Installation and dependencies
 -----------------------------
@@ -65,16 +66,32 @@ connecting to running server processes via TCP.
 The GUI client will transparently spawn its own server process if the user
 requests a MRC connection via serial port or USB.
 
-In case the client PC has no direct (USB, Serial) connection to an MRC-1/MRCC
-the server can be run stand-alone on a machine with direct access to the
-hardware. The GUI client then connects via the network to the remotely running
-server process.
+In case the client PC does not have a direct (USB, Serial) connection to an
+MRC-1/MRCC the server can be run stand-alone on a machine with direct access to
+the hardware. The GUI client then connects via a TCP connection to the remotely
+running server process.
 
 The client supports connections to multiple servers and is thus able to control
 multiple MRC-1/MRCCs.
 
 Using mesycontrol
 -----------------
+Concepts and Terms
+^^^^^^^^^^^^^^^^^^
+
+* MRC
+  An MRC-1 or MRCC mesytec RC bus master. In the GUI each MRC is uniquely
+  identified by its connection URL.
+
+* Device
+  A mesytec device with support for the mesytec remote control bus. A device is
+  identified by its parent MRC, its bus number and its bus address. The device
+  type is determined by the devices ID code.
+
+* Setup
+  A tree of MRC configurations and their child device configs.
+  Can be loaded from and saved to file.
+
 
 GUI overview
 ^^^^^^^^^^^^
