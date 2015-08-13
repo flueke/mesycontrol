@@ -308,6 +308,9 @@ class QtLoggingBridge(QObject):
 def which(program):
     log = logging.getLogger("%s.%s" % (__name__, "which"))
 
+    if sys.platform.startswith('win32') and not program.endswith('.exe'):
+        program += '.exe'
+
     def is_exe(fpath):
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
