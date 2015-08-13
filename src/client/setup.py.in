@@ -9,6 +9,7 @@ import os
 import sys
 
 CSD = '${CMAKE_CURRENT_SOURCE_DIR}'
+CBD = '${CMAKE_CURRENT_BINARY_DIR}'
 
 # Dependencies are automatically detected, but it might need
 # fine tuning.
@@ -23,7 +24,7 @@ for mod in maybe_includes:
     except ImportError:
         pass
 
-include_files = [ (pjoin(CSD, 'mesycontrol/ui'), 'mesycontrol/ui') ]
+include_files = list()
 maybe_include_files = [
     '/usr/lib/liblapack.so.3',
     '/usr/lib/libblas.so.3',
@@ -50,6 +51,8 @@ build_options = dict(
       includes = includes,
 
       include_files = include_files,
+
+      zip_includes = [ (pjoin(CBD, 'mesycontrol/mc_version.py'), 'mesycontrol/mc_version.py') ],
 
       init_script = pjoin(CSD, 'cxfreeze_init.py'),
       path = sys.path + [CSD]
