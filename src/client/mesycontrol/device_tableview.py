@@ -126,7 +126,9 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         if self.display_mode == util.COMBINED and conflict:
             self.beginResetModel()
             self.endResetModel()
-        elif self.device.has_hw:
+        elif (self.device.has_hw and
+                ((self.display_mode & util.HARDWARE)
+                    or not self.device.idc_conflict)):
             for addr in self.device.get_hw_profile().get_volatile_addresses():
                 self.device.hw.add_poll_item(self, addr)
 

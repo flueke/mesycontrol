@@ -210,6 +210,7 @@ class DeviceBase(QtCore.QObject):
 class DeviceWidgetBase(QtGui.QWidget):
     def __init__(self, specialized_device, display_mode, write_mode, parent=None):
         super(DeviceWidgetBase, self).__init__(parent)
+        self.log = util.make_logging_source_adapter(__name__, self)
         self.device = specialized_device
         self._display_mode = display_mode
         self._write_mode   = write_mode
@@ -250,7 +251,12 @@ class DeviceWidgetBase(QtGui.QWidget):
             for binding in self.get_parameter_bindings():
                 binding.populate()
 
-            if self.device.has_hw:
+            self.log.debug("showEvent: has_hw=%s, display_mode & HW=%s, idc_conflict=%s",
+                    self.device.has_hw, self.display_mode & util.HARDWARE, self.device.idc_conflict)
+
+            if (self.device.has_hw and
+                    ((self.display_mode & util.HARDWARE)
+                        or not self.device.idc_conflict)):
                 self.device.add_default_polling_subscription(self)
 
         super(DeviceWidgetBase, self).showEvent(event)
