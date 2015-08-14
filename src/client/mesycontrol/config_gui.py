@@ -25,10 +25,11 @@ def std_button_to_cfg_action(button):
 class SubProgressDialog(QtGui.QDialog):
     canceled = pyqtSignal()
 
-    def __init__(self, parent=None):
+    def __init__(self, title=str(), parent=None):
         super(SubProgressDialog, self).__init__(parent)
         self.log = util.make_logging_source_adapter(__name__, self)
         util.loadUi(":/ui/subprogress_widget.ui", self)
+        self.setWindowTitle(title)
         self.cancel_button.clicked.connect(self.cancel)
         self._reset()
 
