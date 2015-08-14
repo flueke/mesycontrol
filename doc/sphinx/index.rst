@@ -175,9 +175,9 @@ toolbar both modes can be changed after window creation.
 The modes currently in effect are also displayed in the device windows title
 bar.
 
-Display and write modes
-Table View
-Specialized GUIs
+* Display and write modes
+* Table View
+* Specialized GUIs
 
 Stand-alone server operation
 ----------------------------
@@ -188,10 +188,6 @@ Stand-alone server operation
 
 * Handles all MRC communication
 * Opens a listening socket and waits for mesycontrol clients to connect
-* An overview of all options is available by running::
-
-  $ ./mesycontrol_server --help
-
 * Common use cases:
 
   * Using a local serial port and listening on all network interfaces:::
@@ -210,6 +206,10 @@ Stand-alone server operation
 
 * To stop a running server instance hit *CTRL-C* in the terminal or send the
   termination signal to the process (e.g. via the *kill* command)
+
+* An overview of all options is available by running::
+
+  $ ./mesycontrol_server --help
 
 .. TODOS
 .. =====
