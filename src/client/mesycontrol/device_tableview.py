@@ -669,6 +669,9 @@ class DeviceTableView(QtGui.QTableView):
 # TODO: change Hide to Show to make it easier to understand which params are shown...
 
 class DeviceTableWidget(QtGui.QWidget):
+    display_mode_changed = pyqtSignal(int)
+    write_mode_changed   = pyqtSignal(int)
+
     def __init__(self, device, display_mode=util.COMBINED, write_mode=util.COMBINED,
             parent=None):
 
@@ -682,6 +685,9 @@ class DeviceTableWidget(QtGui.QWidget):
         model       = DeviceTableModel(device, display_mode=display_mode, write_mode=write_mode)
         self.view   = DeviceTableView(model=model)
         sort_model  = self.view.sort_model
+
+        self.view.display_mode_changed.connect(self.display_mode_changed)
+        self.view.write_mode_changed.connect(self.write_mode_changed)
 
         menu   = QtGui.QMenu('Filter options', self)
         action = menu.addAction("Hide unknown")
