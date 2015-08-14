@@ -208,6 +208,9 @@ class DeviceBase(QtCore.QObject):
             self.parameter_changed.emit(address, value)
 
 class DeviceWidgetBase(QtGui.QWidget):
+    display_mode_changed = pyqtSignal(int)
+    write_mode_changed   = pyqtSignal(int)
+
     def __init__(self, specialized_device, display_mode, write_mode, parent=None):
         super(DeviceWidgetBase, self).__init__(parent)
         self.log = util.make_logging_source_adapter(__name__, self)
@@ -226,6 +229,8 @@ class DeviceWidgetBase(QtGui.QWidget):
         for binding in self.get_parameter_bindings():
             binding.display_mode = display_mode
 
+        self.display_mode_changed.emit(self.display_mode)
+
     def get_write_mode(self):
         return self.device.write_mode
 
@@ -234,6 +239,8 @@ class DeviceWidgetBase(QtGui.QWidget):
 
         for binding in self.get_parameter_bindings():
             binding.write_mode = write_mode
+
+        self.write_mode_changed.emit(self.write_mode)
 
     display_mode = property(
             fget=lambda s: s.get_display_mode(),
