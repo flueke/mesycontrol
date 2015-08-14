@@ -1,8 +1,10 @@
-from PyQt4 import QtCore
-from PyQt4 import QtGui
-from PyQt4.QtCore import pyqtProperty
-from PyQt4.QtCore import QModelIndex
-from PyQt4.QtCore import Qt
+from qt import pyqtProperty
+from qt import pyqtSignal
+from qt import Qt
+from qt import QtCore
+from qt import QtGui
+
+QModelIndex = QtCore.QModelIndex
 
 import collections
 
@@ -450,6 +452,9 @@ class DeviceTableSortFilterProxyModel(QtGui.QSortFilterProxyModel):
     filter_static   = pyqtProperty(bool, get_filter_static, set_filter_static)
 
 class DeviceTableView(QtGui.QTableView):
+    display_mode_changed = pyqtSignal(int)
+    write_mode_changed   = pyqtSignal(int)
+
     def __init__(self, model, parent=None):
         super(DeviceTableView, self).__init__(parent)
         self.table_model = model
@@ -516,11 +521,14 @@ class DeviceTableView(QtGui.QTableView):
         self.setColumnHidden(COL_CFG_VALUE, not self.does_show_config())
         self.setColumnHidden(COL_CFG_UNIT_VALUE, not self.does_show_config())
 
+        self.display_mode_changed.emit(self.display_mode)
+
     def get_write_mode(self):
         return self.table_model.write_mode
 
     def set_write_mode(self, mode):
         self.table_model.write_mode = mode
+        self.write_mode_changed.emit(self.write_mode)
 
     def does_show_hardware(self):
         return self.display_mode & util.HARDWARE
