@@ -57,7 +57,9 @@ software and create a start menu entry for the GUI application.
 
 Architecture Overview
 ---------------------
-.. image:: architecture.png
+.. figure:: architecture.png
+
+   mesycontrol architecture
 
 *mesycontrol* is divided into two parts: *mesycontrol_server* handling MRC
 connectivity and communication, and the client part (*mesycontrol_gui*)
@@ -80,23 +82,34 @@ Concepts and Terms
 ^^^^^^^^^^^^^^^^^^
 
 * MRC
-  An MRC-1 or MRCC mesytec RC bus master. In the GUI each MRC is uniquely
+
+  A MRC-1 or MRCC mesytec RC bus master. In the GUI each MRC is uniquely
   identified by its connection URL.
 
+  The are three ways to connect to a MRC:
+
+  * Connecting the MRC to a local serial or USB port.
+  * Via a serial server which is connected to the MRC.
+  * Connecting to a (remotely) running *mesycontrol_server* instance.
+
 * Device
+
   A mesytec device with support for the mesytec remote control bus. A device is
-  identified by its parent MRC, its bus number and its bus address. The device
-  type is determined by the devices ID code.
+  identified by its parent MRC, its bus number and its address on the bus. The
+  device type is determined by the devices ID code.
 
 * Setup
+
   A tree of MRC configurations and their child device configs.
   Can be loaded from and saved to file.
 
 
 GUI overview
 ^^^^^^^^^^^^
-.. image:: treeview-unlinked.png
+.. figure:: treeview-unlinked.png
    :width: 12cm
+
+   Device tree with **linked_mode** disabled.
 
 The GUI shows hardware and config trees side-by-side. On the left side active
 MRC connections and their connected devices are shown. On the right side the
@@ -112,24 +125,56 @@ either side are also shown. In linked-mode it is possible to have changes to
 device parameters apply to both the hardware and the config side keeping both
 trees in sync.
 
-.. image:: treeview-linked.png
+.. figure:: treeview-linked.png
    :width: 12cm
 
-Devices with a red background have conflicting device types (their IDCs don't
-match). A green background means hardware and config parameters are equal. No
-background color indicates that the hardware vs. config state is unknown
-meaning hardware parameters have not been read yet.
+   Device tree with **linked_mode** enabled.
+
+Devices with a red background have conflicting device types (their IDCs do not
+match). A green background means hardware and config parameters are equal.
+Orange indicates that hardware and config states differ.
 
 Using the arrow buttons on the center bar device state can be copied from
-hardware to config and vice-versa. Pressing the checkmark icon will (re)read
-needed parameters from the hardware and compare them against the configuration.
+hardware to config and vice-versa. This works for single devices aswell as for
+parts of the tree (e.g. apply all device configs of the selected MRC to the
+hardware).
+
+Pressing the checkmark icon will (re)read needed parameters from the hardware
+and compare them against the configuration.
 
 The two buttons just below the link mode button will open a specialized device
-widget (if one is available) and a tabular view of the devices parameters
+GUI (if one is available) and a tabular view of the devices parameters
 respectively.
 
 Device GUIs
 ^^^^^^^^^^^
+Currently there are two types of device GUIs: the device table view which works
+for all devices (even devices unknown to the application) and specialized
+device GUIs for known devices.
+
+All device GUIs support different display and write modes. In case of the
+device table view the following display modes are available: `hardware`,
+`config` and `combined` with `combined` displaying both the hardware and the
+config columns. The same options are available for the write mode with
+`combined` mode writing to the device config first, then to the device
+hardware.
+
+Specialized device widgets currently do not support `combined` display mode but
+one of `hardware` or `config`. Write mode works the same as for device table
+views.
+
+The side of the device tree that is selected, the availability of
+hardware/config and the state of **linked_mode** determine the display and
+write modes for newly opened device windows. Using two buttons at the top
+toolbar both modes can be changed after window creation.
+
+.. figure:: display-and-write-mode-icons.png
+  
+   Display and write mode icons.
+
+The modes currently in effect are also displayed in the device windows title
+bar.
+
 Display and write modes
 Table View
 Specialized GUIs
@@ -166,14 +211,14 @@ Stand-alone server operation
 * To stop a running server instance hit *CTRL-C* in the terminal or send the
   termination signal to the process (e.g. via the *kill* command)
 
-TODOS
-=====
-.. todolist::
+.. TODOS
+.. =====
+.. .. todolist::
 
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+.. Indices and tables
+.. ==================
+.. 
+.. * :ref:`genindex`
+.. * :ref:`modindex`
+.. * :ref:`search`
 

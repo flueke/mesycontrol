@@ -133,7 +133,7 @@ html_theme = 'default'
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-#html_logo = None
+html_logo = 'mesytec-logo-yellow-200px.png'
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -205,17 +205,22 @@ latex_elements = {
 'preamble': r'''
 % lastpage is used to get the total number of pages
 \usepackage{lastpage}
+%\usepackage[head=36.16432pt,foot=8.39996pt]{geometry}
+\setlength{\footskip}{1.39996pt}
+
 \newcommand{\mesyteccontact}{
     \tiny{\textsf{mesytec GmbH \& Co. KG\\
     Wernher-von-Braun-Str.1, D-85640 Putzbrunn, Germany\\
     phone: +49 - 89 / 456007-30 fax: +49 - 89 / 456007-39\\
     info@mesytec.com - www.mesytec.com\\}}}
 
+\newcommand{\mesyteclogo}{\includegraphics[width=2.5cm]{mesytec-logo-yellow.png}}
+
 \makeatletter
 \fancypagestyle{normal}{
     \fancyhf{}
 
-    \fancyhead[L]{\includegraphics[width=2cm]{mesytec-logo-bw.png}}
+    \fancyhead[L]{\mesyteclogo}
     \fancyhead[C]{\@title}
 
     \fancyfoot[C]{\mesyteccontact}
@@ -230,8 +235,13 @@ latex_elements = {
 % page of a chapter and the blank page between chapters `clean.'
 \fancypagestyle{plain}{
     \fancyhf{}
-    \fancyhead[L]{\includegraphics[width=2cm]{mesytec-logo-bw.png}}
+
+    \fancyhead[L]{\mesyteclogo}
+    \fancyhead[C]{\@title}
+
     \fancyfoot[C]{\mesyteccontact}
+    \fancyfoot[R]{\thepage/\pageref{LastPage}}
+
     \renewcommand{\headrulewidth}{0.0pt}
     \renewcommand{\footrulewidth}{0.4pt}
 }
@@ -247,7 +257,8 @@ latex_elements = {
 }
 
 latex_additional_files = [
-        'mesytec-logo-bw.png'
+        'mesytec-logo-bw.png',
+        'mesytec-logo-yellow.png',
 ]
 
 # Grouping the document tree into LaTeX files. List of tuples
