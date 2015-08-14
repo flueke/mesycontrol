@@ -14,7 +14,7 @@
     <file alias="disconnected.png">ui/disconnected.png</file>
     <file alias="disconnect.png">ui/disconnected.png</file>
     <file alias="linked.png">ui/link-broken-2x.png</file>
-    <file alias="mesytec-logo.png">ui/mesytec-logo-bw.png</file>
+    <file alias="mesytec-logo.png">ui/mesytec-logo-yellow.png</file>
     <file alias="open-device-table.png">ui/spreadsheet-2x.png</file>
     <file alias="open-device-widget.png">ui/dial-2x.png</file>
     <file alias="open-setup.png">ui/document-open.png</file>
@@ -33,6 +33,8 @@
     <file alias="unlinked.png">ui/link-intact-2x.png</file>
     <file alias="warning.png">ui/warning-2x.png</file>
     <file alias="window-icon.png">ui/window-icon.png</file>
+    <file alias="window-icon-2.png">ui/window-icon-2.png</file>
+    <file alias="window-icon-3.png">ui/window-icon-3.png</file>
 
 
     <file>ui/applications-utilities.png</file>
