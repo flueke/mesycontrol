@@ -283,6 +283,7 @@ class MCTreeView(QtGui.QWidget):
 
         self.cfg_view.selectionModel().selectionChanged.connect(self._cfg_selection_changed)
         self.cfg_view.activated.connect(self._cfg_view_activated)
+        self.cfg_view.clicked.connect(self._cfg_view_clicked)
 
         self.hw_view   = HardwareTreeView()
         self.hw_view.setModel(self.hw_model)
@@ -296,6 +297,7 @@ class MCTreeView(QtGui.QWidget):
 
         self.hw_view.selectionModel().selectionChanged.connect(self._hw_selection_changed)
         self.hw_view.activated.connect(self._hw_view_activated)
+        self.hw_view.clicked.connect(self._hw_view_clicked)
 
         self.cfg_view.expandAll()
         self.hw_view.expandAll()
@@ -477,6 +479,19 @@ class MCTreeView(QtGui.QWidget):
         self.log.debug("_hw_view_activated")
         self._hw_index_becomes_active(idx)
         self.node_activated.emit(idx.internalPointer())
+        self._ignore_next_selection = False
+
+    # clicked
+    def _cfg_view_clicked(self, idx):
+        self.log.debug("_cfg_view_clicked")
+        self._cfg_index_becomes_active(idx)
+        self.node_selected.emit(idx.internalPointer())
+        self._ignore_next_selection = False
+
+    def _hw_view_clicked(self, idx):
+        self.log.debug("_hw_view_clicked")
+        self._hw_index_becomes_active(idx)
+        self.node_selected.emit(idx.internalPointer())
         self._ignore_next_selection = False
 
 class DoubleClickSplitterHandle(QtGui.QSplitterHandle):
