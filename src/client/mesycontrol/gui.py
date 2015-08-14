@@ -18,7 +18,7 @@ from qt import QtGui
 
 from basic_model import IDCConflict
 from gui_util import is_setup, is_registry, is_mrc, is_bus, is_device, is_device_cfg, is_device_hw
-from gui_util import is_config
+from gui_util import is_config, is_hardware
 from model_util import add_mrc_connection
 from util import make_icon
 import app_model as am
@@ -481,12 +481,16 @@ class GUIApplication(QtCore.QObject):
                 a.setToolTip("Connect")
 
         a = self.actions['toggle_polling']
-        a.setEnabled((is_mrc(node) or is_device(node)) and node.ref.has_hw)
+        a.setEnabled((is_hardware(node)
+            and (is_mrc(node) or (is_device(node) and node.ref.mrc.hw.polling))
+            and node.ref.has_hw))
 
         if a.isEnabled():
             a.setChecked(node.ref.hw.polling)
             a.setToolTip("Disable polling" if a.isChecked() else "Enable polling")
             a.setText(a.toolTip())
+        elif is_device(node) and not node.ref.mrc.hw.polling:
+            a.setToolTip("Polling disabled by parent MRC")
 
         a = self.actions['toggle_rc']
         a.setEnabled(is_device(node) and node.ref.has_hw and not node.ref.hw.address_conflict)
@@ -669,6 +673,20 @@ class GUIApplication(QtCore.QObject):
         node = self._selected_tree_node
         a = self.actions['connect_disconnect']
 
+        if is_registry(node):
+            def wrap(_):
+                for i in range(20):
+                    print "wrap"
+                self._update_actions()
+
+            if all(mrc.is_connected() for mrc in node.ref.hw):
+                future.all_done(*(mrc.disconnect() for mrc in node.ref.hw)
+                        ).add_done_callback(wrap)
+            else:
+                future.all_done(*(mrc.connect() for mrc in node.ref.hw if
+                    not mrc.is_connected() and not mrc.is_connecting())
+                        ).add_done_callback(wrap)
+
         if is_mrc(node):
             if not node.ref.has_hw:
                 add_mrc_connection(self.app_registry.hw, node.ref.url, True)
@@ -710,11 +728,17 @@ class GUIApplication(QtCore.QObject):
     def _open_device_widget(self):
         node = self._selected_tree_node
 
+        self.log.debug("_open_device_widget: node=%s, is_cfg=%s, is_hw=%s",
+                node, is_device_cfg(node), is_device_hw(node))
+
         self._create_device_widget_window(self._selected_device,
                 is_device_cfg(node), is_device_hw(node))
 
     def _open_device_table(self):
         node = self._selected_tree_node
+
+        self.log.debug("_open_device_table: node=%s, is_cfg=%s, is_hw=%s",
+                node, is_device_cfg(node), is_device_hw(node))
 
         self._create_device_table_window(self._selected_device,
                 is_device_cfg(node), is_device_hw(node))
@@ -727,7 +751,7 @@ class GUIApplication(QtCore.QObject):
                 devices=devices,
                 parent_widget=self.mainwindow)
 
-        progress_dialog = config_gui.SubProgressDialog()
+        progress_dialog = config_gui.SubProgressDialog(title="Reading hardware values")
         runner.progress_changed.connect(progress_dialog.set_progress)
         progress_dialog.canceled.connect(runner.close)
         f = runner.start()
@@ -763,7 +787,7 @@ Initialize using the current hardware values or the device defaults?
         device.create_config()
 
         if source == 'hardware':
-            progress_dialog = config_gui.SubProgressDialog()
+            progress_dialog = config_gui.SubProgressDialog(title="Copying from hardware to config")
             runner = config_gui.FillDeviceConfigsRunner([device], self.mainwindow)
             progress_dialog.canceled.connect(runner.close)
             f = runner.start()
@@ -777,42 +801,26 @@ Initialize using the current hardware values or the device defaults?
 
     def _apply_config_to_hardware(self):
         node = self._selected_tree_node
-        runner = None
-        progress_dialog = None
+        devices = None
 
         if is_setup(node):
             devices = [d for mrc in node.ref for d in mrc if d.has_cfg]
 
-            runner = config_gui.ApplyDeviceConfigsRunner(
-                    devices=devices,
-                    parent_widget=self.mainwindow)
-
-            progress_dialog = config_gui.SubProgressDialog()
-
         elif is_mrc(node):
             devices = [d for d in node.ref if d.has_cfg]
-
-            runner = config_gui.ApplyDeviceConfigsRunner(
-                    devices=devices,
-                    parent_widget=self.mainwindow)
-
-            progress_dialog = config_gui.SubProgressDialog()
 
         elif is_bus(node):
             devices = [d for d in node.parent.ref.get_devices(bus=node.bus_number) if d.has_cfg]
 
-            runner = config_gui.ApplyDeviceConfigsRunner(
-                    devices=devices,
-                    parent_widget=self.mainwindow)
-
-            progress_dialog = config_gui.SubProgressDialog()
-
         elif is_device(node):
-            runner = config_gui.ApplyDeviceConfigsRunner(
-                    devices=[node.ref],
-                    parent_widget=self.mainwindow)
+            devices = [node.ref]
 
-            progress_dialog = config_gui.SubProgressDialog()
+        assert len(devices)
+
+        runner = config_gui.ApplyDeviceConfigsRunner(
+                devices=devices,
+                parent_widget=self.mainwindow)
+        progress_dialog = config_gui.SubProgressDialog(title="Applying config to hardware")
 
         runner.progress_changed.connect(progress_dialog.set_progress)
         progress_dialog.canceled.connect(runner.close)
@@ -832,29 +840,25 @@ Initialize using the current hardware values or the device defaults?
         # could be passed and the list of devices would be built dynamically.
 
         node = self._selected_tree_node
-        runner = None
-        progress_dialog = None
+        devices = None
 
         if is_registry(node):
             devices = [d for mrc in node.ref for d in mrc if d.has_hw]
-            runner  = config_gui.FillDeviceConfigsRunner(
-                    devices=devices, parent_widget=self.mainwindow)
-            progress_dialog = config_gui.SubProgressDialog()
+
         elif is_mrc(node):
             devices = [d for d in node.ref if d.has_hw]
-            runner  = config_gui.FillDeviceConfigsRunner(
-                    devices=devices, parent_widget=self.mainwindow)
-            progress_dialog = config_gui.SubProgressDialog()
+
         elif is_bus(node):
             devices = [d for d in node.parent.ref.get_devices(bus=node.bus_number) if d.has_hw]
-            runner  = config_gui.FillDeviceConfigsRunner(
-                    devices=devices, parent_widget=self.mainwindow)
-            progress_dialog = config_gui.SubProgressDialog()
+
         elif is_device(node):
             devices = [node.ref]
-            runner  = config_gui.FillDeviceConfigsRunner(
-                    devices=devices, parent_widget=self.mainwindow)
-            progress_dialog = config_gui.SubProgressDialog()
+
+        assert len(devices)
+
+        runner = config_gui.FillDeviceConfigsRunner(
+                devices=devices, parent_widget=self.mainwindow)
+        progress_dialog = config_gui.SubProgressDialog(title="Copying from hardware to config")
 
         runner.progress_changed.connect(progress_dialog.set_progress)
         progress_dialog.canceled.connect(runner.close)
@@ -1025,6 +1029,9 @@ Initialize using the current hardware values or the device defaults?
                     is_device_cfg(node), is_device_hw(node))
 
     def _show_or_create_device_window(self, device, from_config_side, from_hw_side):
+        self.log.debug("_show_or_create_device_window: device=%s, cfg_side=%s, hw_side=%s",
+                device, from_config_side, from_hw_side)
+
         if self._show_device_windows(device, from_config_side, from_hw_side):
             return
 
@@ -1041,6 +1048,9 @@ Initialize using the current hardware values or the device defaults?
             self._create_device_table_window(device, from_config_side, from_hw_side)
 
     def _create_device_table_window(self, app_device, from_config_side, from_hw_side):
+        self.log.debug("_create_device_table_window: device=%s, cfg_side=%s, hw_side=%s, linked_mode=%s",
+                app_device, from_config_side, from_hw_side, self.linked_mode)
+
         if self.linked_mode and not app_device.has_cfg:
             self._run_create_config(app_device)
 
@@ -1057,6 +1067,9 @@ Initialize using the current hardware values or the device defaults?
             subwin.showNormal()
 
     def _create_device_widget_window(self, app_device, from_config_side, from_hw_side):
+        self.log.debug("_create_device_widget_window: device=%s, cfg_side=%s, hw_side=%s, linked_mode=%s",
+                app_device, from_config_side, from_hw_side, self.linked_mode)
+
         if self.linked_mode and not app_device.has_cfg:
             self._run_create_config(app_device)
 
