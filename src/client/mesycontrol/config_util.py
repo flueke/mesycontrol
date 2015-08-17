@@ -245,27 +245,34 @@ def apply_device_config(device):
     criticals       = (yield device.get_critical_config_parameters()).result()
     non_criticals   = (yield device.get_non_critical_config_parameters()).result()
 
-    gen = apply_parameters(device.cfg, device.hw, criticals, non_criticals)
+    gen = apply_parameters(source=device.cfg, dest=device.hw,
+            criticals=criticals, non_criticals=non_criticals)
     arg = None
 
-    while True:
-        try:
-            obj = gen.send(arg)
+    try:
+        polling = device.hw.mrc.polling
+        device.hw.mrc.polling = False
 
-            if isinstance(obj, SetParameterError):
-                obj.url = device.mrc.url
-                obj.device = device
+        while True:
+            try:
+                obj = gen.send(arg)
 
-            arg = yield obj
-        except StopIteration:
-            break
-        except GeneratorExit:
-            gen.close()
-            return
+                if isinstance(obj, SetParameterError):
+                    obj.url = device.mrc.url
+                    obj.device = device
 
-    # extensions
-    for name, value in device.cfg.get_extensions().iteritems():
-        device.hw.set_extension(name, value)
+                arg = yield obj
+            except StopIteration:
+                break
+            except GeneratorExit:
+                gen.close()
+                return
+
+        # extensions
+        for name, value in device.cfg.get_extensions().iteritems():
+            device.hw.set_extension(name, value)
+    finally:
+        device.hw.mrc.polling = polling
 
 def run_callables_generator(callables):
     progress = ProgressUpdate(current=0, total=len(callables))
@@ -627,48 +634,54 @@ def fill_device_configs(devices):
             if action == ACTION_SKIP:
                 continue
 
-        (yield mrc.hw.scanbus(0)).result()
-        (yield mrc.hw.scanbus(1)).result()
+        try:
+            polling = mrc.hw.polling
+            mrc.hw.polling = False
 
-        if not device.has_cfg:
-            device.create_config()
+            (yield mrc.hw.scanbus(0)).result()
+            (yield mrc.hw.scanbus(1)).result()
 
-        progress.text = "Current device: (%s, %d, %d)" % (
-                device.mrc.get_display_url(), device.bus, device.address)
-        yield progress
+            if not device.has_cfg:
+                device.create_config()
 
-        parameters = (yield device.get_config_parameters()).result()
+            progress.text = "Current device: (%s, %d, %d)" % (
+                    device.mrc.get_display_url(), device.bus, device.address)
+            yield progress
 
-        gen = apply_parameters(source=device.hw, dest=device.cfg,
-                criticals=list(), non_criticals=parameters)
-        arg = None
+            parameters = (yield device.get_config_parameters()).result()
 
-        while True:
-            try:
-                obj = gen.send(arg)
+            gen = apply_parameters(source=device.hw, dest=device.cfg,
+                    criticals=list(), non_criticals=parameters)
+            arg = None
 
-                if isinstance(obj, SetParameterError):
-                    obj.url = device.mrc.url
-                    obj.device = device
-                    arg = yield obj
+            while True:
+                try:
+                    obj = gen.send(arg)
 
-                elif isinstance(obj, ProgressUpdate):
-                    progress.subprogress = obj
-                    yield progress
-                    arg = None
-                else:
-                    arg = yield obj
-            except StopIteration:
-                break
-            except GeneratorExit:
-                gen.close()
-                return
+                    if isinstance(obj, SetParameterError):
+                        obj.url = device.mrc.url
+                        obj.device = device
+                        arg = yield obj
 
-        # extensions
-        for name, value in device.hw.get_extensions().iteritems():
-            device.cfg.set_extension(name, value)
+                    elif isinstance(obj, ProgressUpdate):
+                        progress.subprogress = obj
+                        yield progress
+                        arg = None
+                    else:
+                        arg = yield obj
+                except StopIteration:
+                    break
+                except GeneratorExit:
+                    gen.close()
+                    return
 
-        yield progress.increment()
+            # extensions
+            for name, value in device.hw.get_extensions().iteritems():
+                device.cfg.set_extension(name, value)
+
+            yield progress.increment()
+        finally:
+            mrc.hw.polling = polling
 
 def read_config_parameters(devices):
     progress = ProgressUpdate(current=0, total=len(devices))
