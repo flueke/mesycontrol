@@ -36,7 +36,7 @@ set(CPACK_PACKAGE_VENDOR "mesytec")
 set(CPACK_PACKAGE_EXECUTABLES "mesycontrol_gui;mesycontrol GUI")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "mesycontrol")
 set(CPACK_OUTPUT_FILE_PREFIX "packages")
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/src/client/mesycontrol/ui/gpl.txt")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/src/client/mesycontrol/resources/gpl.txt")
 
 if (WIN32)
     set(CPACK_GENERATOR "ZIP" "NSIS")

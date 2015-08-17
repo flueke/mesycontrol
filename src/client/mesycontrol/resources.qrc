@@ -1,60 +1,60 @@
 <!DOCTYPE RCC><RCC version="1.0">
 <qresource>
     <!-- icons -->
-    <file alias="add-config.png">ui/plus-2x.png</file>
-    <file alias="add-mrc.png">ui/plus-2x.png</file>
-    <file alias="apply-config-to-hardware.png">ui/arrow-circle-left-2x.png</file>
-    <file alias="apply-hardware-to-config.png">ui/arrow-circle-right-2x.png</file>
-    <file alias="arrow-bottom.png">ui/arrow-bottom-2x.png</file>
-    <file alias="check-config.png">ui/check-2x.png</file>
-    <file alias="close-setup.png">ui/process-stop.png</file>
-    <file alias="connected.png">ui/connected.png</file>
-    <file alias="connecting.png">ui/loop-circular-2x.png</file>
-    <file alias="connect.png">ui/connected.png</file>
-    <file alias="disconnected.png">ui/disconnected.png</file>
-    <file alias="disconnect.png">ui/disconnected.png</file>
-    <file alias="linked.png">ui/link-broken-2x.png</file>
-    <file alias="mesytec-logo.png">ui/mesytec-logo-yellow.png</file>
-    <file alias="open-device-table.png">ui/spreadsheet-2x.png</file>
-    <file alias="open-device-widget.png">ui/dial-2x.png</file>
-    <file alias="open-setup.png">ui/document-open.png</file>
-    <file alias="polarity-negative.png">ui/list-remove.png</file>
-    <file alias="polarity-positive.png">ui/list-add.png</file>
-    <file alias="polling.png">ui/timer-2x.png</file>
-    <file alias="question-mark.png">ui/question-mark-2x.png</file>
-    <file alias="refresh.png">ui/loop-circular-2x.png</file>
-    <file alias="remote-control.png">ui/wifi-2x.png</file>
-    <file alias="remove-config.png">ui/minus-2x.png</file>
-    <file alias="remove-mrc.png">ui/minus-2x.png</file>
-    <file alias="save-setup-as.png">ui/document-save-as.png</file>
-    <file alias="save-setup.png">ui/document-save.png</file>
-    <file alias="select-display-mode.png">ui/eye-2x.png</file>
-    <file alias="select-write-mode.png">ui/pencil-2x.png</file>
-    <file alias="unlinked.png">ui/link-intact-2x.png</file>
-    <file alias="warning.png">ui/warning-2x.png</file>
-    <file alias="window-icon.png">ui/window-icon.png</file>
-    <file alias="window-icon-2.png">ui/window-icon-2.png</file>
-    <file alias="window-icon-3.png">ui/window-icon-3.png</file>
+    <file alias="add-config.png">resources/plus-2x.png</file>
+    <file alias="add-mrc.png">resources/plus-2x.png</file>
+    <file alias="apply-config-to-hardware.png">resources/arrow-circle-left-2x.png</file>
+    <file alias="apply-hardware-to-config.png">resources/arrow-circle-right-2x.png</file>
+    <file alias="arrow-bottom.png">resources/arrow-bottom-2x.png</file>
+    <file alias="check-config.png">resources/check-2x.png</file>
+    <file alias="close-setup.png">resources/process-stop.png</file>
+    <file alias="connected.png">resources/connected.png</file>
+    <file alias="connecting.png">resources/loop-circular-2x.png</file>
+    <file alias="connect.png">resources/connected.png</file>
+    <file alias="disconnected.png">resources/disconnected.png</file>
+    <file alias="disconnect.png">resources/disconnected.png</file>
+    <file alias="linked.png">resources/link-broken-2x.png</file>
+    <file alias="mesytec-logo.png">resources/mesytec-logo-yellow.png</file>
+    <file alias="open-device-table.png">resources/spreadsheet-2x.png</file>
+    <file alias="open-device-widget.png">resources/dial-2x.png</file>
+    <file alias="open-setup.png">resources/document-open.png</file>
+    <file alias="polarity-negative.png">resources/list-remove.png</file>
+    <file alias="polarity-positive.png">resources/list-add.png</file>
+    <file alias="polling.png">resources/timer-2x.png</file>
+    <file alias="preferences.png">resources/preferences-system.png</file>
+    <file alias="question-mark.png">resources/question-mark-2x.png</file>
+    <file alias="refresh.png">resources/loop-circular-2x.png</file>
+    <file alias="remote-control.png">resources/wifi-2x.png</file>
+    <file alias="remove-config.png">resources/minus-2x.png</file>
+    <file alias="remove-mrc.png">resources/minus-2x.png</file>
+    <file alias="save-setup-as.png">resources/document-save-as.png</file>
+    <file alias="save-setup.png">resources/document-save.png</file>
+    <file alias="select-display-mode.png">resources/eye-2x.png</file>
+    <file alias="select-write-mode.png">resources/pencil-2x.png</file>
+    <file alias="stop.png">resources/process-stop.png</file>
+    <file alias="unlinked.png">resources/link-intact-2x.png</file>
+    <file alias="warning.png">resources/warning-2x.png</file>
+    <file alias="window-icon.png">resources/window-icon-3.png</file>
+    <file alias="window-icon-2.png">resources/window-icon-2.png</file>
+    <file alias="window-icon-3.png">resources/window-icon-3.png</file>
 
 
-    <file>ui/applications-utilities.png</file>
-    <file>ui/ban-2x.png</file>
-    <file>ui/bolt-2x.png</file>
-    <file>ui/circle-x-2x.png</file>
-    <file>ui/cog-2x.png</file>
-    <file>ui/data-transfer-download-2x.png</file>
-    <file>ui/data-transfer-upload-2x.png</file>
-    <file>ui/flash-2x.png</file>
-    <file>ui/lock-locked-2x.png</file>
-    <file>ui/lock-unlocked-2x.png</file>
-    <file>ui/loop-2x.png</file>
-    <file>ui/loop-square-2x.png</file>
-    <file>ui/preferences-system.png</file>
-    <file>ui/process-stop.png</file>
-    <file>ui/reload-2x.png</file>
-    <file>ui/task-2x.png</file>
-    <file>ui/wrench-2x.png</file>
-    <file>ui/x-2x.png</file>
+    <file>resources/applications-utilities.png</file>
+    <file>resources/ban-2x.png</file>
+    <file>resources/bolt-2x.png</file>
+    <file>resources/circle-x-2x.png</file>
+    <file>resources/cog-2x.png</file>
+    <file>resources/data-transfer-download-2x.png</file>
+    <file>resources/data-transfer-upload-2x.png</file>
+    <file>resources/flash-2x.png</file>
+    <file>resources/lock-locked-2x.png</file>
+    <file>resources/lock-unlocked-2x.png</file>
+    <file>resources/loop-2x.png</file>
+    <file>resources/loop-square-2x.png</file>
+    <file>resources/reload-2x.png</file>
+    <file>resources/task-2x.png</file>
+    <file>resources/wrench-2x.png</file>
+    <file>resources/x-2x.png</file>
 
     <!-- Designer UI files -->
     <file>ui/connect_dialog.ui</file>
@@ -68,7 +68,7 @@
     <file>ui/mscf16_panel.ui</file>
     <file>ui/subprogress_widget.ui</file>
 
-    <file alias="gpl.txt">ui/gpl.txt</file>
+    <file alias="gpl.txt">resources/gpl.txt</file>
 </qresource>
 </RCC>
 <!-- vim:ft=xml

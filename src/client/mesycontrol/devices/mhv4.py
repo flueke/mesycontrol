@@ -510,7 +510,7 @@ class MHV4Widget(DeviceWidgetBase):
         if self._toolbar is None:
             self._toolbar = tb = QtGui.QToolBar()
 
-            tb.addAction(util.make_icon(":/ui/preferences-system.png"),
+            tb.addAction(util.make_icon(":/preferences.png"),
                     "MHV-4 Settings").triggered.connect(self._show_preferences)
 
         return self._toolbar

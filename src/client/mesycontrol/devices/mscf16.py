@@ -482,7 +482,7 @@ class ShapingPage(QtGui.QGroupBox):
         self.device.auto_pz_channel_changed.connect(self._on_device_auto_pz_channel_changed)
         self.device.hardware_set.connect(self._on_hardware_set)
 
-        self.stop_icon  = QtGui.QIcon(':/ui/process-stop.png')
+        self.stop_icon  = QtGui.QIcon(':/stop.png')
         self.sht_inputs = list()
         self.sht_labels = list()
         self.pz_inputs  = list()

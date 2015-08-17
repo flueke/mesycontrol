@@ -33,7 +33,7 @@
        <widget class="QPushButton" name="pb_settings">
         <property name="icon">
          <iconset resource="../resources.qrc">
-          <normaloff>:/ui/preferences-system.png</normaloff>:/ui/preferences-system.png</iconset>
+          <normaloff>:/preferences.png</normaloff>:/preferences.png</iconset>
         </property>
        </widget>
       </item>
@@ -64,7 +64,7 @@
         </property>
         <property name="icon">
          <iconset resource="../resources.qrc">
-          <normaloff>:/ui/process-stop.png</normaloff>:/ui/process-stop.png</iconset>
+          <normaloff>:/stop.png</normaloff>:/stop.png</iconset>
         </property>
        </widget>
       </item>

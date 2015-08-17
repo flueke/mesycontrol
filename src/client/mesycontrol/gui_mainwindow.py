@@ -25,7 +25,7 @@ class MainWindow(QtGui.QMainWindow):
         self.log = util.make_logging_source_adapter(__name__, self)
         self.context = context
         util.loadUi(":/ui/mainwin.ui", self)
-        self.setWindowIcon(make_icon(":/window-icon-3.png"))
+        self.setWindowIcon(make_icon(":/window-icon.png"))
 
         # Treeview
         self.treeview = MCTreeView(app_registry=context.app_registry,
