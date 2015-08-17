@@ -469,7 +469,7 @@ class GUIApplication(QtCore.QObject):
         self.actions['save_device_config'].setEnabled(is_device_cfg(node))
 
         a = self.actions['connect_disconnect']
-        a.setEnabled((is_registry(node) and len(node.ref.hw)) or is_mrc(node))
+        a.setEnabled((is_registry(node) and len(node.children)) or is_mrc(node))
 
         if a.isEnabled() and is_registry(node):
             if all(mrc.is_connected() for mrc in node.ref.hw):
@@ -685,18 +685,20 @@ class GUIApplication(QtCore.QObject):
         a = self.actions['connect_disconnect']
 
         if is_registry(node):
-            def wrap(_):
-                for i in range(20):
-                    print "wrap"
-                self._update_actions()
-
-            if all(mrc.is_connected() for mrc in node.ref.hw):
-                future.all_done(*(mrc.disconnect() for mrc in node.ref.hw)
-                        ).add_done_callback(wrap)
+            if all((mrc.has_hw and mrc.hw.is_connected()) for mrc in node.ref):
+                futures = [mrc.hw.disconnect() for mrc in node.ref]
             else:
-                future.all_done(*(mrc.connect() for mrc in node.ref.hw if
-                    not mrc.is_connected() and not mrc.is_connecting())
-                        ).add_done_callback(wrap)
+                futures = list()
+                for mrc in node.ref:
+                    if not mrc.has_hw:
+                        futures.append(add_mrc_connection(self.app_registry.hw, mrc.url, True))
+                    elif not mrc.hw.is_connected() and not mrc.hw.is_connecting():
+                        futures.append(mrc.hw.connect())
+
+            if len(futures):
+                def wrap(_):
+                    self._update_actions()
+                future.all_done(*futures).add_done_callback(wrap)
 
         if is_mrc(node):
             if not node.ref.has_hw:
