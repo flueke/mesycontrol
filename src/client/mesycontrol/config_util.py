@@ -708,6 +708,8 @@ def read_config_parameters(devices):
                 progress.subprogress.increment()
                 yield progress
 
+            device.update_config_applied()
+
             yield progress.increment()
         finally:
             hw_mrc.polling = polling
