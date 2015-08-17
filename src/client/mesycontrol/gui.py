@@ -489,7 +489,9 @@ class GUIApplication(QtCore.QObject):
             a.setChecked(node.ref.hw.polling)
             a.setToolTip("Disable polling" if a.isChecked() else "Enable polling")
             a.setText(a.toolTip())
-        elif is_device(node) and not node.ref.mrc.hw.polling:
+        elif (is_hardware(node) and is_device(node)
+                and node.ref.mrc.hw is not None
+                and not node.ref.mrc.hw.polling):
             a.setToolTip("Polling disabled by parent MRC")
 
         a = self.actions['toggle_rc']
