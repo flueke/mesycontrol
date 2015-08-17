@@ -316,6 +316,21 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
             if col == COL_CFG_VALUE and pp is not None and not pp.should_be_stored():
                 return QtGui.QColor("lightgray")
 
+        if role in (Qt.ToolTipRole, Qt.StatusTipRole):
+            if pp is not None and pp.read_only:
+                if col == COL_HW_VALUE:
+                    return "%s=%s (read_only)" % (
+                            pp.name if pp.is_named() else str(row),
+                            self.data(idx, Qt.DisplayRole))
+
+                if col == COL_CFG_VALUE:
+                    return "%s (read_only)" % (
+                            pp.name if pp.is_named() else str(row))
+
+            if col == COL_CFG_VALUE and pp is not None and not pp.should_be_stored():
+                return "%s (not stored in config)" % (
+                        pp.name if pp.is_named() else str(row))
+
         return None
 
     def setData(self, idx, value, role = Qt.EditRole):
@@ -331,7 +346,11 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
 
         try:
             if col == COL_HW_VALUE:
-                self.device.hw.set_parameter(row, value)
+                def set_cfg(f):
+                    if not f.exception() and self.write_mode == util.COMBINED:
+                        self.device.cfg.set_parameter(row, value)
+
+                self.device.hw.set_parameter(row, value).add_done_callback(set_cfg)
                 return True
 
             if col == COL_CFG_VALUE:
