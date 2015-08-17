@@ -5,7 +5,6 @@
 from .. qt import pyqtSignal
 from .. qt import pyqtSlot
 from .. qt import Qt
-from .. qt import QtCore
 from .. qt import QtGui
 
 import itertools
@@ -35,8 +34,6 @@ class STM16(DeviceBase):
     def __init__(self, app_device, read_mode, write_mode, parent=None):
         super(STM16, self).__init__(app_device, read_mode, write_mode, parent)
 
-        self.config_set.connect(self._on_config_set)
-
     def get_gain_adjust(self):
         return self.get_extension('gain_adjust')
 
@@ -55,11 +52,6 @@ class STM16(DeviceBase):
         self.get_parameter('gain_group%d' % group).add_done_callback(done)
 
         return ret
-
-    def _on_config_set(self):
-        # Call set_gain_adjust with the internally stored value. This will set
-        # gain adjust on the config if there is one.
-        self.set_gain_adjust(self._gain_adjust)
 
 dynamic_label_style = "QLabel { background-color: lightgrey; }"
 
