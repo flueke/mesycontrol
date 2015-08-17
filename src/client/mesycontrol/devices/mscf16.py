@@ -150,7 +150,6 @@ class MSCF16(DeviceBase):
 
         return ret
 
-
     def get_fpga_version(self):
         ret = future.Future()
 
@@ -291,16 +290,12 @@ class MSCF16(DeviceBase):
                 pass
 
         if new is not None:
-            if new.idc != idc:
-                print "_on_hardware_set: idc=", idc, "new.idc=", new.idc
-
             new.parameter_changed.connect(self._on_hw_parameter_changed)
 
             for addr in self.profile.get_volatile_addresses():
                 new.add_poll_item(self, addr)
 
     def _on_hw_parameter_changed(self, address, value):
-        print self.profile
         if address == self.profile['auto_pz'].address:
             # Refresh the channels PZ value once auto pz is done.
             # auto_pz = 0 means auto pz is not currently running
@@ -640,7 +635,6 @@ class ShapingPage(QtGui.QGroupBox):
         self._on_hardware_set(device, None, device.hw)
 
     def _on_hardware_set(self, device, old, new):
-        print "_on_hardware_set", idc
         hw_is_ok = new is not None and new.idc == idc
 
         self.pb_auto_pz_all.setEnabled(hw_is_ok)
@@ -962,7 +956,6 @@ class MiscPage(QtGui.QWidget):
         self._on_hardware_set(device, None, device.hw)
 
     def _on_hardware_set(self, device, old, new):
-        print "_on_hardware_set", idc
         hw_is_ok = new is not None and new.idc == idc
 
         self.pb_copy_panel2rc.setEnabled(hw_is_ok)
