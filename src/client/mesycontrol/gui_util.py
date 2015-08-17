@@ -212,6 +212,47 @@ def run_add_mrc_connection_dialog(registry, parent_widget=None):
     dialog.accepted.connect(accepted)
     dialog.show()
 
+def run_edit_mrc_config(mrc, registry, parent_widget=None):
+    urls_in_use = [mrc_.url for mrc_ in registry.cfg.get_mrcs()]
+    urls_in_use.remove(mrc.url)
+    serial_ports = util.list_serial_ports()
+
+    dialog = AddMRCDialog(serial_ports=serial_ports, urls_in_use=urls_in_use,
+            url=mrc.url, do_connect_default=False, parent=parent_widget,
+            title="Edit MRC config")
+    dialog.setModal(True)
+
+    def accepted(mrc=mrc):
+        try:
+            url, connect = dialog.result()
+            device_configs = [d for d in mrc.cfg]
+
+            for d in device_configs:
+                mrc.cfg.remove_device(d)
+
+            registry.cfg.remove_mrc(mrc.cfg)
+
+            new_mrc = cm.MRC(url)
+
+            for d in device_configs:
+                new_mrc.add_device(d)
+
+            registry.cfg.add_mrc(new_mrc)
+
+            if connect:
+                mrc = registry.hw.get_mrc(url)
+                if not mrc:
+                    add_mrc_connection(registry.hw, url, connect)
+                elif mrc.is_disconnected():
+                    mrc.connect()
+
+        except Exception as e:
+            log.exception("run_edit_mrc_config")
+            QtGui.QMessageBox.critical(parent_widget, "Error", str(e))
+
+    dialog.accepted.connect(accepted)
+    dialog.show()
+
 # ===== Device =====
 def run_add_device_config_dialog(device_registry, registry, mrc, bus=None, parent_widget=None):
     try:

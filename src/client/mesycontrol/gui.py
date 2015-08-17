@@ -210,6 +210,10 @@ class GUIApplication(QtCore.QObject):
                 "Save device config", self, triggered=self._save_device_config)
         self.actions['save_device_config'] = action
 
+        action = QtGui.QAction(QtGui.QIcon.fromTheme("document-properties"),
+                "Properties", self, triggered=self._edit_mrc_config)
+        self.actions['edit_mrc_config'] = action
+
         # ===== Hardware ===== #
 
         # Connect/Disconnect
@@ -449,9 +453,14 @@ class GUIApplication(QtCore.QObject):
         if is_mrc(node) or is_bus(node):
             a.setText("Add Device")
 
-        self.actions['remove_config'].setEnabled(
-                (is_mrc(node) or is_device(node))
-                and node.ref.has_cfg)
+        a = self.actions['remove_config']
+        a.setEnabled((is_mrc(node) or is_device(node)) and node.ref.has_cfg)
+
+        if a.isEnabled() and is_mrc(node):
+            a.setText("Remove MRC config")
+
+        if a.isEnabled() and is_device(node):
+            a.setText("Remove Device config")
 
         self.actions['rename_config'].setEnabled(
                 (is_mrc(node) or is_device(node)) and node.ref.has_cfg)
@@ -897,6 +906,10 @@ Initialize using the current hardware values or the device defaults?
         gui_util.run_save_device_config(device=device, context=self.context,
                 parent_widget=self.mainwindow)
 
+    def _edit_mrc_config(self):
+        gui_util.run_edit_mrc_config(mrc=self._selected_tree_node.ref,
+                registry=self.app_registry, parent_widget=self.mainwindow)
+
     def quit(self):
         """Non-blocking method to quit the application. Needs a running event
         loop."""
@@ -1201,6 +1214,8 @@ Initialize using the current hardware values or the device defaults?
             add_action(self.actions['rename_config'])
             add_action(self.actions['add_config'])
             add_action(self.actions['remove_config'])
+            menu.addSeparator()
+            add_action(self.actions['edit_mrc_config'])
 
         if is_bus(node):
             add_action(self.actions['add_config'])
