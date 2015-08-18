@@ -191,7 +191,6 @@ class ChannelWidget(QtGui.QWidget):
             device=device, profile=pb.ReadWriteProfile(
                 device.profile['channel%d_tcomp_source_read' % channel],
                 device.profile['channel%d_tcomp_source_write' % channel]),
-            #device.profile['channel%d_tcomp_source_read' % channel],
             display_mode=display_mode, write_mode=write_mode
             ).add_update_callback(self._tcomp_source_changed))
 
@@ -204,7 +203,6 @@ class ChannelWidget(QtGui.QWidget):
         self.slider_target_voltage.setTickInterval(100 if voltage > 200.0 else 10)
 
     def _current_updated(self, f_current):
-        print "_current_updated"
         def done(f_current_limit):
             self._update_current_lcd_color(f_current, f_current_limit)
 
@@ -212,7 +210,6 @@ class ChannelWidget(QtGui.QWidget):
                 ).add_done_callback(done)
 
     def _current_limit_updated(self, f_current_limit):
-        print "_current_limit_updated"
         def done(f_current):
             self._update_current_lcd_color(f_current, f_current_limit)
 
