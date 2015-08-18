@@ -668,3 +668,17 @@ def make_icon(source):
 
 def make_standard_icon(icon, option=None, widget=None):
     return QtGui.QApplication.instance().style().standardIcon(icon, option, widget)
+
+class ReadOnlyCheckBox(QtGui.QCheckBox):
+    # Note: keyPressEvent and keyReleaseEvent do not need to be overriden
+    # because FocusPolicy is set to NoFocus
+
+    def __init__(self, *args, **kwargs):
+        super(ReadOnlyCheckBox, self).__init__(*args, **kwargs)
+        self.setFocusPolicy(Qt.NoFocus)
+
+    def mousePressEvent(self, event):
+        event.ignore()
+
+    def mouseReleaseEvent(self, event):
+        event.ignore()
