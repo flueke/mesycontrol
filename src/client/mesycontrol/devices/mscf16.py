@@ -23,6 +23,7 @@ from .. specialized_device import DeviceWidgetBase
 from .. util import hline
 from .. util import make_spinbox
 from .. util import make_title_label
+from .. util import ReadOnlyCheckBox
 
 import mscf16_profile
 
@@ -62,7 +63,7 @@ class HardwareInfo(object):
     INTEGRATING     = 1 << 2
     SUMDIS          = 1 << 6
 
-    def __init__(self, hw_info):
+    def __init__(self, hw_info=0):
         self.info = hw_info
 
     def is_ln_type(self):
@@ -80,6 +81,9 @@ class HardwareInfo(object):
     def has_sumdis(self):
         return self.info & HardwareInfo.SUMDIS
 
+    def __and__(self, other):
+        return self.info & other
+
 class CopyFunction(object):
     panel2rc        = 1
     rc2panel        = 2
@@ -89,7 +93,60 @@ Version = collections.namedtuple('Version', 'major minor')
 
 def get_config_parameters(app_device):
     # TODO: implement version dependent code here
-    return future.Future().set_result(app_device.profile.get_config_parameters())
+    #return future.Future().set_result(app_device.profile.get_config_parameters())
+
+    profile = app_device.profile
+    params  = profile.get_config_parameters()
+
+    if not app_device.has_hw:
+        return future.Future().set_result(params)
+
+    device  = MSCF16(app_device, util.HARDWARE, util.HARDWARE)
+    ret     = future.Future()
+
+    def version_done(f):
+        print f
+        version = f.result()
+
+        if version < (4, 0):
+            params.remove(profile['blr_threshold'])
+            params.remove(profile['blr_enable'])
+            params.remove(profile['coincidence_time'])
+            params.remove(profile['shaper_offset'])
+            params.remove(profile['threshold_offset'])
+
+        if version < (5, 0):
+            params.remove(profile['ecl_delay_enable'])
+            params.remove(profile['tf_int_time'])
+
+        if version < (5, 3):
+            params.remove(profile['sumdis_threshold'])
+            ret.set_result(params)
+        else:
+            def hw_info_done(f):
+                hw_info = f.result()
+
+                if not hw_info.has_sumdis():
+                    params.remove(profile['sumdis_threshold'])
+                ret.set_result(params)
+
+            device.get_hardware_info().add_done_callback(hw_info_done)
+
+    device.get_version().add_done_callback(version_done)
+
+    return ret
+
+def decode_version(val):
+    return Version(*divmod(int(val), 16))
+
+def decode_fpga_version(val):
+    return Version(*divmod(int(val), 256))
+
+def decode_cpu_software_version(val):
+    return Version(*divmod(int(val), 256))
+
+def decode_hardware_info(val):
+    return HardwareInfo(int(val))
 
 # ==========  Device ========== 
 class MSCF16(DeviceBase):
@@ -109,11 +166,14 @@ class MSCF16(DeviceBase):
         """Reads the 'version' register and returns a Future whose result is a
         namedtuple of the form (major, minor)."""
 
+        if not self.has_hw:
+            return future.Future().set_exception(pb.ParameterUnavailable("hardware not present"))
+
         ret = future.Future()
 
         @set_result_on(ret)
         def done(f):
-            return Version(divmod(int(f), 16))
+            return decode_version(int(f))
 
         self.get_hw_parameter('version').add_done_callback(done)
 
@@ -131,19 +191,19 @@ class MSCF16(DeviceBase):
 
         return ret
 
-    def _get_detailed_version_parameter(self, param_name):
+    def _get_detailed_version_parameter(self, param_name, decode_fun):
         ret = future.Future()
 
         @set_result_on(ret)
         def get_param_done(f):
-            return int(f)
+            return decode_fun(int(f))
 
         @set_exception_on(ret)
         def has_versions_done(f):
             if f.result():
-                self.get_parameter(param_name).add_done_callback(get_param_done)
+                self.get_hw_parameter(param_name).add_done_callback(get_param_done)
             else:
-                raise RuntimeError("Register '%s' (%d) register not supported" %
+                raise RuntimeError("Register '%s' (%d) not supported. Requires version >= 5.3" %
                         (param_name, self.profile[param_name].address))
 
         self.has_detailed_versions().add_done_callback(has_versions_done)
@@ -151,37 +211,16 @@ class MSCF16(DeviceBase):
         return ret
 
     def get_fpga_version(self):
-        ret = future.Future()
-
-        @set_result_on(ret)
-        def done(f):
-            return Version(divmod(int(f), 256))
-
-        self._get_detailed_version_parameter('fpga_version').add_done_callback(done)
-
-        return ret
+        return self._get_detailed_version_parameter(
+                'fpga_version', decode_fpga_version)
 
     def get_cpu_software_version(self):
-        ret = future.Future()
-
-        @set_result_on(ret)
-        def done(f):
-            return Version(divmod(int(f), 256))
-
-        self._get_detailed_version_parameter('cpu_software_version').add_done_callback(done)
-
-        return ret
+        return self._get_detailed_version_parameter(
+                'cpu_software_version', decode_cpu_software_version)
 
     def get_hardware_info(self):
-        ret = future.Future()
-
-        @set_result_on(ret)
-        def done(f):
-            return HardwareInfo(int(f))
-
-        self._get_detailed_version_parameter('hardware_info').add_done_callback(done)
-
-        return ret
+        return self._get_detailed_version_parameter(
+                'hardware_info', decode_hardware_info)
 
     # ===== gain =====
     def get_total_gain(self, group):
@@ -814,6 +853,33 @@ class ChannelModeBinding(pb.AbstractParameterBinding):
             rb.setToolTip(self._get_tooltip(rf))
             rb.setStatusTip(rb.toolTip())
 
+class HardwareInfoWidget(QtGui.QWidget):
+    def __init__(self, parent=None):
+        super(HardwareInfoWidget, self).__init__(parent)
+        self.setStyleSheet('QWidget { background-color: lightgrey; }')
+
+        self.checkboxes = {
+                HardwareInfo.LN_TYPE:       ReadOnlyCheckBox("LN type", toolTip="Low Noise Type"),
+                HardwareInfo.INTEGRATING:   ReadOnlyCheckBox("Integrating", toolTip="Charge integrating"),
+                HardwareInfo.HW_GE_V4:      ReadOnlyCheckBox("HW >= 4", toolTip="Hardware version >= 4"),
+                HardwareInfo.SUMDIS:        ReadOnlyCheckBox("SumDis", toolTip="Sum Discriminator")
+                }
+
+        for cb in self.checkboxes.itervalues():
+            cb.setStatusTip(cb.toolTip())
+
+        layout = QtGui.QGridLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self.checkboxes[HardwareInfo.HW_GE_V4], 0, 0)
+        layout.addWidget(self.checkboxes[HardwareInfo.LN_TYPE], 0, 1)
+        layout.addWidget(self.checkboxes[HardwareInfo.INTEGRATING], 1, 0)
+        layout.addWidget(self.checkboxes[HardwareInfo.SUMDIS], 1, 1)
+
+    def set_hardware_info(self, hw_info):
+        for bit, checkbox in self.checkboxes.iteritems():
+            checkbox.setChecked(hw_info & bit)
+
 class MiscPage(QtGui.QWidget):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(MiscPage, self).__init__(parent)
@@ -942,10 +1008,56 @@ class MiscPage(QtGui.QWidget):
         version_layout.setContentsMargins(2, 2, 2, 2)
 
         self.version_labels = dict()
-        for k in ("Version", "FPGA", "CPU"):
+
+        for k, l in (
+                ("version", "Version"),
+                ("fpga_version", "FPGA"),
+                ("cpu_software_version", "CPU")):
+
             self.version_labels[k] = label = QtGui.QLabel()
             label.setStyleSheet(dynamic_label_style)
-            version_layout.addRow(k+":", label)
+            version_layout.addRow(l+":", label)
+
+        self.hardware_info_widget = HardwareInfoWidget()
+        version_layout.addRow("Hardware Info:", self.hardware_info_widget)
+
+        self.bindings.append(pb.factory.make_binding(
+            device=device,
+            profile=device.profile['version'],
+            display_mode=util.HARDWARE,
+            fixed_modes=True,
+            ).add_update_callback(
+                self._version_label_cb,
+                label=self.version_labels['version'],
+                getter=self.device.get_version))
+
+        self.bindings.append(pb.factory.make_binding(
+            device=device,
+            profile=device.profile['fpga_version'],
+            display_mode=util.HARDWARE,
+            fixed_modes=True,
+            ).add_update_callback(
+                self._version_label_cb,
+                label=self.version_labels['fpga_version'],
+                getter=self.device.get_fpga_version))
+
+        self.bindings.append(pb.factory.make_binding(
+            device=device,
+            profile=device.profile['cpu_software_version'],
+            display_mode=util.HARDWARE,
+            fixed_modes=True,
+            ).add_update_callback(
+                self._version_label_cb,
+                label=self.version_labels['cpu_software_version'],
+                getter=self.device.get_cpu_software_version))
+
+        self.bindings.append(pb.factory.make_binding(
+            device=device,
+            profile=device.profile['hardware_info'],
+            display_mode=util.HARDWARE,
+            fixed_modes=True,
+            ).add_update_callback(
+                self._hardware_info_cb))
 
         layout.addWidget(trigger_box)
         layout.addWidget(monitor_box)
@@ -961,6 +1073,9 @@ class MiscPage(QtGui.QWidget):
         self.pb_copy_panel2rc.setEnabled(hw_is_ok)
         self.pb_copy_rc2panel.setEnabled(hw_is_ok)
         self.pb_copy_common2single.setEnabled(hw_is_ok)
+
+        for binding in self.bindings:
+            binding.populate()
 
     def _copy_panel2rc(self):
         def progress(f):
@@ -994,6 +1109,31 @@ class MiscPage(QtGui.QWidget):
         self.copy_common2single_progress.setMaximum(copy_future.progress_max())
         self.copy_common2single_progress.setValue(0)
         self.copy_common2single_stack.setCurrentIndex(1)
+
+    def _version_label_cb(self, read_mem_future, label, getter):
+        def done(getter_future):
+            try:
+                version = getter_future.result()
+                label.setText("%d.%d" % (version.major, version.minor))
+                label.setToolTip(str())
+            except Exception as e:
+                label.setText("N/A")
+                label.setToolTip(str(e))
+
+            label.setStatusTip(label.toolTip())
+
+        getter().add_done_callback(done)
+
+    def _hardware_info_cb(self, read_mem_future):
+        def done(getter_future):
+            try:
+                hw_info = getter_future.result()
+            except Exception:
+                hw_info = HardwareInfo()
+
+            self.hardware_info_widget.set_hardware_info(hw_info)
+
+        self.device.get_hardware_info().add_done_callback(done)
 
 # FIXME: implement this
 class MSCF16SetupWidget(QtGui.QWidget):
