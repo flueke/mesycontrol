@@ -30,21 +30,26 @@ class ReadWriteProfile(collections.namedtuple('ReadWriteProfile', 'read write'))
     units = property(get_units)
 
 class ParameterUnavailable(Exception):
-    def __init__(self):
-        super(ParameterUnavailable, self).__init__("Parameter not available")
+    def __init__(self, *args, **kwargs):
+        super(ParameterUnavailable, self).__init__("Parameter not available", *args, **kwargs)
 
 class AbstractParameterBinding(object):
-    def __init__(self, device, profile, target, display_mode, write_mode=None, **kwargs):
+    def __init__(self, device, profile, target, display_mode, write_mode=None, fixed_modes=False, **kwargs):
         """
         device: app_model.Device or DeviceBase subclass
+        profile: parameter profile
+        target: any class instance or None
         display_mode: util.HARDWARE | util.CONFIG
         write_mode: util.HARDWARE | util.CONFIG | util.COMBINED
+        fixed_modes: If True set_display_mode() and set_write_mode() won't have any effect.
+                     Use this to create e.g. hardware only bindings.
         """
         self._device        = weakref.ref(device)
         self.profile        = profile
         self._display_mode  = display_mode
         self._write_mode    = write_mode if write_mode is not None else display_mode
         self.target         = target
+        self.fixed_modes    = fixed_modes
         self._update_callbacks = list()
         self._update_method_callbacks = list()
 
@@ -59,13 +64,22 @@ class AbstractParameterBinding(object):
         display once the value is retrieved."""
 
         if not self.has_rw_profile() and self.display_mode == util.CONFIG and self.profile.read_only:
-            self._update_wrapper(future.Future().set_exception(ParameterUnavailable()))
+            # read-only parameters are never stored in the config
+            self._update_wrapper(future.Future().set_exception(
+                ParameterUnavailable("read_only parameter %s (%d) not stored in config" % (
+                    self.profile.name, self.profile.address))))
             return
 
         # For RW parameters the read address is used if hardware is present
         # otherwise the write address is used as only that is actually stored
         # in the config.
         dev     = self.device.cfg if self.display_mode == util.CONFIG else self.device.hw
+
+        if dev is None:
+            self._update_wrapper(future.Future().set_exception(
+                ParameterUnavailable("device is None")))
+            return
+
         address = self.read_address if dev is self.device.hw else self.write_address
         f       = dev.get_parameter(address).add_done_callback(self._update_wrapper)
         log.debug("populate: target=%s, addr=%d, future=%s", self.target, address, f)
@@ -89,15 +103,24 @@ class AbstractParameterBinding(object):
         return self._write_mode
 
     def set_write_mode(self, mode):
+        if self.fixed_modes:
+            return False
+
         self._write_mode = mode
+        return True
 
     def get_display_mode(self):
         return self._display_mode
 
     def set_display_mode(self, mode):
+        if self.fixed_modes:
+            return False
+
         if self.display_mode != mode:
             self._display_mode = mode
             self.populate()
+
+        return True
 
     def get_device(self):
         return self._device()
@@ -119,7 +142,9 @@ class AbstractParameterBinding(object):
     address         = property(fget=get_address)
     read_address    = property(fget=get_read_address)
     write_address   = property(fget=get_write_address)
-    display_mode    = property(fget=get_display_mode, fset=set_display_mode)
+    display_mode    = property(
+            fget=lambda self: self.get_display_mode(),
+            fset=lambda self, v: self.set_display_mode(v))
     write_mode      = property(fget=get_write_mode, fset=set_write_mode)
     read_profile    = property(fget=get_read_profile)
     write_profile   = property(fget=get_write_profile)
@@ -164,10 +189,12 @@ class AbstractParameterBinding(object):
     def _on_device_hw_set(self, device, old_hw, new_hw):
         if old_hw is not None:
             old_hw.parameter_changed.disconnect(self._on_hw_parameter_changed)
+            old_hw.disconnected.disconnect(self.populate)
             old_hw.connected.disconnect(self.populate)
             
         if new_hw is not None:
             new_hw.parameter_changed.connect(self._on_hw_parameter_changed)
+            new_hw.disconnected.connect(self.populate)
             new_hw.connected.connect(self.populate)
 
     def _on_device_cfg_set(self, device, old_cfg, new_cfg):
@@ -323,8 +350,23 @@ class TargetlessParameterBinding(AbstractParameterBinding):
     functionality is needed."""
     def __init__(self, **kwargs):
         super(TargetlessParameterBinding, self).__init__(target=None, **kwargs)
+        self.log = util.make_logging_source_adapter(__name__, self)
+        self.log.debug("TargetlessParameterBinding: kwargs: %s", kwargs)
+
+    def set_display_mode(self, mode):
+        self.log.debug("TargetlessParameterBinding: set_display_mode %s", util.RW_MODE_NAMES[mode])
+        if mode == util.CONFIG:
+            import traceback
+            traceback.print_stack()
+        super(TargetlessParameterBinding, self).set_display_mode(mode)
+
+    def set_write_mode(self, mode):
+        self.log.debug("TargetlessParameterBinding: set_write_mode %s", util.RW_MODE_NAMES[mode])
+        super(TargetlessParameterBinding, self).set_write_mode(mode)
 
     def _update(self, result_future):
+        self.log.debug("TargetlessParameterBinding: _update rf=%s, display_mode=%s",
+                result_future, util.RW_MODE_NAMES[self.display_mode])
         pass
 
 class SpinBoxParameterBinding(DefaultParameterBinding):
@@ -517,7 +559,7 @@ class Factory(object):
         return None
 
     def make_binding(self, **kwargs):
-        cls = self.get_binding_class(kwargs['target'])
+        cls = self.get_binding_class(kwargs.get('target', None))
 
         if cls is not None:
             try:
@@ -553,6 +595,9 @@ factory.append_classinfo_binding(
 
 factory.append_classinfo_binding(
         QtGui.QSlider, SliderParameterBinding)
+
+factory.append_predicate_binding(
+        lambda target: target is None, TargetlessParameterBinding)
 
 if __name__ == "__main__":
     import mock
