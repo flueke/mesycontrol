@@ -318,11 +318,11 @@ class GUIApplication(QtCore.QObject):
         # Display mode
         group = QtGui.QActionGroup(self)
         self.actions['display_hw']          = QtGui.QAction("Hardware", group,
-                checkable=True, enabled=False, toggled=self._on_display_hw_toggled)
+                checkable=True, enabled=False, triggered=self._on_display_hw_triggered)
         self.actions['display_cfg']         = QtGui.QAction("Config", group,
-                checkable=True, enabled=False, toggled=self._on_display_cfg_toggled)
+                checkable=True, enabled=False, triggered=self._on_display_cfg_triggered)
         self.actions['display_combined']    = QtGui.QAction("Combined", group,
-                checkable=True, enabled=False, toggled=self._on_display_combined_toggled)
+                checkable=True, enabled=False, triggered=self._on_display_combined_triggered)
 
         action = QtGui.QAction(make_icon(":/select-display-mode.png"),
                 "Set display mode", self, enabled=False)
@@ -337,11 +337,11 @@ class GUIApplication(QtCore.QObject):
         # Write mode
         group = QtGui.QActionGroup(self)
         self.actions['write_hw']            = QtGui.QAction("Hardware", group,
-                checkable=True, enabled=False, toggled=self._on_write_hw_toggled)
+                checkable=True, enabled=False, triggered=self._on_write_hw_triggered)
         self.actions['write_cfg']           = QtGui.QAction("Config", group,
-                checkable=True, enabled=False, toggled=self._on_write_cfg_toggled)
+                checkable=True, enabled=False, triggered=self._on_write_cfg_triggered)
         self.actions['write_combined']      = QtGui.QAction("Combined", group,
-                checkable=True, enabled=False, toggled=self._on_write_combined_toggled)
+                checkable=True, enabled=False, triggered=self._on_write_combined_triggered)
 
         action = QtGui.QAction(make_icon(":/select-write-mode.png"),
                 "Set write mode", self, enabled=False)
@@ -982,32 +982,32 @@ Initialize using the current hardware values or the device defaults?
     # Note: The toggled() signal is emitted on user action _and_ on
     # setChecked() and similar calls. In contrast triggered() is only emitted
     # on user action.
-    def _on_display_hw_toggled(self, b):
+    def _on_display_hw_triggered(self, b):
         if b:
             w = self.active_subwindow()
             w.display_mode = util.HARDWARE
 
-    def _on_display_cfg_toggled(self, b):
+    def _on_display_cfg_triggered(self, b):
         if b:
             w = self.active_subwindow()
             w.display_mode = util.CONFIG
 
-    def _on_display_combined_toggled(self, b):
+    def _on_display_combined_triggered(self, b):
         if b:
             w = self.active_subwindow()
             w.display_mode = util.COMBINED
 
-    def _on_write_hw_toggled(self, b):
+    def _on_write_hw_triggered(self, b):
         if b:
             w = self.active_subwindow()
             w.write_mode = util.HARDWARE
 
-    def _on_write_cfg_toggled(self, b):
+    def _on_write_cfg_triggered(self, b):
         if b:
             w = self.active_subwindow()
             w.write_mode = util.CONFIG
 
-    def _on_write_combined_toggled(self, b):
+    def _on_write_combined_triggered(self, b):
         if b:
             w = self.active_subwindow()
             w.write_mode = util.COMBINED
