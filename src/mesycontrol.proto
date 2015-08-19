@@ -1,0 +1,229 @@
+syntax = "proto3";
+
+package mesycontrol.proto;
+
+// ===== Requests =====
+
+message RequestScanbus {
+  uint32 bus = 1;
+}
+
+message RequestRead {
+  uint32 bus  = 1;
+  uint32 dev  = 2;
+  uint32 par  = 3;
+  bool mirror = 4;
+}
+
+message RequestSet {
+  uint32 bus  = 1;
+  uint32 dev  = 2;
+  uint32 par  = 3;
+  uint32 val  = 4;
+  bool mirror = 5;
+}
+
+message RequestRC {
+  uint32 bus = 1;
+  uint32 dev = 2;
+  bool   on  = 3;
+}
+
+message RequestReset {
+  uint32 bus = 1;
+  uint32 dev = 2;
+}
+
+message RequestCopy {
+  uint32 bus = 1;
+  uint32 dev = 2;
+}
+
+message RequestReadMulti {
+  uint32 bus    = 1;
+  uint32 dev    = 2;
+  uint32 par    = 3;
+  uint32 count  = 4;
+}
+
+message RequestAcquireWriteAccess {
+  bool force = 1;
+}
+
+message RequestSetSilenced {
+  bool silenced = 1;
+}
+
+message RequestSetPollItems {
+  message PollRequest {
+    uint32 bus    = 1;
+    uint32 dev    = 2;
+    uint32 par    = 3;
+    uint32 count  = 4;
+  }
+
+  repeated PollRequest items = 1;
+}
+
+// ===== Responses =====
+
+message ResponseBool {
+  bool value = 1;
+}
+
+message ResponseError {
+  enum ErrorType {
+    UNKNOWN           = 0;
+    NO_RESPONSE       = 1;
+    ADDRESS_CONFLICT  = 2;
+    CONNECTING        = 3;
+    CONNECT_ERROR     = 4;
+    COM_TIMEOUT       = 5;
+    COM_ERROR         = 6;
+    SILENCED          = 7;
+    PERMISSION_DENIED = 8;
+    PARSE_ERROR       = 9;
+  }
+
+  ErrorType type  = 1;
+  string info     = 2;
+}
+
+message ScanbusResult {
+  message ScanbusEntry {
+    uint32 idc    = 1;
+    bool rc       = 2;
+    bool conflict = 3;
+  }
+
+  uint32 bus                    = 1;
+  repeated ScanbusEntry entries = 2;
+}
+
+message ResponseRead {
+  uint32 bus  = 1;
+  uint32 dev  = 2;
+  uint32 par  = 3;
+  uint32 val  = 4;
+  bool mirror = 5;
+}
+
+message SetResult {
+  uint32 bus              = 1;
+  uint32 dev              = 2;
+  uint32 par              = 3;
+  uint32 val              = 4;
+  uint32 requested_value  = 5;
+  bool mirror             = 6;
+}
+
+message ResponseReadMulti {
+  uint32 bus              = 1;
+  uint32 dev              = 2;
+  uint32 par              = 3;
+  repeated uint32 values  = 4 [packed=true];
+}
+
+message MRCStatus {
+  enum Status {
+    STOPPED         = 0;
+    CONNECTING      = 1;
+    CONNECT_FAILED  = 2;
+    INITIALIZING    = 3;
+    INIT_FAILED     = 4;
+    RUNNING         = 5;
+  }
+
+  Status status   = 1;
+  string info     = 2;
+  string version  = 3;
+}
+
+message NotifyWriteAccess {
+  bool has_access   = 1;
+  bool can_acquire  = 2;
+}
+
+message NotifyPolledItems {
+  message PollResult {
+    uint32 bus              = 1;
+    uint32 dev              = 2;
+    uint32 par              = 3;
+    repeated uint32 values  = 4;
+  }
+
+  repeated PollResult items = 1;
+}
+
+message NotifyClientList {
+  message ClientEntry {
+    string id         = 1;
+    bool write_access = 2;
+  }
+  repeated ClientEntry entries = 1;
+}
+
+message MesycontrolMessage {
+  enum Type {
+    // ===== Requests =====
+    REQ_SCANBUS               = 0;
+    REQ_READ                  = 1;
+    REQ_SET                   = 2;
+    REQ_RC                    = 3;
+    REQ_RESET                 = 4;
+    REQ_COPY                  = 5;
+    REQ_READ_MULTI            = 6;
+
+    REQ_MRC_STATUS            = 20;
+    REQ_HAS_WRITE_ACCESS      = 21;
+    REQ_ACQUIRE_WRITE_ACCESS  = 22;
+    REQ_RELEASE_WRITE_ACCESS  = 23;
+    REQ_IS_SILENCED           = 24;
+    REQ_SET_SILENCED          = 25;
+    REQ_SET_POLL_ITEMS        = 26;
+
+    // ===== Responses =====
+    RESP_BOOL                 = 50;
+    RESP_ERROR                = 51;
+    RESP_SCANBUS              = 52;
+    RESP_READ                 = 53;
+    RESP_SET                  = 54;
+    RESP_READ_MULTI           = 55;
+    RESP_MRC_VERSION          = 56;
+    RESP_MRC_STATUS           = 57;
+
+    // ===== Notifications =====
+    NOTIFY_SCANBUS                = 101;
+    NOTIFY_MRC_STATUS             = 102;
+    NOTIFY_WRITE_ACCESS           = 103;
+    NOTIFY_SILENCED               = 104;
+    NOTIFY_SET                    = 105; 
+    NOTIFY_POLLED_ITEMS           = 106;
+    NOTIFY_CLIENT_LIST            = 107;
+  }
+
+  Type type                                               = 1;
+
+  RequestScanbus request_scanbus                          = 2;
+  RequestRead request_read                                = 3;
+  RequestSet request_set                                  = 4;
+  RequestRC request_rc                                    = 5;
+  RequestReset request_reset                              = 6;
+  RequestCopy request_copy                                = 7;
+  RequestReadMulti request_read_multi                     = 8;
+  RequestAcquireWriteAccess request_acquire_write_access  = 9;
+  RequestSetSilenced request_set_silenced                 = 10;
+  RequestSetPollItems request_set_poll_items              = 11;
+
+  ResponseBool response_bool                              = 12;
+  ResponseError response_error                            = 13;
+  ResponseRead response_read                              = 14;
+  ResponseReadMulti response_read_multi                   = 15;
+
+  NotifyWriteAccess notify_write_access                   = 16;
+  NotifyPolledItems notify_polled_items                   = 17;
+  NotifyClientList notify_client_list                     = 18;
+
+  ScanbusResult scanbus_result                            = 19;
+  MRCStatus mrc_status                                    = 20;
+}
