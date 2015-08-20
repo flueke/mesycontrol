@@ -15,7 +15,7 @@ set(PYRCC       "pyrcc4")
 set(QRC_IN      "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/resources.qrc")
 set(QRC_OUT     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/resources.py")
 
-set(PROTO_PY_OUT "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol_pb2.py")
+set(PROTO_PY_OUT "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/mesycontrol_pb2.py")
 
 set(GUI_MANIFEST "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol_gui.exe.manifest")
 
@@ -123,7 +123,7 @@ add_custom_command(
     OUTPUT ${PROTO_PY_OUT}
     COMMAND ${PROTOBUF_PROTOC_EXECUTABLE}
             -I ${PROTOBUF_IMPORT_DIRS}
-            --python_out="${CMAKE_CURRENT_SOURCE_DIR}"
+            --python_out="${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/"
             "${MESYCONTROL_PROTO_IN}"
     DEPENDS ${MESYCONTROL_PROTO_IN})
 
