@@ -4,10 +4,12 @@ package mesycontrol.proto;
 
 // ===== Requests =====
 
+// response: ScanbusResult
 message RequestScanbus {
   uint32 bus = 1;
 }
 
+// response: ResponseRead
 message RequestRead {
   uint32 bus  = 1;
   uint32 dev  = 2;
@@ -15,6 +17,7 @@ message RequestRead {
   bool mirror = 4;
 }
 
+// response: SetResult
 message RequestSet {
   uint32 bus  = 1;
   uint32 dev  = 2;
@@ -23,22 +26,26 @@ message RequestSet {
   bool mirror = 5;
 }
 
+// response: ResponseBool
 message RequestRC {
   uint32 bus = 1;
   uint32 dev = 2;
-  bool   on  = 3;
+  bool   rc  = 3;
 }
 
+// response: ResponseBool
 message RequestReset {
   uint32 bus = 1;
   uint32 dev = 2;
 }
 
+// response: ResponseBool
 message RequestCopy {
   uint32 bus = 1;
   uint32 dev = 2;
 }
 
+// response: ResponseReadMulti
 message RequestReadMulti {
   uint32 bus    = 1;
   uint32 dev    = 2;
@@ -46,23 +53,26 @@ message RequestReadMulti {
   uint32 count  = 4;
 }
 
+// response: ResponseBool
 message RequestAcquireWriteAccess {
   bool force = 1;
 }
 
+// response: ResponseBool
 message RequestSetSilenced {
   bool silenced = 1;
 }
 
+// response: ResponseBool
 message RequestSetPollItems {
-  message PollRequest {
+  message PollItem {
     uint32 bus    = 1;
     uint32 dev    = 2;
     uint32 par    = 3;
     uint32 count  = 4;
   }
 
-  repeated PollRequest items = 1;
+  repeated PollItem items = 1;
 }
 
 // ===== Responses =====
@@ -74,15 +84,15 @@ message ResponseBool {
 message ResponseError {
   enum ErrorType {
     UNKNOWN           = 0;
-    NO_RESPONSE       = 1;
-    ADDRESS_CONFLICT  = 2;
-    CONNECTING        = 3;
-    CONNECT_ERROR     = 4;
-    COM_TIMEOUT       = 5;
-    COM_ERROR         = 6;
-    SILENCED          = 7;
-    PERMISSION_DENIED = 8;
-    PARSE_ERROR       = 9;
+    NO_RESPONSE       = 1; // MRC received 'no resp' -> device not present.
+    ADDRESS_CONFLICT  = 2; // The command failed due to an address conflict on the bus.
+    CONNECTING        = 3; // The MRC connection is being established.
+    CONNECT_ERROR     = 4; // The MRC connection could not be established
+    COM_TIMEOUT       = 5; // MRC communication timed out.
+    COM_ERROR         = 6; // An error occured while communicating with the MRC.
+    SILENCED          = 7; // Silent mode is active
+    PERMISSION_DENIED = 8; // The client does not have write access
+    PARSE_ERROR       = 9; // Could not parse the MRC response.
   }
 
   ErrorType type  = 1;
@@ -126,22 +136,27 @@ message ResponseReadMulti {
 
 message MRCStatus {
   enum Status {
-    STOPPED         = 0;
-    CONNECTING      = 1;
-    CONNECT_FAILED  = 2;
-    INITIALIZING    = 3;
-    INIT_FAILED     = 4;
-    RUNNING         = 5;
+    STOPPED         = 0; // Not connected to the MRC
+    CONNECTING      = 1; // The connection is being established.
+    CONNECT_FAILED  = 2; // The last connection attempt failed.
+    INITIALIZING    = 3; // Connection is established. MRC initialization sequence is run.
+    INIT_FAILED     = 4; // Initialization sequence did not yield the expected output.
+    RUNNING         = 5; // MRC connection established and ready to accept requests.
   }
 
-  Status status   = 1;
-  string info     = 2;
-  string version  = 3;
+  Status status       = 1;
+  string info         = 2; // Additional status information.
+  string version      = 3; // The MRC version if known.
+  bool has_read_multi = 4; // True if read multi ('rb' command) is available.
 }
 
 message NotifyWriteAccess {
   bool has_access   = 1;
-  bool can_acquire  = 2;
+  bool can_acquire  = 2; // True if no client currently has write access.
+}
+
+message NotifySilenced {
+  bool silenced = 1;
 }
 
 message NotifyPolledItems {
@@ -157,8 +172,8 @@ message NotifyPolledItems {
 
 message NotifyClientList {
   message ClientEntry {
-    string id         = 1;
-    bool write_access = 2;
+    string id         = 1; // Unique client identifier (host:port)
+    bool write_access = 2; // True if the client has write access.
   }
   repeated ClientEntry entries = 1;
 }
@@ -166,64 +181,64 @@ message NotifyClientList {
 message MesycontrolMessage {
   enum Type {
     // ===== Requests =====
-    REQ_SCANBUS               = 0;
-    REQ_READ                  = 1;
-    REQ_SET                   = 2;
-    REQ_RC                    = 3;
-    REQ_RESET                 = 4;
-    REQ_COPY                  = 5;
-    REQ_READ_MULTI            = 6;
+    REQ_SCANBUS               =  0; // response uses scanbus_result
+    REQ_READ                  =  1;
+    REQ_SET                   =  2; // response uses set_result
+    REQ_RC                    =  3; // response uses response_bool
+    REQ_RESET                 =  4; // response uses response_bool
+    REQ_COPY                  =  5; // response uses response_bool
+    REQ_READ_MULTI            =  6;
 
-    REQ_MRC_STATUS            = 20;
-    REQ_HAS_WRITE_ACCESS      = 21;
-    REQ_ACQUIRE_WRITE_ACCESS  = 22;
-    REQ_RELEASE_WRITE_ACCESS  = 23;
-    REQ_IS_SILENCED           = 24;
-    REQ_SET_SILENCED          = 25;
-    REQ_SET_POLL_ITEMS        = 26;
+    REQ_MRC_STATUS            = 10; // response uses mrc_status
+    REQ_HAS_WRITE_ACCESS      = 11; // response uses response_bool
+    REQ_ACQUIRE_WRITE_ACCESS  = 12; // response uses response_bool
+    REQ_RELEASE_WRITE_ACCESS  = 13; // response uses response_bool
+    REQ_IS_SILENCED           = 14; // response uses response_bool
+    REQ_SET_SILENCED          = 15; // response uses response_bool
+    REQ_SET_POLL_ITEMS        = 16; // response uses response_bool
 
     // ===== Responses =====
-    RESP_BOOL                 = 50;
-    RESP_ERROR                = 51;
-    RESP_SCANBUS              = 52;
-    RESP_READ                 = 53;
-    RESP_SET                  = 54;
-    RESP_READ_MULTI           = 55;
-    RESP_MRC_VERSION          = 56;
-    RESP_MRC_STATUS           = 57;
+    RESP_BOOL                 = 20;
+    RESP_ERROR                = 21;
+    RESP_SCANBUS              = 22;
+    RESP_READ                 = 23;
+    RESP_SET                  = 24;
+    RESP_READ_MULTI           = 25;
+    RESP_MRC_STATUS           = 26;
 
     // ===== Notifications =====
-    NOTIFY_SCANBUS                = 101;
-    NOTIFY_MRC_STATUS             = 102;
-    NOTIFY_WRITE_ACCESS           = 103;
-    NOTIFY_SILENCED               = 104;
-    NOTIFY_SET                    = 105; 
-    NOTIFY_POLLED_ITEMS           = 106;
-    NOTIFY_CLIENT_LIST            = 107;
+    NOTIFY_SCANBUS            = 31; // uses scanbus_result
+    NOTIFY_MRC_STATUS         = 32; // uses mrc_status
+    NOTIFY_WRITE_ACCESS       = 33; // uses response_bool
+    NOTIFY_SILENCED           = 34; // uses response_bool
+    NOTIFY_SET                = 35; // uses set_result
+    NOTIFY_POLLED_ITEMS       = 36; // uses notify_polled_items
+    NOTIFY_CLIENT_LIST        = 37; // uses notify_client_list
   }
 
   Type type                                               = 1;
 
-  RequestScanbus request_scanbus                          = 2;
-  RequestRead request_read                                = 3;
-  RequestSet request_set                                  = 4;
-  RequestRC request_rc                                    = 5;
-  RequestReset request_reset                              = 6;
-  RequestCopy request_copy                                = 7;
-  RequestReadMulti request_read_multi                     = 8;
+  RequestScanbus            request_scanbus               = 2;
+  RequestRead               request_read                  = 3;
+  RequestSet                request_set                   = 4;
+  RequestRC                 request_rc                    = 5;
+  RequestReset              request_reset                 = 6;
+  RequestCopy               request_copy                  = 7;
+  RequestReadMulti          request_read_multi            = 8;
   RequestAcquireWriteAccess request_acquire_write_access  = 9;
-  RequestSetSilenced request_set_silenced                 = 10;
-  RequestSetPollItems request_set_poll_items              = 11;
+  RequestSetSilenced        request_set_silenced          = 10;
+  RequestSetPollItems       request_set_poll_items        = 11;
 
-  ResponseBool response_bool                              = 12;
-  ResponseError response_error                            = 13;
-  ResponseRead response_read                              = 14;
-  ResponseReadMulti response_read_multi                   = 15;
+  ResponseBool              response_bool                 = 12;
+  ResponseError             response_error                = 13;
+  ResponseRead              response_read                 = 14;
+  ResponseReadMulti         response_read_multi           = 15;
 
-  NotifyWriteAccess notify_write_access                   = 16;
-  NotifyPolledItems notify_polled_items                   = 17;
-  NotifyClientList notify_client_list                     = 18;
-
-  ScanbusResult scanbus_result                            = 19;
-  MRCStatus mrc_status                                    = 20;
+  SetResult                 set_result                    = 16;
+  ScanbusResult             scanbus_result                = 17;
+  MRCStatus                 mrc_status                    = 18;
+  NotifyWriteAccess         notify_write_access           = 19;
+  NotifySilenced            notify_silenced               = 20;
+  NotifyPolledItems         notify_polled_items           = 21;
+  NotifyClientList          notify_client_list            = 22;
 }

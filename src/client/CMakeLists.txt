@@ -1,4 +1,5 @@
 find_package(PythonInterp REQUIRED)
+find_package(Protobuf REQUIRED)
 
 set(SETUP_PY_IN   "${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in")
 set(SETUP_PY      "${CMAKE_CURRENT_BINARY_DIR}/setup.py")
@@ -14,11 +15,14 @@ set(PYRCC       "pyrcc4")
 set(QRC_IN      "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/resources.qrc")
 set(QRC_OUT     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/resources.py")
 
+set(PROTO_PY_OUT "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol_pb2.py")
+
 set(GUI_MANIFEST "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol_gui.exe.manifest")
 
 set(PYTHON_SOURCES
     "${SETUP_PY_IN}"
     "${VERSION_PY_IN}"
+    "${MESYCONTROL_PROTO_IN}"
 
     "${CMAKE_CURRENT_SOURCE_DIR}/cxfreeze_init.py"
 
@@ -108,12 +112,20 @@ add_custom_command(
     OUTPUT ${STAMP}
     COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} install --prefix="${DISTUTILS_PREFIX}"
     COMMAND ${CMAKE_COMMAND} -E touch ${STAMP}
-    DEPENDS ${PYTHON_SOURCES} ${QRC_OUT})
+    DEPENDS ${PYTHON_SOURCES} ${QRC_OUT} ${PROTO_PY_OUT})
 
 add_custom_command(
     OUTPUT ${QRC_OUT}
     COMMAND ${PYRCC} ${QRC_IN} -o ${QRC_OUT} 
     DEPENDS ${QRC_IN})
+
+add_custom_command(
+    OUTPUT ${PROTO_PY_OUT}
+    COMMAND ${PROTOBUF_PROTOC_EXECUTABLE}
+            -I ${PROTOBUF_IMPORT_DIRS}
+            --python_out="${CMAKE_CURRENT_SOURCE_DIR}"
+            "${MESYCONTROL_PROTO_IN}"
+    DEPENDS ${MESYCONTROL_PROTO_IN})
 
 add_custom_target(mesycontrol_clients ALL DEPENDS ${STAMP} ${QRC_IN})
 

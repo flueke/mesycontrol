@@ -11,7 +11,7 @@ find_package(Boost 1.54 REQUIRED COMPONENTS chrono program_options system date_t
 find_package(Threads REQUIRED)
 find_package(Protobuf REQUIRED)
 
-include_directories(${Boost_INCLUDE_DIRS})
+include_directories(${Boost_INCLUDE_DIRS} ${PROTOBUF_INCLUDE_DIRS})
 
 set(MESYCONTROL_SERVER_TARGET "mesycontrol_server")
 
@@ -31,8 +31,24 @@ set(MESYCONTROL_SERVER_SRCS
 option(BOOST_ASIO_ENABLE_HANDLER_TRACKING "enable boost::asio handler tracking")
 option(BOOST_ASIO_ENABLE_BUFFER_DEBUGGING "enable boost::asio buffer debugging")
 
-add_executable(${MESYCONTROL_SERVER_TARGET} ${MESYCONTROL_SERVER_SRCS} ${MESYCONTROL_GLOBAL_SOURCES})
-target_link_libraries(${MESYCONTROL_SERVER_TARGET} ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+if(NOT WIN32)
+    set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
+    find_library(PROTOBUF_STATIC protobuf NAMES libprotobuf.a)
+    MESSAGE(STATUS "Using static protobuf library ${PROTOBUF_STATIC}")
+    set(PROTOBUF_LIBRARY ${PROTOBUF_STATIC})
+endif()
+
+PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${MESYCONTROL_PROTO_IN})
+
+add_executable(${MESYCONTROL_SERVER_TARGET}
+    ${MESYCONTROL_SERVER_SRCS}
+    ${MESYCONTROL_GLOBAL_SOURCES}
+    ${PROTO_SRCS} ${PROTO_HDRS})
+
+target_link_libraries(${MESYCONTROL_SERVER_TARGET}
+    ${Boost_LIBRARIES}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${PROTOBUF_LIBRARY})
 
 if(WIN32)
     # Statically link against the GCC and C++ libraries to avoid
