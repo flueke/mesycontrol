@@ -11,6 +11,37 @@
 #include <stdexcept>
 #include "protocol.h"
 
+namespace
+{
+  MessagePtr make_message(const proto::Message::Type &type)
+  {
+    MessagePtr ret(boost::make_shared<proto::Message>());
+    ret->set_type(type);
+    return ret;
+  }
+}
+
+namespace mesycontrol
+{
+
+MessagePtr MessageFactory::make_scanbus_response(boost::uint8_t bus)
+{
+  MessagePtr ret(make_message(proto::Message::RESP_SCANBUS));
+  ret->mutable_scanbus_result()->set_bus(bus);
+  return ret;
+}
+
+MessagePtr MessageFactory::make_error_response(const proto::ResponseError::ErrorType &error)
+{
+  MessagePtr ret(make_message(proto::Message::RESP_ERROR));
+  ret->mutable_response_error()->set_type(error);
+  return ret;
+}
+
+} // namespace mesycontrol
+
+#if 0
+
 namespace mesycontrol
 {
 
@@ -570,3 +601,5 @@ MessagePtr MessageFactory::make_mrc_status_response(const mrc_status::Status &st
 }
 
 } // namespace mesycontrol
+
+#endif

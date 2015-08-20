@@ -22,7 +22,7 @@ message RequestSet {
   uint32 bus  = 1;
   uint32 dev  = 2;
   uint32 par  = 3;
-  uint32 val  = 4;
+  sint32 val  = 4;
   bool mirror = 5;
 }
 
@@ -114,7 +114,7 @@ message ResponseRead {
   uint32 bus  = 1;
   uint32 dev  = 2;
   uint32 par  = 3;
-  uint32 val  = 4;
+  sint32 val  = 4;
   bool mirror = 5;
 }
 
@@ -122,8 +122,8 @@ message SetResult {
   uint32 bus              = 1;
   uint32 dev              = 2;
   uint32 par              = 3;
-  uint32 val              = 4;
-  uint32 requested_value  = 5;
+  sint32 val              = 4;
+  sint32 requested_value  = 5;
   bool mirror             = 6;
 }
 
@@ -131,7 +131,7 @@ message ResponseReadMulti {
   uint32 bus              = 1;
   uint32 dev              = 2;
   uint32 par              = 3;
-  repeated uint32 values  = 4 [packed=true];
+  repeated sint32 values  = 4 [packed=true];
 }
 
 message MRCStatus {
@@ -164,7 +164,7 @@ message NotifyPolledItems {
     uint32 bus              = 1;
     uint32 dev              = 2;
     uint32 par              = 3;
-    repeated uint32 values  = 4;
+    repeated sint32 values  = 4;
   }
 
   repeated PollResult items = 1;
@@ -178,7 +178,7 @@ message NotifyClientList {
   repeated ClientEntry entries = 1;
 }
 
-message MesycontrolMessage {
+message Message {
   enum Type {
     // ===== Requests =====
     REQ_SCANBUS               =  0; // response uses scanbus_result
@@ -209,8 +209,8 @@ message MesycontrolMessage {
     // ===== Notifications =====
     NOTIFY_SCANBUS            = 31; // uses scanbus_result
     NOTIFY_MRC_STATUS         = 32; // uses mrc_status
-    NOTIFY_WRITE_ACCESS       = 33; // uses response_bool
-    NOTIFY_SILENCED           = 34; // uses response_bool
+    NOTIFY_WRITE_ACCESS       = 33; // uses notify_write_access
+    NOTIFY_SILENCED           = 34; // uses notify_silenced
     NOTIFY_SET                = 35; // uses set_result
     NOTIFY_POLLED_ITEMS       = 36; // uses notify_polled_items
     NOTIFY_CLIENT_LIST        = 37; // uses notify_client_list

@@ -1,7 +1,46 @@
 #ifndef UUID_414dcc58_b60c_46ce_aaba_ccba651b8f68
 #define UUID_414dcc58_b60c_46ce_aaba_ccba651b8f68
 
+#include <boost/shared_ptr.hpp>
+
 #include "config.h"
+#include "mesycontrol.pb.h"
+
+namespace mesycontrol
+{
+
+typedef boost::shared_ptr<proto::Message> MessagePtr;
+
+class MessageFactory
+{
+  public:
+    static MessagePtr make_scanbus_response(boost::uint8_t bus);
+
+    static MessagePtr make_read_request(boost::uint8_t bus, boost::uint8_t dev,
+        boost::uint8_t par, bool mirror=false);
+
+    static MessagePtr make_read_response(boost::uint8_t bus, boost::uint8_t dev,
+        boost::uint8_t par, boost::int32_t val, bool mirror=false);
+
+    static MessagePtr make_set_response(boost::uint8_t bus, boost::uint8_t dev,
+        boost::uint8_t par, boost::int32_t val, bool mirror=false);
+
+    static MessagePtr make_bool_response(bool bool_value);
+    static MessagePtr make_error_response(const proto::ResponseError::ErrorType &error);
+
+    static MessagePtr make_write_access_notification(bool has_write_access, bool can_acquire);
+
+    static MessagePtr make_silent_mode_notification(bool silence_active);
+
+    static MessagePtr make_parameter_set_notification(boost::uint8_t bus, boost::uint8_t dev,
+        boost::uint8_t par, boost::int32_t value, bool mirror = false);
+
+    static MessagePtr make_mrc_status_response();
+    static MessagePtr make_mrc_status_notification();
+};
+} // namespace mesycontrol
+
+#if 0
 #include <boost/array.hpp>
 #include <boost/cstdint.hpp>
 #include <boost/shared_ptr.hpp>
@@ -186,5 +225,6 @@ class MessageFactory
 };
 
 } // namespace mesycontrol
+#endif
 
 #endif

@@ -36,20 +36,25 @@ void MRC1ReplyParser::set_current_request(const MessagePtr &request)
  * error messages, otherwise returns a null MessagePtr. */
 MessagePtr MRC1ReplyParser::get_error_response(const std::string &reply_line)
 {
+  proto::ResponseError::ErrorType error_type = -1;
+
   if (regex_match(reply_line, re_no_response)) {
     BOOST_LOG_SEV(m_log, log::lvl::error) << "MRC: no response";
-    return MessageFactory::make_error_response(error_type::mrc_no_response);
+    error_type = proto::ResponseError::NO_RESPONSE;
   }
 
   if (regex_match(reply_line, re_bus_address)) {
     BOOST_LOG_SEV(m_log, log::lvl::error) << "MRC: address conflict";
-    return MessageFactory::make_error_response(error_type::mrc_address_conflict);
+    error_type = proto::ResponseError::ADDRESS_CONFLICT;
   }
 
   if (regex_match(reply_line, re_error)) {
     BOOST_LOG_SEV(m_log, log::lvl::error) << "MRC: error: " << reply_line;
-    return MessageFactory::make_error_response(error_type::unknown_error);
+    error_type = proto::ResponseError::UNKNOWN;
   }
+
+  if (error_type >= 0)
+    return MessageFactory::make_error_response(error_type);
 
   return MessagePtr();
 }
@@ -65,29 +70,22 @@ bool MRC1ReplyParser::parse_line(const std::string &reply_line)
   }
 
   switch (m_request->type) {
-    case message_type::request_set:
-    case message_type::request_mirror_set:
-    case message_type::request_read:
-    case message_type::request_mirror_read:
+    case proto::Message::REQ_SET:
+    case proto::Message::REQ_READ:
       return parse_read_or_set(reply_line);
 
-    case message_type::request_rc_on:
-    case message_type::request_rc_off:
-    case message_type::request_reset:
-    case message_type::request_copy:
+    case proto::Message::REQ_RC:
+    case proto::Message::REQ_RESET:
+    case proto::Message::REQ_COPY:
       return parse_other(reply_line);
 
-    case message_type::request_scanbus:
+    case proto::Message::REQ_SCANBUS:
       return parse_scanbus(reply_line);
-
-    case message_type::request_read_multi:
-      assert(m_request->len);
-      return parse_read_multi(reply_line);
 
     default:
       BOOST_LOG_SEV(m_log, log::lvl::error)
         << "message type " << m_request->type << " not handled by reply parser!";
-      m_response = MessageFactory::make_error_response(error_type::unknown_error);
+      m_response = MessageFactory::make_error_response(proto::ResponseError::UNKNOWN);
       return true;
   }
   return true;
@@ -106,16 +104,24 @@ bool MRC1ReplyParser::parse_read_or_set(const std::string &reply_line)
 
   if (!regex_match(reply_line, matches, re_read_or_set)) {
     BOOST_LOG_SEV(m_log, log::lvl::error) << "error parsing " << reply_line;
-    m_response = MessageFactory::make_error_response(error_type::mrc_parse_error);
+    m_response = MessageFactory::make_error_response(proto::ResponseError::PARSE_ERROR);
     return true;
   }
 
-  m_response = MessageFactory::make_read_or_set_response(
-      m_request->type,
-      boost::lexical_cast<unsigned int>(matches[1]),
-      boost::lexical_cast<unsigned int>(matches[2]),
-      boost::lexical_cast<unsigned int>(matches[3]),
-      boost::lexical_cast<boost::int32_t>(matches[4]));
+  boost::uint8_t bus = boost::lexical_cast<unsigned int>(matches[1]);
+  boost::uint8_t dev = boost::lexical_cast<unsigned int>(matches[2]);
+  boost::uint8_t par = boost::lexical_cast<unsigned int>(matches[3]);
+  boost::int32_t val = boost::lexical_cast<boost::int32_t>(matches[4]);
+
+  if (m_request->type() == proto::Message::REQ_READ) {
+    m_response = MessageFactory::make_read_response(bus, dev, par, val,
+        m_request->request_read().mirror());
+  } else if (m_request->type() == proto::Message::REQ_SET) {
+    m_response = MessageFactory::make_set_response(bus, dev, par, val,
+        m_request->request_read().mirror());
+  } else {
+    return false;
+  }
 
   return true;
 }
@@ -128,14 +134,8 @@ bool MRC1ReplyParser::parse_scanbus(const std::string &reply_line)
   boost::smatch matches;
 
   if (regex_match(reply_line, matches, re_header)) {
-    Message::ScanbusData scanbus_data;
-
-    std::fill(scanbus_data.begin(), scanbus_data.end(),
-        std::make_pair(static_cast<uint8_t>(0u), rc_status::off));
-
     m_response = MessageFactory::make_scanbus_response(
-        boost::lexical_cast<unsigned int>(matches[1]),
-        scanbus_data);
+        boost::lexical_cast<unsigned int>(matches[1]));
 
     return false;
   } else if (regex_match(reply_line, matches, re_bus_address)) {
@@ -148,22 +148,19 @@ bool MRC1ReplyParser::parse_scanbus(const std::string &reply_line)
 
     size_t dev = boost::lexical_cast<size_t>(matches[1]);
 
-    if (m_response && m_response->type == message_type::response_scanbus) {
+    if (m_response && m_response->type == proto::Message::RESP_SCANBUS) {
+      proto::ScanbusResult::ScanbusEntry *entry(m_response->add_entries());
 
       if (matches[4].matched) // device identifier code
-        m_response->bus_data[dev].first = boost::lexical_cast<unsigned int>(matches[4]);
+        entry->set_idc(boost::lexical_cast<unsigned int>(matches[4]));
 
       if (matches[5].matched) // ON/OFF status
-        m_response->bus_data[dev].second = (matches[5] == "ON" ? rc_status::on : rc_status::off);
+        entry->set_rc(matches[5] == "ON");
 
-      if (m_scanbus_address_conflict) {
-        BOOST_LOG_SEV(m_log, log::lvl::debug)
-          << "Scanbus: bus=" << static_cast<boost::uint16_t>(m_response->bus)
-          << ", dev=" << dev << ": address conflict";
-        m_response->bus_data[dev].second = rc_status::address_conflict;
-        m_scanbus_address_conflict = false;
-      }
+      entry->set_conflict(m_scanbus_address_conflict);
+      m_scanbus_address_conflict = false;
     } else {
+      // XXX: leftoff
       BOOST_LOG_SEV(m_log, log::lvl::error)
         << "Scanbus: received body line without prior header line";
       m_response = MessageFactory::make_error_response(error_type::mrc_parse_error);

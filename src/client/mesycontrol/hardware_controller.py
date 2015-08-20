@@ -9,6 +9,8 @@ import basic_model as bm
 import future
 import hardware_model as hm
 import protocol
+from google.protobuf import message as proto_message
+import mesycontrol_pb2 as proto
 import util
 
 # Periodic scanbus
@@ -139,8 +141,14 @@ class Controller(object):
             except Exception as e:
                 ret.set_exception(e)
 
-        m = protocol.Message('request_read', bus=bus, dev=device, par=address)
-        request_future = self.connection.queue_request(m).add_done_callback(on_response_received)
+        m           = proto.RequestRead()
+        m.bus       = bus
+        m.dev       = device
+        m.par       = address
+        m.mirror    = False
+
+        request_future = self.connection.queue_request(m).add_done_callback(
+                on_response_received)
 
         def cancel_request(f):
             if f.cancelled():

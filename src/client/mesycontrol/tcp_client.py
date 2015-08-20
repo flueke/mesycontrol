@@ -10,7 +10,9 @@ import collections
 import struct
 
 from future import Future
+from google.protobuf import message as proto_message
 import protocol
+import proto
 import util
 
 RequestResult = collections.namedtuple("RequestResult", "request response")
@@ -202,9 +204,10 @@ class MCTCPClient(QtCore.QObject):
         if self._read_size > 0 and self._socket.bytesAvailable() >= self._read_size:
             message_data = self._socket.read(self._read_size)
             try:
-                message = protocol.Message.deserialize(message_data)
+                message = proto.Message()
+                message.ParseFromString(message_data)
                 self.log.debug("_socket_readyRead: received %s", message)
-            except protocol.MessageError as e:
+            except proto_message.DecodeError as e:
                 self.log.error("Could not deserialize incoming message: %s.", e)
                 self.disconnect()
                 return
