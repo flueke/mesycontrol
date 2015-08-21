@@ -1,6 +1,7 @@
 #include <boost/bind.hpp>
 #include <boost/log/trivial.hpp>
 #include "mrc1_request_queue.h"
+#include "protocol.h"
 
 namespace mesycontrol
 {
@@ -18,10 +19,10 @@ MRC1RequestQueue::MRC1RequestQueue(const boost::shared_ptr<MRC1Connection> &mrc1
 
 void MRC1RequestQueue::queue_request(const MessagePtr &request, ResponseHandler response_handler)
 {
-  if (!request->is_mrc1_command()) {
+  if (!is_mrc1_command(request)) {
     BOOST_THROW_EXCEPTION(std::runtime_error("Given request is not a MRC1 command"));
   }
-  BOOST_LOG_SEV(m_log, log::lvl::trace) << "Queueing request " << request->get_info_string();
+  BOOST_LOG_SEV(m_log, log::lvl::trace) << "Queueing request " << get_message_info(request);
   m_request_queue.push_back(std::make_pair(request, response_handler));
   try_send_mrc1_request();
 }
@@ -39,35 +40,35 @@ void MRC1RequestQueue::try_send_mrc1_request()
   }
 
   if (!m_mrc1_connection->is_running()) {
-    if (m_mrc1_connection->get_status() == mrc_status::initializing) {
+    if (m_mrc1_connection->get_status() == proto::MRCStatus::INITIALIZING) {
       BOOST_LOG_SEV(m_log, log::lvl::debug) << "MRC still initializing. Retrying later";
       m_retry_timer.expires_from_now(get_retry_timeout());
       m_retry_timer.async_wait(boost::bind(&MRC1RequestQueue::handle_retry_timer, this, _1));
       return;
     }
 
-    error_type::ErrorType et;
+    proto::ResponseError::ErrorType et;
 
     switch (m_mrc1_connection->get_status()) {
-      case mrc_status::connect_failed:
-        et = error_type::mrc_connect_error;
+      case proto::MRCStatus::CONNECT_FAILED:
+        et = proto::ResponseError::CONNECT_ERROR;
         break;
-      case mrc_status::init_failed:
-        et = error_type::mrc_comm_error;
+      case proto::MRCStatus::INIT_FAILED:
+        et = proto::ResponseError::COM_ERROR;
         break;
-      case mrc_status::connecting:
-      case mrc_status::initializing:
-        et = error_type::mrc_connecting;
+      case proto::MRCStatus::CONNECTING:
+      case proto::MRCStatus::INITIALIZING:
+        et = proto::ResponseError::CONNECTING;
         break;
       default:
-        et = error_type::unknown_error;
+        et = proto::ResponseError::UNKNOWN;
         break;
     }
     BOOST_LOG_SEV(m_log, log::lvl::error) << "MRC connection not running. Sending error response";
     handle_mrc1_response(m_request_queue.front().first, MessageFactory::make_error_response(et));
   } else {
     BOOST_LOG_SEV(m_log, log::lvl::trace) << "invoking MRC write_command(): " <<
-      m_request_queue.front().first->get_info_string();
+      get_message_info(m_request_queue.front().first);
     m_mrc1_connection->write_command(m_request_queue.front().first,
         boost::bind(&MRC1RequestQueue::handle_mrc1_response, this, _1, _2));
   }

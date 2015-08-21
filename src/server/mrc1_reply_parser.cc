@@ -36,7 +36,8 @@ void MRC1ReplyParser::set_current_request(const MessagePtr &request)
  * error messages, otherwise returns a null MessagePtr. */
 MessagePtr MRC1ReplyParser::get_error_response(const std::string &reply_line)
 {
-  proto::ResponseError::ErrorType error_type = -1;
+  proto::ResponseError::ErrorType error_type =
+    static_cast<proto::ResponseError::ErrorType>(-1);
 
   if (regex_match(reply_line, re_no_response)) {
     BOOST_LOG_SEV(m_log, log::lvl::error) << "MRC: no response";
@@ -69,7 +70,7 @@ bool MRC1ReplyParser::parse_line(const std::string &reply_line)
     return --m_error_lines_to_consume == 0;
   }
 
-  switch (m_request->type) {
+  switch (m_request->type()) {
     case proto::Message::REQ_SET:
     case proto::Message::REQ_READ:
       return parse_read_or_set(reply_line);
@@ -84,7 +85,9 @@ bool MRC1ReplyParser::parse_line(const std::string &reply_line)
 
     default:
       BOOST_LOG_SEV(m_log, log::lvl::error)
-        << "message type " << m_request->type << " not handled by reply parser!";
+        << "message type "
+        << proto::Message::Type_Name(m_request->type())
+        << " not handled by reply parser!";
       m_response = MessageFactory::make_error_response(proto::ResponseError::UNKNOWN);
       return true;
   }
@@ -148,8 +151,9 @@ bool MRC1ReplyParser::parse_scanbus(const std::string &reply_line)
 
     size_t dev = boost::lexical_cast<size_t>(matches[1]);
 
-    if (m_response && m_response->type == proto::Message::RESP_SCANBUS) {
-      proto::ScanbusResult::ScanbusEntry *entry(m_response->add_entries());
+    if (m_response && m_response->type() == proto::Message::RESP_SCANBUS) {
+      proto::ScanbusResult::ScanbusEntry *entry(m_response->mutable_scanbus_result()
+          ->add_entries());
 
       if (matches[4].matched) // device identifier code
         entry->set_idc(boost::lexical_cast<unsigned int>(matches[4]));
@@ -160,10 +164,9 @@ bool MRC1ReplyParser::parse_scanbus(const std::string &reply_line)
       entry->set_conflict(m_scanbus_address_conflict);
       m_scanbus_address_conflict = false;
     } else {
-      // XXX: leftoff
       BOOST_LOG_SEV(m_log, log::lvl::error)
         << "Scanbus: received body line without prior header line";
-      m_response = MessageFactory::make_error_response(error_type::mrc_parse_error);
+      m_response = MessageFactory::make_error_response(proto::ResponseError::PARSE_ERROR);
       /* Consume the rest of the scanbus data. */
       m_error_lines_to_consume = 15 - dev;
     }
@@ -171,12 +174,14 @@ bool MRC1ReplyParser::parse_scanbus(const std::string &reply_line)
     return (dev >= 15); // 15 is the last bus address
   } else if (regex_match(reply_line, matches, re_no_resp)) {
     BOOST_LOG_SEV(m_log, log::lvl::error) << "Error parsing scanbus reply: no response";
-    m_response = MessageFactory::make_error_response(error_type::mrc_no_response);
+    m_response = MessageFactory::make_error_response(proto::ResponseError::NO_RESPONSE);
     return true;
   }
 
-  BOOST_LOG_SEV(m_log, log::lvl::error) << "Error parsing scanbus reply. Received '" << reply_line << "'";
-  m_response = MessageFactory::make_error_response(error_type::mrc_parse_error);
+  BOOST_LOG_SEV(m_log, log::lvl::error)
+    << "Error parsing scanbus reply. Received '" << reply_line << "'";
+
+  m_response = MessageFactory::make_error_response(proto::ResponseError::PARSE_ERROR);
   return true;
 }
 
@@ -209,11 +214,13 @@ bool MRC1ReplyParser::parse_read_multi(const std::string &reply_line)
   // init
   if (m_multi_read_lines_left == 0) {
     BOOST_LOG_SEV(m_log, log::lvl::trace) << "parse_read_multi: request length = "
-      << static_cast<boost::int32_t>(m_request->len);
+      << static_cast<boost::int32_t>(m_request->request_read_multi().count());
 
-    m_multi_read_lines_left = m_request->len;
+    m_multi_read_lines_left = m_request->request_read_multi().count();
     m_response = MessageFactory::make_read_multi_response(
-        m_request->bus, m_request->dev, m_request->par);
+        m_request->request_read_multi().bus(),
+        m_request->request_read_multi().dev(),
+        m_request->request_read_multi().par());
 
   } else {
     BOOST_LOG_SEV(m_log, log::lvl::trace) << "parse_read_multi: "
@@ -225,7 +232,7 @@ bool MRC1ReplyParser::parse_read_multi(const std::string &reply_line)
   if (!regex_match(reply_line, matches, re_number)) {
     BOOST_LOG_SEV(m_log, log::lvl::error)
       << "error parsing read_multi response: non-numeric response line: " << reply_line;
-    m_response = MessageFactory::make_error_response(error_type::mrc_parse_error);
+    m_response = MessageFactory::make_error_response(proto::ResponseError::PARSE_ERROR);
     m_error_lines_to_consume = m_multi_read_lines_left - 1;
     return false;
   }
@@ -236,7 +243,7 @@ bool MRC1ReplyParser::parse_read_multi(const std::string &reply_line)
   ss >> value;
 
   BOOST_LOG_SEV(m_log, log::lvl::trace) << "parse_read_multi: got value " << value;
-  m_response->values.push_back(value);
+  m_response->mutable_response_read_multi()->add_values(value);
   return --m_multi_read_lines_left == 0;
 }
 

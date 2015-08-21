@@ -20,7 +20,7 @@ void TCPConnectionManager::start(TCPConnectionPtr c)
   m_connections.insert(c);
   c->start();
 
-  c->send_message(MessageFactory::make_mrc_status_changed_notification(
+  c->send_message(MessageFactory::make_mrc_status_notification(
         m_mrc1_queue.get_mrc1_connection()->get_status()));
 
   if (m_connections.size() == 1) {
@@ -28,9 +28,7 @@ void TCPConnectionManager::start(TCPConnectionPtr c)
     set_write_connection(c);
   } else {
     // Notify the newly connected client that it does not have write access
-    c->send_message(MessageFactory::make_write_access_notification(false));
-    // Also tell the client if it can acquire write access
-    c->send_message(MessageFactory::make_can_acquire_write_access_notification(!m_write_connection));
+    c->send_message(MessageFactory::make_write_access_notification(false, !m_write_connection));
   }
 }
 
@@ -56,12 +54,11 @@ void TCPConnectionManager::stop_all(bool graceful)
 
 void TCPConnectionManager::dispatch_request(const TCPConnectionPtr &connection, const MessagePtr &request)
 {
-  if (request->is_mrc1_command()) {
-    if (request->is_mrc1_write_command() && connection != m_write_connection) {
-      connection->send_message(MessageFactory::make_error_response(error_type::permission_denied));
+  if (is_mrc1_command(request)) {
+    if (is_mrc1_write_command(request) && connection != m_write_connection) {
+      connection->send_message(MessageFactory::make_error_response(proto::ResponseError::PERMISSION_DENIED));
     } else {
-      if (request->type == message_type::request_set ||
-          request->type == message_type::request_mirror_set) {
+      if (request->type() == proto::Message::REQ_SET) {
         m_mrc1_queue.queue_request(request,
             boost::bind(&TCPConnectionManager::handle_set_response,
               this, connection, _1, _2));
@@ -69,8 +66,10 @@ void TCPConnectionManager::dispatch_request(const TCPConnectionPtr &connection, 
         /* Create an extra read request on parameter set to get the
          * updated memory value. */
         MessagePtr read_request(MessageFactory::make_read_request(
-              request->bus, request->dev, request->par,
-              request->type == message_type::request_mirror_set));
+              request->request_set().bus(),
+              request->request_set().dev(),
+              request->request_set().par(),
+              request->request_set().mirror()));
 
         m_mrc1_queue.queue_request(read_request,
             boost::bind(&TCPConnectionManager::handle_read_after_set,
@@ -85,51 +84,64 @@ void TCPConnectionManager::dispatch_request(const TCPConnectionPtr &connection, 
     MessagePtr response;
     bool stop_connection = false;
 
-    switch (request->type) {
-      case message_type::request_has_write_access:
+    switch (request->type()) {
+      case proto::Message::REQ_HAS_WRITE_ACCESS:
         response = MessageFactory::make_bool_response(connection == m_write_connection);
         break;
 
-      case message_type::request_acquire_write_access:
-      case message_type::request_force_write_access:
-        response = MessageFactory::make_bool_response(!m_write_connection
-            || request->type == message_type::request_force_write_access);
+      case proto::Message::REQ_ACQUIRE_WRITE_ACCESS:
+        {
+          bool force(request->request_acquire_write_access().force());
+          bool can_acquire(!m_write_connection || force);
 
-        if (response->bool_value) {
-          set_write_connection(connection);
+          if (can_acquire) {
+            set_write_connection(connection);
+          }
+
+          response = MessageFactory::make_bool_response(can_acquire);
         }
 
         break;
 
-      case message_type::request_release_write_access:
-        response = MessageFactory::make_bool_response(m_write_connection == connection);
+      case proto::Message::REQ_RELEASE_WRITE_ACCESS:
+        {
+          bool may_release(m_write_connection == connection);
 
-        if (response->bool_value) {
-          set_write_connection(TCPConnectionPtr());
+          if (may_release) {
+            set_write_connection(TCPConnectionPtr());
+          }
+
+          response = MessageFactory::make_bool_response(may_release);
         }
         break;
 
-      case message_type::request_in_silent_mode:
+      case proto::Message::REQ_IS_SILENCED:
         response = MessageFactory::make_bool_response(m_mrc1_queue.get_mrc1_connection()->is_silenced());
         break;
 
-      case message_type::request_set_silent_mode:
-        response = MessageFactory::make_bool_response(m_write_connection == connection);
+      case proto::Message::REQ_SET_SILENCED:
+        {
+          bool may_set(m_write_connection == connection);
+          bool silenced(request->request_set_silenced().silenced());
 
-        if (response->bool_value) {
-          m_mrc1_queue.get_mrc1_connection()->set_silenced(request->bool_value);
-          send_to_all(MessageFactory::make_silent_mode_notification(request->bool_value));
+          if (may_set) {
+            m_mrc1_queue.get_mrc1_connection()->set_silenced(silenced);
+            send_to_all(MessageFactory::make_silent_mode_notification(silenced));
+          }
+
+          response = MessageFactory::make_bool_response(may_set);
         }
+
         break;
 
-      case message_type::request_mrc_status:
+      case proto::Message::REQ_MRC_STATUS:
         response = MessageFactory::make_mrc_status_response(
             m_mrc1_queue.get_mrc1_connection()->get_status());
         break;
 
       default:
         /* Error: a response_* or notify_* message was received. */
-        response = MessageFactory::make_error_response(error_type::invalid_message_type);
+        response = MessageFactory::make_error_response(proto::ResponseError::INVALID_TYPE);
         stop_connection = true;
     }
 
@@ -167,7 +179,7 @@ void TCPConnectionManager::handle_set_response(const TCPConnectionPtr &connectio
 {
   /* Only pass error messages on to the connection. The actual reponse to the
    * set command will be sent by handle_read_after_set(). */
-  if (response->type == message_type::response_error) {
+  if (response->type() == proto::Message::RESP_ERROR) {
     connection->send_message(response);
     m_skip_read_after_set_response = true; // Don't send a response to the read_after_set request
   }
@@ -179,21 +191,27 @@ void TCPConnectionManager::handle_read_after_set(const TCPConnectionPtr &connect
   if (!m_skip_read_after_set_response) {
     /* Send a set/mirror_set response to the client that originally sent the set
      * request. */
-    connection->send_message(MessageFactory::make_read_or_set_response(
-          request->type == message_type::request_read ? message_type::request_set : message_type::request_mirror_set,
-          response->bus, response->dev, response->par, response->val));
+    connection->send_message(MessageFactory::make_set_response(
+          response->response_read().bus(),
+          response->response_read().dev(),
+          response->response_read().par(),
+          response->response_read().val(),
+          response->response_read().mirror()));
 
     /* Notify other clients that a parameter has been set. */
     send_to_all_except(connection, MessageFactory::make_parameter_set_notification(
-          response->bus, response->dev, response->par, response->val,
-          response->type == message_type::response_mirror_read));
+          response->response_read().bus(),
+          response->response_read().dev(),
+          response->response_read().par(),
+          response->response_read().val(),
+          response->response_read().mirror()));
   }
   m_skip_read_after_set_response = false;
 }
 
-void TCPConnectionManager::handle_mrc1_status_change(const mrc_status::Status &status)
+void TCPConnectionManager::handle_mrc1_status_change(const proto::MRCStatus::Status &status)
 {
-  send_to_all(MessageFactory::make_mrc_status_changed_notification(status));
+  send_to_all(MessageFactory::make_mrc_status_notification(status));
 }
 
 void TCPConnectionManager::set_write_connection(const TCPConnectionPtr &connection)
@@ -212,19 +230,19 @@ void TCPConnectionManager::set_write_connection(const TCPConnectionPtr &connecti
 
   if (m_write_connection) {
     // notify the old writer that it lost write access
-    m_write_connection->send_message(MessageFactory::make_write_access_notification(false));
+    m_write_connection->send_message(MessageFactory::make_write_access_notification(false, false));
   }
 
   m_write_connection = connection;
 
   if (m_write_connection) {
     // notify the new writer that it gained write access
-    m_write_connection->send_message(MessageFactory::make_write_access_notification(true));
+    m_write_connection->send_message(MessageFactory::make_write_access_notification(true, false));
   }
 
   // tell everyone else if write access is available
   send_to_all_except(m_write_connection,
-      MessageFactory::make_can_acquire_write_access_notification(!m_write_connection));
+      MessageFactory::make_write_access_notification(false, !m_write_connection));
 
   BOOST_LOG_SEV(m_log, log::lvl::info) << "Write access changed from "
     << old_writer_info << " to " << new_writer_info;

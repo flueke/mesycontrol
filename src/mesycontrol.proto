@@ -83,16 +83,18 @@ message ResponseBool {
 
 message ResponseError {
   enum ErrorType {
-    UNKNOWN           = 0;
-    NO_RESPONSE       = 1; // MRC received 'no resp' -> device not present.
-    ADDRESS_CONFLICT  = 2; // The command failed due to an address conflict on the bus.
-    CONNECTING        = 3; // The MRC connection is being established.
-    CONNECT_ERROR     = 4; // The MRC connection could not be established
-    COM_TIMEOUT       = 5; // MRC communication timed out.
-    COM_ERROR         = 6; // An error occured while communicating with the MRC.
-    SILENCED          = 7; // Silent mode is active
-    PERMISSION_DENIED = 8; // The client does not have write access
-    PARSE_ERROR       = 9; // Could not parse the MRC response.
+    UNKNOWN           =  0;
+    NO_RESPONSE       =  1; // MRC received 'no resp' -> device not present.
+    ADDRESS_CONFLICT  =  2; // The command failed due to an address conflict on the bus.
+    CONNECTING        =  3; // The MRC connection is being established.
+    CONNECT_ERROR     =  4; // The MRC connection could not be established
+    COM_TIMEOUT       =  5; // MRC communication timed out.
+    COM_ERROR         =  6; // An error occured while communicating with the MRC.
+    SILENCED          =  7; // Silent mode is active
+    PERMISSION_DENIED =  8; // The client does not have write access
+    PARSE_ERROR       =  9; // Could not parse the MRC response.
+    INVALID_TYPE      = 10; // Message type is not a valid request.
+    INVALID_MESSAGE   = 11; // Message could not be deserialized.
   }
 
   ErrorType type  = 1;

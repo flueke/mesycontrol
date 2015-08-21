@@ -155,8 +155,12 @@ class MCTCPClient(QtCore.QObject):
             ret.set_exception(util.Disconnected())
             return ret
 
+        if request.ByteSize() == 0:
+            raise RuntimeError("request has 0 length; request=%s" % request)
+
         was_empty = self.get_queue_size() == 0
-        self._queue.add((request, ret))
+        hashable_request = request.SerializeToString()
+        self._queue.add((hashable_request, ret))
         self.log.debug("Queueing request %s, queue size=%d", request, self.get_queue_size())
         self.request_queued.emit(request, ret)
         self.queue_size_changed.emit(self.get_queue_size())
@@ -174,7 +178,10 @@ class MCTCPClient(QtCore.QObject):
             return
 
         while len(self._queue):
-            request, future = self._current_request = self._queue.pop(False) # FIFO order
+            str_request, future = self._queue.pop(False) # FIFO order
+            request = proto.Message()
+            request.ParseFromString(str_request)
+            self._current_request = (request, future)
             self.queue_size_changed.emit(len(self._queue))
 
             if future.set_running_or_notify_cancel():
@@ -184,11 +191,15 @@ class MCTCPClient(QtCore.QObject):
             self._current_request = None
             return
 
-        data = request.serialize()
+        self.log.debug("_start_write_request: request=%s, str_request=%s, len(str_request)=%d",
+                request, str_request, len(str_request));
+
+        data = str_request
         data = struct.pack('!H', len(data)) + data # prepend message size
         self.log.debug("_start_write_request: writing %s (len=%d)", request, len(data))
         if self._socket.write(data) == -1:
-            future.set_exception(util.SocketError(self._socket.error(), self._socket.errorString()))
+            future.set_exception(util.SocketError(self._socket.error(),
+                self._socket.errorString()))
         else:
             def bytes_written():
                 self.log.debug("_start_write_request: request %s sent", request)
@@ -215,11 +226,11 @@ class MCTCPClient(QtCore.QObject):
             self._read_size = 0
             self.message_received.emit(message)
 
-            if message.is_response() or message.is_error():
+            if proto.is_response(message):
                 request, future = self._current_request
 
-                if message.is_error():
-                    future.set_exception(protocol.MessageError(
+                if proto.is_error_response(message):
+                    future.set_exception(proto.MessageError(
                         message=message, request=request))
 
                     self.error_received.emit(message)
@@ -234,7 +245,7 @@ class MCTCPClient(QtCore.QObject):
                 else:
                     self.queue_empty.emit()
 
-            elif message.is_notification():
+            elif proto.is_notification(message):
                 self.notification_received.emit(message)
 
             if self._socket.bytesAvailable() >= 2:

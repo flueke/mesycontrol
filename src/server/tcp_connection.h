@@ -44,10 +44,10 @@ class TCPConnection
     TCPConnectionManager &m_connection_manager;
 
     uint16_t m_read_size;
-    std::vector<unsigned char> m_read_buf;
+    std::vector<boost::uint8_t> m_read_buf;
 
     uint16_t m_write_size;
-    std::vector<unsigned char> m_write_buf;
+    std::string m_write_buf;
 
     std::deque<MessagePtr> m_write_queue;
     bool m_write_in_progress;

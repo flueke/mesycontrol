@@ -9,6 +9,8 @@ from qt import pyqtSignal
 
 from functools import wraps
 import logging
+import traceback
+import sys
 
 import util
 
@@ -59,7 +61,7 @@ class Future(object):
 
         if self._exception is not None:
             self._exception_observed = True
-            raise self._exception
+            raise self._exception, None, self._traceback
 
         return self._result
 
@@ -131,7 +133,8 @@ class Future(object):
         if self.done():
             raise FutureIsDone(self)
 
-        self._exception = exception
+        self._exception     = exception
+        self._traceback     = sys.exc_info()[2]
         self._set_done()
 
         return self

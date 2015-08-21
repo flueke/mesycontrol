@@ -8,9 +8,7 @@ import weakref
 import basic_model as bm
 import future
 import hardware_model as hm
-import protocol
-from google.protobuf import message as proto_message
-import mesycontrol_pb2 as proto
+import proto
 import util
 
 # Periodic scanbus
@@ -137,15 +135,16 @@ class Controller(object):
 
         def on_response_received(f):
             try:
-                ret.set_result(bm.ReadResult(bus, device, address, f.result().response.val))
+                ret.set_result(bm.ReadResult(bus, device, address, f.result().response.response_read.val))
             except Exception as e:
                 ret.set_exception(e)
 
-        m           = proto.RequestRead()
-        m.bus       = bus
-        m.dev       = device
-        m.par       = address
-        m.mirror    = False
+        m = proto.Message()
+        m.type = proto.Message.REQ_READ
+        m.request_read.bus      = bus
+        m.request_read.dev      = device
+        m.request_read.par      = address
+        m.request_read.mirror   = False
 
         request_future = self.connection.queue_request(m).add_done_callback(
                 on_response_received)
@@ -168,12 +167,18 @@ class Controller(object):
         def on_response_received(f):
             try:
                 if not f.cancelled():
-                    ret.set_result(bm.SetResult(bus, device, address, f.result().response.val, value))
+                    ret.set_result(bm.SetResult(bus, device, address, f.result().response.set_result.val, value))
             except Exception as e:
                 if not ret.done():
                     ret.set_exception(e)
 
-        m = protocol.Message('request_set', bus=bus, dev=device, par=address, val=value)
+        m = proto.Message()
+        m.type = proto.Message.REQ_SET
+        m.request_set.bus       = bus
+        m.request_set.dev       = device
+        m.request_set.par       = address
+        m.request_set.val       = value
+        m.request_set.mirror    = False
         request_future = self.connection.queue_request(m).add_done_callback(on_response_received)
 
         def cancel_request(f):
@@ -187,13 +192,17 @@ class Controller(object):
     def scanbus(self, bus):
         def on_bus_scanned(f):
             try:
-                bus  = f.result().response.bus
-                data = f.result().response.bus_data
+                bus     = f.result().response.scanbus_result.bus
+                entries = f.result().response.scanbus_result.entries
 
-                self.log.debug("%s: received scanbus response %d: %s", self, bus, data)
+                self.log.debug("%s: received scanbus response %d: %s", self, bus, entries)
 
                 for addr in bm.DEV_RANGE:
-                    idc, rc = data[addr]
+                    entry    = entries[addr]
+                    idc      = entry.idc
+                    rc       = entry.rc
+                    conflict = entry.conflict
+
                     device  = self.mrc.get_device(bus, addr)
 
                     if idc <= 0 and device is not None:
@@ -206,8 +215,8 @@ class Controller(object):
                             self.mrc.add_device(device)
 
                         device.idc = idc
-                        device.rc  = bool(rc) if rc in (0, 1) else False
-                        device.address_conflict = rc not in (0, 1)
+                        device.rc  = rc
+                        device.address_conflict = conflict
 
                         if device.address_conflict:
                             self.log.debug("%s: scanbus: address conflict on (%d, %d)", self, bus, addr)
@@ -217,12 +226,17 @@ class Controller(object):
             except Exception:
                 self.log.exception("%s: scanbus error" % self)
 
-        m = protocol.Message('request_scanbus', bus=bus)
+        m = proto.Message()
+        m.type = proto.Message.REQ_SCANBUS
+        m.request_scanbus.bus = bus
         return self.connection.queue_request(m).add_done_callback(on_bus_scanned)
 
     def set_rc(self, bus, device, on_off):
-        mt = 'request_rc_on' if on_off else 'request_rc_off'
-        m  = protocol.Message(mt, bus=bus, dev=device)
+        m = proto.Message()
+        m.type = proto.Message.REQ_RC
+        m.request_rc.bus = bus
+        m.request_rc.dev = device
+        m.request_rc.rc  = on_off
         return self.connection.queue_request(m)
 
     def set_scanbus_interval(self, msec):

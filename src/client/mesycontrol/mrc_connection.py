@@ -7,8 +7,8 @@ from qt import pyqtSignal
 
 from future import Future
 from future import progress_forwarder
-from protocol import MRCStatus
 from tcp_client import MCTCPClient
+import proto
 import server_process
 import util
 
@@ -125,8 +125,8 @@ class MRCConnection(AbstractConnection):
         return ret
 
     def _on_client_notification_received(self, msg):
-        if self.is_connecting() and msg.get_type_name() == 'notify_mrc_status':
-            if msg.status == MRCStatus.RUNNING:
+        if self.is_connecting() and msg.type == proto.Message.NOTIFY_MRC_STATUS:
+            if msg.mrc_status.status == proto.MRCStatus.RUNNING:
                 self._is_connecting = False
                 self._is_connected  = True
                 self._connecting_future.set_result(True)
@@ -135,7 +135,8 @@ class MRCConnection(AbstractConnection):
                 self.log.debug("%s: connected & running", self.url)
             else:
                 self._connecting_future.set_progress_text("MRC status: %s" %
-                        (MRCStatus.by_code[msg.status]['description'],))
+                        proto.Message.Type.Name(msg.type));
+                        #(MRCStatus.by_code[msg.status]['description'],))
 
     def _on_client_disconnected(self):
         self.log.debug("_on_client_disconnected: connecting_future=%s", self._connecting_future)

@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='mesycontrol.proto',
   package='mesycontrol.proto',
   syntax='proto3',
-  serialized_pb=_b('\n\x11mesycontrol.proto\x12\x11mesycontrol.proto\"\x1d\n\x0eRequestScanbus\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\"D\n\x0bRequestRead\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\x12\x0b\n\x03par\x18\x03 \x01(\r\x12\x0e\n\x06mirror\x18\x04 \x01(\x08\"P\n\nRequestSet\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\x12\x0b\n\x03par\x18\x03 \x01(\r\x12\x0b\n\x03val\x18\x04 \x01(\r\x12\x0e\n\x06mirror\x18\x05 \x01(\x08\"1\n\tRequestRC\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\x12\n\n\x02rc\x18\x03 \x01(\x08\"(\n\x0cRequestReset\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\"\'\n\x0bRequestCopy\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\"H\n\x10RequestReadMulti\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\x12\x0b\n\x03par\x18\x03 \x01(\r\x12\r\n\x05\x63ount\x18\x04 \x01(\r\"*\n\x19RequestAcquireWriteAccess\x12\r\n\x05\x66orce\x18\x01 \x01(\x08\"&\n\x12RequestSetSilenced\x12\x10\n\x08silenced\x18\x01 \x01(\x08\"\x97\x01\n\x13RequestSetPollItems\x12>\n\x05items\x18\x01 \x03(\x0b\x32/.mesycontrol.proto.RequestSetPollItems.PollItem\x1a@\n\x08PollItem\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\x12\x0b\n\x03par\x18\x03 \x01(\r\x12\r\n\x05\x63ount\x18\x04 \x01(\r\"\x1d\n\x0cResponseBool\x12\r\n\x05value\x18\x01 \x01(\x08\"\x92\x02\n\rResponseError\x12\x38\n\x04type\x18\x01 \x01(\x0e\x32*.mesycontrol.proto.ResponseError.ErrorType\x12\x0c\n\x04info\x18\x02 \x01(\t\"\xb8\x01\n\tErrorType\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x0f\n\x0bNO_RESPONSE\x10\x01\x12\x14\n\x10\x41\x44\x44RESS_CONFLICT\x10\x02\x12\x0e\n\nCONNECTING\x10\x03\x12\x11\n\rCONNECT_ERROR\x10\x04\x12\x0f\n\x0b\x43OM_TIMEOUT\x10\x05\x12\r\n\tCOM_ERROR\x10\x06\x12\x0c\n\x08SILENCED\x10\x07\x12\x15\n\x11PERMISSION_DENIED\x10\x08\x12\x0f\n\x0bPARSE_ERROR\x10\t\"\x97\x01\n\rScanbusResult\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12>\n\x07\x65ntries\x18\x02 \x03(\x0b\x32-.mesycontrol.proto.ScanbusResult.ScanbusEntry\x1a\x39\n\x0cScanbusEntry\x12\x0b\n\x03idc\x18\x01 \x01(\r\x12\n\n\x02rc\x18\x02 \x01(\x08\x12\x10\n\x08\x63onflict\x18\x03 \x01(\x08\"R\n\x0cResponseRead\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\x12\x0b\n\x03par\x18\x03 \x01(\r\x12\x0b\n\x03val\x18\x04 \x01(\r\x12\x0e\n\x06mirror\x18\x05 \x01(\x08\"h\n\tSetResult\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\x12\x0b\n\x03par\x18\x03 \x01(\r\x12\x0b\n\x03val\x18\x04 \x01(\r\x12\x17\n\x0frequested_value\x18\x05 \x01(\r\x12\x0e\n\x06mirror\x18\x06 \x01(\x08\"N\n\x11ResponseReadMulti\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\x12\x0b\n\x03par\x18\x03 \x01(\r\x12\x12\n\x06values\x18\x04 \x03(\rB\x02\x10\x01\"\xe2\x01\n\tMRCStatus\x12\x33\n\x06status\x18\x01 \x01(\x0e\x32#.mesycontrol.proto.MRCStatus.Status\x12\x0c\n\x04info\x18\x02 \x01(\t\x12\x0f\n\x07version\x18\x03 \x01(\t\x12\x16\n\x0ehas_read_multi\x18\x04 \x01(\x08\"i\n\x06Status\x12\x0b\n\x07STOPPED\x10\x00\x12\x0e\n\nCONNECTING\x10\x01\x12\x12\n\x0e\x43ONNECT_FAILED\x10\x02\x12\x10\n\x0cINITIALIZING\x10\x03\x12\x0f\n\x0bINIT_FAILED\x10\x04\x12\x0b\n\x07RUNNING\x10\x05\"<\n\x11NotifyWriteAccess\x12\x12\n\nhas_access\x18\x01 \x01(\x08\x12\x13\n\x0b\x63\x61n_acquire\x18\x02 \x01(\x08\"\"\n\x0eNotifySilenced\x12\x10\n\x08silenced\x18\x01 \x01(\x08\"\x98\x01\n\x11NotifyPolledItems\x12>\n\x05items\x18\x01 \x03(\x0b\x32/.mesycontrol.proto.NotifyPolledItems.PollResult\x1a\x43\n\nPollResult\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\x12\x0b\n\x03par\x18\x03 \x01(\r\x12\x0e\n\x06values\x18\x04 \x03(\r\"\x85\x01\n\x10NotifyClientList\x12@\n\x07\x65ntries\x18\x01 \x03(\x0b\x32/.mesycontrol.proto.NotifyClientList.ClientEntry\x1a/\n\x0b\x43lientEntry\x12\n\n\x02id\x18\x01 \x01(\t\x12\x14\n\x0cwrite_access\x18\x02 \x01(\x08\"\xf5\x0e\n\x12MesycontrolMessage\x12\x38\n\x04type\x18\x01 \x01(\x0e\x32*.mesycontrol.proto.MesycontrolMessage.Type\x12:\n\x0frequest_scanbus\x18\x02 \x01(\x0b\x32!.mesycontrol.proto.RequestScanbus\x12\x34\n\x0crequest_read\x18\x03 \x01(\x0b\x32\x1e.mesycontrol.proto.RequestRead\x12\x32\n\x0brequest_set\x18\x04 \x01(\x0b\x32\x1d.mesycontrol.proto.RequestSet\x12\x30\n\nrequest_rc\x18\x05 \x01(\x0b\x32\x1c.mesycontrol.proto.RequestRC\x12\x36\n\rrequest_reset\x18\x06 \x01(\x0b\x32\x1f.mesycontrol.proto.RequestReset\x12\x34\n\x0crequest_copy\x18\x07 \x01(\x0b\x32\x1e.mesycontrol.proto.RequestCopy\x12?\n\x12request_read_multi\x18\x08 \x01(\x0b\x32#.mesycontrol.proto.RequestReadMulti\x12R\n\x1crequest_acquire_write_access\x18\t \x01(\x0b\x32,.mesycontrol.proto.RequestAcquireWriteAccess\x12\x43\n\x14request_set_silenced\x18\n \x01(\x0b\x32%.mesycontrol.proto.RequestSetSilenced\x12\x46\n\x16request_set_poll_items\x18\x0b \x01(\x0b\x32&.mesycontrol.proto.RequestSetPollItems\x12\x36\n\rresponse_bool\x18\x0c \x01(\x0b\x32\x1f.mesycontrol.proto.ResponseBool\x12\x38\n\x0eresponse_error\x18\r \x01(\x0b\x32 .mesycontrol.proto.ResponseError\x12\x36\n\rresponse_read\x18\x0e \x01(\x0b\x32\x1f.mesycontrol.proto.ResponseRead\x12\x41\n\x13response_read_multi\x18\x0f \x01(\x0b\x32$.mesycontrol.proto.ResponseReadMulti\x12\x30\n\nset_result\x18\x10 \x01(\x0b\x32\x1c.mesycontrol.proto.SetResult\x12\x38\n\x0escanbus_result\x18\x11 \x01(\x0b\x32 .mesycontrol.proto.ScanbusResult\x12\x30\n\nmrc_status\x18\x12 \x01(\x0b\x32\x1c.mesycontrol.proto.MRCStatus\x12\x41\n\x13notify_write_access\x18\x13 \x01(\x0b\x32$.mesycontrol.proto.NotifyWriteAccess\x12:\n\x0fnotify_silenced\x18\x14 \x01(\x0b\x32!.mesycontrol.proto.NotifySilenced\x12\x41\n\x13notify_polled_items\x18\x15 \x01(\x0b\x32$.mesycontrol.proto.NotifyPolledItems\x12?\n\x12notify_client_list\x18\x16 \x01(\x0b\x32#.mesycontrol.proto.NotifyClientList\"\xae\x04\n\x04Type\x12\x0f\n\x0bREQ_SCANBUS\x10\x00\x12\x0c\n\x08REQ_READ\x10\x01\x12\x0b\n\x07REQ_SET\x10\x02\x12\n\n\x06REQ_RC\x10\x03\x12\r\n\tREQ_RESET\x10\x04\x12\x0c\n\x08REQ_COPY\x10\x05\x12\x12\n\x0eREQ_READ_MULTI\x10\x06\x12\x12\n\x0eREQ_MRC_STATUS\x10\n\x12\x18\n\x14REQ_HAS_WRITE_ACCESS\x10\x0b\x12\x1c\n\x18REQ_ACQUIRE_WRITE_ACCESS\x10\x0c\x12\x1c\n\x18REQ_RELEASE_WRITE_ACCESS\x10\r\x12\x13\n\x0fREQ_IS_SILENCED\x10\x0e\x12\x14\n\x10REQ_SET_SILENCED\x10\x0f\x12\x16\n\x12REQ_SET_POLL_ITEMS\x10\x10\x12\r\n\tRESP_BOOL\x10\x14\x12\x0e\n\nRESP_ERROR\x10\x15\x12\x10\n\x0cRESP_SCANBUS\x10\x16\x12\r\n\tRESP_READ\x10\x17\x12\x0c\n\x08RESP_SET\x10\x18\x12\x13\n\x0fRESP_READ_MULTI\x10\x19\x12\x13\n\x0fRESP_MRC_STATUS\x10\x1a\x12\x12\n\x0eNOTIFY_SCANBUS\x10\x1f\x12\x15\n\x11NOTIFY_MRC_STATUS\x10 \x12\x17\n\x13NOTIFY_WRITE_ACCESS\x10!\x12\x13\n\x0fNOTIFY_SILENCED\x10\"\x12\x0e\n\nNOTIFY_SET\x10#\x12\x17\n\x13NOTIFY_POLLED_ITEMS\x10$\x12\x16\n\x12NOTIFY_CLIENT_LIST\x10%b\x06proto3')
+  serialized_pb=_b('\n\x11mesycontrol.proto\x12\x11mesycontrol.proto\"\x1d\n\x0eRequestScanbus\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\"D\n\x0bRequestRead\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\x12\x0b\n\x03par\x18\x03 \x01(\r\x12\x0e\n\x06mirror\x18\x04 \x01(\x08\"P\n\nRequestSet\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\x12\x0b\n\x03par\x18\x03 \x01(\r\x12\x0b\n\x03val\x18\x04 \x01(\x11\x12\x0e\n\x06mirror\x18\x05 \x01(\x08\"1\n\tRequestRC\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\x12\n\n\x02rc\x18\x03 \x01(\x08\"(\n\x0cRequestReset\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\"\'\n\x0bRequestCopy\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\"H\n\x10RequestReadMulti\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\x12\x0b\n\x03par\x18\x03 \x01(\r\x12\r\n\x05\x63ount\x18\x04 \x01(\r\"*\n\x19RequestAcquireWriteAccess\x12\r\n\x05\x66orce\x18\x01 \x01(\x08\"&\n\x12RequestSetSilenced\x12\x10\n\x08silenced\x18\x01 \x01(\x08\"\x97\x01\n\x13RequestSetPollItems\x12>\n\x05items\x18\x01 \x03(\x0b\x32/.mesycontrol.proto.RequestSetPollItems.PollItem\x1a@\n\x08PollItem\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\x12\x0b\n\x03par\x18\x03 \x01(\r\x12\r\n\x05\x63ount\x18\x04 \x01(\r\"\x1d\n\x0cResponseBool\x12\r\n\x05value\x18\x01 \x01(\x08\"\xb9\x02\n\rResponseError\x12\x38\n\x04type\x18\x01 \x01(\x0e\x32*.mesycontrol.proto.ResponseError.ErrorType\x12\x0c\n\x04info\x18\x02 \x01(\t\"\xdf\x01\n\tErrorType\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x0f\n\x0bNO_RESPONSE\x10\x01\x12\x14\n\x10\x41\x44\x44RESS_CONFLICT\x10\x02\x12\x0e\n\nCONNECTING\x10\x03\x12\x11\n\rCONNECT_ERROR\x10\x04\x12\x0f\n\x0b\x43OM_TIMEOUT\x10\x05\x12\r\n\tCOM_ERROR\x10\x06\x12\x0c\n\x08SILENCED\x10\x07\x12\x15\n\x11PERMISSION_DENIED\x10\x08\x12\x0f\n\x0bPARSE_ERROR\x10\t\x12\x10\n\x0cINVALID_TYPE\x10\n\x12\x13\n\x0fINVALID_MESSAGE\x10\x0b\"\x97\x01\n\rScanbusResult\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12>\n\x07\x65ntries\x18\x02 \x03(\x0b\x32-.mesycontrol.proto.ScanbusResult.ScanbusEntry\x1a\x39\n\x0cScanbusEntry\x12\x0b\n\x03idc\x18\x01 \x01(\r\x12\n\n\x02rc\x18\x02 \x01(\x08\x12\x10\n\x08\x63onflict\x18\x03 \x01(\x08\"R\n\x0cResponseRead\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\x12\x0b\n\x03par\x18\x03 \x01(\r\x12\x0b\n\x03val\x18\x04 \x01(\x11\x12\x0e\n\x06mirror\x18\x05 \x01(\x08\"h\n\tSetResult\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\x12\x0b\n\x03par\x18\x03 \x01(\r\x12\x0b\n\x03val\x18\x04 \x01(\x11\x12\x17\n\x0frequested_value\x18\x05 \x01(\x11\x12\x0e\n\x06mirror\x18\x06 \x01(\x08\"N\n\x11ResponseReadMulti\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\x12\x0b\n\x03par\x18\x03 \x01(\r\x12\x12\n\x06values\x18\x04 \x03(\x11\x42\x02\x10\x01\"\xe2\x01\n\tMRCStatus\x12\x33\n\x06status\x18\x01 \x01(\x0e\x32#.mesycontrol.proto.MRCStatus.Status\x12\x0c\n\x04info\x18\x02 \x01(\t\x12\x0f\n\x07version\x18\x03 \x01(\t\x12\x16\n\x0ehas_read_multi\x18\x04 \x01(\x08\"i\n\x06Status\x12\x0b\n\x07STOPPED\x10\x00\x12\x0e\n\nCONNECTING\x10\x01\x12\x12\n\x0e\x43ONNECT_FAILED\x10\x02\x12\x10\n\x0cINITIALIZING\x10\x03\x12\x0f\n\x0bINIT_FAILED\x10\x04\x12\x0b\n\x07RUNNING\x10\x05\"<\n\x11NotifyWriteAccess\x12\x12\n\nhas_access\x18\x01 \x01(\x08\x12\x13\n\x0b\x63\x61n_acquire\x18\x02 \x01(\x08\"\"\n\x0eNotifySilenced\x12\x10\n\x08silenced\x18\x01 \x01(\x08\"\x98\x01\n\x11NotifyPolledItems\x12>\n\x05items\x18\x01 \x03(\x0b\x32/.mesycontrol.proto.NotifyPolledItems.PollResult\x1a\x43\n\nPollResult\x12\x0b\n\x03\x62us\x18\x01 \x01(\r\x12\x0b\n\x03\x64\x65v\x18\x02 \x01(\r\x12\x0b\n\x03par\x18\x03 \x01(\r\x12\x0e\n\x06values\x18\x04 \x03(\x11\"\x85\x01\n\x10NotifyClientList\x12@\n\x07\x65ntries\x18\x01 \x03(\x0b\x32/.mesycontrol.proto.NotifyClientList.ClientEntry\x1a/\n\x0b\x43lientEntry\x12\n\n\x02id\x18\x01 \x01(\t\x12\x14\n\x0cwrite_access\x18\x02 \x01(\x08\"\xdf\x0e\n\x07Message\x12-\n\x04type\x18\x01 \x01(\x0e\x32\x1f.mesycontrol.proto.Message.Type\x12:\n\x0frequest_scanbus\x18\x02 \x01(\x0b\x32!.mesycontrol.proto.RequestScanbus\x12\x34\n\x0crequest_read\x18\x03 \x01(\x0b\x32\x1e.mesycontrol.proto.RequestRead\x12\x32\n\x0brequest_set\x18\x04 \x01(\x0b\x32\x1d.mesycontrol.proto.RequestSet\x12\x30\n\nrequest_rc\x18\x05 \x01(\x0b\x32\x1c.mesycontrol.proto.RequestRC\x12\x36\n\rrequest_reset\x18\x06 \x01(\x0b\x32\x1f.mesycontrol.proto.RequestReset\x12\x34\n\x0crequest_copy\x18\x07 \x01(\x0b\x32\x1e.mesycontrol.proto.RequestCopy\x12?\n\x12request_read_multi\x18\x08 \x01(\x0b\x32#.mesycontrol.proto.RequestReadMulti\x12R\n\x1crequest_acquire_write_access\x18\t \x01(\x0b\x32,.mesycontrol.proto.RequestAcquireWriteAccess\x12\x43\n\x14request_set_silenced\x18\n \x01(\x0b\x32%.mesycontrol.proto.RequestSetSilenced\x12\x46\n\x16request_set_poll_items\x18\x0b \x01(\x0b\x32&.mesycontrol.proto.RequestSetPollItems\x12\x36\n\rresponse_bool\x18\x0c \x01(\x0b\x32\x1f.mesycontrol.proto.ResponseBool\x12\x38\n\x0eresponse_error\x18\r \x01(\x0b\x32 .mesycontrol.proto.ResponseError\x12\x36\n\rresponse_read\x18\x0e \x01(\x0b\x32\x1f.mesycontrol.proto.ResponseRead\x12\x41\n\x13response_read_multi\x18\x0f \x01(\x0b\x32$.mesycontrol.proto.ResponseReadMulti\x12\x30\n\nset_result\x18\x10 \x01(\x0b\x32\x1c.mesycontrol.proto.SetResult\x12\x38\n\x0escanbus_result\x18\x11 \x01(\x0b\x32 .mesycontrol.proto.ScanbusResult\x12\x30\n\nmrc_status\x18\x12 \x01(\x0b\x32\x1c.mesycontrol.proto.MRCStatus\x12\x41\n\x13notify_write_access\x18\x13 \x01(\x0b\x32$.mesycontrol.proto.NotifyWriteAccess\x12:\n\x0fnotify_silenced\x18\x14 \x01(\x0b\x32!.mesycontrol.proto.NotifySilenced\x12\x41\n\x13notify_polled_items\x18\x15 \x01(\x0b\x32$.mesycontrol.proto.NotifyPolledItems\x12?\n\x12notify_client_list\x18\x16 \x01(\x0b\x32#.mesycontrol.proto.NotifyClientList\"\xae\x04\n\x04Type\x12\x0f\n\x0bREQ_SCANBUS\x10\x00\x12\x0c\n\x08REQ_READ\x10\x01\x12\x0b\n\x07REQ_SET\x10\x02\x12\n\n\x06REQ_RC\x10\x03\x12\r\n\tREQ_RESET\x10\x04\x12\x0c\n\x08REQ_COPY\x10\x05\x12\x12\n\x0eREQ_READ_MULTI\x10\x06\x12\x12\n\x0eREQ_MRC_STATUS\x10\n\x12\x18\n\x14REQ_HAS_WRITE_ACCESS\x10\x0b\x12\x1c\n\x18REQ_ACQUIRE_WRITE_ACCESS\x10\x0c\x12\x1c\n\x18REQ_RELEASE_WRITE_ACCESS\x10\r\x12\x13\n\x0fREQ_IS_SILENCED\x10\x0e\x12\x14\n\x10REQ_SET_SILENCED\x10\x0f\x12\x16\n\x12REQ_SET_POLL_ITEMS\x10\x10\x12\r\n\tRESP_BOOL\x10\x14\x12\x0e\n\nRESP_ERROR\x10\x15\x12\x10\n\x0cRESP_SCANBUS\x10\x16\x12\r\n\tRESP_READ\x10\x17\x12\x0c\n\x08RESP_SET\x10\x18\x12\x13\n\x0fRESP_READ_MULTI\x10\x19\x12\x13\n\x0fRESP_MRC_STATUS\x10\x1a\x12\x12\n\x0eNOTIFY_SCANBUS\x10\x1f\x12\x15\n\x11NOTIFY_MRC_STATUS\x10 \x12\x17\n\x13NOTIFY_WRITE_ACCESS\x10!\x12\x13\n\x0fNOTIFY_SILENCED\x10\"\x12\x0e\n\nNOTIFY_SET\x10#\x12\x17\n\x13NOTIFY_POLLED_ITEMS\x10$\x12\x16\n\x12NOTIFY_CLIENT_LIST\x10%b\x06proto3')
 )
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
@@ -71,11 +71,19 @@ _RESPONSEERROR_ERRORTYPE = _descriptor.EnumDescriptor(
       name='PARSE_ERROR', index=9, number=9,
       options=None,
       type=None),
+    _descriptor.EnumValueDescriptor(
+      name='INVALID_TYPE', index=10, number=10,
+      options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='INVALID_MESSAGE', index=11, number=11,
+      options=None,
+      type=None),
   ],
   containing_type=None,
   options=None,
   serialized_start=791,
-  serialized_end=975,
+  serialized_end=1014,
 )
 _sym_db.RegisterEnumDescriptor(_RESPONSEERROR_ERRORTYPE)
 
@@ -112,14 +120,14 @@ _MRCSTATUS_STATUS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=1523,
-  serialized_end=1628,
+  serialized_start=1562,
+  serialized_end=1667,
 )
 _sym_db.RegisterEnumDescriptor(_MRCSTATUS_STATUS)
 
-_MESYCONTROLMESSAGE_TYPE = _descriptor.EnumDescriptor(
+_MESSAGE_TYPE = _descriptor.EnumDescriptor(
   name='Type',
-  full_name='mesycontrol.proto.MesycontrolMessage.Type',
+  full_name='mesycontrol.proto.Message.Type',
   filename=None,
   file=DESCRIPTOR,
   values=[
@@ -238,10 +246,10 @@ _MESYCONTROLMESSAGE_TYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=3371,
-  serialized_end=3929,
+  serialized_start=3388,
+  serialized_end=3946,
 )
-_sym_db.RegisterEnumDescriptor(_MESYCONTROLMESSAGE_TYPE)
+_sym_db.RegisterEnumDescriptor(_MESSAGE_TYPE)
 
 
 _REQUESTSCANBUS = _descriptor.Descriptor(
@@ -357,7 +365,7 @@ _REQUESTSET = _descriptor.Descriptor(
       options=None),
     _descriptor.FieldDescriptor(
       name='val', full_name='mesycontrol.proto.RequestSet.val', index=3,
-      number=4, type=13, cpp_type=3, label=1,
+      number=4, type=17, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -769,7 +777,7 @@ _RESPONSEERROR = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=701,
-  serialized_end=975,
+  serialized_end=1014,
 )
 
 
@@ -813,8 +821,8 @@ _SCANBUSRESULT_SCANBUSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1072,
-  serialized_end=1129,
+  serialized_start=1111,
+  serialized_end=1168,
 )
 
 _SCANBUSRESULT = _descriptor.Descriptor(
@@ -850,8 +858,8 @@ _SCANBUSRESULT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=978,
-  serialized_end=1129,
+  serialized_start=1017,
+  serialized_end=1168,
 )
 
 
@@ -885,7 +893,7 @@ _RESPONSEREAD = _descriptor.Descriptor(
       options=None),
     _descriptor.FieldDescriptor(
       name='val', full_name='mesycontrol.proto.ResponseRead.val', index=3,
-      number=4, type=13, cpp_type=3, label=1,
+      number=4, type=17, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -909,8 +917,8 @@ _RESPONSEREAD = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1131,
-  serialized_end=1213,
+  serialized_start=1170,
+  serialized_end=1252,
 )
 
 
@@ -944,14 +952,14 @@ _SETRESULT = _descriptor.Descriptor(
       options=None),
     _descriptor.FieldDescriptor(
       name='val', full_name='mesycontrol.proto.SetResult.val', index=3,
-      number=4, type=13, cpp_type=3, label=1,
+      number=4, type=17, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
       name='requested_value', full_name='mesycontrol.proto.SetResult.requested_value', index=4,
-      number=5, type=13, cpp_type=3, label=1,
+      number=5, type=17, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -975,8 +983,8 @@ _SETRESULT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1215,
-  serialized_end=1319,
+  serialized_start=1254,
+  serialized_end=1358,
 )
 
 
@@ -1010,7 +1018,7 @@ _RESPONSEREADMULTI = _descriptor.Descriptor(
       options=None),
     _descriptor.FieldDescriptor(
       name='values', full_name='mesycontrol.proto.ResponseReadMulti.values', index=3,
-      number=4, type=13, cpp_type=3, label=3,
+      number=4, type=17, cpp_type=1, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -1027,8 +1035,8 @@ _RESPONSEREADMULTI = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1321,
-  serialized_end=1399,
+  serialized_start=1360,
+  serialized_end=1438,
 )
 
 
@@ -1080,8 +1088,8 @@ _MRCSTATUS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1402,
-  serialized_end=1628,
+  serialized_start=1441,
+  serialized_end=1667,
 )
 
 
@@ -1118,8 +1126,8 @@ _NOTIFYWRITEACCESS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1630,
-  serialized_end=1690,
+  serialized_start=1669,
+  serialized_end=1729,
 )
 
 
@@ -1149,8 +1157,8 @@ _NOTIFYSILENCED = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1692,
-  serialized_end=1726,
+  serialized_start=1731,
+  serialized_end=1765,
 )
 
 
@@ -1184,7 +1192,7 @@ _NOTIFYPOLLEDITEMS_POLLRESULT = _descriptor.Descriptor(
       options=None),
     _descriptor.FieldDescriptor(
       name='values', full_name='mesycontrol.proto.NotifyPolledItems.PollResult.values', index=3,
-      number=4, type=13, cpp_type=3, label=3,
+      number=4, type=17, cpp_type=1, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -1201,8 +1209,8 @@ _NOTIFYPOLLEDITEMS_POLLRESULT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1814,
-  serialized_end=1881,
+  serialized_start=1853,
+  serialized_end=1920,
 )
 
 _NOTIFYPOLLEDITEMS = _descriptor.Descriptor(
@@ -1231,8 +1239,8 @@ _NOTIFYPOLLEDITEMS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1729,
-  serialized_end=1881,
+  serialized_start=1768,
+  serialized_end=1920,
 )
 
 
@@ -1269,8 +1277,8 @@ _NOTIFYCLIENTLIST_CLIENTENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1970,
-  serialized_end=2017,
+  serialized_start=2009,
+  serialized_end=2056,
 )
 
 _NOTIFYCLIENTLIST = _descriptor.Descriptor(
@@ -1299,167 +1307,167 @@ _NOTIFYCLIENTLIST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1884,
-  serialized_end=2017,
+  serialized_start=1923,
+  serialized_end=2056,
 )
 
 
-_MESYCONTROLMESSAGE = _descriptor.Descriptor(
-  name='MesycontrolMessage',
-  full_name='mesycontrol.proto.MesycontrolMessage',
+_MESSAGE = _descriptor.Descriptor(
+  name='Message',
+  full_name='mesycontrol.proto.Message',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='type', full_name='mesycontrol.proto.MesycontrolMessage.type', index=0,
+      name='type', full_name='mesycontrol.proto.Message.type', index=0,
       number=1, type=14, cpp_type=8, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='request_scanbus', full_name='mesycontrol.proto.MesycontrolMessage.request_scanbus', index=1,
+      name='request_scanbus', full_name='mesycontrol.proto.Message.request_scanbus', index=1,
       number=2, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='request_read', full_name='mesycontrol.proto.MesycontrolMessage.request_read', index=2,
+      name='request_read', full_name='mesycontrol.proto.Message.request_read', index=2,
       number=3, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='request_set', full_name='mesycontrol.proto.MesycontrolMessage.request_set', index=3,
+      name='request_set', full_name='mesycontrol.proto.Message.request_set', index=3,
       number=4, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='request_rc', full_name='mesycontrol.proto.MesycontrolMessage.request_rc', index=4,
+      name='request_rc', full_name='mesycontrol.proto.Message.request_rc', index=4,
       number=5, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='request_reset', full_name='mesycontrol.proto.MesycontrolMessage.request_reset', index=5,
+      name='request_reset', full_name='mesycontrol.proto.Message.request_reset', index=5,
       number=6, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='request_copy', full_name='mesycontrol.proto.MesycontrolMessage.request_copy', index=6,
+      name='request_copy', full_name='mesycontrol.proto.Message.request_copy', index=6,
       number=7, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='request_read_multi', full_name='mesycontrol.proto.MesycontrolMessage.request_read_multi', index=7,
+      name='request_read_multi', full_name='mesycontrol.proto.Message.request_read_multi', index=7,
       number=8, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='request_acquire_write_access', full_name='mesycontrol.proto.MesycontrolMessage.request_acquire_write_access', index=8,
+      name='request_acquire_write_access', full_name='mesycontrol.proto.Message.request_acquire_write_access', index=8,
       number=9, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='request_set_silenced', full_name='mesycontrol.proto.MesycontrolMessage.request_set_silenced', index=9,
+      name='request_set_silenced', full_name='mesycontrol.proto.Message.request_set_silenced', index=9,
       number=10, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='request_set_poll_items', full_name='mesycontrol.proto.MesycontrolMessage.request_set_poll_items', index=10,
+      name='request_set_poll_items', full_name='mesycontrol.proto.Message.request_set_poll_items', index=10,
       number=11, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='response_bool', full_name='mesycontrol.proto.MesycontrolMessage.response_bool', index=11,
+      name='response_bool', full_name='mesycontrol.proto.Message.response_bool', index=11,
       number=12, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='response_error', full_name='mesycontrol.proto.MesycontrolMessage.response_error', index=12,
+      name='response_error', full_name='mesycontrol.proto.Message.response_error', index=12,
       number=13, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='response_read', full_name='mesycontrol.proto.MesycontrolMessage.response_read', index=13,
+      name='response_read', full_name='mesycontrol.proto.Message.response_read', index=13,
       number=14, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='response_read_multi', full_name='mesycontrol.proto.MesycontrolMessage.response_read_multi', index=14,
+      name='response_read_multi', full_name='mesycontrol.proto.Message.response_read_multi', index=14,
       number=15, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='set_result', full_name='mesycontrol.proto.MesycontrolMessage.set_result', index=15,
+      name='set_result', full_name='mesycontrol.proto.Message.set_result', index=15,
       number=16, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='scanbus_result', full_name='mesycontrol.proto.MesycontrolMessage.scanbus_result', index=16,
+      name='scanbus_result', full_name='mesycontrol.proto.Message.scanbus_result', index=16,
       number=17, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='mrc_status', full_name='mesycontrol.proto.MesycontrolMessage.mrc_status', index=17,
+      name='mrc_status', full_name='mesycontrol.proto.Message.mrc_status', index=17,
       number=18, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='notify_write_access', full_name='mesycontrol.proto.MesycontrolMessage.notify_write_access', index=18,
+      name='notify_write_access', full_name='mesycontrol.proto.Message.notify_write_access', index=18,
       number=19, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='notify_silenced', full_name='mesycontrol.proto.MesycontrolMessage.notify_silenced', index=19,
+      name='notify_silenced', full_name='mesycontrol.proto.Message.notify_silenced', index=19,
       number=20, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='notify_polled_items', full_name='mesycontrol.proto.MesycontrolMessage.notify_polled_items', index=20,
+      name='notify_polled_items', full_name='mesycontrol.proto.Message.notify_polled_items', index=20,
       number=21, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='notify_client_list', full_name='mesycontrol.proto.MesycontrolMessage.notify_client_list', index=21,
+      name='notify_client_list', full_name='mesycontrol.proto.Message.notify_client_list', index=21,
       number=22, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
@@ -1470,7 +1478,7 @@ _MESYCONTROLMESSAGE = _descriptor.Descriptor(
   ],
   nested_types=[],
   enum_types=[
-    _MESYCONTROLMESSAGE_TYPE,
+    _MESSAGE_TYPE,
   ],
   options=None,
   is_extendable=False,
@@ -1478,8 +1486,8 @@ _MESYCONTROLMESSAGE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2020,
-  serialized_end=3929,
+  serialized_start=2059,
+  serialized_end=3946,
 )
 
 _REQUESTSETPOLLITEMS_POLLITEM.containing_type = _REQUESTSETPOLLITEMS
@@ -1494,29 +1502,29 @@ _NOTIFYPOLLEDITEMS_POLLRESULT.containing_type = _NOTIFYPOLLEDITEMS
 _NOTIFYPOLLEDITEMS.fields_by_name['items'].message_type = _NOTIFYPOLLEDITEMS_POLLRESULT
 _NOTIFYCLIENTLIST_CLIENTENTRY.containing_type = _NOTIFYCLIENTLIST
 _NOTIFYCLIENTLIST.fields_by_name['entries'].message_type = _NOTIFYCLIENTLIST_CLIENTENTRY
-_MESYCONTROLMESSAGE.fields_by_name['type'].enum_type = _MESYCONTROLMESSAGE_TYPE
-_MESYCONTROLMESSAGE.fields_by_name['request_scanbus'].message_type = _REQUESTSCANBUS
-_MESYCONTROLMESSAGE.fields_by_name['request_read'].message_type = _REQUESTREAD
-_MESYCONTROLMESSAGE.fields_by_name['request_set'].message_type = _REQUESTSET
-_MESYCONTROLMESSAGE.fields_by_name['request_rc'].message_type = _REQUESTRC
-_MESYCONTROLMESSAGE.fields_by_name['request_reset'].message_type = _REQUESTRESET
-_MESYCONTROLMESSAGE.fields_by_name['request_copy'].message_type = _REQUESTCOPY
-_MESYCONTROLMESSAGE.fields_by_name['request_read_multi'].message_type = _REQUESTREADMULTI
-_MESYCONTROLMESSAGE.fields_by_name['request_acquire_write_access'].message_type = _REQUESTACQUIREWRITEACCESS
-_MESYCONTROLMESSAGE.fields_by_name['request_set_silenced'].message_type = _REQUESTSETSILENCED
-_MESYCONTROLMESSAGE.fields_by_name['request_set_poll_items'].message_type = _REQUESTSETPOLLITEMS
-_MESYCONTROLMESSAGE.fields_by_name['response_bool'].message_type = _RESPONSEBOOL
-_MESYCONTROLMESSAGE.fields_by_name['response_error'].message_type = _RESPONSEERROR
-_MESYCONTROLMESSAGE.fields_by_name['response_read'].message_type = _RESPONSEREAD
-_MESYCONTROLMESSAGE.fields_by_name['response_read_multi'].message_type = _RESPONSEREADMULTI
-_MESYCONTROLMESSAGE.fields_by_name['set_result'].message_type = _SETRESULT
-_MESYCONTROLMESSAGE.fields_by_name['scanbus_result'].message_type = _SCANBUSRESULT
-_MESYCONTROLMESSAGE.fields_by_name['mrc_status'].message_type = _MRCSTATUS
-_MESYCONTROLMESSAGE.fields_by_name['notify_write_access'].message_type = _NOTIFYWRITEACCESS
-_MESYCONTROLMESSAGE.fields_by_name['notify_silenced'].message_type = _NOTIFYSILENCED
-_MESYCONTROLMESSAGE.fields_by_name['notify_polled_items'].message_type = _NOTIFYPOLLEDITEMS
-_MESYCONTROLMESSAGE.fields_by_name['notify_client_list'].message_type = _NOTIFYCLIENTLIST
-_MESYCONTROLMESSAGE_TYPE.containing_type = _MESYCONTROLMESSAGE
+_MESSAGE.fields_by_name['type'].enum_type = _MESSAGE_TYPE
+_MESSAGE.fields_by_name['request_scanbus'].message_type = _REQUESTSCANBUS
+_MESSAGE.fields_by_name['request_read'].message_type = _REQUESTREAD
+_MESSAGE.fields_by_name['request_set'].message_type = _REQUESTSET
+_MESSAGE.fields_by_name['request_rc'].message_type = _REQUESTRC
+_MESSAGE.fields_by_name['request_reset'].message_type = _REQUESTRESET
+_MESSAGE.fields_by_name['request_copy'].message_type = _REQUESTCOPY
+_MESSAGE.fields_by_name['request_read_multi'].message_type = _REQUESTREADMULTI
+_MESSAGE.fields_by_name['request_acquire_write_access'].message_type = _REQUESTACQUIREWRITEACCESS
+_MESSAGE.fields_by_name['request_set_silenced'].message_type = _REQUESTSETSILENCED
+_MESSAGE.fields_by_name['request_set_poll_items'].message_type = _REQUESTSETPOLLITEMS
+_MESSAGE.fields_by_name['response_bool'].message_type = _RESPONSEBOOL
+_MESSAGE.fields_by_name['response_error'].message_type = _RESPONSEERROR
+_MESSAGE.fields_by_name['response_read'].message_type = _RESPONSEREAD
+_MESSAGE.fields_by_name['response_read_multi'].message_type = _RESPONSEREADMULTI
+_MESSAGE.fields_by_name['set_result'].message_type = _SETRESULT
+_MESSAGE.fields_by_name['scanbus_result'].message_type = _SCANBUSRESULT
+_MESSAGE.fields_by_name['mrc_status'].message_type = _MRCSTATUS
+_MESSAGE.fields_by_name['notify_write_access'].message_type = _NOTIFYWRITEACCESS
+_MESSAGE.fields_by_name['notify_silenced'].message_type = _NOTIFYSILENCED
+_MESSAGE.fields_by_name['notify_polled_items'].message_type = _NOTIFYPOLLEDITEMS
+_MESSAGE.fields_by_name['notify_client_list'].message_type = _NOTIFYCLIENTLIST
+_MESSAGE_TYPE.containing_type = _MESSAGE
 DESCRIPTOR.message_types_by_name['RequestScanbus'] = _REQUESTSCANBUS
 DESCRIPTOR.message_types_by_name['RequestRead'] = _REQUESTREAD
 DESCRIPTOR.message_types_by_name['RequestSet'] = _REQUESTSET
@@ -1538,7 +1546,7 @@ DESCRIPTOR.message_types_by_name['NotifyWriteAccess'] = _NOTIFYWRITEACCESS
 DESCRIPTOR.message_types_by_name['NotifySilenced'] = _NOTIFYSILENCED
 DESCRIPTOR.message_types_by_name['NotifyPolledItems'] = _NOTIFYPOLLEDITEMS
 DESCRIPTOR.message_types_by_name['NotifyClientList'] = _NOTIFYCLIENTLIST
-DESCRIPTOR.message_types_by_name['MesycontrolMessage'] = _MESYCONTROLMESSAGE
+DESCRIPTOR.message_types_by_name['Message'] = _MESSAGE
 
 RequestScanbus = _reflection.GeneratedProtocolMessageType('RequestScanbus', (_message.Message,), dict(
   DESCRIPTOR = _REQUESTSCANBUS,
@@ -1719,12 +1727,12 @@ NotifyClientList = _reflection.GeneratedProtocolMessageType('NotifyClientList', 
 _sym_db.RegisterMessage(NotifyClientList)
 _sym_db.RegisterMessage(NotifyClientList.ClientEntry)
 
-MesycontrolMessage = _reflection.GeneratedProtocolMessageType('MesycontrolMessage', (_message.Message,), dict(
-  DESCRIPTOR = _MESYCONTROLMESSAGE,
+Message = _reflection.GeneratedProtocolMessageType('Message', (_message.Message,), dict(
+  DESCRIPTOR = _MESSAGE,
   __module__ = 'mesycontrol_pb2'
-  # @@protoc_insertion_point(class_scope:mesycontrol.proto.MesycontrolMessage)
+  # @@protoc_insertion_point(class_scope:mesycontrol.proto.Message)
   ))
-_sym_db.RegisterMessage(MesycontrolMessage)
+_sym_db.RegisterMessage(Message)
 
 
 _RESPONSEREADMULTI.fields_by_name['values'].has_options = True

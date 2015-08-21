@@ -4,6 +4,7 @@
 #include <boost/bind.hpp>
 #include <boost/format.hpp>
 #include <boost/log/trivial.hpp>
+#include <boost/make_shared.hpp>
 #include "tcp_connection.h"
 #include "tcp_connection_manager.h"
 
@@ -65,7 +66,7 @@ void TCPConnection::send_message(const MessagePtr &msg)
   }
 
   BOOST_LOG_SEV(m_log, log::lvl::trace) << connection_string()
-    << ": adding message of type " << msg->get_info_string() << " to the outgoing queue";
+    << ": adding message of type " << get_message_info(msg) << " to the outgoing queue";
   m_write_queue.push_back(msg);
   start_write_message();
 }
@@ -95,7 +96,7 @@ void TCPConnection::handle_read_message_size(const boost::system::error_code &ec
     if (m_read_size == 0) {
       BOOST_LOG_SEV(m_log, log::lvl::error) << connection_string()
         << ": zero request_size received";
-      send_message(MessageFactory::make_error_response(error_type::invalid_message_size));
+      send_message(MessageFactory::make_error_response(proto::ResponseError::INVALID_MESSAGE));
       m_connection_manager.stop(shared_from_this());
       return;
     }
@@ -129,10 +130,11 @@ void TCPConnection::handle_read_message(const boost::system::error_code &ec, std
 {
   if (!ec) {
     try {
-      MessagePtr msg(Message::deserialize(m_read_buf));
+      MessagePtr msg(boost::make_shared<proto::Message>());
+      msg->ParseFromArray(&m_read_buf[0], m_read_buf.size());
 
       BOOST_LOG_SEV(m_log, log::lvl::debug) << connection_string()
-        << ": received message = " << msg->get_info_string();
+        << ": received message = " << get_message_info(msg);
 
       m_connection_manager.dispatch_request(shared_from_this(), msg);
       start_read_message_size();
@@ -140,7 +142,7 @@ void TCPConnection::handle_read_message(const boost::system::error_code &ec, std
       BOOST_LOG_SEV(m_log, log::lvl::error) << connection_string()
         << ": error deserializing message: " << e.what();
 
-      send_message(MessageFactory::make_error_response(error_type::invalid_message_type));
+      send_message(MessageFactory::make_error_response(proto::ResponseError::INVALID_TYPE));
       m_connection_manager.stop(shared_from_this());
     }
   } else {
@@ -168,7 +170,7 @@ void TCPConnection::start_write_message()
 
   MessagePtr msg(m_write_queue.front());
   
-  m_write_buf  = msg->serialize();
+  msg->SerializeToString(&m_write_buf);
   m_write_size = htons(m_write_buf.size());
 
   boost::array<asio::const_buffer, 2> buffers =
@@ -186,7 +188,7 @@ void TCPConnection::handle_write_message(const boost::system::error_code &ec, st
   m_write_in_progress = false;
   if (!ec) {
     BOOST_LOG_SEV(m_log, log::lvl::trace) << connection_string()
-      << ": sent message of type " << m_write_queue.front()->get_info_string();
+      << ": sent message of type " << get_message_info(m_write_queue.front());
     m_write_queue.pop_front();
     start_write_message();
   } else {

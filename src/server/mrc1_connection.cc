@@ -7,6 +7,7 @@
 #include <boost/log/trivial.hpp>
 #include <boost/make_shared.hpp>
 #include "mrc1_connection.h"
+#include "protocol.h"
 
 namespace asio = boost::asio;
 namespace errc = boost::system::errc;
@@ -143,7 +144,7 @@ MRC1Connection::MRC1Connection(boost::asio::io_service &io_service):
   m_timeout_timer(io_service),
   m_io_timeout(default_io_timeout),
   m_reconnect_timeout(default_reconnect_timeout),
-  m_status(mrc_status::stopped),
+  m_status(proto::MRCStatus::STOPPED),
   m_silenced(false),
   m_auto_reconnect(true),
   m_log(log::keywords::channel="MRC1Connection")
@@ -152,9 +153,9 @@ MRC1Connection::MRC1Connection(boost::asio::io_service &io_service):
 
 bool MRC1Connection::is_stopped() const
 {
-  return m_status == mrc_status::stopped ||
-    m_status == mrc_status::connect_failed ||
-    m_status == mrc_status::init_failed;
+  return m_status == proto::MRCStatus::STOPPED ||
+    m_status == proto::MRCStatus::CONNECT_FAILED ||
+    m_status == proto::MRCStatus::INIT_FAILED;
 }
 
 void MRC1Connection::start()
@@ -162,7 +163,7 @@ void MRC1Connection::start()
   if (!is_stopped())
     return;
 
-  set_status(mrc_status::connecting);
+  set_status(proto::MRCStatus::CONNECTING);
   m_last_error = boost::system::error_code();
   m_current_command.reset();
   m_current_response_handler = 0;
@@ -174,23 +175,23 @@ void MRC1Connection::start()
 void MRC1Connection::handle_start(const boost::system::error_code &ec)
 {
   if (!ec) {
-    set_status(mrc_status::initializing);
+    set_status(proto::MRCStatus::INITIALIZING);
     BOOST_LOG_SEV(m_log, log::lvl::info) << "Initializing MRC";
     boost::make_shared<MRC1Initializer>(shared_from_this(),
         boost::bind(&MRC1Connection::handle_init, shared_from_this(), _1))
       ->start();
   } else {
-    stop(ec, mrc_status::connect_failed);
+    stop(ec, proto::MRCStatus::CONNECT_FAILED);
     reconnect_if_enabled();
   }
 }
 
 void MRC1Connection::stop()
 {
-  stop(boost::system::error_code(), mrc_status::stopped);
+  stop(boost::system::error_code(), proto::MRCStatus::STOPPED);
 }
 
-void MRC1Connection::stop(const boost::system::error_code &reason, mrc_status::Status new_status)
+void MRC1Connection::stop(const boost::system::error_code &reason, proto::MRCStatus::Status new_status)
 {
   stop_impl();
   m_timeout_timer.cancel();
@@ -211,11 +212,11 @@ void MRC1Connection::reconnect_if_enabled()
 void MRC1Connection::handle_init(const boost::system::error_code &ec)
 {
   if (!ec) {
-    set_status(mrc_status::running);
+    set_status(proto::MRCStatus::RUNNING);
     BOOST_LOG_SEV(m_log, log::lvl::info) << "MRC connection ready";
   } else {
     BOOST_LOG_SEV(m_log, log::lvl::info) << "MRC initialization failed: " << ec.message();
-    stop(ec, mrc_status::init_failed);
+    stop(ec, proto::MRCStatus::INIT_FAILED);
     reconnect_if_enabled();
   }
 }
@@ -235,17 +236,18 @@ bool MRC1Connection::write_command(const MessagePtr &command,
 
   if (is_silenced()) {
     m_io_service.post(boost::bind(response_handler, command,
-          MessageFactory::make_error_response(error_type::silenced)));
+          MessageFactory::make_error_response(proto::ResponseError::SILENCED)));
     return true;
   }
 
   m_current_response_handler = response_handler;
   m_current_command          = command;
-  std::string command_string = command->get_mrc1_command_string();
+  std::string command_string = get_mrc1_command_string(command);
   m_write_buffer             = command_string + command_terminator;
   m_reply_parser.set_current_request(command);
 
-  BOOST_LOG_SEV(m_log, log::lvl::debug) << "writing '" << command->get_mrc1_command_string() << "'";
+  BOOST_LOG_SEV(m_log, log::lvl::debug)
+    << "writing '" << get_mrc1_command_string(command) << "'";
 
   start_write(m_write_buffer,
       boost::bind(&MRC1Connection::handle_write_command, shared_from_this(), _1, _2));
@@ -265,7 +267,7 @@ void MRC1Connection::handle_write_command(const boost::system::error_code &ec, s
     BOOST_LOG_SEV(m_log, log::lvl::error) << "write failed: " << ec.message();
 
     MessagePtr response = MessageFactory::make_error_response(
-        ec == errc::operation_canceled ? error_type::mrc_comm_timeout : error_type::mrc_comm_error);
+        ec == errc::operation_canceled ? proto::ResponseError::COM_TIMEOUT : proto::ResponseError::COM_ERROR);
 
     m_io_service.post(boost::bind(m_current_response_handler, m_current_command, response));
     m_current_command.reset();
@@ -297,7 +299,7 @@ void MRC1Connection::handle_read_line(const boost::system::error_code &ec, std::
           boost::bind(&MRC1Connection::handle_read_line, shared_from_this(), _1, _2));
     } else {
       BOOST_LOG_SEV(m_log, log::lvl::debug) << "reply parsing done, result="
-        << m_reply_parser.get_response_message()->get_info_string();
+        << m_reply_parser.get_response_message();
 
       /* Parsing complete. Call the response handler. */
       m_io_service.post(boost::bind(m_current_response_handler, m_current_command,
@@ -310,7 +312,7 @@ void MRC1Connection::handle_read_line(const boost::system::error_code &ec, std::
     BOOST_LOG_SEV(m_log, log::lvl::error) << "read failed: " << ec.message();
 
     MessagePtr response = MessageFactory::make_error_response(
-        ec == errc::operation_canceled ? error_type::mrc_comm_timeout : error_type::mrc_comm_error);
+        ec == errc::operation_canceled ? proto::ResponseError::COM_TIMEOUT : proto::ResponseError::COM_ERROR);
 
     m_io_service.post(boost::bind(m_current_response_handler, m_current_command, response));
     m_current_command.reset();
@@ -374,10 +376,12 @@ void MRC1Connection::handle_reconnect_timeout(const boost::system::error_code &e
   }
 }
 
-void MRC1Connection::set_status(const mrc_status::Status &status)
+void MRC1Connection::set_status(const proto::MRCStatus::Status &status)
 {
   BOOST_LOG_SEV(m_log, log::lvl::info) << "MRC status changed: "
-    << to_string(m_status) << " -> " << to_string(status);
+    << proto::MRCStatus::Status_Name(m_status)
+    << " -> "
+    << proto::MRCStatus::Status_Name(status);
 
   m_status = status;
 

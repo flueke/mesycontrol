@@ -14,4 +14,11 @@ def is_notification(msg):
     return msg.Type.Name(msg.type).startswith('NOTIFY_')
 
 def is_error_response(msg):
-    return msg.type == msg.RESP_ERROR
+    return msg.type == Message.RESP_ERROR
+
+class MessageError(RuntimeError):
+    def __init__(self, message=None, request=None, text=None, *args):
+        super(MessageError, self).__init__(*args)
+        self.message = message
+        self.request = request
+        self.text    = text
