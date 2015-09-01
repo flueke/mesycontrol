@@ -71,6 +71,9 @@ class GUIApplication(QtCore.QObject):
         # Load device modules
         context.init_device_registry()
 
+        for mod in context.device_registry.modules.itervalues():
+            self.logview.append("Loaded device module '%s'" % (mod.__name__))
+
         # Clean resources on exit
         context.add_shutdown_callback(resources.qCleanupResources)
 
@@ -355,7 +358,7 @@ class GUIApplication(QtCore.QObject):
 
         # Quit
         action = QtGui.QAction("&Quit", self, triggered=self.mainwindow.close)
-        action.setShortcut(QtGui.QKeySequence.Quit)
+        action.setShortcuts((QtGui.QKeySequence("Ctrl+Q"), QtGui.QKeySequence.Quit))
         action.setShortcutContext(Qt.ApplicationShortcut)
         self.actions['quit'] = action
 
