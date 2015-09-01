@@ -12,11 +12,11 @@ import traceback
 import util
 
 class LogView(QtGui.QTextEdit):
-    def __init__(self, max_lines=10000, parent=None):
+    def __init__(self, max_lines=10000, line_wrap=QtGui.QTextEdit.NoWrap, parent=None):
         super(LogView, self).__init__(parent)
         self.setReadOnly(True)
-        #self.setLineWrapMode(QtGui.QTextEdit.NoWrap)
         self.document().setMaximumBlockCount(max_lines)
+        self.setLineWrapMode(line_wrap)
 
         self.formatter = logging.Formatter(
                 fmt='%(asctime)s: %(message)s',
@@ -49,7 +49,10 @@ class LogView(QtGui.QTextEdit):
         with QtCore.QMutexLocker(self._mutex):
             try:
                 self.setTextColor(QtGui.QColor("#ff0000"))
-                self.append(("".join(traceback.format_exception(exc_type, exc_value, exc_trace)).strip()))
+                lines = exc_value.traceback_lines
+                self.append("".join(lines).strip())
+            except AttributeError:
+                self.append("".join(traceback.format_exception(exc_type, exc_value, exc_trace)).strip())
             finally:
                 self.setTextColor(self._original_text_color)
 
