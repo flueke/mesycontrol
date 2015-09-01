@@ -61,7 +61,7 @@ class Future(object):
 
         if self._exception is not None:
             self._exception_observed = True
-            raise self._exception, None, self._traceback
+            raise self._exception
 
         return self._result
 
@@ -133,8 +133,9 @@ class Future(object):
         if self.done():
             raise FutureIsDone(self)
 
-        self._exception     = exception
-        self._traceback     = sys.exc_info()[2]
+        exception.traceback_lines = traceback.format_exception(*sys.exc_info())
+
+        self._exception = exception
         self._set_done()
 
         return self
