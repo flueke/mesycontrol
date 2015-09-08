@@ -27,7 +27,8 @@ class MRC1Connection:
     /** Default timeout between reconnect attempts. */
     static const boost::posix_time::time_duration default_reconnect_timeout;
 
-    typedef boost::function<void (const proto::MRCStatus::Status &)> StatusChangeCallback;
+    typedef boost::function<void (const proto::MRCStatus::Status &,
+        const std::string &, const std::string &, bool)> StatusChangeCallback;
 
     MRC1Connection(boost::asio::io_service &io_service);
 
@@ -128,7 +129,8 @@ class MRC1Connection:
     void stop(const boost::system::error_code &reason,
         proto::MRCStatus::Status new_status = proto::MRCStatus::STOPPED);
     void reconnect_if_enabled();
-    void set_status(const proto::MRCStatus::Status &status);
+    void set_status(const proto::MRCStatus::Status &status, const std::string &info=std::string(),
+        const std::string &version=std::string(), bool has_read_multi=false);
 
     friend class MRC1Initializer;
 

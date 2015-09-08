@@ -22,6 +22,17 @@ namespace
     ret->set_type(type);
     return ret;
   }
+
+  MessagePtr make_status_message(const proto::Message::Type &type, const proto::MRCStatus::Status &status,
+      const std::string &info, const std::string &version, bool has_read_multi)
+  {
+    MessagePtr ret(make_message(type));
+    ret->mutable_mrc_status()->set_status(status);
+    ret->mutable_mrc_status()->set_info(info);
+    ret->mutable_mrc_status()->set_version(version);
+    ret->mutable_mrc_status()->set_has_read_multi(has_read_multi);
+    return ret;
+  }
 }
 
 MessagePtr MessageFactory::make_scanbus_response(boost::uint8_t bus)
@@ -112,23 +123,15 @@ MessagePtr MessageFactory::make_parameter_set_notification(boost::uint8_t bus, b
 MessagePtr MessageFactory::make_mrc_status_response(const proto::MRCStatus::Status &status,
     const std::string &info, const std::string &version, bool has_read_multi)
 {
-  MessagePtr ret(make_message(proto::Message::RESP_ERROR));
-  ret->mutable_mrc_status()->set_status(status);
-  ret->mutable_mrc_status()->set_info(info);
-  ret->mutable_mrc_status()->set_version(version);
-  ret->mutable_mrc_status()->set_has_read_multi(has_read_multi);
-  return ret;
+  return make_status_message(proto::Message::RESP_MRC_STATUS,
+      status, info, version, has_read_multi);
 }
 
 MessagePtr MessageFactory::make_mrc_status_notification(const proto::MRCStatus::Status &status,
     const std::string &info, const std::string &version, bool has_read_multi)
 {
-  MessagePtr ret(make_message(proto::Message::NOTIFY_MRC_STATUS));
-  ret->mutable_mrc_status()->set_status(status);
-  ret->mutable_mrc_status()->set_info(info);
-  ret->mutable_mrc_status()->set_version(version);
-  ret->mutable_mrc_status()->set_has_read_multi(has_read_multi);
-  return ret;
+  return make_status_message(proto::Message::NOTIFY_MRC_STATUS,
+      status, info, version, has_read_multi);
 }
 
 MessagePtr MessageFactory::make_read_multi_response(boost::uint8_t bus, boost::uint8_t dev,

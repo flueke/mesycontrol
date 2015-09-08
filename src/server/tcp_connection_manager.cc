@@ -12,7 +12,7 @@ TCPConnectionManager::TCPConnectionManager(MRC1RequestQueue &mrc1_queue)
   , m_skip_read_after_set_response(false)
 {
   m_mrc1_queue.get_mrc1_connection()->register_status_change_callback(
-      boost::bind(&TCPConnectionManager::handle_mrc1_status_change, this, _1));
+      boost::bind(&TCPConnectionManager::handle_mrc1_status_change, this, _1, _2, _3, _4));
 }
 
 void TCPConnectionManager::start(TCPConnectionPtr c)
@@ -209,9 +209,11 @@ void TCPConnectionManager::handle_read_after_set(const TCPConnectionPtr &connect
   m_skip_read_after_set_response = false;
 }
 
-void TCPConnectionManager::handle_mrc1_status_change(const proto::MRCStatus::Status &status)
+void TCPConnectionManager::handle_mrc1_status_change(const proto::MRCStatus::Status &status,
+    const std::string &info, const std::string &version, bool has_read_multi)
 {
-  send_to_all(MessageFactory::make_mrc_status_notification(status));
+  send_to_all(MessageFactory::make_mrc_status_notification(status, info, version,
+        has_read_multi));
 }
 
 void TCPConnectionManager::set_write_connection(const TCPConnectionPtr &connection)

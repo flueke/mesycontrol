@@ -196,7 +196,7 @@ void MRC1Connection::stop(const boost::system::error_code &reason, proto::MRCSta
   stop_impl();
   m_timeout_timer.cancel();
   m_last_error = reason;
-  set_status(new_status);
+  set_status(new_status, reason.message());
   BOOST_LOG_SEV(m_log, log::lvl::info) << "stopped";
 }
 
@@ -378,17 +378,21 @@ void MRC1Connection::handle_reconnect_timeout(const boost::system::error_code &e
   }
 }
 
-void MRC1Connection::set_status(const proto::MRCStatus::Status &status)
+void MRC1Connection::set_status(const proto::MRCStatus::Status &status,
+    const std::string &info, const std::string &version, bool has_read_multi)
 {
   BOOST_LOG_SEV(m_log, log::lvl::info) << "MRC status changed: "
     << proto::MRCStatus::Status_Name(m_status)
     << " -> "
-    << proto::MRCStatus::Status_Name(status);
+    << proto::MRCStatus::Status_Name(status)
+    << "(i="  << info
+    << ",v="  << version
+    << ",rb=" << has_read_multi << ")";
 
   m_status = status;
 
   BOOST_FOREACH(StatusChangeCallback callback, m_status_change_callbacks) {
-    callback(m_status);
+    callback(m_status, info, version, has_read_multi);
   }
 }
 
