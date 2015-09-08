@@ -22,6 +22,8 @@ class MRC(bm.MRC):
     address_conflict_changed    = pyqtSignal(bool)
     polling_changed             = pyqtSignal(bool)
 
+    status_changed              = pyqtSignal(object)
+
 
     def __init__(self, url, parent=None):
         super(MRC, self).__init__(url, parent)
@@ -33,6 +35,7 @@ class MRC(bm.MRC):
         self._disconnected = True
         self._polling = True
         self.last_connection_error = None
+        self._status = None
 
     def set_controller(self, controller):
         """Set the hardware controller this MRC should use.
@@ -47,6 +50,13 @@ class MRC(bm.MRC):
 
     def get_controller(self):
         return self._controller
+
+    def set_status(self, status):
+        self._status = status
+        self.status_changed.emit(status)
+
+    def get_status(self):
+        return self._status
 
     def add_device(self, device):
         super(MRC, self).add_device(device)

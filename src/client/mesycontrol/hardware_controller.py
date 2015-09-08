@@ -11,8 +11,6 @@ import hardware_model as hm
 import proto
 import util
 
-# Periodic scanbus
-# Wie? timer
 # Polling, poll sets
 # Read Range
 
@@ -67,6 +65,7 @@ class Controller(object):
 
         self.connection.connected.connect(on_connected)
         self.connection.disconnected.connect(on_disconnected)
+        self.connection.notification_received.connect(self._on_notification_received)
 
     def set_mrc(self, mrc):
         """Set the hardware_model.MRC instance this controller should work with."""
@@ -316,3 +315,7 @@ class Controller(object):
 
     def __str__(self):
         return "Controller(%s)" % util.display_url(self.connection.url)
+
+    def _on_notification_received(self, msg):
+        if msg.type == proto.Message.NOTIFY_MRC_STATUS:
+            self.mrc.set_status(msg)
