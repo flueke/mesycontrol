@@ -134,8 +134,11 @@ class MRCConnection(AbstractConnection):
                 self.connected.emit()
                 self.log.debug("%s: connected & running", self.url)
             else:
-                self._connecting_future.set_progress_text("MRC status: %s" %
-                        proto.Message.Type.Name(msg.type));
+                self._connecting_future.set_progress_text("MRC status: %s - %s" % (
+                        proto.MRCStatus.Status.Name(msg.mrc_status.status),
+                        msg.mrc_status.info
+                        ))
+                        # proto.Message.Type.Name(msg.type));
                         #(MRCStatus.by_code[msg.status]['description'],))
 
     def _on_client_disconnected(self):

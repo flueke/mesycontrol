@@ -72,7 +72,8 @@ class GUIApplication(QtCore.QObject):
         context.init_device_registry()
 
         for mod in context.device_registry.modules.itervalues():
-            self.logview.append("Loaded device module '%s'" % (mod.__name__))
+            self.logview.append("Loaded device module '%s' (idc=%d, name=%s)" %
+                    (mod.__name__, mod.idc, mod.profile.name))
 
         # Clean resources on exit
         context.add_shutdown_callback(resources.qCleanupResources)

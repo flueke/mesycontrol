@@ -268,6 +268,7 @@ void MRC1Connection::handle_write_command(const boost::system::error_code &ec, s
 
     MessagePtr response = MessageFactory::make_error_response(
         ec == errc::operation_canceled ? proto::ResponseError::COM_TIMEOUT : proto::ResponseError::COM_ERROR);
+    response->mutable_mrc_status()->set_info(ec.message());
 
     m_io_service.post(boost::bind(m_current_response_handler, m_current_command, response));
     m_current_command.reset();
@@ -313,6 +314,7 @@ void MRC1Connection::handle_read_line(const boost::system::error_code &ec, std::
 
     MessagePtr response = MessageFactory::make_error_response(
         ec == errc::operation_canceled ? proto::ResponseError::COM_TIMEOUT : proto::ResponseError::COM_ERROR);
+    response->mutable_mrc_status()->set_info(ec.message());
 
     m_io_service.post(boost::bind(m_current_response_handler, m_current_command, response));
     m_current_command.reset();

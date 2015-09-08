@@ -22,3 +22,7 @@ class MessageError(RuntimeError):
         self.message = message
         self.request = request
         self.text    = text
+
+    def __str__(self):
+        return "MessageError(%s, %s, %s)" % (
+                self.message, self.request, self.text)

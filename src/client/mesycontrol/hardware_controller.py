@@ -174,10 +174,10 @@ class Controller(object):
 
         m = proto.Message()
         m.type = proto.Message.REQ_SET
-        m.request_set.bus       = bus
-        m.request_set.dev       = device
-        m.request_set.par       = address
-        m.request_set.val       = value
+        m.request_set.bus       = int(bus)
+        m.request_set.dev       = int(device)
+        m.request_set.par       = int(address)
+        m.request_set.val       = int(value)
         m.request_set.mirror    = False
         request_future = self.connection.queue_request(m).add_done_callback(on_response_received)
 
