@@ -54,7 +54,7 @@ set(PYTHON_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/model_util.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/mrc_connection.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/parameter_binding.py"
-    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/protocol.py"
+    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/proto.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/qt.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/resources.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/script.py"
