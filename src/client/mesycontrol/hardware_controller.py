@@ -297,6 +297,9 @@ class Controller(object):
                     sorted(polled_items_by_device[(bus, dev)]))
 
     def add_poll_item(self, subscriber, bus, address, item):
+        """Add a poll subscription for the given (bus, address, item). Item may
+        be a single parameter address or a tuple of (lower, upper) addresses to
+        poll. The poll item is removed if the given subscriber is destroyed."""
         items = self._poll_items.setdefault(subscriber, set())
         items.add((bus, address, item))
 
