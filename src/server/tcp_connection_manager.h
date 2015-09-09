@@ -7,6 +7,7 @@
 #include "tcp_connection.h"
 #include "mrc1_request_queue.h"
 #include "logging.h"
+#include "poller.h"
 
 namespace mesycontrol
 {
@@ -62,6 +63,8 @@ class TCPConnectionManager: private boost::noncopyable
 
     /// Flag to indicate that the read_after_set response should not be send.
     bool m_skip_read_after_set_response;
+
+    Poller m_poller;
 };
 
 } // namespace mesycontrol

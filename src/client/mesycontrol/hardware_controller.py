@@ -255,46 +255,76 @@ class Controller(object):
     def get_poll_min_interval(self):
         return self._poll_timer.interval()
 
+    #def _on_poll_timer_timeout(self):
+    #    if not self.connection.is_connected():
+    #        return
+
+    #    if self.connection.get_queue_size() > 0:
+    #        return
+
+    #    if len(self._poll_items):
+    #        self.log.debug("%s: polling subscribers: %s",
+    #                self, self._poll_items.keys())
+
+    #    # Merge all poll items into one set.
+    #    # Note: This does not try to merge any overlapping ranges. Those will
+    #    # lead to parameters being read multiple times.
+    #    items = reduce(lambda x, y: x.union(y), self._poll_items.values(), set())
+
+    #    polled_items_by_device = dict()
+
+    #    for bus, dev, item in items:
+    #        device = self.mrc.get_device(bus, dev)
+    #        if not device or not device.polling:
+    #            continue
+
+    #        polled_items = polled_items_by_device.setdefault((bus, dev), set())
+
+    #        # Note: below device.read_parameter() is used instead of
+    #        # self.read_parameter(). This ensures the device can update its
+    #        # memory cache and keep track of reads in progress.
+    #        try:
+    #            lower, upper = item
+    #            polled_items.add((lower, upper))
+    #            for param in xrange(lower, upper+1):
+    #                device.read_parameter(param)
+    #        except TypeError:
+    #            polled_items.add(item)
+    #            device.read_parameter(item)
+
+    #    for bus, dev in sorted(polled_items_by_device.keys()):
+    #        self.log.debug("%s: polled (%d, %d): %s", self, bus, dev,
+    #                sorted(polled_items_by_device[(bus, dev)]))
+
     def _on_poll_timer_timeout(self):
         if not self.connection.is_connected():
             return
-
-        if self.connection.get_queue_size() > 0:
-            return
-
-        if len(self._poll_items):
-            self.log.debug("%s: polling subscribers: %s",
-                    self, self._poll_items.keys())
 
         # Merge all poll items into one set.
         # Note: This does not try to merge any overlapping ranges. Those will
         # lead to parameters being read multiple times.
         items = reduce(lambda x, y: x.union(y), self._poll_items.values(), set())
 
-        polled_items_by_device = dict()
+        if not len(items):
+            return
+
+        m = proto.Message()
+        m.type = proto.Message.REQ_SET_POLL_ITEMS
 
         for bus, dev, item in items:
-            device = self.mrc.get_device(bus, dev)
-            if not device or not device.polling:
-                continue
+            proto_item = m.request_set_poll_items.items.add()
+            proto_item.bus = bus
+            proto_item.dev = dev
 
-            polled_items = polled_items_by_device.setdefault((bus, dev), set())
-
-            # Note: below device.read_parameter() is used instead of
-            # self.read_parameter(). This ensures the device can update its
-            # memory cache and keep track of reads in progress.
             try:
                 lower, upper = item
-                polled_items.add((lower, upper))
-                for param in xrange(lower, upper+1):
-                    device.read_parameter(param)
+                proto_item.par   = lower
+                proto_item.count = (upper - lower) + 1
             except TypeError:
-                polled_items.add(item)
-                device.read_parameter(item)
+                proto_item.par   = item
+                proto_item.count = 1
 
-        for bus, dev in sorted(polled_items_by_device.keys()):
-            self.log.debug("%s: polled (%d, %d): %s", self, bus, dev,
-                    sorted(polled_items_by_device[(bus, dev)]))
+        self.connection.queue_request(m)
 
     def add_poll_item(self, subscriber, bus, address, item):
         """Add a poll subscription for the given (bus, address, item). Item may

@@ -10,6 +10,7 @@ TCPConnectionManager::TCPConnectionManager(MRC1RequestQueue &mrc1_queue)
   : m_mrc1_queue(mrc1_queue)
   , m_log(log::keywords::channel="TCPConnectionManager")
   , m_skip_read_after_set_response(false)
+  , m_poller(mrc1_queue)
 {
   m_mrc1_queue.get_mrc1_connection()->register_status_change_callback(
       boost::bind(&TCPConnectionManager::handle_mrc1_status_change, this, _1, _2, _3, _4));
@@ -139,8 +140,13 @@ void TCPConnectionManager::dispatch_request(const TCPConnectionPtr &connection, 
             m_mrc1_queue.get_mrc1_connection()->get_status());
         break;
 
+      case proto::Message::REQ_SET_POLL_ITEMS:
+        m_poller.set_poll_request(connection, request->request_set_poll_items());
+        break;
+
       default:
-        /* Error: a response_* or notify_* message was received. */
+        BOOST_LOG_SEV(m_log, log::lvl::error) << connection->connection_string()
+          << ": invalid message received: " << get_message_info(request);
         response = MessageFactory::make_error_response(proto::ResponseError::INVALID_TYPE);
         stop_connection = true;
     }

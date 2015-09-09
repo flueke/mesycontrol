@@ -75,20 +75,6 @@
     <bool>false</bool>
    </attribute>
   </widget>
-  <action name="action_Quit">
-   <property name="text">
-    <string>&amp;Quit</string>
-   </property>
-   <property name="statusTip">
-    <string>Quit the application</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+Q</string>
-   </property>
-   <property name="shortcutContext">
-    <enum>Qt::ApplicationShortcut</enum>
-   </property>
-  </action>
   <action name="action_Cascade_Windows">
    <property name="text">
     <string>&amp;Cascade Windows</string>

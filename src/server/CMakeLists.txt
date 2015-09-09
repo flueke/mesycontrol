@@ -21,6 +21,7 @@ set(MESYCONTROL_SERVER_SRCS
     mrc1_connection.cc
     mrc1_reply_parser.cc
     mrc1_request_queue.cc
+    poller.cc
     protocol.cc
     tcp_connection.cc
     tcp_connection.cc
