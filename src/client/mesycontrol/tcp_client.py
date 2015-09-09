@@ -11,7 +11,6 @@ import struct
 
 from future import Future
 from google.protobuf import message as proto_message
-import protocol
 import proto
 import util
 
