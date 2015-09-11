@@ -22,7 +22,6 @@ class TimeoutError(RuntimeError):
         return "Connection timed out"
 
 SCANBUS_INTERVAL_MSEC  = 5000
-POLL_MIN_INTERVAL_MSEC =  500
 
 class Controller(object):
     """Link between hardware_model.MRC and MRCConnection.
@@ -30,9 +29,7 @@ class Controller(object):
     accordingly. Also takes requests from the hardware model and forwards them
     to the connection.
     """
-    def __init__(self, connection,
-            scanbus_interval_msec=SCANBUS_INTERVAL_MSEC,
-            poll_min_interval_msec=POLL_MIN_INTERVAL_MSEC):
+    def __init__(self, connection, scanbus_interval_msec=SCANBUS_INTERVAL_MSEC):
 
         self.log        = util.make_logging_source_adapter(__name__, self)
 
@@ -42,10 +39,7 @@ class Controller(object):
         self._scanbus_timer.timeout.connect(self._on_scanbus_timer_timeout)
         self.set_scanbus_interval(scanbus_interval_msec)
 
-        self._poll_timer = QtCore.QTimer()
-        self._poll_timer.timeout.connect(self._on_poll_timer_timeout)
         self._poll_items = weakref.WeakKeyDictionary()
-        self.set_poll_min_interval(poll_min_interval_msec)
 
         self._connect_timer = QtCore.QTimer()
         self._connect_timer.setSingleShot(True)
@@ -57,11 +51,9 @@ class Controller(object):
                 self.scanbus(i)
 
             self._scanbus_timer.start()
-            self._poll_timer.start()
 
         def on_disconnected():
             self._scanbus_timer.stop()
-            self._poll_timer.stop()
 
         self.connection.connected.connect(on_connected)
         self.connection.disconnected.connect(on_disconnected)
@@ -249,64 +241,31 @@ class Controller(object):
             for i in bm.BUS_RANGE:
                 self.scanbus(i)
 
-    def set_poll_min_interval(self, msec):
-        self._poll_timer.setInterval(msec)
+    def add_poll_item(self, subscriber, bus, address, item):
+        """Add a poll subscription for the given (bus, address, item). Item may
+        be a single parameter address or a tuple of (lower, upper) addresses to
+        poll. The poll item is removed if the given subscriber is destroyed."""
 
-    def get_poll_min_interval(self):
-        return self._poll_timer.interval()
+        self.log.debug("add_poll_item: (%s, %d, %d, %s)", subscriber, bus, address, item)
 
-    #def _on_poll_timer_timeout(self):
-    #    if not self.connection.is_connected():
-    #        return
+        items = self._poll_items.setdefault(subscriber, set())
+        items.add((bus, address, item))
 
-    #    if self.connection.get_queue_size() > 0:
-    #        return
+        return self._send_poll_request()
 
-    #    if len(self._poll_items):
-    #        self.log.debug("%s: polling subscribers: %s",
-    #                self, self._poll_items.keys())
+    def remove_polling_subscriber(self, subscriber):
+        self.log.debug("remove_polling_subscriber: %s", subscriber)
 
-    #    # Merge all poll items into one set.
-    #    # Note: This does not try to merge any overlapping ranges. Those will
-    #    # lead to parameters being read multiple times.
-    #    items = reduce(lambda x, y: x.union(y), self._poll_items.values(), set())
+        del self._poll_items[subscriber]
+        return self._send_poll_request()
 
-    #    polled_items_by_device = dict()
-
-    #    for bus, dev, item in items:
-    #        device = self.mrc.get_device(bus, dev)
-    #        if not device or not device.polling:
-    #            continue
-
-    #        polled_items = polled_items_by_device.setdefault((bus, dev), set())
-
-    #        # Note: below device.read_parameter() is used instead of
-    #        # self.read_parameter(). This ensures the device can update its
-    #        # memory cache and keep track of reads in progress.
-    #        try:
-    #            lower, upper = item
-    #            polled_items.add((lower, upper))
-    #            for param in xrange(lower, upper+1):
-    #                device.read_parameter(param)
-    #        except TypeError:
-    #            polled_items.add(item)
-    #            device.read_parameter(item)
-
-    #    for bus, dev in sorted(polled_items_by_device.keys()):
-    #        self.log.debug("%s: polled (%d, %d): %s", self, bus, dev,
-    #                sorted(polled_items_by_device[(bus, dev)]))
-
-    def _on_poll_timer_timeout(self):
-        if not self.connection.is_connected():
-            return
-
+    def _send_poll_request(self):
         # Merge all poll items into one set.
         # Note: This does not try to merge any overlapping ranges. Those will
         # lead to parameters being read multiple times.
         items = reduce(lambda x, y: x.union(y), self._poll_items.values(), set())
 
-        if not len(items):
-            return
+        self.log.debug("_send_poll_request: request contains %d items", len(items))
 
         m = proto.Message()
         m.type = proto.Message.REQ_SET_POLL_ITEMS
@@ -324,20 +283,9 @@ class Controller(object):
                 proto_item.par   = item
                 proto_item.count = 1
 
-        self.connection.queue_request(m)
+        assert len(items) == len(m.request_set_poll_items.items)
 
-    def add_poll_item(self, subscriber, bus, address, item):
-        """Add a poll subscription for the given (bus, address, item). Item may
-        be a single parameter address or a tuple of (lower, upper) addresses to
-        poll. The poll item is removed if the given subscriber is destroyed."""
-        items = self._poll_items.setdefault(subscriber, set())
-        items.add((bus, address, item))
-
-    def remove_polling_subscriber(self, subscriber):
-        try:
-            del self._poll_items[subscriber]
-        except KeyError:
-            pass
+        return self.connection.queue_request(m)
 
     def _on_connect_timer_timeout(self):
         if self._connect_future is not None and not self._connect_future.done():
@@ -352,3 +300,15 @@ class Controller(object):
     def _on_notification_received(self, msg):
         if msg.type == proto.Message.NOTIFY_MRC_STATUS:
             self.mrc.set_status(msg)
+
+        elif msg.type == proto.Message.NOTIFY_POLLED_ITEMS:
+            self.log.debug("received poll notification")
+
+            items = msg.notify_polled_items.items
+
+            for item in items:
+                device = self.mrc.get_device(item.bus, item.dev)
+                if device is None:
+                    continue
+                for i, value in enumerate(item.values):
+                    device.set_cached_parameter(item.par + i, value)

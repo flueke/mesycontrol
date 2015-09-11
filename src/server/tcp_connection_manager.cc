@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <boost/bind.hpp>
 #include <boost/log/trivial.hpp>
+#include <boost/make_shared.hpp>
 #include "tcp_connection_manager.h"
 
 namespace mesycontrol
@@ -40,6 +41,7 @@ void TCPConnectionManager::stop(TCPConnectionPtr c, bool graceful)
     set_write_connection(TCPConnectionPtr());
   }
 
+  m_poller.remove_poller(c);
   m_connections.erase(c);
   c->stop(graceful);
 }
@@ -141,7 +143,30 @@ void TCPConnectionManager::dispatch_request(const TCPConnectionPtr &connection, 
         break;
 
       case proto::Message::REQ_SET_POLL_ITEMS:
-        m_poller.set_poll_request(connection, request->request_set_poll_items());
+        {
+          PollItems items;
+
+          const proto::RequestSetPollItems &poll_request(request->request_set_poll_items());
+
+          BOOST_LOG_SEV(m_log, log::lvl::info)
+            << connection->connection_string()
+            << ": received " << poll_request.items_size() << " poll items";
+
+          for (int i=0; i<poll_request.items_size(); ++i) {
+            const proto::RequestSetPollItems::PollItem &proto_item(poll_request.items(i));
+
+            // Expand the protocol poll item into individual parameters.
+            for (boost::uint32_t par=proto_item.par();
+                par<proto_item.par()+proto_item.count(); ++par) {
+
+              items.push_back(PollItem(proto_item.bus(), proto_item.dev(), par));
+            }
+          }
+
+          m_poller.set_poll_items(connection, items);
+
+          response = MessageFactory::make_bool_response(true);
+        }
         break;
 
       default:
@@ -254,6 +279,27 @@ void TCPConnectionManager::set_write_connection(const TCPConnectionPtr &connecti
 
   BOOST_LOG_SEV(m_log, log::lvl::info) << "Write access changed from "
     << old_writer_info << " to " << new_writer_info;
+}
+
+void TCPConnectionManager::handle_poll_cycle_complete(
+    const Poller::ResultList &result_list)
+{
+  MessagePtr m(boost::make_shared<proto::Message>());
+  m->set_type(proto::Message::NOTIFY_POLLED_ITEMS);
+
+  for (Poller::ResultList::const_iterator it=result_list.begin();
+      it!=result_list.end(); ++it) {
+
+    proto::NotifyPolledItems::PollResult *pr(
+        m->mutable_notify_polled_items()->add_items());
+
+    pr->set_bus(it->bus);
+    pr->set_dev(it->dev);
+    pr->set_par(it->par);
+    pr->add_values(it->val);
+  }
+
+  send_to_all(m);
 }
 
 } // namespace mesycontrol

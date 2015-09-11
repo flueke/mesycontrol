@@ -49,6 +49,8 @@ class TCPConnectionManager: private boost::noncopyable
 
     void set_write_connection(const TCPConnectionPtr &connection);
 
+    void handle_poll_cycle_complete(const Poller::ResultList &result_list);
+
     /// The managed connections.
     std::set<TCPConnectionPtr> m_connections;
 

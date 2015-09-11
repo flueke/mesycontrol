@@ -26,6 +26,9 @@ class MRC1RequestQueue: private boost::noncopyable
 
     static const boost::asio::steady_timer::duration default_retry_timeout;
 
+    size_t size() const
+    { return m_request_queue.size(); }
+
   private:
     typedef std::deque<std::pair<MessagePtr, ResponseHandler> > QueueType;
 
