@@ -3,7 +3,6 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 from functools import partial
-import collections
 import weakref
 
 from qt import QtCore
@@ -436,10 +435,9 @@ class Device(AppObject):
                 new_state = new_state and extensions_match
 
         if new_state != old_state:
+            self.log.debug("%s: config_applied changed: %s", self, new_state)
             self._config_applied = new_state
             self.config_applied_changed.emit(new_state)
-
-        self.log.debug("%s: config_applied=%s", self, new_state)
 
     def _update_config_addresses(self):
         if self.idc_conflict:
