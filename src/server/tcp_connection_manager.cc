@@ -15,6 +15,9 @@ TCPConnectionManager::TCPConnectionManager(MRC1RequestQueue &mrc1_queue)
 {
   m_mrc1_queue.get_mrc1_connection()->register_status_change_callback(
       boost::bind(&TCPConnectionManager::handle_mrc1_status_change, this, _1, _2, _3, _4));
+
+  m_poller.register_result_handler(boost::bind(
+        &TCPConnectionManager::handle_poll_cycle_complete, this, _1));
 }
 
 void TCPConnectionManager::start(TCPConnectionPtr c)
@@ -49,10 +52,16 @@ void TCPConnectionManager::stop(TCPConnectionPtr c, bool graceful)
 void TCPConnectionManager::stop_all(bool graceful)
 {
   BOOST_LOG_SEV(m_log, log::lvl::debug) << "Stopping all connections";
+
   std::for_each(m_connections.begin(), m_connections.end(),
       boost::bind(&TCPConnection::stop, _1, graceful));
+
   m_connections.clear();
   set_write_connection(TCPConnectionPtr());
+
+  std::for_each(m_connections.begin(), m_connections.end(),
+      boost::bind(&Poller::remove_poller, &m_poller, _1));
+  m_poller.stop();
 }
 
 void TCPConnectionManager::dispatch_request(const TCPConnectionPtr &connection, const MessagePtr &request)

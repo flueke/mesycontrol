@@ -73,13 +73,15 @@ class Poller
     typedef boost::function<void (const ResultList &)> ResultHandler;
 
     explicit Poller(MRC1RequestQueue &mrc1_queue,
-        boost::posix_time::time_duration min_interval = boost::posix_time::milliseconds(250));
+        boost::posix_time::time_duration min_interval = boost::posix_time::milliseconds(5));
 
     void set_poll_items(const TCPConnectionPtr &connection, const PollItems &items);
     void remove_poller(const TCPConnectionPtr &connection);
 
     void register_result_handler(const ResultHandler &handler)
     { m_result_handlers.push_back(handler); }
+
+    void stop();
 
   private:
     /// Maps connections to poll requests
@@ -109,6 +111,7 @@ class Poller
     boost::posix_time::time_duration m_min_interval;
     ResultList m_result;
     std::vector<ResultHandler> m_result_handlers;
+    bool m_stopping;
 };
 
 } // namespace mesycontrol

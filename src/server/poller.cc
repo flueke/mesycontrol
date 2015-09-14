@@ -34,6 +34,7 @@ Poller::Poller(MRC1RequestQueue &mrc1_queue,
   , m_set_iter(m_set.end())
   , m_timer(mrc1_queue.get_mrc1_connection()->get_io_service())
   , m_min_interval(min_interval)
+  , m_stopping(false)
 {
   m_queue.get_mrc1_connection()->register_status_change_callback(
       boost::bind(&Poller::handle_mrc1_status_change, this, _1, _2, _3, _4));
@@ -55,6 +56,13 @@ void Poller::remove_poller(const TCPConnectionPtr &connection)
   m_map.erase(connection);
 }
 
+void Poller::stop()
+{
+  BOOST_LOG_SEV(m_log, log::lvl::info) << "poller stopping";
+  m_stopping = true;
+  m_timer.cancel();
+}
+
 void Poller::handle_mrc1_status_change(const proto::MRCStatus::Status &status,
     const std::string &info, const std::string &version, bool has_read_multi)
 {
@@ -67,14 +75,21 @@ void Poller::handle_mrc1_status_change(const proto::MRCStatus::Status &status,
 
 void Poller::start_cycle()
 {
-  BOOST_LOG_SEV(m_log, log::lvl::info) << "starting poll cycle";
+  if (m_stopping)
+    return;
 
   m_set.clear();
+  m_result.clear();
 
   for (PollItemsMap::const_iterator it=m_map.begin(); it!=m_map.end(); ++it) {
     for (PollItems::const_iterator jt=it->second.begin(); jt!=it->second.end(); ++jt) {
       m_set.insert(*jt);
     }
+  }
+
+  if (m_set.size()) {
+    BOOST_LOG_SEV(m_log, log::lvl::debug)
+      << "starting poll cycle containing " << m_set.size() << " items";
   }
 
   m_set_iter = m_set.begin();
@@ -89,18 +104,15 @@ void Poller::stop_cycle()
 
 void Poller::poll_next()
 {
-  BOOST_LOG_SEV(m_log, log::lvl::debug)
-    << "poll_next: set iter at end = " << (m_set_iter == m_set.end())
-    << ", set size = " << m_set.size()
-    << ", map size = " << m_map.size()
-    << ", mrc queue size = " << m_queue.size();
+  if (m_stopping)
+    return;
 
   if (m_set_iter != m_set.end() && m_queue.size() == 0) {
     const PollItem &item(*m_set_iter);
 
     BOOST_LOG_SEV(m_log, log::lvl::debug)
       << "poll_next: queueing read request for ("
-      << item.bus << item.dev << item.par << ")";
+      << item.bus << "," << item.dev << "," << item.par << ")";
 
     m_queue.queue_request(
         MessageFactory::make_read_request(item.bus, item.dev, item.par),
@@ -108,8 +120,7 @@ void Poller::poll_next()
         );
   } else {
     BOOST_LOG_SEV(m_log, log::lvl::debug)
-      << "poll_next: starting timer";
-
+      << "poll_next: waiting for timeout";
     m_timer.expires_from_now(m_min_interval);
     m_timer.async_wait(boost::bind(&Poller::handle_timeout, this, _1));
   }
@@ -158,8 +169,6 @@ void Poller::handle_timeout(const boost::system::error_code &ec)
 {
   if (ec != boost::asio::error::operation_aborted &&
       m_timer.expires_at() <= boost::asio::deadline_timer::traits_type::now()) {
-
-    BOOST_LOG_SEV(m_log, log::lvl::debug) << "handle_timeout: invoking poll_next()";
 
     if (m_set_iter != m_set.end()) {
       poll_next();
