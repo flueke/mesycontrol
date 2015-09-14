@@ -111,7 +111,7 @@ void TCPConnection::handle_read_message_size(const boost::system::error_code &ec
     }
     else if (!m_stopping) {
       BOOST_LOG_SEV(m_log, log::lvl::error) << connection_string()
-        << ": error reading message size: " << ec.message() << ec;
+        << ": error reading message size: " << ec.message() << ", " << ec;
     }
     m_connection_manager.stop(shared_from_this(), false);
   }
