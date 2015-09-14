@@ -331,9 +331,6 @@ class MSCF16(DeviceBase):
         if new is not None:
             new.parameter_changed.connect(self._on_hw_parameter_changed)
 
-            for addr in self.profile.get_volatile_addresses():
-                new.add_poll_item(self, addr)
-
     def _on_hw_parameter_changed(self, address, value):
         if address == self.profile['auto_pz'].address:
             # Refresh the channels PZ value once auto pz is done.
