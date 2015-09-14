@@ -302,13 +302,15 @@ class Controller(object):
             self.mrc.set_status(msg)
 
         elif msg.type == proto.Message.NOTIFY_POLLED_ITEMS:
-            self.log.debug("received poll notification")
+            self.log.debug("%s: received poll notification", self)
 
             items = msg.notify_polled_items.items
 
             for item in items:
                 device = self.mrc.get_device(item.bus, item.dev)
+
                 if device is None:
                     continue
+
                 for i, value in enumerate(item.values):
                     device.set_cached_parameter(item.par + i, value)
