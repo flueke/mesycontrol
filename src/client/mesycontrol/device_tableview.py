@@ -40,8 +40,8 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         super(DeviceTableModel, self).__init__(parent)
         self.log        = util.make_logging_source_adapter(__name__, self)
 
-        self.display_mode  = display_mode
-        self.write_mode = write_mode
+        self._display_mode = display_mode
+        self._write_mode   = write_mode
 
         self._device    = None
         self.device     = device
@@ -82,8 +82,24 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         elif self.display_mode & util.HARDWARE:
             return self.device.get_hw_profile()
 
+    def set_display_mode(self, mode):
+        self._display_mode = mode
+        self._all_fields_changed()
+
+    def get_display_mode(self):
+        return self._display_mode
+
+    def set_write_mode(self, mode):
+        self._write_mode = mode
+        self._all_fields_changed()
+
+    def get_write_mode(self):
+        return self._write_mode
+
     device = pyqtProperty(object, get_device, set_device)
     profile = pyqtProperty(object, get_profile)
+    display_mode = pyqtProperty(object, get_display_mode, set_display_mode)
+    write_mode   = pyqtProperty(object, get_write_mode, set_write_mode)
 
     def _on_device_hardware_set(self, app_device, old_hw, new_hw):
         signal_slot_map = {
