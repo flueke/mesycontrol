@@ -228,25 +228,34 @@ void TCPConnectionManager::handle_set_response(const TCPConnectionPtr &connectio
 void TCPConnectionManager::handle_read_after_set(const TCPConnectionPtr &connection,
     const MessagePtr &request, const MessagePtr &response)
 {
-  if (!m_skip_read_after_set_response) {
-    /* Send a set/mirror_set response to the client that originally sent the set
-     * request. */
-    connection->send_message(MessageFactory::make_set_response(
-          response->response_read().bus(),
-          response->response_read().dev(),
-          response->response_read().par(),
-          response->response_read().val(),
-          response->response_read().mirror()));
-
-    /* Notify other clients that a parameter has been set. */
-    send_to_all_except(connection, MessageFactory::make_parameter_set_notification(
-          response->response_read().bus(),
-          response->response_read().dev(),
-          response->response_read().par(),
-          response->response_read().val(),
-          response->response_read().mirror()));
+  if (m_skip_read_after_set_response) {
+    m_skip_read_after_set_response = false;
+    return;
   }
-  m_skip_read_after_set_response = false;
+
+  /* Send a set/mirror_set response to the client that originally sent the set
+   * request. */
+  MessagePtr msg(MessageFactory::make_set_response(
+        response->response_read().bus(),
+        response->response_read().dev(),
+        response->response_read().par(),
+        response->response_read().val(),
+        response->response_read().mirror()));
+
+  connection->send_message(msg);
+
+  /* Notify other clients that a parameter has been set. */
+  msg->set_type(proto::Message::NOTIFY_SET);
+  send_to_all_except(connection, msg);
+
+  if (!response->response_read().mirror()) {
+    /* Tell the poller that a parameter has been set. */
+    m_poller.notify_parameter_changed(
+        response->response_read().bus(),
+        response->response_read().dev(),
+        response->response_read().par(),
+        response->response_read().val());
+  }
 }
 
 void TCPConnectionManager::handle_mrc1_status_change(const proto::MRCStatus::Status &status,
@@ -291,13 +300,13 @@ void TCPConnectionManager::set_write_connection(const TCPConnectionPtr &connecti
 }
 
 void TCPConnectionManager::handle_poll_cycle_complete(
-    const Poller::ResultList &result_list)
+    const Poller::ResultType &result)
 {
   MessagePtr m(boost::make_shared<proto::Message>());
   m->set_type(proto::Message::NOTIFY_POLLED_ITEMS);
 
-  for (Poller::ResultList::const_iterator it=result_list.begin();
-      it!=result_list.end(); ++it) {
+  for (Poller::ResultType::const_iterator it=result.begin();
+      it!=result.end(); ++it) {
 
     proto::NotifyPolledItems::PollResult *pr(
         m->mutable_notify_polled_items()->add_items());
