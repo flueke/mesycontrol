@@ -10,6 +10,11 @@ std::size_t hash_value(const PollItem &item)
   return item.bus + 10*item.dev + 100*item.par;
 }
 
+std::size_t hash_value(const PollResult &result)
+{
+  return hash_value(static_cast<const PollItem &>(result));
+}
+
 std::ostream &operator<<(std::ostream &os, const PollItems &items)
 {
   PollItems::const_iterator it=items.begin();
@@ -24,6 +29,14 @@ std::ostream &operator<<(std::ostream &os, const PollItems &items)
 
   os << ")";
 
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const PollResult &result)
+{
+  os << "PollResult("
+    << result.bus << ", " << result.dev << ", " << result.par << ", " << result.val
+    << ")";
   return os;
 }
 
@@ -61,6 +74,27 @@ void Poller::stop()
   BOOST_LOG_SEV(m_log, log::lvl::info) << "poller stopping";
   m_stopping = true;
   m_timer.cancel();
+}
+
+void Poller::notify_parameter_changed(
+    boost::uint32_t bus,
+    boost::uint32_t dev,
+    boost::uint32_t par,
+    boost::uint32_t val)
+{
+  PollResult res(bus, dev, par, val);
+
+  ResultType::iterator it = m_result.find(res);
+
+  if (it != m_result.end()) {
+    const PollResult &old(*it);
+
+    BOOST_LOG_SEV(m_log, log::lvl::info) << "updating polled param: "
+      << old << " -> " << res;
+
+    m_result.erase(it);
+    m_result.insert(res);
+  }
 }
 
 void Poller::handle_mrc1_status_change(const proto::MRCStatus::Status &status,
@@ -119,8 +153,6 @@ void Poller::poll_next()
         boost::bind(&Poller::handle_response, this, _1, _2)
         );
   } else {
-    BOOST_LOG_SEV(m_log, log::lvl::debug)
-      << "poll_next: waiting for timeout";
     m_timer.expires_from_now(m_min_interval);
     m_timer.async_wait(boost::bind(&Poller::handle_timeout, this, _1));
   }
@@ -133,7 +165,7 @@ void Poller::handle_response(const MessagePtr &request, const MessagePtr &respon
     BOOST_LOG_SEV(m_log, log::lvl::debug)
       << "handle_response: received read response. adding to poll result";
 
-    m_result.push_back(PollResult(
+    m_result.insert(PollResult(
           response->response_read().bus(),
           response->response_read().dev(),
           response->response_read().par(),

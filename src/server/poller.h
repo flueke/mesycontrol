@@ -31,7 +31,6 @@ struct PollItem
     , par(par)
   {}
 
-  // needed by boost::unordered_set
   inline bool operator==(const PollItem &o) const
   {
     return bus == o.bus && dev == o.dev && par == o.par;
@@ -54,12 +53,10 @@ struct PollResult: public PollItem
     : PollItem(bus, dev, par)
     , val(val)
   {}
-
-  inline bool operator==(const PollResult &o) const
-  {
-    return PollItem::operator==(o) && val == o.val;
-  }
 };
+
+std::size_t hash_value(const PollResult &result);
+std::ostream &operator<<(std::ostream &os, const PollResult &result);
 
 class Poller
   : public boost::enable_shared_from_this<Poller>
@@ -67,10 +64,10 @@ class Poller
 {
   public:
     /// Collects result items to be sent to clients.
-    typedef std::vector<PollResult> ResultList;
+    typedef boost::unordered_set<PollResult> ResultType;
 
     /// signature for result callbacks
-    typedef boost::function<void (const ResultList &)> ResultHandler;
+    typedef boost::function<void (const ResultType &)> ResultHandler;
 
     explicit Poller(MRC1RequestQueue &mrc1_queue,
         boost::posix_time::time_duration min_interval = boost::posix_time::milliseconds(5));
@@ -82,6 +79,15 @@ class Poller
     { m_result_handlers.push_back(handler); }
 
     void stop();
+
+    /// Notify the poller that a parameters value has been changed (due to a
+    /// set request). If this pollers result contains the given parameter its
+    /// value will be updated.
+    void notify_parameter_changed(
+        boost::uint32_t bus,
+        boost::uint32_t dev,
+        boost::uint32_t par,
+        boost::uint32_t val);
 
   private:
     /// Maps connections to poll requests
@@ -109,7 +115,7 @@ class Poller
     PollSet::const_iterator m_set_iter;
     boost::asio::deadline_timer m_timer;
     boost::posix_time::time_duration m_min_interval;
-    ResultList m_result;
+    ResultType m_result;
     std::vector<ResultHandler> m_result_handlers;
     bool m_stopping;
 };
