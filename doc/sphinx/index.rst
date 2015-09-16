@@ -88,9 +88,9 @@ Concepts and Terms
 
   The are three ways to connect to a MRC:
 
-  * Connecting the MRC to a local serial or USB port.
-  * Via a serial server which is connected to the MRC.
-  * Connecting to a (remotely) running *mesycontrol_server* instance.
+  * Serial Connection: uses a local serial or USB port.
+  * TCP Connection: uses a serial server which is connected to the MRC.
+  * Mesycontrol Connection: connects to a (remotely) running *mesycontrol_server* instance.
 
 * Device
 
@@ -111,9 +111,10 @@ GUI overview
 
    Device tree with **linked_mode** disabled.
 
-The GUI shows hardware and config trees side-by-side. On the left side active
-MRC connections and their connected devices are shown. On the right side the
-currently opened setup with its MRC and device configurations is displayed.
+The GUI shows hardware and config trees side-by-side. On the left-hand side
+active MRC connections and their connected devices are shown. On the right-hand
+side the currently opened setup with its MRC and device configurations is
+displayed.
 
 At startup the two sides will not be linked together. This means hardware and
 setup can be separately edited without affecting each other.
@@ -128,7 +129,8 @@ trees in sync.
 .. figure:: treeview-linked.png
    :width: 12cm
 
-   Device tree with **linked_mode** enabled.
+   Device tree with **linked_mode** enabled. The red row highlights an IDC
+   conflict. Green rows mean that hardware and config are equal.
 
 Devices with a red background have conflicting device types (their IDCs do not
 match). A green background means hardware and config parameters are equal.
@@ -175,9 +177,8 @@ toolbar both modes can be changed after window creation.
 The modes currently in effect are also displayed in the device windows title
 bar.
 
-* Display and write modes
-* Table View
-* Specialized GUIs
+* TODO: Table View
+* TODO: Specialized GUIs
 
 Stand-alone server operation
 ----------------------------
