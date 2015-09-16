@@ -189,7 +189,13 @@ class Controller(object):
                 self.log.debug("%s: received scanbus response %d: %s", self, bus, entries)
 
                 for addr in bm.DEV_RANGE:
-                    entry    = entries[addr]
+                    try:
+                        entry    = entries[addr]
+                    except IndexError:
+                        # FIXME: this does happen seemingly at random
+                        self.log.error("scanbus response error: addr=%s, entries=%s", addr, entries)
+                        raise
+
                     idc      = entry.idc
                     rc       = entry.rc
                     conflict = entry.conflict
@@ -314,3 +320,13 @@ class Controller(object):
 
                 for i, value in enumerate(item.values):
                     device.set_cached_parameter(item.par + i, value)
+
+        elif msg.type == proto.Message.NOTIFY_SET:
+            res = msg.set_result
+            self.log.debug("%s: received set notification", self, res)
+
+            if not res.mirror:
+                device = self.mrc.get_device(res.bus, res.dev)
+
+                if device is not None:
+                    device.set_cached_parameter(res.par, res.val)
