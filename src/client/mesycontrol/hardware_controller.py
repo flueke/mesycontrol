@@ -39,7 +39,7 @@ class Controller(object):
         self._scanbus_timer.timeout.connect(self._on_scanbus_timer_timeout)
         self.set_scanbus_interval(scanbus_interval_msec)
 
-        self._poll_items = weakref.WeakKeyDictionary()
+        self._poll_subscriptions = dict()
 
         self._connect_timer = QtCore.QTimer()
         self._connect_timer.setSingleShot(True)
@@ -186,7 +186,8 @@ class Controller(object):
                 bus     = f.result().response.scanbus_result.bus
                 entries = f.result().response.scanbus_result.entries
 
-                self.log.debug("%s: received scanbus response %d: %s", self, bus, entries)
+                self.log.debug("%s: received scanbus response: bus=%d, len(entries)=%d",
+                        self, bus, len(entries))
 
                 for addr in bm.DEV_RANGE:
                     try:
@@ -252,24 +253,34 @@ class Controller(object):
         be a single parameter address or a tuple of (lower, upper) addresses to
         poll. The poll item is removed if the given subscriber is destroyed."""
 
-        self.log.debug("add_poll_item: (%s, %d, %d, %s)", subscriber, bus, address, item)
+        def on_subscriber_finalized(ref):
+            self.log.debug("on_subscriber_finalized: %s", ref)
+            del self._poll_subscriptions[ref]
+            self._send_poll_request()
 
-        items = self._poll_items.setdefault(subscriber, set())
+        sub_ref = weakref.ref(subscriber, on_subscriber_finalized)
+        items   = self._poll_subscriptions.setdefault(sub_ref, set())
+
+        if not len(items):
+            self.log.info("got a new subscriber: %s", subscriber)
+
         items.add((bus, address, item))
-
         return self._send_poll_request()
 
     def remove_polling_subscriber(self, subscriber):
         self.log.debug("remove_polling_subscriber: %s", subscriber)
 
-        del self._poll_items[subscriber]
-        return self._send_poll_request()
+        try:
+            del self._poll_subscriptions[weakref.ref(subscriber)]
+            return self._send_poll_request()
+        except KeyError:
+            return False
 
     def _send_poll_request(self):
         # Merge all poll items into one set.
         # Note: This does not try to merge any overlapping ranges. Those will
         # lead to parameters being read multiple times.
-        items = reduce(lambda x, y: x.union(y), self._poll_items.values(), set())
+        items = reduce(lambda x, y: x.union(y), self._poll_subscriptions.values(), set())
 
         self.log.debug("_send_poll_request: request contains %d items", len(items))
 
@@ -308,9 +319,10 @@ class Controller(object):
             self.mrc.set_status(msg)
 
         elif msg.type == proto.Message.NOTIFY_POLLED_ITEMS:
-            self.log.debug("%s: received poll notification", self)
-
             items = msg.notify_polled_items.items
+
+            self.log.debug("%s: received poll notification (%d items)",
+                    self, len(items))
 
             for item in items:
                 device = self.mrc.get_device(item.bus, item.dev)
