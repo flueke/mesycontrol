@@ -183,11 +183,20 @@ class Controller(object):
     def scanbus(self, bus):
         def on_bus_scanned(f):
             try:
-                bus     = f.result().response.scanbus_result.bus
-                entries = f.result().response.scanbus_result.entries
+                response = f.result().response
+
+                if proto.is_error_response(response):
+                    self.log.error("%s: scanbus error: %s", self, response)
+                    return
+
+                bus     = response.scanbus_result.bus
+                entries = response.scanbus_result.entries
 
                 self.log.debug("%s: received scanbus response: bus=%d, len(entries)=%d",
                         self, bus, len(entries))
+
+                #if len(entries) != len(bm.DEV_RANGE):
+                #    raise RuntimeError("truncated scanbus entries; len=%d", len(entries))
 
                 for addr in bm.DEV_RANGE:
                     try:
@@ -195,7 +204,7 @@ class Controller(object):
                     except IndexError:
                         # FIXME: this does happen seemingly at random
                         self.log.error("scanbus response error: addr=%s, entries=%s", addr, entries)
-                        raise
+                        raise RuntimeError("invalid index into scanbus result: %s" % addr)
 
                     idc      = entry.idc
                     rc       = entry.rc
