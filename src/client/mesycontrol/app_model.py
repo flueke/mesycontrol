@@ -258,6 +258,7 @@ class Device(AppObject):
 
     def _on_hardware_set(self, app_model, old_hw, new_hw):
         self._update_idc_conflict()
+        self._update_config_addresses()
         self.update_config_applied()
 
         if old_hw is not None:
@@ -274,6 +275,7 @@ class Device(AppObject):
 
     def _on_config_set(self, app_model, old_cfg, new_cfg):
         self._update_idc_conflict()
+        self._update_config_addresses()
         self.update_config_applied()
 
         if old_cfg is not None:
@@ -416,19 +418,15 @@ class Device(AppObject):
             try:
                 self.log.debug("update_config_applied: addresses=%s", self._config_addresses)
                 new_state = all((hw_mem[k] == cfg_mem[k] for k in self._config_addresses))
-            except KeyError:
-                self.log.debug("update_config_applied: Key(s) missing from mem cache")
+            except KeyError as e:
+                hw_keys  = set(hw_mem.keys())
+                cfg_keys = set(cfg_mem.keys())
+                self.log.debug("update_config_applied: missing address: %s", e)
+                self.log.debug("update_config_applied: hw_keys =%s", hw_keys)
+                self.log.debug("update_config_applied: cfg_keys=%s", cfg_keys)
+                self.log.debug("update_config_applied: hw.diff(cfg)=%s", hw_keys.difference(cfg_keys))
+                self.log.debug("update_config_applied: cfg.diff(hw)=%s", cfg_keys.difference(hw_keys))
                 new_state = None # Unknown
-
-            #if not new_state:
-            #    details = list()
-            #    for k in self._config_addresses:
-            #        hw  = hw_mem[k] if k in hw_mem else None
-            #        cfg = cfg_mem[k] if k in cfg_mem else None
-            #        if hw != cfg or (k not in hw_mem and k not in cfg_mem):
-            #            detail = collections.namedtuple('MemoryDiff', 'address, hardware, config')(k, hw, cfg)
-            #            details.append(detail)
-            #    self.log.debug("update_config_applied: %s", details)
 
             if new_state is not None:
                 extensions_match = self.hw.get_extensions() == self.cfg.get_extensions()
