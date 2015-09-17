@@ -1143,8 +1143,7 @@ Initialize using the current hardware values or the device defaults?
 
         self._linked_mode = bool(linked_mode)
         self.treeview.linked_mode = self.linked_mode
-        action = self.actions['toggle_linked_mode']
-        action.setIcon(action.icons[self.linked_mode])
+        self._update_actions()
 
         for device, window_list in self._device_window_map.iteritems():
             # Use a copy of window_list here as closing windows will modify the
