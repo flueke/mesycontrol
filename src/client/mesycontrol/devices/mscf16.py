@@ -92,9 +92,6 @@ class CopyFunction(object):
 Version = collections.namedtuple('Version', 'major minor')
 
 def get_config_parameters(app_device):
-    # TODO: implement version dependent code here
-    #return future.Future().set_result(app_device.profile.get_config_parameters())
-
     profile = app_device.profile
     params  = profile.get_config_parameters()
 
@@ -105,32 +102,34 @@ def get_config_parameters(app_device):
     ret     = future.Future()
 
     def version_done(f):
-        print f
         version = f.result()
 
-        if version < (4, 0):
-            params.remove(profile['blr_threshold'])
-            params.remove(profile['blr_enable'])
-            params.remove(profile['coincidence_time'])
-            params.remove(profile['shaper_offset'])
-            params.remove(profile['threshold_offset'])
+        def maybe_remove(min_version, *param_names):
+            if version < min_version:
+                device.log.debug("version %s < %s -> removing %s",
+                        version, min_version, param_names)
+                for n in param_names:
+                    params.remove(profile[n])
 
-        if version < (5, 0):
-            params.remove(profile['ecl_delay_enable'])
-            params.remove(profile['tf_int_time'])
+        maybe_remove((4, 0), 'blr_threshold', 'blr_enable', 'coincidence_time',
+                'shaper_offset', 'threshold_offset')
 
-        if version < (5, 3):
-            params.remove(profile['sumdis_threshold'])
-            ret.set_result(params)
-        else:
+        maybe_remove((5, 0), 'ecl_delay_enable', 'tf_int_time')
+
+        maybe_remove((5, 3), 'sumdis_threshold')
+
+        if version >= (5, 3):
             def hw_info_done(f):
                 hw_info = f.result()
 
                 if not hw_info.has_sumdis():
+                    device.log.debug("sumdis_threshold not available according to hw_info register")
                     params.remove(profile['sumdis_threshold'])
                 ret.set_result(params)
 
             device.get_hardware_info().add_done_callback(hw_info_done)
+        else:
+            ret.set_result(params)
 
     device.get_version().add_done_callback(version_done)
 
