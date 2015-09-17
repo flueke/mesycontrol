@@ -5,6 +5,7 @@
 from qt import QtCore
 from qt import pyqtSignal
 from functools import partial
+import collections
 import weakref
 
 import util
@@ -62,7 +63,7 @@ class ServerProcessNG(QtCore.QObject):
             listen_address='0.0.0.0', listen_port=BASE_PORT, allow_find_port=True,
             serial_port=None, baud_rate=0,
             tcp_host=None, tcp_port=4001,
-            verbosity=3, parent=None):
+            verbosity=2, parent=None):
         """Create a ServerProcess instance.
         Args are:
         binary: The name of the mesycontrol_server binary. May also be a full path.
@@ -302,7 +303,8 @@ class ServerProcess(QtCore.QObject):
     startup_delay_ms = 200
 
     def __init__(self, binary='mesycontrol_server', listen_address='0.0.0.0', listen_port=BASE_PORT,
-            serial_port=None, baud_rate=0, tcp_host=None, tcp_port=4001, verbosity=3, parent=None):
+            serial_port=None, baud_rate=0, tcp_host=None, tcp_port=4001, verbosity=3,
+            output_buffer_maxlen=10000, parent=None):
 
         super(ServerProcess, self).__init__(parent)
 
@@ -326,6 +328,8 @@ class ServerProcess(QtCore.QObject):
         self._startup_delay_timer = QtCore.QTimer()
         self._startup_delay_timer.setSingleShot(True)
         self._startup_delay_timer.setInterval(ServerProcess.startup_delay_ms)
+
+        self.output_buffer = collections.deque(maxlen=output_buffer_maxlen)
 
     def start(self):
         # Startup procedure:
@@ -467,6 +471,7 @@ class ServerProcess(QtCore.QObject):
 
     def _output(self):
         data = str(self.process.readAllStandardOutput())
+        self.output_buffer.append(data)
         self.output.emit(data)
 
 class ServerProcessPool(QtCore.QObject):
