@@ -498,6 +498,8 @@ class GUIApplication(QtCore.QObject):
                 a.setIcon(a.icons['connect'])
                 a.setToolTip("Connect")
 
+            a.setText(a.toolTip())
+
         a = self.actions['toggle_polling']
         a.setEnabled((is_hardware(node)
             and (is_mrc(node) or (is_device(node) and node.ref.mrc.hw.polling))
@@ -506,11 +508,12 @@ class GUIApplication(QtCore.QObject):
         if a.isEnabled():
             a.setChecked(node.ref.hw.polling)
             a.setToolTip("Disable polling" if a.isChecked() else "Enable polling")
-            a.setText(a.toolTip())
         elif (is_hardware(node) and is_device(node)
                 and node.ref.mrc.hw is not None
                 and not node.ref.mrc.hw.polling):
             a.setToolTip("Polling disabled by parent MRC")
+
+        a.setText(a.toolTip())
 
         a = self.actions['toggle_rc']
         a.setEnabled(is_device(node) and node.ref.has_hw and not node.ref.hw.address_conflict)
