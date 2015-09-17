@@ -68,9 +68,6 @@ class AbstractConnection(QtCore.QObject):
     def get_url(self):
         raise NotImplementedError()
 
-    def get_status(self):
-        raise NotImplementedError()
-
     url = property(lambda self: self.get_url())
 
 class MRCConnection(AbstractConnection):
@@ -183,10 +180,9 @@ class LocalMRCConnection(AbstractConnection):
     def __init__(self, server_options=dict(), parent=None):
         super(LocalMRCConnection, self).__init__(parent)
         self.log = util.make_logging_source_adapter(__name__, self)
-        #self.server = server_process.ServerProcess(**server_options)
         self.server = server_process.pool.create_process(server_options)
-        self.connection = MRCConnection(self.server.listen_address, self.server.listen_port)
 
+        self.connection = MRCConnection(self.server.listen_address, self.server.listen_port)
         self.connection.connected.connect(self.connected)
         self.connection.disconnected.connect(self.disconnected)
         self.connection.connection_error.connect(self.connection_error)
