@@ -695,6 +695,7 @@ def read_config_parameters(devices):
             hw_mrc.polling = False
 
             params = (yield device.get_config_parameters()).result()
+            log.debug("read_config_parameters: params=%s", [p.address for p in params])
             progress.subprogress.current = 0
             progress.subprogress.total   = len(params)
             progress.text  = "Reading from (%s, %d, %X)" % (
@@ -702,6 +703,7 @@ def read_config_parameters(devices):
             yield progress
 
             for param in params:
+                log.debug("read_config_parameters: reading %d", param.address)
                 yield device.hw.read_parameter(param.address)
                 progress.subprogress.text = "Reading parameter %s (address=%d)" % (
                         param.name, param.address)
