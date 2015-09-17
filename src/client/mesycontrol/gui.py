@@ -525,7 +525,9 @@ class GUIApplication(QtCore.QObject):
 
         self.actions['remove_mrc_connection'].setEnabled(is_mrc(node) and node.ref.has_hw)
 
-        self.actions['toggle_linked_mode'].setChecked(self.linked_mode)
+        a = self.actions['toggle_linked_mode']
+        a.setChecked(self.linked_mode)
+        a.setIcon(a.icons[self.linked_mode])
 
         self.actions['open_device_widget'].setEnabled(
                 (is_device_cfg(node) and node.ref.cfg_module.has_widget_class()) or
