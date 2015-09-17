@@ -63,26 +63,29 @@ class HardwareInfo(object):
     INTEGRATING     = 1 << 2
     SUMDIS          = 1 << 6
 
-    def __init__(self, hw_info=0):
+    def __init__(self, hw_info=None):
         self.info = hw_info
 
     def is_ln_type(self):
         """True if LN (low noise) version"""
-        return self.info & HardwareInfo.LN_TYPE
+        return self.is_valid() and self.info & HardwareInfo.LN_TYPE
 
     def is_hw_version_ge_4(self):
         """True if hardware version >= 4"""
-        return self.info & HardwareInfo.HW_GE_V4
+        return self.is_valid() and self.info & HardwareInfo.HW_GE_V4
 
     def is_integrating(self):
         """True if this is a charge integrating MSCF16 (PMT variant)"""
-        return self.info & HardwareInfo.INTEGRATING
+        return self.is_valid() and self.info & HardwareInfo.INTEGRATING
 
     def has_sumdis(self):
-        return self.info & HardwareInfo.SUMDIS
+        return self.is_valid() and self.info & HardwareInfo.SUMDIS
 
     def __and__(self, other):
         return self.info & other
+
+    def is_valid(self):
+        return self.info is not None
 
 class CopyFunction(object):
     panel2rc        = 1
@@ -220,6 +223,21 @@ class MSCF16(DeviceBase):
     def get_hardware_info(self):
         return self._get_detailed_version_parameter(
                 'hardware_info', decode_hardware_info)
+
+    # FIXME: simplify this. DRY!
+    def has_ecl_enable(self):
+        ret = future.Future()
+        def done(f):
+            ret.set_result(f.result() >= (5, 0))
+        self.get_version().add_done_callback(done)
+        return ret
+
+    def has_tf_int_time(self):
+        ret = future.Future()
+        def done(f):
+            ret.set_result(f.result() >= (5, 0))
+        self.get_version().add_done_callback(done)
+        return ret
 
     # ===== gain =====
     def get_total_gain(self, group):
@@ -805,7 +823,8 @@ class TimingPage(QtGui.QGroupBox):
             profile=device.profile['ecl_delay_enable'],
             display_mode=display_mode,
             write_mode=write_mode,
-            target=self.check_ecl_delay))
+            target=self.check_ecl_delay
+            ).add_update_callback(self._ecl_delay_enable_cb))
 
         self.spin_tf_int_time = util.DelayedSpinBox()
 
@@ -814,7 +833,8 @@ class TimingPage(QtGui.QGroupBox):
             profile=device.profile['tf_int_time'],
             display_mode=display_mode,
             write_mode=write_mode,
-            target=self.spin_tf_int_time))
+            target=self.spin_tf_int_time
+            ).add_update_callback(self._tf_int_time_cb))
 
         row = layout.rowCount()
         layout.addWidget(QtGui.QLabel("Thr. offset"),   row, 0)
@@ -831,6 +851,22 @@ class TimingPage(QtGui.QGroupBox):
     @future_progress_dialog()
     def _apply_common_threshold(self):
         return self.device.apply_common_threshold()
+
+    def _ecl_delay_enable_cb(self, param_future):
+        def done(f):
+            self.check_ecl_delay.setEnabled(f.result())
+            if not f.result():
+                self.check_ecl_delay.setToolTip("N/A")
+
+        self.device.has_ecl_enable().add_done_callback(done)
+
+    def _tf_int_time_cb(self, param_future):
+        def done(f):
+            self.spin_tf_int_time.setEnabled(f.result())
+            if not f.result():
+                self.spin_tf_int_time.setToolTip("N/A")
+
+        self.device.has_tf_int_time().add_done_callback(done)
 
 class ChannelModeBinding(pb.AbstractParameterBinding):
     def __init__(self, **kwargs):
@@ -864,6 +900,9 @@ class HardwareInfoWidget(QtGui.QWidget):
         for cb in self.checkboxes.itervalues():
             cb.setStatusTip(cb.toolTip())
 
+        self.checkbox_tooltips = dict(
+                (bit, cb.toolTip()) for bit, cb in self.checkboxes.iteritems())
+
         layout = QtGui.QGridLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -874,7 +913,10 @@ class HardwareInfoWidget(QtGui.QWidget):
 
     def set_hardware_info(self, hw_info):
         for bit, checkbox in self.checkboxes.iteritems():
-            checkbox.setChecked(hw_info & bit)
+            checkbox.setChecked(hw_info.is_valid() and hw_info & bit)
+
+            checkbox.setToolTip(self.checkbox_tooltips[bit] if hw_info.is_valid()
+                    else "Hardware Info register not supported. Requires version >= 5.3")
 
 class MiscPage(QtGui.QWidget):
     def __init__(self, device, display_mode, write_mode, parent=None):
