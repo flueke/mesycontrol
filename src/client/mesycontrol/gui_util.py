@@ -494,3 +494,18 @@ def restore_subwindow_state(subwin, settings):
     finally:
         settings.endGroup()
 
+# ===== Server log dview ===== #
+class ServerLogView(QtGui.QPlainTextEdit):
+    def __init__(self, server_process, max_lines=10000, line_wrap=QtGui.QPlainTextEdit.WidgetWidth, parent=None):
+        super(ServerLogView, self).__init__(parent)
+        self.setReadOnly(True)
+        self.setMaximumBlockCount(max_lines)
+        self.setLineWrapMode(line_wrap)
+        self.server = server_process
+        self.server.output.connect(self._on_server_output)
+
+        for data in self.server.output_buffer:
+            self.appendPlainText(data.strip())
+
+    def _on_server_output(self, data):
+        self.appendPlainText(data.trimmed())

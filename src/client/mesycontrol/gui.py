@@ -263,6 +263,11 @@ class GUIApplication(QtCore.QObject):
         action.hw_toolbar = True
         self.actions['remove_mrc_connection'] = action
 
+        # Show server output
+        action = QtGui.QAction("View server log", self,
+                triggered=self._view_server_log)
+        self.actions['view_server_log'] = action
+
         # ===== Splitter =====
         # Linked Mode
         link_icons = {
@@ -741,6 +746,20 @@ class GUIApplication(QtCore.QObject):
             self.app_registry.hw.remove_mrc(node.ref.hw)
 
         node.ref.hw.disconnect().add_done_callback(do_remove)
+
+    def _view_server_log(self):
+        node   = self._selected_tree_node
+        mrc    = node.ref.hw
+        server = mrc.connection.server
+        url    = mrc.connection.url
+        view   = gui_util.ServerLogView(server, parent=self.mainwindow)
+        sub    = QtGui.QMdiSubWindow()
+        sub.setWidget(view)
+        sub.setAttribute(Qt.WA_DeleteOnClose)
+        sub.setWindowIcon(util.make_icon(":/window-icon.png"))
+        sub.setWindowTitle("Server log for %s" % url)
+        self.mainwindow.mdiArea.addSubWindow(sub)
+        sub.show()
 
     def _open_device_widget(self):
         node = self._selected_tree_node
@@ -1254,6 +1273,11 @@ Initialize using the current hardware values or the device defaults?
             #add_action(self.actions['refresh'])
             add_action(self.actions['toggle_polling'])
             menu.addSeparator()
+
+            mrc = node.ref
+            if mrc.hw is not None and hasattr(mrc.hw.connection, 'server'):
+                add_action(self.actions['view_server_log'])
+
             add_action(self.actions['remove_mrc_connection'])
 
         if is_bus(node):
