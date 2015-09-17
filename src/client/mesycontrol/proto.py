@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
+from google.protobuf.text_format import MessageToString
 from mesycontrol_pb2 import *
 
 def is_request(msg):
@@ -24,5 +25,8 @@ class MessageError(RuntimeError):
         self.text    = text
 
     def __str__(self):
-        return "MessageError(%s, %s, %s)" % (
-                self.message, self.request, self.text)
+        msg = MessageToString(self.message, as_one_line=True)
+        req = MessageToString(self.request, as_one_line=True)
+
+        return "Error(request=%s, response=%s, info=%s)" % (
+                req, msg, self.text)
