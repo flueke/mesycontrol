@@ -122,7 +122,7 @@ void Poller::start_cycle()
   }
 
   if (m_set.size()) {
-    BOOST_LOG_SEV(m_log, log::lvl::debug)
+    BOOST_LOG_SEV(m_log, log::lvl::info)
       << "starting poll cycle containing " << m_set.size() << " items";
   }
 
@@ -187,7 +187,7 @@ void Poller::handle_response(const MessagePtr &request, const MessagePtr &respon
 
 void Poller::notify_cycle_complete()
 {
-  BOOST_LOG_SEV(m_log, log::lvl::debug) << "notify_cycle_complete: notifying handlers";
+  BOOST_LOG_SEV(m_log, log::lvl::info) << "notify_cycle_complete: notifying handlers";
 
   for (std::vector<ResultHandler>::iterator it = m_result_handlers.begin();
       it != m_result_handlers.end(); ++it) {

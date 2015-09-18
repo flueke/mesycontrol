@@ -246,7 +246,7 @@ bool MRC1Connection::write_command(const MessagePtr &command,
   m_write_buffer             = command_string + command_terminator;
   m_reply_parser.set_current_request(command);
 
-  BOOST_LOG_SEV(m_log, log::lvl::debug)
+  BOOST_LOG_SEV(m_log, log::lvl::trace)
     << "writing '" << get_mrc1_command_string(command) << "'";
 
   start_write(m_write_buffer,
@@ -291,7 +291,7 @@ void MRC1Connection::handle_read_line(const boost::system::error_code &ec, std::
     std::getline(is, reply_line);
     is.ignore(1); // consume the trailing \r
 
-    BOOST_LOG_SEV(m_log, log::lvl::debug) << "received line '" << reply_line << "'";
+    BOOST_LOG_SEV(m_log, log::lvl::trace) << "received line '" << reply_line << "'";
 
     if (!m_reply_parser.parse_line(reply_line)) {
       BOOST_LOG_SEV(m_log, log::lvl::trace) << "Reply parser needs more input";
@@ -300,7 +300,7 @@ void MRC1Connection::handle_read_line(const boost::system::error_code &ec, std::
           boost::bind(&MRC1Connection::handle_read_line, shared_from_this(), _1, _2));
     } else {
       BOOST_LOG_SEV(m_log, log::lvl::debug) << "reply parsing done, result="
-        << m_reply_parser.get_response_message();
+        << proto::Message::Type_Name(m_reply_parser.get_response_message()->type());
 
       /* Parsing complete. Call the response handler. */
       m_io_service.post(boost::bind(m_current_response_handler, m_current_command,
