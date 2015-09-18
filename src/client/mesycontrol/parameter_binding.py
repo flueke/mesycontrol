@@ -355,9 +355,9 @@ class TargetlessParameterBinding(AbstractParameterBinding):
 
     def set_display_mode(self, mode):
         self.log.debug("TargetlessParameterBinding: set_display_mode %s", util.RW_MODE_NAMES[mode])
-        if mode == util.CONFIG:
-            import traceback
-            traceback.print_stack()
+        #if mode == util.CONFIG:
+        #    import traceback
+        #    traceback.print_stack()
         super(TargetlessParameterBinding, self).set_display_mode(mode)
 
     def set_write_mode(self, mode):

@@ -452,7 +452,6 @@ class GUIApplication(QtCore.QObject):
 
     def _update_actions(self):
         node        = self._selected_tree_node
-        win         = self._current_subwindow
 
         setup = self.app_registry.cfg
 
@@ -567,11 +566,48 @@ class GUIApplication(QtCore.QObject):
                     and not node.ref.address_conflict
                     and node.ref.has_hw))
 
-        if win is not None and hasattr(win, 'display_mode'):
-            self.actions['select_display_mode'].setText(util.RW_MODE_NAMES[win.display_mode].capitalize())
+        win = self._current_subwindow
 
-        if win is not None and hasattr(win, 'write_mode'):
-            self.actions['select_write_mode'].setText(util.RW_MODE_NAMES[win.write_mode].capitalize())
+        act_display  = self.actions['select_display_mode']
+        act_write    = self.actions['select_write_mode']
+
+        if isinstance(win, gui_util.DeviceSubWindow):
+            device       = win.device
+            display_mode = win.display_mode
+            write_mode   = win.write_mode
+
+            # Enable the parent actions
+            act_display.setEnabled(True)
+            act_write.setEnabled(True)
+
+            act_display.setText(util.RW_MODE_NAMES[win.display_mode].capitalize())
+            act_write.setText(util.RW_MODE_NAMES[win.write_mode].capitalize())
+
+            if display_mode == util.COMBINED:
+                self.actions['display_combined'].setChecked(True)
+            elif display_mode == util.HARDWARE:
+                self.actions['display_hw'].setChecked(True)
+            else:
+                self.actions['display_cfg'].setChecked(True)
+
+            if write_mode == util.COMBINED:
+                self.actions['write_combined'].setChecked(True)
+            elif write_mode == util.HARDWARE:
+                self.actions['write_hw'].setChecked(True)
+            else:
+                self.actions['write_cfg'].setChecked(True)
+
+            self.actions['display_combined'].setEnabled(win.has_combined_display()
+                    and device.has_hw and device.has_cfg)
+            self.actions['write_combined'].setEnabled(device.has_hw and device.has_cfg)
+            self.actions['display_hw'].setEnabled(device.has_hw)
+            self.actions['write_hw'].setEnabled(device.has_hw)
+            self.actions['display_cfg'].setEnabled(device.has_cfg)
+            self.actions['write_cfg'].setEnabled(device.has_cfg)
+        else:
+            # Disable the parent actions
+            act_display.setEnabled(False)
+            act_write.setEnabled(False)
 
         for a in self.actions.values():
             if len(a.toolTip()) and not len(a.statusTip()):
@@ -966,9 +1002,6 @@ Initialize using the current hardware values or the device defaults?
             self.mainwindow.removeToolBar(self._subwindow_toolbar)
             self._subwindow_toolbar = None
 
-        act_display = self.actions['select_display_mode']
-        act_write   = self.actions['select_write_mode']
-
         if isinstance(window, gui_util.DeviceSubWindow):
             device       = window.device
             display_mode = window.display_mode
@@ -981,36 +1014,6 @@ Initialize using the current hardware values or the device defaults?
                 self.treeview.select_config_node_by_ref(device)
             elif display_mode & util.HARDWARE:
                 self.treeview.select_hardware_node_by_ref(device)
-
-            # Enable the parent actions
-            act_display.setEnabled(True)
-            act_write.setEnabled(True)
-
-            if display_mode == util.COMBINED:
-                self.actions['display_combined'].setChecked(True)
-            elif display_mode == util.HARDWARE:
-                self.actions['display_hw'].setChecked(True)
-            else:
-                self.actions['display_cfg'].setChecked(True)
-
-            if write_mode == util.COMBINED:
-                self.actions['write_combined'].setChecked(True)
-            elif display_mode == util.HARDWARE:
-                self.actions['write_hw'].setChecked(True)
-            else:
-                self.actions['write_cfg'].setChecked(True)
-
-            self.actions['display_combined'].setEnabled(window.has_combined_display()
-                    and device.has_hw and device.has_cfg)
-            self.actions['write_combined'].setEnabled(device.has_hw and device.has_cfg)
-            self.actions['display_hw'].setEnabled(device.has_hw)
-            self.actions['write_hw'].setEnabled(device.has_hw)
-            self.actions['display_cfg'].setEnabled(device.has_cfg)
-            self.actions['write_cfg'].setEnabled(device.has_cfg)
-        else:
-            # Disable the parent actions
-            act_display.setEnabled(False)
-            act_write.setEnabled(False)
 
         if hasattr(window, 'has_toolbar') and window.has_toolbar():
             self._subwindow_toolbar = tb = window.get_toolbar()
@@ -1034,31 +1037,37 @@ Initialize using the current hardware values or the device defaults?
         if b:
             w = self.active_subwindow()
             w.display_mode = util.HARDWARE
+            self._update_actions()
 
     def _on_display_cfg_triggered(self, b):
         if b:
             w = self.active_subwindow()
             w.display_mode = util.CONFIG
+            self._update_actions()
 
     def _on_display_combined_triggered(self, b):
         if b:
             w = self.active_subwindow()
             w.display_mode = util.COMBINED
+            self._update_actions()
 
     def _on_write_hw_triggered(self, b):
         if b:
             w = self.active_subwindow()
             w.write_mode = util.HARDWARE
+            self._update_actions()
 
     def _on_write_cfg_triggered(self, b):
         if b:
             w = self.active_subwindow()
             w.write_mode = util.CONFIG
+            self._update_actions()
 
     def _on_write_combined_triggered(self, b):
         if b:
             w = self.active_subwindow()
             w.write_mode = util.COMBINED
+            self._update_actions()
 
     def _show_device_windows(self, device, show_cfg, show_hw):
         """Shows existing device windows. Return True if at least one window
