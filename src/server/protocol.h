@@ -16,6 +16,7 @@ class MessageFactory
 {
   public:
     static MessagePtr make_scanbus_response(boost::uint8_t bus);
+    static MessagePtr make_scanbus_request(boost::uint8_t bus);
 
     static MessagePtr make_read_request(boost::uint8_t bus, boost::uint8_t dev,
         boost::uint8_t par, bool mirror=false);

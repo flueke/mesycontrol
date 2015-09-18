@@ -42,6 +42,13 @@ MessagePtr MessageFactory::make_scanbus_response(boost::uint8_t bus)
   return ret;
 }
 
+MessagePtr MessageFactory::make_scanbus_request(boost::uint8_t bus)
+{
+  MessagePtr ret(make_message(proto::Message::REQ_SCANBUS));
+  ret->mutable_request_scanbus()->set_bus(bus);
+  return ret;
+}
+
 MessagePtr MessageFactory::make_read_request(boost::uint8_t bus, boost::uint8_t dev,
     boost::uint8_t par, bool mirror)
 {

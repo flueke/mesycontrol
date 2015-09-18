@@ -21,23 +21,18 @@ class TimeoutError(RuntimeError):
     def __str__(self):
         return "Connection timed out"
 
-SCANBUS_INTERVAL_MSEC  = 5000
-
 class Controller(object):
     """Link between hardware_model.MRC and MRCConnection.
     Reacts to changes to the connection state and updates the hardware model
     accordingly. Also takes requests from the hardware model and forwards them
     to the connection.
     """
-    def __init__(self, connection, scanbus_interval_msec=SCANBUS_INTERVAL_MSEC):
+    def __init__(self, connection):
 
         self.log        = util.make_logging_source_adapter(__name__, self)
 
         self.connection = connection
         self._mrc       = None
-        self._scanbus_timer = QtCore.QTimer()
-        self._scanbus_timer.timeout.connect(self._on_scanbus_timer_timeout)
-        self.set_scanbus_interval(scanbus_interval_msec)
 
         self._poll_subscriptions = dict()
 
@@ -50,13 +45,7 @@ class Controller(object):
             for i in bm.BUS_RANGE:
                 self.scanbus(i)
 
-            self._scanbus_timer.start()
-
-        def on_disconnected():
-            self._scanbus_timer.stop()
-
         self.connection.connected.connect(on_connected)
-        self.connection.disconnected.connect(on_disconnected)
         self.connection.notification_received.connect(self._on_notification_received)
 
     def set_mrc(self, mrc):
@@ -183,53 +172,7 @@ class Controller(object):
     def scanbus(self, bus):
         def on_bus_scanned(f):
             try:
-                response = f.result().response
-
-                if proto.is_error_response(response):
-                    self.log.error("%s: scanbus error: %s", self, response)
-                    return
-
-                bus     = response.scanbus_result.bus
-                entries = response.scanbus_result.entries
-
-                self.log.debug("%s: received scanbus response: bus=%d, len(entries)=%d",
-                        self, bus, len(entries))
-
-                #if len(entries) != len(bm.DEV_RANGE):
-                #    raise RuntimeError("truncated scanbus entries; len=%d", len(entries))
-
-                for addr in bm.DEV_RANGE:
-                    try:
-                        entry    = entries[addr]
-                    except IndexError:
-                        # FIXME: this does happen seemingly at random
-                        self.log.error("scanbus response error: addr=%s, entries=%s", addr, entries)
-                        raise RuntimeError("invalid index into scanbus result: %s" % addr)
-
-                    idc      = entry.idc
-                    rc       = entry.rc
-                    conflict = entry.conflict
-
-                    device  = self.mrc.get_device(bus, addr)
-
-                    if idc <= 0 and device is not None:
-                        self.log.debug("%s: scanbus: removing device (%d, %d)", self, bus, addr)
-                        self.mrc.remove_device(device)
-                    elif idc > 0:
-                        if device is None:
-                            self.log.debug("%s: scanbus: creating device (%d, %d, idc=%d)", self, bus, addr, idc)
-                            device = hm.Device(bus, addr, idc)
-                            self.mrc.add_device(device)
-
-                        device.idc = idc
-                        device.rc  = rc
-                        device.address_conflict = conflict
-
-                        if device.address_conflict:
-                            self.log.debug("%s: scanbus: address conflict on (%d, %d)", self, bus, addr)
-
-                self.mrc.address_conflict = any((d.address_conflict for d in self.mrc))
-
+                self._handle_scanbus_result(f.result().response)
             except Exception:
                 self.log.exception("%s: scanbus error" % self)
 
@@ -245,17 +188,6 @@ class Controller(object):
         m.request_rc.dev = device
         m.request_rc.rc  = on_off
         return self.connection.queue_request(m)
-
-    def set_scanbus_interval(self, msec):
-        self._scanbus_timer.setInterval(msec)
-
-    def get_scanbus_interval(self):
-        return self._scanbus_timer.interval()
-
-    def _on_scanbus_timer_timeout(self):
-        if self.connection.is_connected():
-            for i in bm.BUS_RANGE:
-                self.scanbus(i)
 
     def add_poll_item(self, subscriber, bus, address, item):
         """Add a poll subscription for the given (bus, address, item). Item may
@@ -344,10 +276,56 @@ class Controller(object):
 
         elif msg.type == proto.Message.NOTIFY_SET:
             res = msg.set_result
-            self.log.debug("%s: received set notification", self, res)
+            self.log.debug("%s: received set notification %s", self, res)
 
             if not res.mirror:
                 device = self.mrc.get_device(res.bus, res.dev)
 
                 if device is not None:
                     device.set_cached_parameter(res.par, res.val)
+
+        elif msg.type == proto.Message.NOTIFY_SCANBUS:
+            self._handle_scanbus_result(msg)
+
+    def _handle_scanbus_result(self, msg):
+        if proto.is_error_response(msg):
+            self.log.error("%s: scanbus error: %s", self, msg)
+            return
+
+        bus     = msg.scanbus_result.bus
+        entries = msg.scanbus_result.entries
+
+        self.log.debug("%s: received scanbus result: bus=%d, len(entries)=%d",
+                self, bus, len(entries))
+
+        for addr in bm.DEV_RANGE:
+            try:
+                entry = entries[addr]
+            except IndexError:
+                # FIXME: this does happen seemingly at random
+                self.log.error("scanbus result error: addr=%s, entries=%s", addr, entries)
+                raise RuntimeError("invalid index into scanbus result: %s" % addr)
+
+            idc      = entry.idc
+            rc       = entry.rc
+            conflict = entry.conflict
+
+            device  = self.mrc.get_device(bus, addr)
+
+            if idc <= 0 and device is not None:
+                self.log.debug("%s: scanbus: removing device (%d, %d)", self, bus, addr)
+                self.mrc.remove_device(device)
+            elif idc > 0:
+                if device is None:
+                    self.log.debug("%s: scanbus: creating device (%d, %d, idc=%d)", self, bus, addr, idc)
+                    device = hm.Device(bus, addr, idc)
+                    self.mrc.add_device(device)
+
+                device.idc = idc
+                device.rc  = rc
+                device.address_conflict = conflict
+
+                if device.address_conflict:
+                    self.log.debug("%s: scanbus: address conflict on (%d, %d)", self, bus, addr)
+
+        self.mrc.address_conflict = any((d.address_conflict for d in self.mrc))

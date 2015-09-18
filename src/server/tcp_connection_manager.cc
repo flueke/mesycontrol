@@ -12,12 +12,16 @@ TCPConnectionManager::TCPConnectionManager(MRC1RequestQueue &mrc1_queue)
   , m_log(log::keywords::channel="TCPConnectionManager")
   , m_skip_read_after_set_response(false)
   , m_poller(mrc1_queue)
+  , m_scanbus_poller(mrc1_queue)
 {
   m_mrc1_queue.get_mrc1_connection()->register_status_change_callback(
       boost::bind(&TCPConnectionManager::handle_mrc1_status_change, this, _1, _2, _3, _4));
 
   m_poller.register_result_handler(boost::bind(
         &TCPConnectionManager::handle_poll_cycle_complete, this, _1));
+
+  m_scanbus_poller.register_result_handler(boost::bind(
+        &TCPConnectionManager::handle_scanbus_poll_complete, this, _1));
 }
 
 void TCPConnectionManager::start(TCPConnectionPtr c)
@@ -318,6 +322,12 @@ void TCPConnectionManager::handle_poll_cycle_complete(
   }
 
   send_to_all(m);
+}
+
+void TCPConnectionManager::handle_scanbus_poll_complete(
+    const MessagePtr &scanbus_notification)
+{
+  send_to_all(scanbus_notification);
 }
 
 } // namespace mesycontrol

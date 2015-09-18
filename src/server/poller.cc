@@ -210,4 +210,62 @@ void Poller::handle_timeout(const boost::system::error_code &ec)
   }
 }
 
+ScanbusPoller::ScanbusPoller(MRC1RequestQueue &mrc1_queue,
+    boost::posix_time::time_duration min_interval)
+  : m_log(log::keywords::channel="ScanbusPoller")
+  , m_queue(mrc1_queue)
+  , m_timer(mrc1_queue.get_mrc1_connection()->get_io_service())
+  , m_min_interval(min_interval)
+{
+  m_queue.get_mrc1_connection()->register_status_change_callback(
+      boost::bind(&ScanbusPoller::handle_mrc1_status_change, this, _1, _2, _3, _4));
+}
+
+void ScanbusPoller::stop()
+{
+  m_timer.cancel();
+}
+
+void ScanbusPoller::handle_mrc1_status_change(const proto::MRCStatus::Status &status,
+    const std::string &info, const std::string &version, bool has_read_multi)
+{
+  if (status == proto::MRCStatus::RUNNING) {
+    m_timer.expires_from_now(boost::posix_time::milliseconds(0));
+    m_timer.async_wait(boost::bind(&ScanbusPoller::handle_timeout, this, _1));
+  } else {
+    m_timer.cancel();
+  }
+}
+
+void ScanbusPoller::handle_response(const MessagePtr &request, const MessagePtr &response)
+{
+  // Change message type from response to notification. Both use the
+  // 'scanbus_result' member of the Message class.
+  response->set_type(proto::Message::NOTIFY_SCANBUS);
+
+  BOOST_LOG_SEV(m_log, log::lvl::info) << "notifying result handlers";
+
+  for (std::vector<ResultHandler>::iterator it = m_result_handlers.begin();
+      it != m_result_handlers.end(); ++it) {
+    (*it)(response);
+  }
+
+  m_timer.expires_from_now(m_min_interval);
+  m_timer.async_wait(boost::bind(&ScanbusPoller::handle_timeout, this, _1));
+}
+
+void ScanbusPoller::handle_timeout(const boost::system::error_code &ec)
+{
+  if (ec != boost::asio::error::operation_aborted &&
+      m_timer.expires_at() <= boost::asio::deadline_timer::traits_type::now()) {
+
+    BOOST_LOG_SEV(m_log, log::lvl::info) << "queueing scanbus requests";
+
+    for (int i=0; i<2; ++i) {
+      m_queue.queue_request(MessageFactory::make_scanbus_request(i),
+          boost::bind(&ScanbusPoller::handle_response, this, _1, _2));
+    }
+  }
+}
+
 } // namespace mesycontrol

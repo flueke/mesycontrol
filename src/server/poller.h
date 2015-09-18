@@ -120,6 +120,33 @@ class Poller
     bool m_stopping;
 };
 
+class ScanbusPoller
+  : public boost::enable_shared_from_this<ScanbusPoller>
+  , private boost::noncopyable
+{
+  public:
+    typedef boost::function<void (const MessagePtr &)> ResultHandler;
+
+    explicit ScanbusPoller(MRC1RequestQueue &mrc1_queue,
+        boost::posix_time::time_duration min_interval = boost::posix_time::milliseconds(5000));
+
+    void register_result_handler(const ResultHandler &handler)
+    { m_result_handlers.push_back(handler); }
+
+    void stop();
+
+  private:
+    void handle_mrc1_status_change(const proto::MRCStatus::Status &status,
+        const std::string &info, const std::string &version, bool has_read_multi);
+    void handle_response(const MessagePtr &request, const MessagePtr &response);
+    void handle_timeout(const boost::system::error_code &ec);
+    log::Logger m_log;
+    MRC1RequestQueue& m_queue;
+    boost::asio::deadline_timer m_timer;
+    boost::posix_time::time_duration m_min_interval;
+    std::vector<ResultHandler> m_result_handlers;
+};
+
 } // namespace mesycontrol
 
 #endif
