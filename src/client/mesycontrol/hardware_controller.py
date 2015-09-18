@@ -208,6 +208,24 @@ class Controller(object):
         items.add((bus, address, item))
         return self._send_poll_request()
 
+    def add_poll_items(self, subscriber, items):
+
+        def on_subscriber_finalized(ref):
+            self.log.debug("on_subscriber_finalized: %s", ref)
+            del self._poll_subscriptions[ref]
+            self._send_poll_request()
+
+        sub_ref   = weakref.ref(subscriber, on_subscriber_finalized)
+        cur_items = self._poll_subscriptions.setdefault(sub_ref, set())
+
+        if not len(cur_items):
+            self.log.info("got a new subscriber: %s", subscriber)
+
+        for tup in items:
+            cur_items.add(tup)
+
+        return self._send_poll_request()
+
     def remove_polling_subscriber(self, subscriber):
         self.log.debug("remove_polling_subscriber: %s", subscriber)
 

@@ -219,6 +219,7 @@ class DeviceWidgetBase(QtGui.QWidget):
         self._write_mode   = write_mode
 
         self.device.hardware_set.connect(self._on_device_hardware_set)
+        self._on_device_hardware_set(self.device, None, self.device.hw)
 
     def get_display_mode(self):
         return self.device.read_mode
@@ -271,6 +272,11 @@ class DeviceWidgetBase(QtGui.QWidget):
     def _on_device_hardware_set(self, device, old, new):
         if old is not None:
             old.remove_polling_subscriber(self)
+            old.connected.disconnect(self._on_hardware_connected)
 
         if new is not None:
             self.device.add_default_polling_subscription(self)
+            new.connected.connect(self._on_hardware_connected)
+
+    def _on_hardware_connected(self):
+        self.device.add_default_polling_subscription(self)

@@ -104,7 +104,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
     def _on_device_hardware_set(self, app_device, old_hw, new_hw):
         signal_slot_map = {
                 'parameter_changed': self._on_hw_parameter_changed,
-                'connected': self._all_fields_changed,
+                'connected': self._on_hardware_connected,
                 'connecting': self._all_fields_changed,
                 'disconnected': self._all_fields_changed,
                 'connection_error': self._all_fields_changed,
@@ -124,7 +124,8 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
             for signal, slot in signal_slot_map.iteritems():
                 getattr(new_hw, signal).connect(slot)
 
-            app_device.add_default_polling_subscription(self)
+            if new_hw.is_connected():
+                self._on_hardware_connected()
 
         self._all_fields_changed()
 
@@ -147,8 +148,12 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         elif (self.device.has_hw and
                 ((self.display_mode & util.HARDWARE)
                     or not self.device.idc_conflict)):
-            for addr in self.device.get_hw_profile().get_volatile_addresses():
-                self.device.hw.add_poll_item(self, addr)
+            self.device.add_default_polling_subscription(self)
+
+    def _on_hardware_connected(self):
+        self.log.info("hardware connected; adding polling subscription")
+        self.device.add_default_polling_subscription(self)
+        self._all_fields_changed()
 
     def _on_hw_parameter_changed(self, address, value):
         self.dataChanged.emit(

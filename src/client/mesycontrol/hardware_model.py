@@ -239,6 +239,10 @@ class Device(bm.Device):
         given, the read range command will be used."""
         self.controller.add_poll_item(subscriber, self.bus, self.address, item)
 
+    def add_poll_items(self, subscriber, items):
+        self.controller.add_poll_items(subscriber, (
+            (self.bus, self.address, item) for item in items))
+
     def remove_polling_subscriber(self, subscriber):
         return self.controller.remove_polling_subscriber(subscriber)
 

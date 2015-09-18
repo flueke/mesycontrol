@@ -554,8 +554,7 @@ class Device(AppObject):
         if not self.has_hw:
             raise RuntimeError("Hardware not present")
 
-        for addr in self.hw_profile.get_volatile_addresses():
-            self.hw.add_poll_item(subscriber, addr)
+        self.hw.add_poll_items(subscriber, self.hw_profile.get_volatile_addresses())
 
     def remove_polling_subscriber(self, subscriber):
         if not self.has_hw:
