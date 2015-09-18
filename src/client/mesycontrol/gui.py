@@ -33,6 +33,10 @@ log = logging.getLogger(__name__)
 
 class GUIApplication(QtCore.QObject):
     """GUI logic"""
+
+    TOOLBAR_ICON_SIZE = QtCore.QSize(12, 12)
+    TOOLBAR_FONT_SIZE = 10
+
     def __init__(self, context, mainwindow):
         super(GUIApplication, self).__init__()
         self.log            = util.make_logging_source_adapter(__name__, self)
@@ -49,6 +53,11 @@ class GUIApplication(QtCore.QObject):
 
         self.mainwindow.installEventFilter(self)
         self.mainwindow.mdiArea.subWindowActivated.connect(self._on_subwindow_activated)
+        self.mainwindow.toolbar.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        self.mainwindow.toolbar.setIconSize(GUIApplication.TOOLBAR_ICON_SIZE)
+        font = self.mainwindow.toolbar.font()
+        font.setPixelSize(GUIApplication.TOOLBAR_FONT_SIZE)
+        self.mainwindow.toolbar.setFont(font)
 
         # Treeview
         self.treeview = self.mainwindow.treeview
@@ -334,9 +343,9 @@ class GUIApplication(QtCore.QObject):
                 checkable=True, enabled=False, triggered=self._on_display_combined_triggered)
 
         action = QtGui.QAction(make_icon(":/select-display-mode.png"),
-                "Set display mode", self, enabled=False)
+                "Display mode", self, enabled=False)
 
-        action.setToolTip("Toggle display mode")
+        action.setToolTip("Select display mode")
         action.setStatusTip(action.toolTip())
         action.toolbar = True
         action.setMenu(QtGui.QMenu())
@@ -353,9 +362,9 @@ class GUIApplication(QtCore.QObject):
                 checkable=True, enabled=False, triggered=self._on_write_combined_triggered)
 
         action = QtGui.QAction(make_icon(":/select-write-mode.png"),
-                "Set write mode", self, enabled=False)
+                "Write mode", self, enabled=False)
 
-        action.setToolTip("Toggle write mode")
+        action.setToolTip("Select write mode")
         action.setStatusTip(action.toolTip())
         action.toolbar = True
         action.setMenu(QtGui.QMenu())
@@ -442,9 +451,7 @@ class GUIApplication(QtCore.QObject):
             self.treeview.hw_toolbar.addAction(action)
 
     def _update_actions(self):
-        prev_node   = self._previous_tree_node
         node        = self._selected_tree_node
-        prev_win    = self._previous_subwindow
         win         = self._current_subwindow
 
         setup = self.app_registry.cfg
@@ -560,8 +567,14 @@ class GUIApplication(QtCore.QObject):
                     and not node.ref.address_conflict
                     and node.ref.has_hw))
 
+        if win is not None and hasattr(win, 'display_mode'):
+            self.actions['select_display_mode'].setText(util.RW_MODE_NAMES[win.display_mode].capitalize())
+
+        if win is not None and hasattr(win, 'write_mode'):
+            self.actions['select_write_mode'].setText(util.RW_MODE_NAMES[win.write_mode].capitalize())
+
         for a in self.actions.values():
-            if len(a.toolTip()):
+            if len(a.toolTip()) and not len(a.statusTip()):
                 a.setStatusTip(a.toolTip())
 
     def _tree_node_selected(self, node):
@@ -946,6 +959,9 @@ Initialize using the current hardware values or the device defaults?
         QtCore.QMetaObject.invokeMethod(self.mainwindow, "close", Qt.QueuedConnection)
 
     def _on_subwindow_activated(self, window):
+        self._current_subwindow = window
+        self._update_actions()
+
         if self._subwindow_toolbar is not None:
             self.mainwindow.removeToolBar(self._subwindow_toolbar)
             self._subwindow_toolbar = None
@@ -998,7 +1014,11 @@ Initialize using the current hardware values or the device defaults?
 
         if hasattr(window, 'has_toolbar') and window.has_toolbar():
             self._subwindow_toolbar = tb = window.get_toolbar()
-            tb.setIconSize(QtCore.QSize(16, 16))
+            tb.setIconSize(GUIApplication.TOOLBAR_ICON_SIZE)
+            font = tb.font()
+            font.setPixelSize(GUIApplication.TOOLBAR_FONT_SIZE)
+            tb.setFont(font)
+            tb.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
             tb.setWindowTitle("Subwindow Toolbar")
             tb.setObjectName("subwindow_toolbar")
             self.mainwindow.addToolBar(tb)
