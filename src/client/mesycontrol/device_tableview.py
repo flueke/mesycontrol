@@ -102,6 +102,9 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
     write_mode   = pyqtProperty(object, get_write_mode, set_write_mode)
 
     def _on_device_hardware_set(self, app_device, old_hw, new_hw):
+        self.log.debug("_on_device_hardware_set: dev=%s, old=%s, new=%s",
+                app_device, old_hw, new_hw)
+
         signal_slot_map = {
                 'parameter_changed': self._on_hw_parameter_changed,
                 'connected': self._on_hardware_connected,

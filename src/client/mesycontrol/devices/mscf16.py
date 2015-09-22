@@ -227,15 +227,19 @@ class MSCF16(DeviceBase):
     # FIXME: simplify this. DRY!
     def has_ecl_enable(self):
         ret = future.Future()
+
+        @future.set_result_on(ret)
         def done(f):
-            ret.set_result(f.result() >= (5, 0))
+            return f.result() >= (5, 0)
         self.get_version().add_done_callback(done)
         return ret
 
     def has_tf_int_time(self):
         ret = future.Future()
+
+        @future.set_result_on(ret)
         def done(f):
-            ret.set_result(f.result() >= (5, 0))
+            return f.result() >= (5, 0)
         self.get_version().add_done_callback(done)
         return ret
 
@@ -854,17 +858,23 @@ class TimingPage(QtGui.QGroupBox):
 
     def _ecl_delay_enable_cb(self, param_future):
         def done(f):
-            self.check_ecl_delay.setEnabled(f.result())
-            if not f.result():
-                self.check_ecl_delay.setToolTip("N/A")
+            try:
+                self.check_ecl_delay.setEnabled(f.result())
+                if not f.result():
+                    self.check_ecl_delay.setToolTip("N/A")
+            except util.Disconnected:
+                pass
 
         self.device.has_ecl_enable().add_done_callback(done)
 
     def _tf_int_time_cb(self, param_future):
         def done(f):
-            self.spin_tf_int_time.setEnabled(f.result())
-            if not f.result():
-                self.spin_tf_int_time.setToolTip("N/A")
+            try:
+                self.spin_tf_int_time.setEnabled(f.result())
+                if not f.result():
+                    self.spin_tf_int_time.setToolTip("N/A")
+            except util.Disconnected:
+                pass
 
         self.device.has_tf_int_time().add_done_callback(done)
 
@@ -875,11 +885,17 @@ class ChannelModeBinding(pb.AbstractParameterBinding):
 
     def _update(self, rf):
         try:
+            for rb in self.target:
+                rb.setEnabled(True)
+
             rb = self.target[0] if int(rf) else self.target[1]
+
             with util.block_signals(rb):
                 rb.setChecked(True)
+
         except Exception:
-            pass
+            for rb in self.target:
+                rb.setEnabled(False)
 
         for rb in self.target:
             rb.setToolTip(self._get_tooltip(rf))
@@ -1112,8 +1128,26 @@ class MiscPage(QtGui.QWidget):
         self.pb_copy_rc2panel.setEnabled(hw_is_ok)
         self.pb_copy_common2single.setEnabled(hw_is_ok)
 
+        if old is not None:
+            old.connected.disconnect(self._on_hardware_connected)
+            old.disconnected.disconnect(self._on_hardware_disconnected)
+
+        if new is not None:
+            new.connected.connect(self._on_hardware_connected)
+            new.disconnected.connect(self._on_hardware_disconnected)
+
         for binding in self.bindings:
             binding.populate()
+
+    def _on_hardware_connected(self):
+        for b in (self.pb_copy_panel2rc, self.pb_copy_rc2panel,
+                self.pb_copy_common2single):
+            b.setEnabled(True)
+
+    def _on_hardware_disconnected(self):
+        for b in (self.pb_copy_panel2rc, self.pb_copy_rc2panel,
+                self.pb_copy_common2single):
+            b.setEnabled(False)
 
     def _copy_panel2rc(self):
         def progress(f):

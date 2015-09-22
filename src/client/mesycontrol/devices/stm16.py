@@ -116,9 +116,11 @@ class GainPage(QtGui.QGroupBox):
 
     @pyqtSlot(int)
     def _on_hw_gain_input_value_changed(self, value):
+        self.log.debug("_on_hw_gain_input_value_changed: %s", value)
         self.device.set_gain_adjust(value)
 
     def _on_device_gain_adjust_changed(self, value):
+        self.log.debug("_on_device_gain_adjust_changed: %s", value)
         with util.block_signals(self.hw_gain_input):
             self.hw_gain_input.setValue(value)
 
@@ -128,6 +130,7 @@ class GainPage(QtGui.QGroupBox):
     # This version works as an update callback by accepting an additional
     # argument: the result_future passed to the callback.
     def _update_gain_label_cb(self, f, group):
+        self.log.debug("_update_gain_label_cb: %s, %s", f, group)
         self._update_gain_label(group)
 
     def _update_gain_label(self, group):
