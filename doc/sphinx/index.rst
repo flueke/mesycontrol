@@ -55,6 +55,10 @@ Windows
 the supplied installer and following the wizard should correctly install the
 software and create a start menu entry for the GUI application.
 
+.. raw:: latex
+
+  \newpage
+
 Architecture Overview
 ---------------------
 .. figure:: architecture.png
@@ -88,9 +92,11 @@ Concepts and Terms
 
   The are three ways to connect to a MRC:
 
-  * Serial Connection: uses a local serial or USB port.
-  * TCP Connection: uses a serial server which is connected to the MRC.
-  * Mesycontrol Connection: connects to a (remotely) running *mesycontrol_server* instance.
+  * Serial connection: uses a local serial or USB port.
+  * TCP connection: uses a serial server which is connected to the MRC.
+  * Mesycontrol connection: connects to a (remotely) running *mesycontrol_server* instance.
+
+  See :ref:`mrc-url-format` for details.
 
 * Device
 
@@ -103,6 +109,10 @@ Concepts and Terms
   A tree of MRC configurations and their child device configs.
   Can be loaded from and saved to file.
 
+.. Add a manual page break to latex output.
+.. raw:: latex
+
+  \newpage
 
 GUI overview
 ^^^^^^^^^^^^
@@ -131,6 +141,10 @@ trees in sync.
 
    Device tree with **linked_mode** enabled. The red row highlights an IDC
    conflict. Green rows mean that hardware and config are equal.
+
+.. raw:: latex
+
+  \newpage
 
 Devices with a red background have conflicting device types (their IDCs do not
 match). A green background means hardware and config parameters are equal.
@@ -180,6 +194,10 @@ bar.
 * TODO: Table View
 * TODO: Specialized GUIs
 
+.. raw:: latex
+
+  \newpage
+
 Stand-alone server operation
 ----------------------------
 * Binary location:
@@ -211,6 +229,207 @@ Stand-alone server operation
 * An overview of all options is available by running::
 
   $ ./mesycontrol_server --help
+
+.. raw:: latex
+
+  \newpage
+
+XML format
+----------
+Mesycontrol stores device configurations and setups in XML files. The root
+element required for all XML files is **mesycontrol** with one optional
+attribute called **version** specifying the config file version (defaults to
+1).
+
+Device config
+^^^^^^^^^^^^^
+A device config starts with the **device_config** element. The following
+sub-elements contain information about the device:
+
+* idc
+
+  The **idc** element specifies the devices identifier code, e.g. 27 for a MHV-4.
+
+* bus
+
+  The devices bus number.
+
+* address
+
+  The devices address on the bus.
+
+* name
+
+  Optional user-defined name for the device. Defaults to an empty string.
+
+* parameter
+
+  Repeated element containing device parameter addresses and values. The
+  **parameter** element requires two attributes: **address** specifying the
+  parameters address (range [0, 255]) and **value** containing its value (range
+  [0,65535]).
+
+* extension
+
+  May appear multiple times. Stores additional information about a device (e.g.
+  jumper values that can not be read from the hardware). The required attribute
+  **name** contains the extensions unique name. The extension data is contained
+  in a **value** sub-element. The value type is set using the **type**
+  attribute. Currently the following types are supported: *str*, *int*,
+  *float*, *list*, *dict*.
+  
+  The list and dictionary types may be nested. Lists contain **value**
+  subelements, dictionaries contain **key** elements with one mandatory
+  attribute called **name** holding the keys name as a string and a
+  **value** subelement defining the keys value.
+
+MRC config
+^^^^^^^^^^
+The top-level element of a MRC configuration is named **mrc_config**. Possible
+sub-elements are:
+
+* url
+
+  Required element containing details about how to connect to the MRC.
+
+  Example: *serial:///dev/ttyUSB0* will connect via a local serial device using
+  baud rate auto-detection.
+
+  See :ref:`mrc-url-format` for details.
+
+* name
+
+  Optional user-defined name for the MRC.
+
+* device_config
+
+  Repeated element containing child device configurations.
+
+Setup
+^^^^^
+The top-level element of a setup is called **setup**. Currently the only valid
+sub-elements for a **setup** node are **mrc_config** elements.
+
+.. _mrc-url-format:
+
+MRC URL format
+^^^^^^^^^^^^^^
+The URLs used in MRC configs follow standard URL schemes:
+*<proto>://<location>[<options>]*. Currently the following protocols are
+supported:
+
+* serial
+
+  MRC connectivity using a local serial port. If no baud-rate is specified
+  auto-detection will be attempted.
+
+  Format:
+    - *serial://<path-to-device>[@baud-rate]*
+
+  Examples:
+    - *serial:///dev/ttyUSB0@115200*
+    - *serial:///dev/ttyS0* 
+    - *serial://COM4*
+
+* tcp
+
+  Connecting via a serial server (e.g. a Moxa NPort device or the unix program
+  *ser2net*).
+
+  **Note**: Port defaults to 4001.
+
+  Format:
+    - *tcp://<hostname>[:port]*
+
+  Example:
+    - *tcp://serial-server.example.com:4002*
+
+* mc
+
+  Direct connection to a mesycontrol server process.
+
+  **Note**: Port defaults to 23000 (the servers default listening port).
+
+  Format:
+    - *mc://<hostname>[:port]*
+
+  Example:
+    - *mc://mc-server.example.com:23003*
+
+XML Examples
+^^^^^^^^^^^^
+Sample MSCF-16 config
+"""""""""""""""""""""
+
+::
+
+  <?xml version="1.0" ?>
+  <mesycontrol version="1">
+    <device_config>
+      <idc>20</idc>
+      <bus>1</bus>
+      <address>3</address>
+      <name/>
+      <!--gain_group0-->
+      <parameter address="0" value="12"/>
+      <!--gain_group1-->
+      <parameter address="1" value="12"/>
+      <!--gain_group2-->
+      <parameter address="2" value="12"/>
+      <!--gain_group3-->
+      <parameter address="3" value="12"/>
+      ...
+      <extension name="cfd_delay">
+        <value type="int">30</value>
+      </extension>
+      <extension name="input_connector">
+        <value type="str">L</value>
+      </extension>
+      <extension name="gain_adjusts">
+        <value type="list">
+          <value type="int">1</value>
+          <value type="int">1</value>
+          <value type="int">1</value>
+          <value type="int">1</value>
+        </value>
+      </extension>
+      ...
+    </device_config>
+  </mesycontrol>
+
+Sample setup
+""""""""""""
+
+::
+
+  <?xml version="1.0" ?>
+  <mesycontrol version="1">
+    <setup>
+      <mrc_config>
+        <url>serial:///dev/ttyUSB0</url>
+        <name/>
+        <device_config>
+          <idc>20</idc>
+          <bus>0</bus>
+          <address>0</address>
+          <name/>
+          <!--gain_group0-->
+          <parameter address="0" value="12"/>
+          <!--gain_group1-->
+          <parameter address="1" value="12"/>
+          ...
+        </device_config>
+        ...
+      </mrc_config>
+      <mrc_config>
+        <url>tcp://localhost:4002</url>
+        <device_config>
+        ...
+        </device_config>
+        ...
+      </mrc_config>
+      ...
+    </setup>
 
 .. TODOS
 .. =====
