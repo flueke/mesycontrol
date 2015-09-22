@@ -239,6 +239,8 @@ void ScanbusPoller::handle_mrc1_status_change(const proto::MRCStatus::Status &st
 
 void ScanbusPoller::handle_response(const MessagePtr &request, const MessagePtr &response)
 {
+  BOOST_LOG_SEV(m_log, log::lvl::info) << "bus=" << response->scanbus_result().bus()
+    << ", #entries=" << response->scanbus_result().entries_size();
   // Change message type from response to notification. Both use the
   // 'scanbus_result' member of the Message class.
   response->set_type(proto::Message::NOTIFY_SCANBUS);
