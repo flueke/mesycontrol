@@ -388,8 +388,15 @@ class MSCF16Widget(DeviceWidgetBase):
             vbox.addStretch(1)
             layout.addItem(vbox)
 
+        self.hardware_connected_changed.connect(self._on_hardware_connected_changed)
+
     def get_parameter_bindings(self):
         return itertools.chain(*(p.bindings for p in self.pages))
+
+    def _on_hardware_connected_changed(self, connected):
+        for page in self.pages:
+            if hasattr(page, 'handle_hardware_connected_changed'):
+                page.handle_hardware_connected_changed(connected)
 
 class GainPage(QtGui.QGroupBox):
     def __init__(self, device, display_mode, write_mode, parent=None):
@@ -419,8 +426,8 @@ class GainPage(QtGui.QGroupBox):
 
         self.bindings.append(b)
 
-        common_layout = util.make_apply_common_button_layout(
-                self.gain_common, "Apply to groups", self._apply_common_gain)[0]
+        common_layout, self.apply_common_gain_button = util.make_apply_common_button_layout(
+                self.gain_common, "Apply to groups", self._apply_common_gain)
         layout.addLayout(common_layout, 0, 1)
 
         layout.addWidget(make_title_label("Group"),   1, 0, 1, 1, Qt.AlignRight)
@@ -471,6 +478,10 @@ class GainPage(QtGui.QGroupBox):
 
             layout.addWidget(descr_label, i+offset, 0, 1, 1, Qt.AlignRight)
             layout.addWidget(gain_spin,   i+offset, 1)
+
+    def handle_hardware_connected_changed(self, connected):
+        if self.device.read_mode & util.HARDWARE:
+            self.apply_common_gain_button.setEnabled(connected)
 
     @future_progress_dialog()
     def _apply_common_gain(self):
@@ -566,11 +577,11 @@ class ShapingPage(QtGui.QGroupBox):
 
         self.bindings.append(b)
 
-        sht_common_layout = util.make_apply_common_button_layout(
-                self.spin_sht_common, "Apply to groups", self._apply_common_sht)[0]
+        sht_common_layout, self.sht_common_button = util.make_apply_common_button_layout(
+                self.spin_sht_common, "Apply to groups", self._apply_common_sht)
 
-        pz_common_layout  = util.make_apply_common_button_layout(
-                self.spin_pz_common, "Apply to channels", self._apply_common_pz)[0]
+        pz_common_layout, self.pz_common_button  = util.make_apply_common_button_layout(
+                self.spin_pz_common, "Apply to channels", self._apply_common_pz)
 
         self.pb_auto_pz_all  = QtGui.QPushButton("A")
         self.pb_auto_pz_all.setToolTip("Start auto PZ for all channels")
@@ -691,6 +702,11 @@ class ShapingPage(QtGui.QGroupBox):
 
         self._on_hardware_set(device, None, device.hw)
 
+    def handle_hardware_connected_changed(self, connected):
+        if self.device.read_mode & util.HARDWARE:
+            self.sht_common_button.setEnabled(connected)
+            self.pz_common_button.setEnabled(connected)
+
     def _on_hardware_set(self, device, old, new):
         hw_is_ok = new is not None and new.idc == idc
 
@@ -768,8 +784,8 @@ class TimingPage(QtGui.QGroupBox):
             write_mode=write_mode,
             target=self.threshold_common))
 
-        threshold_common_layout = util.make_apply_common_button_layout(
-                self.threshold_common, "Apply to channels", self._apply_common_threshold)[0]
+        threshold_common_layout, self.threshold_common_button = util.make_apply_common_button_layout(
+                self.threshold_common, "Apply to channels", self._apply_common_threshold)
 
         layout = QtGui.QGridLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
@@ -877,6 +893,10 @@ class TimingPage(QtGui.QGroupBox):
                 pass
 
         self.device.has_tf_int_time().add_done_callback(done)
+
+    def handle_hardware_connected_changed(self, connected):
+        if self.device.read_mode & util.HARDWARE:
+            self.threshold_common_button.setEnabled(connected)
 
 class ChannelModeBinding(pb.AbstractParameterBinding):
     def __init__(self, **kwargs):
