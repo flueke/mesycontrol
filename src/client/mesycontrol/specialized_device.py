@@ -210,6 +210,7 @@ class DeviceBase(QtCore.QObject):
 class DeviceWidgetBase(QtGui.QWidget):
     display_mode_changed = pyqtSignal(int)
     write_mode_changed   = pyqtSignal(int)
+    hardware_connected_changed = pyqtSignal(bool)
 
     def __init__(self, specialized_device, display_mode, write_mode, parent=None):
         super(DeviceWidgetBase, self).__init__(parent)
@@ -256,6 +257,7 @@ class DeviceWidgetBase(QtGui.QWidget):
 
     def showEvent(self, event):
         if not event.spontaneous():
+
             for binding in self.get_parameter_bindings():
                 binding.populate()
 
@@ -265,18 +267,29 @@ class DeviceWidgetBase(QtGui.QWidget):
             if (self.device.has_hw and
                     ((self.display_mode & util.HARDWARE)
                         or not self.device.idc_conflict)):
+                self.log.debug("showEvent: adding default polling subscription")
                 self.device.add_default_polling_subscription(self)
 
         super(DeviceWidgetBase, self).showEvent(event)
 
     def _on_device_hardware_set(self, device, old, new):
+        self.log.debug("_on_device_hardware_set: device=%s, old=%s, new=%s",
+                device, old, new)
+
         if old is not None:
             old.remove_polling_subscriber(self)
             old.connected.disconnect(self._on_hardware_connected)
+            old.disconnected.disconnect(self._on_hardware_disconnected)
 
         if new is not None:
             self.device.add_default_polling_subscription(self)
             new.connected.connect(self._on_hardware_connected)
+            new.disconnected.connect(self._on_hardware_disconnected)
 
     def _on_hardware_connected(self):
+        self.log.debug("_on_hardware_connected: adding default polling subscription")
         self.device.add_default_polling_subscription(self)
+        self.hardware_connected_changed.emit(True)
+
+    def _on_hardware_disconnected(self):
+        self.hardware_connected_changed.emit(False)
