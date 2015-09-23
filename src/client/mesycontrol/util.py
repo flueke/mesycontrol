@@ -416,10 +416,12 @@ def wait_for_signal(signal, expected_args=None, timeout_ms=0, emitting_callable=
 
 @contextlib.contextmanager
 def block_signals(o):
-    was_blocked = o.signalsBlocked()
-    o.blockSignals(True)
-    yield o
-    o.blockSignals(was_blocked)
+    try:
+        was_blocked = o.signalsBlocked()
+        o.blockSignals(True)
+        yield o
+    finally:
+        o.blockSignals(was_blocked)
 
 class ExceptionHookRegistry(object):
     """Exception handler registry for use with sys.excepthook.
