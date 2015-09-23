@@ -80,8 +80,8 @@ profile_dict = {
             { 'address': 51, 'name': 'blr_enable', 'range': (0, 1) },                   # hw version >= 4
             { 'address': 52, 'name': 'coincidence_time', 'range': (0, 255),             # hw version >= 4
                     'units': [{'label': 'ns', 'name': 'nanoseconds', 'factor': 255/180.0, 'offset': 20}] },
-            { 'address': 53, 'name': 'threshold_offset', 'range': (0, 200) },           # hw version >= 4
-            { 'address': 54, 'name': 'shaper_offset'   , 'range': (0, 200) },           # hw version >= 4
+            { 'address': 53, 'name': 'threshold_offset', 'range': (0, 200), 'default': 100 },   # hw version >= 4
+            { 'address': 54, 'name': 'shaper_offset'   , 'range': (0, 200), 'default': 100 },   # hw version >= 4
             { 'address': 55, 'name': 'sumdis_threshold' },                              # hw version >= 4 && hardware_info sumdis bit set
             { 'address': 56, 'name': 'pz_display_range', 'range': (1, 255) },           # ???
             { 'address': 57, 'name': 'ecl_delay_enable', 'range': (0, 1) },             # hw version >= 5
@@ -116,8 +116,10 @@ profile_dict = {
             # Hardware info register:
             # 8 bits: [- | SumDis | - | - | - | Integrating | >= V4 | LN type ]
             { 'address': 253, 'name': 'hardware_info',          'read_only': True }, # sw version >= 5.3
+
             # 256 * major + minor
             { 'address': 254, 'name': 'fpga_version',           'read_only': True }, # sw version >= 5.3
+
             # 256 * major + minor
             # This should always yield the same version as the `version'
             # register (49) (although the encoding is different).
@@ -126,11 +128,11 @@ profile_dict = {
 
         'extensions': [
             { 'name': 'gain_adjusts',       'value': [1 for i in range(NUM_GROUPS)] },
-            { 'name': 'module_name',        'value': 'F' },                             # the single letter mscf16 suffix
+            { 'name': 'module_name',        'value': 'F' },                             # the mscf16 suffix (F, LN)
             { 'name': 'shaping_time',       'value': 1 },                               # 1, 2, 4, 8
-            { 'name': 'input_type',         'value': 'V' },
-            { 'name': 'input_connector',    'value': 'L' },
-            { 'name': 'discriminator',      'value': 'CFD' },
-            { 'name': 'cfd_delay',          'value': 30 },
+            { 'name': 'input_type',         'value': 'V' },                             # Voltage or Charge integrating
+            { 'name': 'input_connector',    'value': 'L' },                             # Lemo or Differential
+            { 'name': 'discriminator',      'value': 'CFD' },                           # CFD or LE (leading edge)
+            { 'name': 'cfd_delay',          'value': 30 },                              # CFD delay (30, 60, 200)
             ],
 }
