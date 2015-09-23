@@ -46,6 +46,7 @@ class AbstractParameterBinding(object):
         """
         log.debug("AbstractParameterBinding: device=%s, profile=%s, target=%s",
                 device, profile, target)
+
         self._device        = weakref.ref(device)
         self.profile        = profile
         self._display_mode  = display_mode
@@ -202,8 +203,6 @@ class AbstractParameterBinding(object):
             new_hw.disconnected.connect(self.populate)
             new_hw.connected.connect(self.populate)
 
-        self.populate()
-
     def _on_device_cfg_set(self, device, old_cfg, new_cfg):
         log.debug("_on_device_cfg_set: device=%s, old=%s, new=%s",
                 device, old_cfg, new_cfg)
@@ -225,7 +224,7 @@ class AbstractParameterBinding(object):
             log.debug("_on_cfg_parameter_changed: target=%s, addr=%d, future=%s", self.target, self.write_address, f)
 
     def _write_value(self, value):
-        log.debug("_write_value: target=%s, %d=%d", self.target, self.write_address, value)
+        log.debug("_write_value: self=%s, target=%s, %d=%d", self, self.target, self.write_address, value)
 
         if self.has_rw_profile():
             self._write_value_rw(value)
@@ -338,6 +337,7 @@ class DefaultParameterBinding(AbstractParameterBinding):
         if isinstance(self.target, QtGui.QWidget):
             self._original_palette = QtGui.QPalette(self.target.palette())
         else:
+            self._original_palette = None
             log.info("DefaultParameterBinding: non QWidget target %s", self.target)
 
     def _update(self, result_future):
@@ -405,9 +405,11 @@ class SpinBoxParameterBinding(DefaultParameterBinding):
 
         try:
             with util.block_signals(self.target):
-                self.target.setValue(int(result_future.result()))
+                result = int(result_future.result())
+                self.target.setValue(result)
+                log.debug("SpinBoxParameterBinding: _update: addr=%d, result=%d", self.address, result)
         except Exception:
-            log.exception("SpinBoxParameterBinding: _update")
+            pass
 
 class DoubleSpinBoxParameterBinding(DefaultParameterBinding):
     def __init__(self, unit_name, **kwargs):
@@ -486,11 +488,14 @@ class RadioButtonGroupParameterBinding(DefaultParameterBinding):
         self._write_value(button_id)
 
     def _update(self, rf):
-        self.target.button(int(rf)).setChecked(True)
+        try:
+            self.target.button(int(rf)).setChecked(True)
 
-        for b in self.target.buttons():
-            b.setToolTip(self._get_tooltip(rf))
-            b.setStatusTip(b.toolTip())
+            for b in self.target.buttons():
+                b.setToolTip(self._get_tooltip(rf))
+                b.setStatusTip(b.toolTip())
+        except Exception:
+            pass
 
     @staticmethod
     def predicate(target):
@@ -548,6 +553,7 @@ class SliderParameterBinding(DefaultParameterBinding):
 
 class Factory(object):
     def __init__(self):
+        self.log = util.make_logging_source_adapter(__name__, self)
         self.predicate_binding_class_pairs = list()
         self.classinfo_bindings = list()
 
@@ -579,7 +585,9 @@ class Factory(object):
 
         if cls is not None:
             try:
-                return cls(**kwargs)
+                ret = cls(**kwargs)
+                self.log.debug("created binding %s", ret)
+                return ret
             except Exception as e:
                 e.args = e.args + ("class=%s, kwargs=%s" % (cls.__name__, kwargs),)
                 raise
