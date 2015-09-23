@@ -70,11 +70,11 @@ class DeviceSubWindow(QtGui.QMdiSubWindow):
         device       = self.device
         idc          = None
 
-        if device.hw is not None:
-            idc = device.hw.idc
+        if self.display_mode == util.HARDWARE and device.hw is not None:
+            idc = device.hw_idc
             profile = device.hw_profile
-        elif device.cfg is not None:
-            idc = device.cfg.idc
+        elif self.display_mode == util.CONFIG and device.cfg is not None:
+            idc = device.cfg_idc
             profile = device.cfg_profile
 
         if idc is None:
