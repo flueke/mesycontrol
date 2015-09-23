@@ -547,7 +547,9 @@ class GUIApplication(QtCore.QObject):
                 self.linked_mode
                 and ((is_setup(node) and node.ref.has_cfg)
                     or (is_mrc(node) and node.ref.has_cfg)
-                    or (is_bus(node) and node.parent.ref.has_cfg)
+                    or (is_bus(node)
+                        and node.parent is not None
+                        and node.parent.ref.has_cfg)
                     or (is_device(node)
                         and not node.ref.idc_conflict
                         and not node.ref.address_conflict
@@ -598,12 +600,21 @@ class GUIApplication(QtCore.QObject):
                 self.actions['write_cfg'].setChecked(True)
 
             self.actions['display_combined'].setEnabled(win.has_combined_display()
-                    and device.has_hw and device.has_cfg)
-            self.actions['write_combined'].setEnabled(device.has_hw and device.has_cfg)
-            self.actions['display_hw'].setEnabled(device.has_hw)
-            self.actions['write_hw'].setEnabled(device.has_hw)
-            self.actions['display_cfg'].setEnabled(device.has_cfg)
-            self.actions['write_cfg'].setEnabled(device.has_cfg)
+                    and device.has_hw and device.has_cfg and not device.idc_conflict)
+
+            self.actions['write_combined'].setEnabled(device.has_hw and device.has_cfg
+                    and not device.idc_conflict)
+
+            self.actions['display_hw'].setEnabled(device.has_hw
+                    and (not device.idc_conflict or display_mode == util.HARDWARE))
+
+            self.actions['write_hw'].setEnabled(device.has_hw
+                    and (not device.idc_conflict or display_mode == util.HARDWARE))
+
+            self.actions['display_cfg'].setEnabled(device.has_cfg
+                    and (not device.idc_conflict or display_mode == util.CONFIG))
+            self.actions['write_cfg'].setEnabled(device.has_cfg
+                    and (not device.idc_conflict or display_mode == util.CONFIG))
         else:
             # Disable the parent actions
             act_display.setEnabled(False)
