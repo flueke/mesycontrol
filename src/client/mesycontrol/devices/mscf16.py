@@ -224,7 +224,7 @@ class MSCF16(DeviceBase):
         return self._get_detailed_version_parameter(
                 'hardware_info', decode_hardware_info)
 
-    # FIXME: simplify this. DRY!
+    # FIXME: simplify this. DRY! This also does throw if hardware is not present.
     def has_ecl_enable(self):
         ret = future.Future()
 
@@ -659,11 +659,10 @@ class ShapingPage(QtGui.QGroupBox):
 
         layout.addWidget(hline(), layout.rowCount(), 0, 1, 6)
 
-        self.spin_shaper_offset = make_spinbox(limits=device.profile['shaper_offset'].range.to_tuple())
-        self.spin_blr_threshold = make_spinbox(limits=device.profile['blr_threshold'].range.to_tuple())
-        self.check_blr_enable   = QtGui.QCheckBox()
+        self.spin_shaper_offset  = util.DelayedSpinBox()
+        self.label_shaper_offset = QtGui.QLabel()
+        self.label_shaper_offset.setStyleSheet(dynamic_label_style)
 
-        self.spin_shaper_offset = util.DelayedSpinBox()
         self.spin_blr_threshold = util.DelayedSpinBox()
         self.check_blr_enable   = QtGui.QCheckBox()
 
@@ -672,7 +671,8 @@ class ShapingPage(QtGui.QGroupBox):
             profile=device.profile['shaper_offset'],
             display_mode=display_mode,
             write_mode=write_mode,
-            target=self.spin_shaper_offset))
+            target=self.spin_shaper_offset
+            ).add_update_callback(self._update_shaper_offset_label_cb))
 
         self.bindings.append(pb.factory.make_binding(
             device=device,
@@ -691,6 +691,7 @@ class ShapingPage(QtGui.QGroupBox):
         row = layout.rowCount()
         layout.addWidget(QtGui.QLabel("Sh. offset"), row, 0)
         layout.addWidget(self.spin_shaper_offset, row, 1)
+        layout.addWidget(self.label_shaper_offset, row, 2)
 
         row += 1
         layout.addWidget(QtGui.QLabel("BLR thresh."), row, 0)
@@ -765,6 +766,10 @@ class ShapingPage(QtGui.QGroupBox):
 
         self.device.get_auto_pz().add_done_callback(done)
 
+    def _update_shaper_offset_label_cb(self, f):
+        value = int(f.result()) - 100
+        self.label_shaper_offset.setText("%d" % value)
+
 class TimingPage(QtGui.QGroupBox):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(TimingPage, self).__init__("Timing", parent)
@@ -828,13 +833,16 @@ class TimingPage(QtGui.QGroupBox):
         layout.addWidget(hline(), layout.rowCount(), 0, 1, 3)
 
         self.spin_threshold_offset = util.DelayedSpinBox()
+        self.label_threshold_offset = QtGui.QLabel()
+        self.label_threshold_offset.setStyleSheet(dynamic_label_style)
 
         self.bindings.append(pb.factory.make_binding(
             device=device,
             profile=device.profile['threshold_offset'],
             display_mode=display_mode,
             write_mode=write_mode,
-            target=self.spin_threshold_offset))
+            target=self.spin_threshold_offset
+            ).add_update_callback(self._threshold_offset_cb))
 
         self.check_ecl_delay = QtGui.QCheckBox()
 
@@ -859,6 +867,7 @@ class TimingPage(QtGui.QGroupBox):
         row = layout.rowCount()
         layout.addWidget(QtGui.QLabel("Thr. offset"),   row, 0)
         layout.addWidget(self.spin_threshold_offset,    row, 1)
+        layout.addWidget(self.label_threshold_offset,   row, 2)
 
         row += 1
         layout.addWidget(QtGui.QLabel("ECL delay"),     row, 0)
@@ -893,6 +902,10 @@ class TimingPage(QtGui.QGroupBox):
                 pass
 
         self.device.has_tf_int_time().add_done_callback(done)
+
+    def _threshold_offset_cb(self, f):
+        value = int(f.result()) - 100
+        self.label_threshold_offset.setText("%d" % value)
 
     def handle_hardware_connected_changed(self, connected):
         if self.device.read_mode & util.HARDWARE:
