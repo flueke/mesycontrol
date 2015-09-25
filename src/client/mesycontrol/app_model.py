@@ -220,6 +220,9 @@ class Device(AppObject):
     hw_parameter_changed    = pyqtSignal(int, object)
     cfg_parameter_changed   = pyqtSignal(int, object)
 
+    hw_extension_changed    = pyqtSignal(str, object)
+    cfg_extension_changed   = pyqtSignal(str, object)
+
     def __init__(self, bus, address, mrc=None, hw_device=None, cfg_device=None,
             hw_module=None, cfg_module=None, parent=None):
         self.bus        = int(bus)
@@ -266,12 +269,14 @@ class Device(AppObject):
             old_hw.parameter_changed.disconnect(self.hw_parameter_changed)
             old_hw.memory_cleared.disconnect(self.update_config_applied)
             old_hw.idc_changed.disconnect(self._on_hw_idc_changed)
+            old_hw.extension_changed.disconnect(self.hw_extension_changed)
 
         if new_hw is not None:
             new_hw.parameter_changed.connect(self.update_config_applied)
             new_hw.parameter_changed.connect(self.hw_parameter_changed)
             new_hw.memory_cleared.connect(self.update_config_applied)
             new_hw.idc_changed.connect(self._on_hw_idc_changed)
+            new_hw.extension_changed.connect(self.hw_extension_changed)
 
     def _on_config_set(self, app_model, old_cfg, new_cfg):
         self._update_idc_conflict()
@@ -283,12 +288,14 @@ class Device(AppObject):
             old_cfg.parameter_changed.disconnect(self.cfg_parameter_changed)
             old_cfg.memory_cleared.disconnect(self.update_config_applied)
             old_cfg.idc_changed.disconnect(self._on_cfg_idc_changed)
+            old_cfg.extension_changed.connect(self.cfg_extension_changed)
 
         if new_cfg is not None:
             new_cfg.parameter_changed.connect(self.update_config_applied)
             new_cfg.parameter_changed.connect(self.cfg_parameter_changed)
             new_cfg.memory_cleared.connect(self.update_config_applied)
             new_cfg.idc_changed.connect(self._on_cfg_idc_changed)
+            new_cfg.extension_changed.connect(self.cfg_extension_changed)
 
     def get_mrc(self):
         return None if self._mrc is None else self._mrc()
