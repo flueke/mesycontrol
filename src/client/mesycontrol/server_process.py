@@ -63,7 +63,7 @@ class ServerProcessNG(QtCore.QObject):
             listen_address='0.0.0.0', listen_port=BASE_PORT, allow_find_port=True,
             serial_port=None, baud_rate=0,
             tcp_host=None, tcp_port=4001,
-            verbosity=2, parent=None):
+            verbosity=0, parent=None):
         """Create a ServerProcess instance.
         Args are:
         binary: The name of the mesycontrol_server binary. May also be a full path.
@@ -303,7 +303,7 @@ class ServerProcess(QtCore.QObject):
     startup_delay_ms = 200
 
     def __init__(self, binary='mesycontrol_server', listen_address='0.0.0.0', listen_port=BASE_PORT,
-            serial_port=None, baud_rate=0, tcp_host=None, tcp_port=4001, verbosity=2,
+            serial_port=None, baud_rate=0, tcp_host=None, tcp_port=4001, verbosity=0,
             output_buffer_maxlen=10000, parent=None):
 
         super(ServerProcess, self).__init__(parent)
