@@ -162,6 +162,10 @@ class DeviceBase(QtCore.QObject):
             dev = self.hw if self.write_mode == util.HARDWARE else self.cfg
             dev.set_extension(name, value)
 
+    def get_extensions(self):
+        dev = self.hw if self.write_mode == util.HARDWARE else self.cfg
+        return dev.get_extensions()
+
     def get_module(self):
         return self.cfg_module if self.read_mode & util.CONFIG else self.hw_module
 
