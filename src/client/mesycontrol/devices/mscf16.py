@@ -30,16 +30,9 @@ import mscf16_profile
 NUM_CHANNELS        = mscf16_profile.NUM_CHANNELS
 NUM_GROUPS          = mscf16_profile.NUM_GROUPS
 GAIN_FACTOR         = mscf16_profile.GAIN_FACTOR
-GAIN_ADJUST_LIMITS  = mscf16_profile.GAIN_ADJUST_LIMITS
+GAIN_JUMPER_LIMITS  = mscf16_profile.GAIN_JUMPER_LIMITS
 AUTO_PZ_ALL         = NUM_CHANNELS + 1
-
-# hardware setting (shaping_time extension) -> list indexed by shaping time register
-SHAPING_TIMES_US    = {
-        1: [0.125, 0.25, 0.5, 1.0],
-        2: [0.25,  0.5,  1.0, 2.0],
-        4: [0.5,   1.0,  2.0, 4.0],
-        8: [1.0,   2.0,  4.0, 8.0]
-        }
+SHAPING_TIMES_US    = mscf16_profile.SHAPING_TIMES_US
 
 cg_helper = util.ChannelGroupHelper(NUM_CHANNELS, NUM_GROUPS)
 
@@ -152,7 +145,7 @@ def decode_hardware_info(val):
 
 # ==========  Device ========== 
 class MSCF16(DeviceBase):
-    gain_adjust_changed     = pyqtSignal(int, int) # group, value
+    gain_jumper_changed     = pyqtSignal(int, int) # group, value
     auto_pz_channel_changed = pyqtSignal(int)
 
     def __init__(self, app_device, read_mode, write_mode, parent=None):
@@ -169,7 +162,8 @@ class MSCF16(DeviceBase):
         namedtuple of the form (major, minor)."""
 
         if not self.has_hw:
-            return future.Future().set_exception(pb.ParameterUnavailable("hardware not present"))
+            return future.Future().set_exception(
+                    pb.ParameterUnavailable("hardware not present"))
 
         ret = future.Future()
 
@@ -250,22 +244,22 @@ class MSCF16(DeviceBase):
 
         @set_result_on(ret)
         def done(f):
-            return GAIN_FACTOR ** int(f) * self.get_gain_adjust(group)
+            return GAIN_FACTOR ** int(f) * self.get_gain_jumper(group)
 
         self.get_parameter('gain_group%d' % group).add_done_callback(done)
 
         return ret
 
-    def get_gain_adjust(self, group):
-        return self.get_extension('gain_adjusts')[group]
+    def get_gain_jumper(self, group):
+        return self.get_extension('gain_jumpers')[group]
 
-    def set_gain_adjust(self, group, gain_adjust):
-        adjusts = self.get_extension('gain_adjusts')
+    def set_gain_jumper(self, group, jumper_value):
+        jumpers = self.get_extension('gain_jumpers')
 
-        if adjusts[group] != gain_adjust:
-            adjusts[group] = gain_adjust
-            self.set_extension('gain_adjusts', adjusts)
-            self.gain_adjust_changed.emit(group, gain_adjust)
+        if jumpers[group] != jumper_value:
+            jumpers[group] = jumper_value
+            self.set_extension('gain_jumpers', jumpers)
+            self.gain_jumper_changed.emit(group, jumper_value)
 
     def apply_common_gain(self):
         return self._apply_common_to_single(
@@ -371,6 +365,8 @@ class MSCF16Widget(DeviceWidgetBase):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(MSCF16Widget, self).__init__(device, display_mode, write_mode, parent)
 
+        self._toolbar = None
+
         self.gain_page      = GainPage(device, display_mode, write_mode, self)
         self.shaping_page   = ShapingPage(device, display_mode, write_mode, self)
         self.timing_page    = TimingPage(device, display_mode, write_mode, self)
@@ -398,17 +394,33 @@ class MSCF16Widget(DeviceWidgetBase):
             if hasattr(page, 'handle_hardware_connected_changed'):
                 page.handle_hardware_connected_changed(connected)
 
+    def has_toolbar(self):
+        return True
+
+    def get_toolbar(self):
+        if self._toolbar is None:
+            self._toolbar = tb = QtGui.QToolBar()
+
+            tb.addAction(util.make_icon(":/preferences.png"),
+                    "MSCF-16 Settings").triggered.connect(
+                            self._show_settings)
+
+        return self._toolbar
+
+    def _show_settings(self):
+        d = SettingsDialog(self.device, self)
+        d.show()
+
 class GainPage(QtGui.QGroupBox):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(GainPage, self).__init__("Gain", parent)
         self.log    = util.make_logging_source_adapter(__name__, self)
         self.device = device
 
-        device.gain_adjust_changed.connect(self._on_device_gain_adjust_changed)
+        device.gain_jumper_changed.connect(self._on_device_gain_jumper_changed)
 
         self.gain_inputs    = list()
         self.gain_labels    = list()
-        self.hw_gain_inputs = list()
         self.bindings       = list()
 
         layout = QtGui.QGridLayout(self)
@@ -461,24 +473,6 @@ class GainPage(QtGui.QGroupBox):
             layout.addWidget(gain_spin,   i+offset, 1)
             layout.addWidget(gain_label,  i+offset, 2, 1, 1, Qt.AlignCenter)
 
-        layout.addWidget(hline(), layout.rowCount(), 0, 1, 3) # hline separator
-
-        layout.addWidget(make_title_label("Gain Jumpers"), layout.rowCount(), 0, 1, 3, Qt.AlignCenter)
-
-        offset = layout.rowCount()
-
-        for i in range(NUM_GROUPS):
-            group_range = cg_helper.group_channel_range(i)
-            descr_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1]))
-            gain_spin   = make_spinbox(limits=GAIN_ADJUST_LIMITS)
-            gain_spin.setValue(device.get_gain_adjust(i))
-            gain_spin.valueChanged[int].connect(self._on_hw_gain_input_value_changed)
-
-            self.hw_gain_inputs.append(gain_spin)
-
-            layout.addWidget(descr_label, i+offset, 0, 1, 1, Qt.AlignRight)
-            layout.addWidget(gain_spin,   i+offset, 1)
-
     def handle_hardware_connected_changed(self, connected):
         if self.device.read_mode & util.HARDWARE:
             self.apply_common_gain_button.setEnabled(connected)
@@ -487,16 +481,7 @@ class GainPage(QtGui.QGroupBox):
     def _apply_common_gain(self):
         return self.device.apply_common_gain()
 
-    @pyqtSlot(int)
-    def _on_hw_gain_input_value_changed(self, value):
-        s = self.sender()
-        g = self.hw_gain_inputs.index(s)
-        self.device.set_gain_adjust(g, value)
-
-    def _on_device_gain_adjust_changed(self, group, value):
-        spin = self.hw_gain_inputs[group]
-        with util.block_signals(spin):
-            spin.setValue(value)
+    def _on_device_gain_jumper_changed(self, group, value):
         self._update_gain_label(group)
 
     def _update_gain_label_cb(self, f, group):
@@ -544,6 +529,7 @@ class ShapingPage(QtGui.QGroupBox):
         self.device = device
         self.device.auto_pz_channel_changed.connect(self._on_device_auto_pz_channel_changed)
         self.device.hardware_set.connect(self._on_hardware_set)
+        self.device.extension_changed.connect(self._on_device_extension_changed)
 
         self.stop_icon  = QtGui.QIcon(':/stop.png')
         self.sht_inputs = list()
@@ -770,6 +756,11 @@ class ShapingPage(QtGui.QGroupBox):
         value = int(f.result()) - 100
         self.label_shaper_offset.setText("%d" % value)
 
+    def _on_device_extension_changed(self, name, value):
+        if name == 'shaping_time':
+            for i in range(NUM_GROUPS):
+                self._update_sht_label(i)
+
 class TimingPage(QtGui.QGroupBox):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(TimingPage, self).__init__("Timing", parent)
@@ -895,11 +886,14 @@ class TimingPage(QtGui.QGroupBox):
     def _tf_int_time_cb(self, param_future):
         def done(f):
             try:
-                self.spin_tf_int_time.setEnabled(f.result())
-                if not f.result():
-                    self.spin_tf_int_time.setToolTip("N/A")
-            except util.Disconnected:
-                pass
+                enabled = f.result()
+            except (pb.ParameterUnavailable, util.Disconnected):
+                enabled = False
+
+            self.spin_tf_int_time.setEnabled(enabled)
+
+            if not enabled:
+                self.spin_tf_int_time.setToolTip("N/A")
 
         self.device.has_tf_int_time().add_done_callback(done)
 
@@ -1240,26 +1234,123 @@ class MiscPage(QtGui.QWidget):
 
         self.device.get_hardware_info().add_done_callback(done)
 
-# FIXME: implement this
-class MSCF16SetupWidget(QtGui.QWidget):
-    #gain_adjust_changed = pyqtSignal(int, int) # group, value
-
+class SettingsDialog(QtGui.QDialog):
     def __init__(self, device, parent=None):
-        super(MSCF16SetupWidget, self).__init__(parent)
+        super(SettingsDialog, self).__init__(parent)
+        util.loadUi(":/ui/mscf16_settings.ui", self)
+        self.device = device
 
-        #layout = QtGui.QGridLayout(self)
+        # Gain jumpers
+        for idx in range(NUM_GROUPS):
+            spin = getattr(self, 'spin_gain_jumpers_group%d' % idx)
+            spin.setMinimum(GAIN_JUMPER_LIMITS[0])
+            spin.setMaximum(GAIN_JUMPER_LIMITS[1])
+            spin.valueChanged.connect(partial(self._spin_gain_jumpers_value_changed, group=idx))
 
-        #for i in range(MSCF16.num_groups):
-        #    group_range = cg_helper.group_channel_range(i)
-        #    descr_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1]))
-        #    gain_spin   = make_spinbox(limits=MSCF16.gain_adjust_limits)
-        #    gain_spin.setValue(device.get_gain_adjust(i))
-        #    gain_spin.valueChanged[int].connect(self._on_hw_gain_input_value_changed)
+        # Module name
+        self.combo_type.addItems(mscf16_profile.MODULE_NAMES)
+        self.combo_type.currentIndexChanged.connect(self._type_index_changed)
 
-        #    self.hw_gain_inputs.append(gain_spin)
+        # Shaping times
+        for sht in mscf16_profile.SHAPING_TIMES:
+            self.combo_shaping_times.addItem("SH%d" % sht, sht)
 
-        #    layout.addWidget(descr_label, i+offset, 0, 1, 1, Qt.AlignRight)
-        #    layout.addWidget(gain_spin,   i+offset, 1)
+        self.combo_shaping_times.currentIndexChanged.connect(self._shaping_times_index_changed)
+
+        # Input type
+        self.combo_input_type.addItems(mscf16_profile.INPUT_TYPES)
+        self.combo_input_type.currentIndexChanged.connect(self._input_type_index_changed)
+
+        # Input connector
+        self.combo_input_connector.addItems(mscf16_profile.INPUT_CONNECTORS)
+        self.combo_input_connector.currentIndexChanged.connect(self._input_connector_index_changed)
+
+        # Discriminator & CFD delay
+        for delay in mscf16_profile.CFD_DELAYS:
+            self.combo_discriminator.addItem("CFD-%d" % delay, delay)
+
+        self.combo_discriminator.addItem('LE')
+        self.combo_discriminator.currentIndexChanged.connect(self._discriminator_index_changed)
+
+        # Fake extension change event to select correct indexes
+        for ext in ('gain_jumpers', 'module_name', 'shaping_time',
+                'input_type', 'input_connector', 'discriminator', 'cfd_delay'):
+            self._on_device_extension_changed(ext, device.get_extension(ext))
+
+        self.device.extension_changed.connect(self._on_device_extension_changed)
+
+    def _on_device_extension_changed(self, name, ext_value):
+        if name == 'gain_jumpers':
+            for idx, value in enumerate(ext_value):
+                spin = getattr(self, 'spin_gain_jumpers_group%d' % idx)
+                with util.block_signals(spin):
+                    spin.setValue(value)
+
+        elif name == 'module_name':
+            idx = self.combo_type.findText(ext_value)
+            with util.block_signals(self.combo_type) as o:
+                o.setCurrentIndex(idx)
+
+        elif name == 'shaping_time':
+            idx = self.combo_shaping_times.findData(ext_value)
+            with util.block_signals(self.combo_shaping_times) as o:
+                o.setCurrentIndex(idx)
+
+        elif name == 'input_type':
+            idx = self.combo_input_type.findText(ext_value)
+            with util.block_signals(self.combo_input_type) as o:
+                o.setCurrentIndex(idx)
+
+        elif name == 'input_connector':
+            idx = self.combo_input_connector.findText(ext_value)
+            with util.block_signals(self.combo_input_connector) as o:
+                o.setCurrentIndex(idx)
+
+        elif name in ('discriminator', 'cfd_delay'):
+            discriminator = self.device.get_extension('discriminator')
+            cfd_delay     = self.device.get_extension('cfd_delay')
+
+            if discriminator == 'LE':
+                idx = self.combo_discriminator.findText('LE')
+            else:
+                idx = self.combo_discriminator.findData(cfd_delay)
+
+            with util.block_signals(self.combo_discriminator) as o:
+                o.setCurrentIndex(idx)
+
+    def _spin_gain_jumpers_value_changed(self, value, group):
+        self.device.set_gain_jumper(group, value)
+
+    def _type_index_changed(self, idx):
+        self.device.set_extension('module_name',
+                self.combo_type.itemText(idx))
+
+    def _shaping_times_index_changed(self, idx):
+        value, _ = self.combo_shaping_times.itemData(idx).toInt()
+        self.device.set_extension('shaping_time', value)
+
+    def _input_type_index_changed(self, idx):
+        self.device.set_extension('input_type',
+                self.combo_input_type.itemText(idx))
+
+    def _input_connector_index_changed(self, idx):
+        self.device.set_extension('input_connector',
+                self.combo_input_connector.itemText(idx))
+
+    def _discriminator_index_changed(self, idx):
+        data_variant = self.combo_discriminator.itemData(idx)
+
+        if not data_variant.isValid():
+            discriminator = 'LE'
+            # Use a valid cfd delay value despite leading edge discriminator.
+            # This way when changing from LE to CFD the delay will be valid.
+            cfd_delay = mscf16_profile.CFD_DELAYS[0]
+        else:
+            discriminator = 'CFD'
+            cfd_delay, _ = data_variant.toInt()
+
+        self.device.set_extension('discriminator', discriminator)
+        self.device.set_extension('cfd_delay', cfd_delay)
 
 # ==========  Module ========== 
 idc             = 20
@@ -1290,7 +1381,7 @@ if __name__ == "__main__":
     device.profile = mscf16_profile.get_device_profile()
     device.parameter_changed = mock.MagicMock()
     device.get_total_gain  = mock.MagicMock(return_value=2)
-    device.get_gain_adjust = mock.MagicMock(return_value=30)
+    device.get_gain_jumper = mock.MagicMock(return_value=30)
 
     w = MSCF16Widget(device)
     w.show()

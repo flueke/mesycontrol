@@ -11,7 +11,23 @@ idc                 = 20
 NUM_CHANNELS        = 16        # number of channels
 NUM_GROUPS          =  4        # number of channel groups
 GAIN_FACTOR         = 1.22      # gain step factor
-GAIN_ADJUST_LIMITS  = (1, 100)  # limits of the hardware gain jumpers
+GAIN_JUMPER_LIMITS  = (1, 100)  # limits of the hardware gain jumpers
+
+# hardware setting (shaping_time extension) -> list indexed by shaping time register
+SHAPING_TIMES_US    = {
+        1: [0.125, 0.25, 0.5, 1.0],
+        2: [0.25,  0.5,  1.0, 2.0],
+        4: [0.5,   1.0,  2.0, 4.0],
+        8: [1.0,   2.0,  4.0, 8.0]
+        }
+
+# Module settings
+MODULE_NAMES     = [ 'F', 'LN' ]
+SHAPING_TIMES    = sorted(SHAPING_TIMES_US.keys())
+INPUT_TYPES      = [ 'V', 'C' ]
+INPUT_CONNECTORS = [ 'L', 'D' ]
+DISCRIMINATORS   = [ 'CFD', 'LE' ]
+CFD_DELAYS       = [ 30, 60, 120, 200 ]
 
 profile_dict = {
         'name': 'MSCF-16',
@@ -127,12 +143,12 @@ profile_dict = {
             ],
 
         'extensions': [
-            { 'name': 'gain_adjusts',       'value': [1 for i in range(NUM_GROUPS)] },
+            { 'name': 'gain_jumpers',       'value': [1 for i in range(NUM_GROUPS)] },
             { 'name': 'module_name',        'value': 'F' },                             # the mscf16 suffix (F, LN)
             { 'name': 'shaping_time',       'value': 1 },                               # 1, 2, 4, 8
             { 'name': 'input_type',         'value': 'V' },                             # Voltage or Charge integrating
             { 'name': 'input_connector',    'value': 'L' },                             # Lemo or Differential
             { 'name': 'discriminator',      'value': 'CFD' },                           # CFD or LE (leading edge)
-            { 'name': 'cfd_delay',          'value': 30 },                              # CFD delay (30, 60, 200)
+            { 'name': 'cfd_delay',          'value': 30 },                              # CFD delay (30, 60, 120, 200)
             ],
 }
