@@ -132,8 +132,10 @@ void Poller::start_cycle()
 
 void Poller::stop_cycle()
 {
-  BOOST_LOG_SEV(m_log, log::lvl::info) << "stopping poll cycle";
-  m_set_iter = m_set.end();
+  if (m_set_iter != m_set.end()) {
+    BOOST_LOG_SEV(m_log, log::lvl::info) << "stopping poll cycle";
+    m_set_iter = m_set.end();
+  }
 }
 
 void Poller::poll_next()
@@ -241,11 +243,12 @@ void ScanbusPoller::handle_response(const MessagePtr &request, const MessagePtr 
 {
   BOOST_LOG_SEV(m_log, log::lvl::info) << "bus=" << response->scanbus_result().bus()
     << ", #entries=" << response->scanbus_result().entries_size();
+
   // Change message type from response to notification. Both use the
   // 'scanbus_result' member of the Message class.
   response->set_type(proto::Message::NOTIFY_SCANBUS);
 
-  BOOST_LOG_SEV(m_log, log::lvl::info) << "notifying result handlers";
+  BOOST_LOG_SEV(m_log, log::lvl::debug) << "notifying result handlers";
 
   for (std::vector<ResultHandler>::iterator it = m_result_handlers.begin();
       it != m_result_handlers.end(); ++it) {
@@ -261,7 +264,7 @@ void ScanbusPoller::handle_timeout(const boost::system::error_code &ec)
   if (ec != boost::asio::error::operation_aborted &&
       m_timer.expires_at() <= boost::asio::deadline_timer::traits_type::now()) {
 
-    BOOST_LOG_SEV(m_log, log::lvl::info) << "queueing scanbus requests";
+    BOOST_LOG_SEV(m_log, log::lvl::debug) << "queueing scanbus requests";
 
     for (int i=0; i<2; ++i) {
       m_queue.queue_request(MessageFactory::make_scanbus_request(i),
