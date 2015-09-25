@@ -7,7 +7,6 @@ import collections
 import itertools
 
 from .. qt import pyqtSignal
-from .. qt import pyqtSlot
 from .. qt import Qt
 from .. qt import QtCore
 from .. qt import QtGui
@@ -1272,10 +1271,9 @@ class SettingsDialog(QtGui.QDialog):
         self.combo_discriminator.addItem('LE')
         self.combo_discriminator.currentIndexChanged.connect(self._discriminator_index_changed)
 
-        # Fake extension change event to select correct indexes
-        for ext in ('gain_jumpers', 'module_name', 'shaping_time',
-                'input_type', 'input_connector', 'discriminator', 'cfd_delay'):
-            self._on_device_extension_changed(ext, device.get_extension(ext))
+        # Fake extension change events to select correct indexes
+        for name, value in device.get_extensions().iteritems():
+            self._on_device_extension_changed(name, value)
 
         self.device.extension_changed.connect(self._on_device_extension_changed)
 
