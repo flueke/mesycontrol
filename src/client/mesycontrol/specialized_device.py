@@ -38,6 +38,7 @@ class DeviceBase(QtCore.QObject):
     write_mode_changed      = pyqtSignal(object)
 
     parameter_changed       = pyqtSignal(int, object)
+    extension_changed       = pyqtSignal(str, object)
 
     def __init__(self, app_device, read_mode, write_mode, parent=None):
         """
@@ -78,6 +79,9 @@ class DeviceBase(QtCore.QObject):
 
         self.app_device.hw_parameter_changed.connect(self._on_hw_parameter_changed)
         self.app_device.cfg_parameter_changed.connect(self._on_cfg_parameter_changed)
+
+        self.app_device.hw_extension_changed.connect(self._on_hw_extension_changed)
+        self.app_device.cfg_extension_changed.connect(self._on_cfg_extension_changed)
 
         self._read_mode  = read_mode
         self._write_mode = write_mode
@@ -150,6 +154,7 @@ class DeviceBase(QtCore.QObject):
         return dev.get_extension(name)
 
     def set_extension(self, name, value):
+        self.log.debug("set_extension: name=%s, value=%s", name, value)
         if self.write_mode == util.COMBINED:
             self.cfg.set_extension(name, value)
             self.hw.set_extension(name, value)
@@ -187,6 +192,10 @@ class DeviceBase(QtCore.QObject):
         if self.read_mode & util.HARDWARE:
             self.parameter_changed.emit(address, value)
 
+    def _on_hw_extension_changed(self, name, value):
+        if self.read_mode & util.HARDWARE:
+            self.extension_changed.emit(name, value)
+
     # ===== CFG =====
     def get_cfg_parameter(self, address_or_name):
         address = self.profile[address_or_name].address
@@ -206,6 +215,10 @@ class DeviceBase(QtCore.QObject):
     def _on_cfg_parameter_changed(self, address, value):
         if self.read_mode & util.CONFIG:
             self.parameter_changed.emit(address, value)
+
+    def _on_cfg_extension_changed(self, name, value):
+        if self.read_mode & util.CONFIG:
+            self.extension_changed.emit(name, value)
 
 class DeviceWidgetBase(QtGui.QWidget):
     display_mode_changed = pyqtSignal(int)
