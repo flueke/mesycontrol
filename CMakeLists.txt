@@ -47,6 +47,8 @@ if (WIN32)
     set(CPACK_NSIS_MUI_FINISHPAGE_RUN "mesycontrol_gui.exe")
     set(CPACK_NSIS_URL_INFO_ABOUT "http://www.mesytec.com")
     set(CPACK_NSIS_CONTACT "info@mesytec.com")
+    set(CPACK_NSIS_MENU_LINKS
+        "share/doc/mesycontrol.pdf" "Documentation")
     #set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES")
 else(WIN32)
     set(CPACK_GENERATOR "TBZ2" "STGZ")
