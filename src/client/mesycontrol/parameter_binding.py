@@ -190,8 +190,8 @@ class AbstractParameterBinding(object):
                 traceback.print_exc()
 
     def _on_device_hw_set(self, device, old_hw, new_hw):
-        log.debug("_on_device_hw_set: device=%s, old=%s, new=%s",
-                device, old_hw, new_hw)
+        #log.debug("_on_device_hw_set: device=%s, old=%s, new=%s",
+        #        device, old_hw, new_hw)
 
         if old_hw is not None:
             old_hw.parameter_changed.disconnect(self._on_hw_parameter_changed)

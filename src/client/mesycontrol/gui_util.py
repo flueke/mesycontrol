@@ -24,6 +24,7 @@ log = logging.getLogger(__name__)
 class DeviceSubWindow(QtGui.QMdiSubWindow):
     def __init__(self, widget, window_name_prefix, parent=None, **kwargs):
         super(DeviceSubWindow, self).__init__(parent)
+        self.log = util.make_logging_source_adapter(__name__, self)
         self.setWidget(widget)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.window_name_prefix = window_name_prefix
@@ -81,6 +82,7 @@ class DeviceSubWindow(QtGui.QMdiSubWindow):
             # The device is about to disappear and this window should close. Do
             # not attempt to update the title as no idc is known and device.mrc
             # will not be set.
+            self.log.debug("update_title_and_name: idc is None -> early return")
             return
 
         prefixes = {
