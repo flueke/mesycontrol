@@ -1,9 +1,6 @@
 # generate documentation using the sphinx system
 find_package(Sphinx)
 
-if (WIN32)
-	message("FIXME: skipping documentation build on windows")
-else(WIN32)
 if (SPHINX_FOUND)
   find_package(PythonInterp REQUIRED)
 
@@ -58,7 +55,7 @@ if (SPHINX_FOUND)
     "${SPHINX_LATEX_DIR}"
 
     COMMAND
-    make -C ${SPHINX_LATEX_DIR} all-pdf
+    ${CMAKE_MAKE_PROGRAM} -C ${SPHINX_LATEX_DIR} all-pdf
 
     COMMENT "Building documentation with Sphinx"
   )
@@ -68,6 +65,5 @@ if (SPHINX_FOUND)
 else()
   message("Sphinx not found, documentation will not be generated!")
 endif()
-endif(WIN32)
 
 # vim:tw=0
