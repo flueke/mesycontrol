@@ -872,7 +872,7 @@ class GUIApplication(QtCore.QObject):
 Config for %s at (%s, %d, %X) does not exist yet.
 Initialize using the current hardware values or the device defaults?
                 """ % (device.get_device_name(), device.mrc.get_display_url(), device.bus, device.address),
-                buttons=QMB.Yes | QMB.No,
+                buttons=QMB.Yes | QMB.No | QMB.Cancel,
                 parent=self.mainwindow)
 
         mb.button(QMB.Yes).setText("Hardware values")
@@ -880,10 +880,13 @@ Initialize using the current hardware values or the device defaults?
 
         res = mb.exec_()
         d = { QMB.Yes: 'hardware', QMB.No:  'defaults' }
-        return d.get(res, 'cancel')
+        return d.get(res, False)
 
     def _run_create_config(self, device):
         source = self._run_config_creation_prompt(device)
+
+        if not source:
+            return False
 
         device.create_config()
 
@@ -899,6 +902,8 @@ Initialize using the current hardware values or the device defaults?
             if f.done() and f.exception() is not None:
                 log.error("Check config: %s", f.exception())
                 QtGui.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
+
+        return True
 
     def _apply_config_to_hardware(self):
         node = self._selected_tree_node
@@ -1137,7 +1142,8 @@ Initialize using the current hardware values or the device defaults?
                 app_device, from_config_side, from_hw_side, self.linked_mode)
 
         if self.linked_mode and not app_device.has_cfg:
-            self._run_create_config(app_device)
+            if not self._run_create_config(app_device):
+                return
 
         if self.linked_mode and not app_device.idc_conflict:
             display_mode = write_mode = util.COMBINED
@@ -1156,7 +1162,8 @@ Initialize using the current hardware values or the device defaults?
                 app_device, from_config_side, from_hw_side, self.linked_mode)
 
         if self.linked_mode and not app_device.has_cfg:
-            self._run_create_config(app_device)
+            if not self._run_create_config(app_device):
+                return
 
         if self.linked_mode and not app_device.idc_conflict:
             if app_device.has_hw and app_device.has_cfg:
