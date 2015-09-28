@@ -561,6 +561,9 @@ class Device(AppObject):
         if not self.has_hw:
             raise RuntimeError("Hardware not present")
 
+        self.log.debug("Adding poll subscription (idc=%d, %s) for %s",
+                self.hw.idc, self.hw_profile.name, subscriber)
+
         self.hw.add_poll_items(subscriber, self.hw_profile.get_volatile_addresses())
 
     def remove_polling_subscriber(self, subscriber):
@@ -568,6 +571,7 @@ class Device(AppObject):
             raise RuntimeError("Hardware not present")
         try:
             self.hw.remove_polling_subscriber(subscriber)
+            self.log.debug("Removed poll subscriber %s", subscriber)
         except KeyError:
             pass
 

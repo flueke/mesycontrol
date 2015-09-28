@@ -1190,7 +1190,7 @@ Initialize using the current hardware values or the device defaults?
             # original list.
             for window in list(window_list):
                 try:
-                    if linked_mode and window.has_combined_display():
+                    if linked_mode and window.has_combined_display() and not device.idc_conflict:
                         window.display_mode = util.COMBINED
                     elif not linked_mode:
                         if util.COMBINED in (window.display_mode, window.write_mode):

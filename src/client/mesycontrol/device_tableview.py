@@ -119,6 +119,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 getattr(old_hw, signal).disconnect(slot)
 
             try:
+                self.log.debug("_on_device_hardware_set: removing old poll subscription")
                 old_hw.remove_polling_subscriber(self)
             except KeyError:
                 pass
@@ -143,6 +144,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
 
     def _on_device_idc_conflict_changed(self, conflict):
         if self.device.has_hw:
+            self.log.debug("_on_device_idc_conflict_changed: removing poll subscription")
             self.device.hw.remove_polling_subscriber(self)
         
         if self.display_mode == util.COMBINED and conflict:
@@ -151,11 +153,13 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         elif (self.device.has_hw and
                 ((self.display_mode & util.HARDWARE)
                     or not self.device.idc_conflict)):
+            self.log.debug("_on_device_idc_conflict_changed: Adding poll subscription")
             self.device.add_default_polling_subscription(self)
 
     def _on_hardware_connected(self):
-        self.log.info("hardware connected; adding polling subscription")
-        self.device.add_default_polling_subscription(self)
+        if ((self.display_mode & util.HARDWARE) or not self.device.idc_conflict):
+            self.log.info("_on_hardware_connected: adding poll subscription")
+            self.device.add_default_polling_subscription(self)
         self._all_fields_changed()
 
     def _on_hw_parameter_changed(self, address, value):

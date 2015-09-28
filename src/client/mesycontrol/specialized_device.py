@@ -284,7 +284,7 @@ class DeviceWidgetBase(QtGui.QWidget):
             if (self.device.has_hw and
                     ((self.display_mode & util.HARDWARE)
                         or not self.device.idc_conflict)):
-                self.log.debug("showEvent: adding default polling subscription")
+                self.log.debug("showEvent: adding default poll subscription")
                 self.device.add_default_polling_subscription(self)
 
         super(DeviceWidgetBase, self).showEvent(event)
@@ -294,18 +294,24 @@ class DeviceWidgetBase(QtGui.QWidget):
                 device, old, new)
 
         if old is not None:
+            self.log.debug("_on_device_hardware_set: removing old poll subscription")
             old.remove_polling_subscriber(self)
             old.connected.disconnect(self._on_hardware_connected)
             old.disconnected.disconnect(self._on_hardware_disconnected)
 
         if new is not None:
-            self.device.add_default_polling_subscription(self)
+            if ((self.display_mode & util.HARDWARE) or not self.device.idc_conflict):
+                self.log.debug("_on_device_hardware_set: adding default poll subscription")
+                self.device.add_default_polling_subscription(self)
             new.connected.connect(self._on_hardware_connected)
             new.disconnected.connect(self._on_hardware_disconnected)
 
     def _on_hardware_connected(self):
-        self.log.debug("_on_hardware_connected: adding default polling subscription")
-        self.device.add_default_polling_subscription(self)
+
+        if ((self.display_mode & util.HARDWARE) or not self.device.idc_conflict):
+            self.log.debug("_on_hardware_connected: adding default poll subscription")
+            self.device.add_default_polling_subscription(self)
+
         self.hardware_connected_changed.emit(True)
 
     def _on_hardware_disconnected(self):
