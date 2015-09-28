@@ -77,6 +77,9 @@ class DeviceSubWindow(QtGui.QMdiSubWindow):
         elif self.display_mode == util.CONFIG and device.cfg is not None:
             idc = device.cfg_idc
             profile = device.cfg_profile
+        elif self.display_mode == util.COMBINED and device.has_hw and device.has_cfg and not device.idc_conflict:
+            idc = device.hw_idc
+            profile = device.hw_profile
 
         if idc is None:
             # The device is about to disappear and this window should close. Do
