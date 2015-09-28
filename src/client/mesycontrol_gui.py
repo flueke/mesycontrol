@@ -120,6 +120,7 @@ if __name__ == "__main__":
         gui_application = gui.GUIApplication(context, mainwindow)
         sigint_handler.set_app(gui_application)
         mainwindow.show()
+        mainwindow.restore_settings()
 
         if setup_file:
             try:

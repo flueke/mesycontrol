@@ -45,7 +45,8 @@ class MainWindow(QtGui.QMainWindow):
         dw_logview.setFeatures(QtGui.QDockWidget.DockWidgetMovable | QtGui.QDockWidget.DockWidgetFloatable)
         self.addDockWidget(Qt.BottomDockWidgetArea, dw_logview)
 
-        self.restore_settings()
+        # Note: do not call restore_settings() here. It needs to be called
+        # after self.show() to work properly!
 
     def store_settings(self):
         settings = self.context.make_qsettings()
@@ -65,8 +66,11 @@ class MainWindow(QtGui.QMainWindow):
         for window in window_list:
             gui_util.store_subwindow_state(window, settings)
 
+        settings.setValue("MCTreeView/state", self.treeview.splitter.saveState())
+
     def restore_settings(self):
         settings = self.context.make_qsettings()
+
 
         settings.beginGroup("MainWindow")
         try:
@@ -76,6 +80,9 @@ class MainWindow(QtGui.QMainWindow):
             self.restoreState(settings.value("state").toByteArray())
         finally:
             settings.endGroup()
+
+        self.treeview.splitter.restoreState(
+                settings.value("MCTreeView/state").toByteArray())
 
     @pyqtSlot()
     def on_actionAbout_triggered(self):

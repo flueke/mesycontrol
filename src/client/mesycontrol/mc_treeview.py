@@ -306,7 +306,7 @@ class MCTreeView(QtGui.QWidget):
         self.cfg_toolbar        = util.SimpleToolBar(Qt.Horizontal)
         self.cfg_toolbar.layout().setContentsMargins(0, 0, 0, 0)
         self.hw_toolbar         = util.SimpleToolBar(Qt.Horizontal)
-        self.hw_toolbar.layout().setContentsMargins(2, 0, 2, 0)
+        self.hw_toolbar.layout().setContentsMargins(0, 0, 0, 0)
 
         cfg_widget = QtGui.QWidget()
         cfg_layout = QtGui.QVBoxLayout(cfg_widget)
@@ -320,7 +320,7 @@ class MCTreeView(QtGui.QWidget):
         hw_layout.addWidget(self.hw_toolbar)
         hw_layout.addWidget(self.hw_view)
 
-        splitter = DoubleClickSplitter()
+        self.splitter = splitter = DoubleClickSplitter()
         splitter.setChildrenCollapsible(False)
         splitter.addWidget(hw_widget)
         splitter.addWidget(self.splitter_toolbar)
