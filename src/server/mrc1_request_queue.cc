@@ -22,8 +22,9 @@ void MRC1RequestQueue::queue_request(const MessagePtr &request, ResponseHandler 
   if (!is_mrc1_command(request)) {
     BOOST_THROW_EXCEPTION(std::runtime_error("Given request is not a MRC1 command"));
   }
-  BOOST_LOG_SEV(m_log, log::lvl::trace) << "Queueing request " << get_message_info(request);
   m_request_queue.push_back(std::make_pair(request, response_handler));
+  BOOST_LOG_SEV(m_log, log::lvl::trace) << "Queueing request " << get_message_info(request)
+    << ", queue size=" << m_request_queue.size();
   try_send_mrc1_request();
 }
 
@@ -81,6 +82,10 @@ void MRC1RequestQueue::handle_retry_timer(const boost::system::error_code &)
 
 void MRC1RequestQueue::handle_mrc1_response(const MessagePtr &request, const MessagePtr &response)
 {
+  BOOST_LOG_SEV(m_log, log::lvl::debug)
+    << "handle_mrc1_response: req=" << get_message_info(request)
+    << ", resp=" << get_message_info(response);
+
   m_request_queue.front().second(request, response);
   m_request_queue.pop_front();
   try_send_mrc1_request();
