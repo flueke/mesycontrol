@@ -480,8 +480,8 @@ class GUIApplication(QtCore.QObject):
         self.actions['rename_config'].setEnabled(
                 (is_mrc(node) or is_device(node)) and node.ref.has_cfg)
 
-        self.actions['open_device_config'].setEnabled(is_device_cfg(node))
-        self.actions['save_device_config'].setEnabled(is_device_cfg(node))
+        self.actions['open_device_config'].setEnabled(is_device(node))
+        self.actions['save_device_config'].setEnabled(is_device(node))
 
         a = self.actions['connect_disconnect']
         a.setEnabled((is_registry(node) and len(node.children)) or is_mrc(node))
@@ -507,9 +507,11 @@ class GUIApplication(QtCore.QObject):
             a.setText(a.toolTip())
 
         a = self.actions['toggle_polling']
-        a.setEnabled((is_hardware(node)
-            and (is_mrc(node) or (is_device(node) and node.ref.mrc.hw.polling))
-            and node.ref.has_hw))
+        a.setEnabled(
+                is_hardware(node)
+                and node.ref is not None
+                and node.ref.has_hw
+                and (is_mrc(node) or (is_device(node) and node.ref.mrc.hw.polling)))
 
         if a.isEnabled():
             a.setChecked(node.ref.hw.polling)
@@ -528,6 +530,7 @@ class GUIApplication(QtCore.QObject):
             a.setChecked(node.ref.hw.rc)
             a.setToolTip("Disable RC" if a.isChecked() else "Enable RC")
             a.setText(a.toolTip())
+            a.setStatusTip(a.toolTip())
 
         self.actions['remove_mrc_connection'].setEnabled(is_mrc(node) and node.ref.has_hw)
 
@@ -797,7 +800,11 @@ class GUIApplication(QtCore.QObject):
         node = self._selected_tree_node
 
         if is_device(node) and node.ref.has_hw:
-            node.ref.hw.set_rc(not node.ref.hw.rc)
+            def done(f):
+                self._update_actions()
+
+            node.ref.hw.set_rc(not node.ref.hw.rc
+                    ).add_done_callback(done)
 
     def _add_mrc_connection(self):
         gui_util.run_add_mrc_connection_dialog(
@@ -1338,6 +1345,7 @@ Initialize using the current hardware values or the device defaults?
         if is_device(node):
             add_action(self.actions['open_device_widget'])
             add_action(self.actions['open_device_table'])
+            add_action(self.actions['toggle_rc'])
             add_action(self.actions['toggle_polling'])
             #add_action(self.actions['refresh'])
 

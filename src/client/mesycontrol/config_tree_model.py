@@ -189,10 +189,12 @@ class DeviceNode(ConfigTreeNode):
                 return QtGui.QColor('red')
 
             if device.has_hw and device.has_cfg:
-                if device.hw.is_connected() and device.config_applied:
-                    return QtGui.QColor('green')
-                else:
-                    return QtGui.QColor('orange')
+                if device.hw.is_connected():
+                    if device.config_applied is True:
+                        return QtGui.QColor('green')
+                    if device.config_applied is False:
+                        return QtGui.QColor('orange')
+                    # else config_applied should be None meaning "unknown"
 
     def set_data(self, column, value, role):
         if role == Qt.EditRole and column == 0:

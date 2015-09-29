@@ -202,9 +202,9 @@ class DeviceNode(HardwareTreeNode):
 
             if device.has_hw and device.has_cfg and device.hw.is_connected():
                 if role in (Qt.ToolTipRole, Qt.StatusTipRole):
-                    if device.config_applied:
+                    if device.config_applied is True:
                         return "Hardware matches config"
-                    else:
+                    elif device.config_applied is False:
                         return "Hardware and config differ"
 
             if mrc.hw is None or mrc.hw.is_disconnected():
@@ -247,10 +247,12 @@ class DeviceNode(HardwareTreeNode):
                 return QtGui.QColor('red')
 
             if device.has_hw and device.has_cfg:
-                if device.hw.is_connected() and device.config_applied:
-                    return QtGui.QColor('green')
-                else:
-                    return QtGui.QColor('orange')
+                if device.hw.is_connected():
+                    if device.config_applied is True:
+                        return QtGui.QColor('green')
+                    if device.config_applied is False:
+                        return QtGui.QColor('orange')
+                    # else config_applied should be None meaning "unknown"
 
     def set_data(self, column, value, role):
         if role == Qt.EditRole and column == COL_RC:
