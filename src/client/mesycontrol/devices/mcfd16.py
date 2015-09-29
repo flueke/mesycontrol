@@ -376,20 +376,22 @@ class MCFD16Widget(DeviceWidgetBase):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(MCFD16Widget, self).__init__(device, display_mode, write_mode, parent)
 
-        self.toolbox = QtGui.QToolBox()
+        self.tab_widget = QtGui.QTabWidget()
 
-        self.toolbox.addItem(MCFD16ControlsWidget(device, display_mode, write_mode, self),
+        self.tab_widget.addTab(
+                MCFD16ControlsWidget(device, display_mode, write_mode, self),
                 "Preamp / CFD")
 
-        self.toolbox.addItem(MCFD16SetupWidget(device, display_mode, write_mode, self),
+        self.tab_widget.addTab(
+                MCFD16SetupWidget(device, display_mode, write_mode, self),
                 "Trigger / Coincidence Setup")
 
         layout = QtGui.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.toolbox)
+        layout.addWidget(self.tab_widget)
 
     def get_parameter_bindings(self):
-        tb  = self.toolbox
+        tb  = self.tab_widget
         gen = (tb.widget(i).get_parameter_bindings() for i in range(tb.count()))
         return itertools.chain(*gen)
 
@@ -1542,6 +1544,7 @@ class PairCoincidenceSetupWidget(QtGui.QWidget):
                 index=i+1,
                 target=helper,
                 label=label))
+
             for cb in helper.checkboxes:
                 cb.setToolTip("pair_pattern%d_low, pair_pattern%d_high" % (i+1, i+1))
                 cb.setStatusTip(cb.toolTip())
@@ -1573,14 +1576,14 @@ class MCFD16SetupWidget(QtGui.QWidget):
         gb_layout.addWidget(self.coincidence_widget)
         gbs.append(gb)
 
-        layout = QtGui.QVBoxLayout(self)
+        layout = QtGui.QHBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
         for gb in gbs:
-            h_layout = QtGui.QHBoxLayout()
-            h_layout.addWidget(gb)
-            h_layout.addStretch(1)
+            v_layout = QtGui.QVBoxLayout()
+            v_layout.addWidget(gb)
+            v_layout.addStretch(1)
             gb_layout.setContentsMargins(0, 0, 0, 0)
-            layout.addLayout(h_layout)
+            layout.addLayout(v_layout)
 
         layout.addStretch(1)
 
