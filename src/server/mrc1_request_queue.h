@@ -41,6 +41,7 @@ class MRC1RequestQueue: private boost::noncopyable
     boost::asio::steady_timer::duration m_retry_timeout;
     boost::asio::steady_timer m_retry_timer;
     log::Logger m_log;
+    bool m_command_in_progress;
 };
 
 }
