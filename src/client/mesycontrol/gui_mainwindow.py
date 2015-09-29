@@ -6,6 +6,7 @@ from qt import pyqtSlot
 from qt import Qt
 from qt import QtCore
 from qt import QtGui
+import platform
 
 from mc_treeview import MCTreeView
 from util import make_icon
@@ -130,6 +131,10 @@ class MainWindow(QtGui.QMainWindow):
         label = QtGui.QLabel(t)
         label.setOpenExternalLinks(True)
         l.addWidget(label)
+
+        t = 'Running on Python %s using PyQt %s with Qt %s.' % (
+                platform.python_version(), QtCore.PYQT_VERSION_STR, QtCore.QT_VERSION_STR)
+        l.addWidget(QtGui.QLabel(t))
 
         l.addSpacing(20)
 
