@@ -240,8 +240,9 @@ std::string get_message_info(const MessagePtr &msg)
 {
   if (msg->type() == proto::Message::RESP_MRC_STATUS
       || msg->type() == proto::Message::NOTIFY_MRC_STATUS) {
+
     return boost::str(
-        boost::format( "%1%: status=%2%, version=%3%, info=%4%, rb_supported=%5%")
+        boost::format("%1%: status=%2%, version=%3%, info=\"%4%\", rb_supported=%5%")
         % proto::Message::Type_Name(msg->type())
         % proto::MRCStatus::Status_Name(msg->mrc_status().status())
         % msg->mrc_status().version()
@@ -249,9 +250,17 @@ std::string get_message_info(const MessagePtr &msg)
         % msg->mrc_status().has_read_multi());
   }
 
+  if (msg->type() == proto::Message::RESP_ERROR) {
+    return boost::str(
+        boost::format("%1%: %2%, info=\"%3%\"")
+        % proto::Message::Type_Name(msg->type())
+        % proto::ResponseError::ErrorType_Name(msg->response_error().type())
+        % msg->response_error().info());
+  }
+
   if (is_mrc1_command(msg)) {
     return boost::str(
-        boost::format("%1%: %2%")
+        boost::format("%1%: \"%2%\"")
         % proto::Message::Type_Name(msg->type())
         % get_mrc1_command_string(msg));
   }
