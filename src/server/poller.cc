@@ -263,19 +263,26 @@ void ScanbusPoller::handle_response(const MessagePtr &request, const MessagePtr 
     << "req=" << get_message_info(request)
     << ", resp=" << get_message_info(response);
 
-  BOOST_LOG_SEV(m_log, log::lvl::info)
-    << "bus=" << response->scanbus_result().bus()
-    << ", #entries=" << response->scanbus_result().entries_size();
+  if (response->type() != proto::Message::RESP_SCANBUS) {
+    BOOST_LOG_SEV(m_log, log::lvl::warning)
+      << "got error response: " << get_message_info(response)
+      << ", not sending scanbus notification";
+  } else {
 
-  // Change message type from response to notification. Both use the
-  // 'scanbus_result' member of the Message class.
-  response->set_type(proto::Message::NOTIFY_SCANBUS);
+    BOOST_LOG_SEV(m_log, log::lvl::info)
+      << "bus=" << response->scanbus_result().bus()
+      << ", #entries=" << response->scanbus_result().entries_size();
 
-  BOOST_LOG_SEV(m_log, log::lvl::debug) << "notifying result handlers";
+    // Change message type from response to notification. Both use the
+    // 'scanbus_result' member of the Message class.
+    response->set_type(proto::Message::NOTIFY_SCANBUS);
 
-  for (std::vector<ResultHandler>::iterator it = m_result_handlers.begin();
-      it != m_result_handlers.end(); ++it) {
-    (*it)(response);
+    BOOST_LOG_SEV(m_log, log::lvl::debug) << "notifying result handlers";
+
+    for (std::vector<ResultHandler>::iterator it = m_result_handlers.begin();
+        it != m_result_handlers.end(); ++it) {
+      (*it)(response);
+    }
   }
 
   m_timer.expires_from_now(m_min_interval);
