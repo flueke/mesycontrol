@@ -135,16 +135,21 @@ class ScanbusPoller
 
     void stop();
 
+    void set_suspended(bool suspended);
+    bool is_suspended() const { return m_suspended; }
+
   private:
     void handle_mrc1_status_change(const proto::MRCStatus::Status &status,
         const std::string &info, const std::string &version, bool has_read_multi);
     void handle_response(const MessagePtr &request, const MessagePtr &response);
     void handle_timeout(const boost::system::error_code &ec);
+
     log::Logger m_log;
     MRC1RequestQueue& m_queue;
     boost::asio::deadline_timer m_timer;
     boost::posix_time::time_duration m_min_interval;
     std::vector<ResultHandler> m_result_handlers;
+    bool m_suspended;
 };
 
 } // namespace mesycontrol

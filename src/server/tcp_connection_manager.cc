@@ -22,6 +22,8 @@ TCPConnectionManager::TCPConnectionManager(MRC1RequestQueue &mrc1_queue)
 
   m_scanbus_poller.register_result_handler(boost::bind(
         &TCPConnectionManager::handle_scanbus_poll_complete, this, _1));
+
+  m_scanbus_poller.set_suspended(true);
 }
 
 void TCPConnectionManager::start(TCPConnectionPtr c)
@@ -39,6 +41,8 @@ void TCPConnectionManager::start(TCPConnectionPtr c)
     // Notify the newly connected client that it does not have write access
     c->send_message(MessageFactory::make_write_access_notification(false, !m_write_connection));
   }
+
+  m_scanbus_poller.set_suspended(false);
 }
 
 void TCPConnectionManager::stop(TCPConnectionPtr c, bool graceful)
@@ -48,8 +52,9 @@ void TCPConnectionManager::stop(TCPConnectionPtr c, bool graceful)
     set_write_connection(TCPConnectionPtr());
   }
 
-  m_poller.remove_poller(c);
   m_connections.erase(c);
+  m_poller.remove_poller(c);
+  m_scanbus_poller.set_suspended(m_connections.empty());
   c->stop(graceful);
 }
 
@@ -66,6 +71,7 @@ void TCPConnectionManager::stop_all(bool graceful)
   std::for_each(m_connections.begin(), m_connections.end(),
       boost::bind(&Poller::remove_poller, &m_poller, _1));
   m_poller.stop();
+  m_scanbus_poller.set_suspended(true);
 }
 
 void TCPConnectionManager::dispatch_request(const TCPConnectionPtr &connection, const MessagePtr &request)

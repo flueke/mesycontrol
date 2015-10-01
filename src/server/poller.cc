@@ -218,6 +218,7 @@ ScanbusPoller::ScanbusPoller(MRC1RequestQueue &mrc1_queue,
   , m_queue(mrc1_queue)
   , m_timer(mrc1_queue.get_mrc1_connection()->get_io_service())
   , m_min_interval(min_interval)
+  , m_suspended(false)
 {
   m_queue.get_mrc1_connection()->register_status_change_callback(
       boost::bind(&ScanbusPoller::handle_mrc1_status_change, this, _1, _2, _3, _4));
@@ -228,10 +229,27 @@ void ScanbusPoller::stop()
   m_timer.cancel();
 }
 
+void ScanbusPoller::set_suspended(bool suspended)
+{
+  if (is_suspended() == suspended)
+    return;
+
+  m_suspended = suspended;
+
+  if (is_suspended()) {
+    BOOST_LOG_SEV(m_log, log::lvl::info) << "Scanbus polling suspended";
+    m_timer.cancel();
+  } else {
+    BOOST_LOG_SEV(m_log, log::lvl::info) << "Scanbus polling resumed";
+    m_timer.expires_from_now(boost::posix_time::milliseconds(0));
+    m_timer.async_wait(boost::bind(&ScanbusPoller::handle_timeout, this, _1));
+  }
+}
+
 void ScanbusPoller::handle_mrc1_status_change(const proto::MRCStatus::Status &status,
     const std::string &info, const std::string &version, bool has_read_multi)
 {
-  if (status == proto::MRCStatus::RUNNING) {
+  if (status == proto::MRCStatus::RUNNING && !is_suspended()) {
     m_timer.expires_from_now(boost::posix_time::milliseconds(0));
     m_timer.async_wait(boost::bind(&ScanbusPoller::handle_timeout, this, _1));
   } else {
