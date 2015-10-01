@@ -414,7 +414,7 @@ class Device(AppObject):
     # ===== config ==== #
     def update_config_applied(self):
         old_state = self.is_config_applied()
-        new_state = False
+        new_state = None # unknown
 
         if self.idc_conflict:
             new_state = False
