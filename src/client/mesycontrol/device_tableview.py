@@ -251,8 +251,12 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 return pp.name
 
             elif col == COL_HW_VALUE:
-                if hw is None or hw.is_disconnected():
+                if hw is None:
+                    return "<device not present>"
+
+                if hw.is_disconnected():
                     return "<not connected>"
+
                 if hw.is_connecting():
                     return "<connecting>"
 
