@@ -404,6 +404,11 @@ class GUIApplication(QtCore.QObject):
                 triggered=self.mainwindow.mdiArea.closeAllSubWindows)
         self.actions['close_all_windows'] = action
 
+        # Edit extensions
+        action = QtGui.QAction("Show device extensions", self,
+                triggered=self._show_device_extensions)
+        self.actions['show_device_extensions'] = action
+
     def _populate_menus(self):
         menu_file = self.mainwindow.menu_file
         menu_file.addAction(self.actions['open_setup'])
@@ -1267,6 +1272,8 @@ Initialize using the current hardware values or the device defaults?
 
         widget = app_device.make_device_widget(display_mode, write_mode)
         subwin = gui_util.DeviceWidgetSubWindow(widget=widget)
+        subwin = QtGui.QMdiSubWindow()
+        subwin.setWidget(widget)
         return self._register_device_subwindow(subwin)
 
     def _register_device_subwindow(self, subwin):
@@ -1312,6 +1319,7 @@ Initialize using the current hardware values or the device defaults?
             if node.ref.has_cfg:
                 add_action(self.actions['save_device_config'])
             add_action(self.actions['remove_config'])
+            add_action(self.actions['show_device_extensions'])
 
         if not menu.isEmpty():
             menu.exec_(view.mapToGlobal(pos))
@@ -1348,6 +1356,7 @@ Initialize using the current hardware values or the device defaults?
             add_action(self.actions['toggle_rc'])
             add_action(self.actions['toggle_polling'])
             #add_action(self.actions['refresh'])
+            add_action(self.actions['show_device_extensions'])
 
         if not menu.isEmpty():
             menu.exec_(view.mapToGlobal(pos))
@@ -1371,3 +1380,76 @@ Initialize using the current hardware values or the device defaults?
                 return True
 
         return False
+
+    def _show_device_extensions(self):
+        node = self._selected_tree_node
+        self._create_device_extension_window(
+                self._selected_device,
+                is_device_cfg(node),
+                is_device_hw(node))
+
+    def _create_device_extension_window(self, app_device, from_config_side, from_hw_side):
+        from pyqtgraph import parametertree as pt
+        tree = widget = pt.ParameterTree()
+        subwin = QtGui.QMdiSubWindow()
+        subwin.setWidget(widget)
+        self.mainwindow.mdiArea.addSubWindow(subwin)
+        subwin.show()
+
+        device = app_device.cfg if from_config_side else app_device.hw
+        profile = app_device.cfg_profile if from_config_side else app_device.hw_profile
+        extensions = device.get_extensions()
+        print "extensions:", extensions
+        extensions_param = extensions_to_ptree(extensions, profile)
+        #extensions_param.sigTreeStateChanged.connect(on_tree_state_changed)
+        tree.setParameters(extensions_param, showTop=False)
+
+def on_tree_state_changed(emitting_param, changes):
+    print "on_tree_state_changed"
+    print "changes:", changes
+
+    for param, change, value in changes:
+        print param
+        print change
+        print value
+        print emitting_param.childPath(param)
+        print "=" * 15
+
+def extensions_to_ptree(extensions, device_profile):
+    from pyqtgraph import parametertree as pt
+
+    def list2param(name, value):
+        ret = pt.Parameter.create(name=name, type='group')
+        for idx, val in enumerate(value):
+            ret.addChild(value2param(name=str(idx), value=val))
+        return ret
+
+    def value2param(name, value):
+        try:
+            ext_profile = device_profile.get_extension(name)
+        except KeyError:
+            ext_profile = dict(name=name)
+
+        print ext_profile
+
+        if 'values' in ext_profile:
+            return pt.Parameter.create(value=value, type='list', **ext_profile)
+        if isinstance(value, str):
+            return pt.Parameter.create(value=value, type='str', **ext_profile)
+        elif isinstance(value, int):
+            return pt.Parameter.create(value=value, type='int', **ext_profile)
+        elif isinstance(value, float):
+            return pt.Parameter.create(value=value, type='float', **ext_profile)
+        elif isinstance(value, list):
+            return list2param(name, value)
+        else:
+            raise TypeError("value2xml: unhandled value type '%s'" % type(value).__name__)
+
+    ret = pt.Parameter.create(name='root', type='group')
+    ret.sigTreeStateChanged.connect(on_tree_state_changed)
+
+    for name, value in extensions.iteritems():
+        param = value2param(name, value)
+        ret.addChild(param)
+
+    return ret

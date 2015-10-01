@@ -143,12 +143,12 @@ profile_dict = {
             ],
 
         'extensions': [
-            { 'name': 'gain_jumpers',       'value': [1 for i in range(NUM_GROUPS)] },
+            { 'name': 'gain_jumpers',       'value': [ dict(name=str(i), value=1, limits=(1, 200)) for i in range(NUM_GROUPS)] },
             { 'name': 'module_name',        'value': 'F' },                             # the mscf16 suffix (F, LN)
             { 'name': 'shaping_time',       'value': 1 },                               # 1, 2, 4, 8
             { 'name': 'input_type',         'value': 'V' },                             # Voltage or Charge integrating
             { 'name': 'input_connector',    'value': 'L' },                             # Lemo or Differential
             { 'name': 'discriminator',      'value': 'CFD' },                           # CFD or LE (leading edge)
-            { 'name': 'cfd_delay',          'value': 30 },                              # CFD delay (30, 60, 120, 200)
+            { 'name': 'cfd_delay',          'value': 30, 'values': [30, 60, 120, 200] },                              # CFD delay (30, 60, 120, 200)
             ],
 }
