@@ -385,8 +385,8 @@ void MRC1Connection::set_status(const proto::MRCStatus::Status &status,
     << proto::MRCStatus::Status_Name(m_status)
     << " -> "
     << proto::MRCStatus::Status_Name(status)
-    << "(info="  << info
-    << ",version="  << version
+    << "(info=\""  << info
+    << "\",version="  << version
     << ",has_read_multi=" << has_read_multi << ")";
 
   m_status = status;
