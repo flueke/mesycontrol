@@ -24,7 +24,7 @@ Features
 * Storing and loading of single device configurations and complete setups
   (multiple devices and multiple MRCs).
 * Tabular view/editing of device memory.
-* Custom GUIs for MHV-4, MSCF-16, STM-16 and MCFD-16.
+* Custom GUIs for MHV-4, MSCF-16, STM-16+ and MCFD-16.
 * Polling of frequently changing parameters (e.g. voltage or current)
 * Cross-platform: both client and server run on Linux and Windows
 * Offline editing: device configurations can be created/edited without access
@@ -82,7 +82,7 @@ multiple MRC-1/MRCCs.
 
 Using mesycontrol
 -----------------
-Concepts and Terms
+Terms and Concepts
 ^^^^^^^^^^^^^^^^^^
 
 * MRC
@@ -93,7 +93,7 @@ Concepts and Terms
   The are three ways to connect to a MRC:
 
   * Serial connection: uses a local serial or USB port.
-  * TCP connection: uses a serial server which is connected to the MRC.
+  * TCP connection: uses a remote serial server which is connected to the MRC.
   * Mesycontrol connection: connects to a (remotely) running *mesycontrol_server* instance.
 
   See :ref:`mrc-url-format` for details.
@@ -148,7 +148,8 @@ trees in sync.
 
 Devices with a red background have conflicting device types (their IDCs do not
 match). A green background means hardware and config parameters are equal.
-Orange indicates that hardware and config states differ.
+Orange indicates that hardware and config states differ. No special color means
+that the state is not yet known (hardware values have not been read yet).
 
 Using the arrow buttons on the center bar device state can be copied from
 hardware to config and vice-versa. This works for single devices aswell as for
@@ -318,7 +319,7 @@ The URLs used in MRC configs follow standard URL schemes:
 *<proto>://<location>[<options>]*. Currently the following protocols are
 supported:
 
-* serial
+* **serial**
 
   MRC connectivity using a local serial port. If no baud-rate is specified
   auto-detection will be attempted.
@@ -331,7 +332,7 @@ supported:
     - *serial:///dev/ttyS0* 
     - *serial://COM4*
 
-* tcp
+* **tcp**
 
   Connecting via a serial server (e.g. a Moxa NPort device or the unix program
   *ser2net*).
@@ -344,7 +345,7 @@ supported:
   Example:
     - *tcp://serial-server.example.com:4002*
 
-* mc
+* **mc**
 
   Direct connection to a mesycontrol server process.
 
