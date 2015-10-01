@@ -51,6 +51,23 @@ std::string to_string(exit_code code)
     return boost::lexical_cast<std::string>(static_cast<int>(code));
 }
 
+void print_help(const po::options_description &options)
+{
+  std::cout << "mesycontrol_server version " << g_GIT_VERSION << std::endl;
+  std::cout << std::endl << options << std::endl;
+  std::cout << "Examples:"
+    << std::endl << "$ mesycontrol_server --mrc-serial-port /dev/ttyUSB0"
+    << std::endl << "  -> Use the first USB serial port and auto-detect the baud rate."
+    << std::endl
+    << std::endl << "$ mesycontrol_server --mrc-host example.com --mrc-port 8192"
+    << std::endl << "  -> Connect to the serial server listening on example.com:8192."
+    << std::endl
+    << std::endl << "$ mesycontrol_server --mrc-serial-port /dev/ttyUSB0 --listen-address 127.0.0.1"
+    << std::endl << "  -> Serial connection but make the server listen only on the loopback device."
+    << std::endl
+  ;
+}
+
 int main(int argc, char *argv[])
 {
   po::options_description options("Command line options");
@@ -97,19 +114,7 @@ int main(int argc, char *argv[])
   }
 
   if (option_map.count("help")) {
-    std::cout << "mesycontrol_server version " << g_GIT_VERSION << std::endl;
-    std::cout << std::endl << options << std::endl;
-    std::cout << "Examples:"
-      << std::endl << "$ mesycontrol_server --mrc-serial-port /dev/ttyUSB0"
-      << std::endl << "  -> Use the first USB serial port and auto-detect the baud rate."
-      << std::endl
-      << std::endl << "$ mesycontrol_server --mrc-host example.com --mrc-port 8192"
-      << std::endl << "  -> Connect to the serial server listening on example.com:8192."
-      << std::endl
-      << std::endl << "$ mesycontrol_server --mrc-serial-port /dev/ttyUSB0 --listen-address 127.0.0.1"
-      << std::endl << "  -> Serial connection but make the server listen only on the loopback device."
-      << std::endl;
-      ;
+    print_help(options);
     return exit_success;
   }
 
@@ -124,7 +129,8 @@ int main(int argc, char *argv[])
   log::set_verbosity(option_map["verbose"].as<int>() - option_map["quiet"].as<int>());
 
   if (option_map.count("mrc-serial-port") && option_map.count("mrc-host")) {
-    std::cerr << "Error: both --mrc-serial-port and --mrc-host given" << std::endl;
+    std::cerr << "Error: both --mrc-serial-port and --mrc-host given" << std::endl << std::endl;
+    print_help(options);
     return exit_options_error;
   }
 
@@ -142,7 +148,8 @@ int main(int argc, char *argv[])
         option_map["mrc-host"].as<std::string>(),
         option_map["mrc-port"].as<unsigned short>());
   } else {
-    std::cerr << "Error: neither --mrc-serial-port nor --mrc-host given" << std::endl;
+    std::cerr << "Error: neither --mrc-serial-port nor --mrc-host given" << std::endl << std::endl;
+    print_help(options);
     return exit_options_error;
   }
 
