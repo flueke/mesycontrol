@@ -39,7 +39,6 @@ set(PYTHON_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_profile.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_registry.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_tableview.py"
-    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_view.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/eventloop_callback.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/future.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/gui_mainwindow.py"
@@ -74,8 +73,6 @@ set(PYTHON_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/devices/mscf16.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/devices/stm16_profile.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/devices/stm16.py"
-    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_tableview.py"
-    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_view.py"
 
     # mesycontrol/ui/*.py
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/ui/connect_dialog.py"
