@@ -1272,8 +1272,6 @@ Initialize using the current hardware values or the device defaults?
 
         widget = app_device.make_device_widget(display_mode, write_mode)
         subwin = gui_util.DeviceWidgetSubWindow(widget=widget)
-        subwin = QtGui.QMdiSubWindow()
-        subwin.setWidget(widget)
         return self._register_device_subwindow(subwin)
 
     def _register_device_subwindow(self, subwin):

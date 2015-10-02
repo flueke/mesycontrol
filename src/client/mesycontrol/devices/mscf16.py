@@ -1300,6 +1300,7 @@ class SettingsDialog(QtGui.QDialog):
                 o.setCurrentIndex(idx)
 
         elif name == 'input_connector':
+            print ext_value
             idx = self.combo_input_connector.findText(ext_value)
             with util.block_signals(self.combo_input_connector) as o:
                 o.setCurrentIndex(idx)
