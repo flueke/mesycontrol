@@ -57,7 +57,6 @@ set(PYTHON_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/proto.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/qt.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/resources.py"
-    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/script.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/server_process.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/specialized_device.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/tcp_client.py"

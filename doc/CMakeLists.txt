@@ -25,7 +25,7 @@ if (SPHINX_FOUND)
   # Then sphinx is run twice, once for HTML and once for latex output. To
   # generate the final PDF file from the latex sources a final make invocation
   # is needed.
-  add_custom_target(doc ALL
+  add_custom_target(doc
     COMMAND
     ${CMAKE_COMMAND}
     -E copy_directory
@@ -60,10 +60,10 @@ if (SPHINX_FOUND)
     COMMENT "Building documentation with Sphinx"
   )
 
-  install(DIRECTORY "${SPHINX_HTML_DIR}/" DESTINATION "share/doc/html")
-  install(FILES "${SPHINX_LATEX_DIR}/mesycontrol.pdf" DESTINATION "share/doc")
+  install(DIRECTORY "${SPHINX_HTML_DIR}/" DESTINATION "share/doc/html" OPTIONAL)
+  install(FILES "${SPHINX_LATEX_DIR}/mesycontrol.pdf" DESTINATION "share/doc" OPTIONAL)
 else()
-  message("Sphinx not found, documentation will not be generated!")
+  message("Sphinx not found, documentation can not be generated.")
 endif()
 
 # vim:tw=0
