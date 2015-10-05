@@ -730,6 +730,7 @@ class GUIApplication(QtCore.QObject):
                     parent_widget=self.mainwindow)
 
         if is_bus(node):
+            assert node.parent is not None
             gui_util.run_add_device_config_dialog(
                     registry=self.app_registry,
                     device_registry=self.context.device_registry,
@@ -859,14 +860,17 @@ class GUIApplication(QtCore.QObject):
         elif is_mrc(node):
             gen = (d for d in node.ref)
         elif is_bus(node):
+            assert node.parent is not None
             gen = (d for d in node.parent.ref if d.bus == node.bus_number)
         elif is_device(node):
             gen = (d for d in (node.ref,))
+        elif node is None:
+            gen = (d for mrc in self.app_registry.mrcs for d in mrc)
         else:
             self.log.warning("check config: unsupported node type %s", node)
             return
 
-        predicate = lambda d: not d.idc_conflict and d.has_hw and d.has_cfg
+        predicate = lambda d: not d.idc_conflict and d.has_cfg
         devices   = filter(predicate, gen)
 
         self.log.info("check config: node=%s, devices=%s", node, devices)

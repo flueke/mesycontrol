@@ -14,8 +14,7 @@ class BasicTreeModel(QtCore.QAbstractItemModel):
     def __init__(self, parent=None):
         super(BasicTreeModel, self).__init__(parent)
         self.log  = util.make_logging_source_adapter(__name__, self)
-        self.root = BasicTreeNode()
-        self.root.model = self
+        self.clear()
 
     def index(self, row, col, parent=QModelIndex()):
         try:

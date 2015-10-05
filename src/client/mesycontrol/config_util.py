@@ -683,15 +683,63 @@ def fill_device_configs(devices):
             mrc.hw.polling = polling
 
 def read_config_parameters(devices):
-    progress = ProgressUpdate(current=0, total=len(devices))
+    skipped_mrcs    = set()
+    mrcs_to_connect = set(d.mrc for d in devices if (not d.mrc.has_hw or not d.mrc.hw.is_connected()))
+
+    progress             = ProgressUpdate(current=0, total=len(mrcs_to_connect) + len(devices))
     progress.subprogress = ProgressUpdate(current=0, total=0)
+
     yield progress
 
     for device in devices:
+        mrc = device.mrc
+
+        if mrc.hw is None:
+            model_util.add_mrc_connection(
+                    hardware_registry=mrc.mrc_registry.hw,
+                    url=mrc.url, do_connect=False)
+
+        if mrc in skipped_mrcs:
+            continue
+
+        if mrc.hw.is_connecting():
+            # Cancel active connection attempts as we need the Future returned
+            # by connect().
+            yield mrc.hw.disconnect()
+
+        if mrc.hw.is_disconnected():
+            progress.text = "Connecting to %s" % mrc.get_display_url()
+            yield progress
+
+            action = ACTION_RETRY
+
+            while action == ACTION_RETRY:
+                f = yield mrc.hw.connect()
+
+                try:
+                    f.result()
+                    (yield mrc.hw.scanbus(0)).result()
+                    (yield mrc.hw.scanbus(1)).result()
+                    progress.text = "Connected to %s" % mrc.get_display_url()
+                    break
+                except hardware_controller.TimeoutError as e:
+                    action = yield e
+
+                    if action == ACTION_SKIP:
+                        skipped_mrcs.add(mrc)
+                        break
+
+            if action == ACTION_SKIP:
+                yield progress.increment()
+                continue
+
         try:
-            hw_mrc = device.mrc.hw
-            polling = hw_mrc.polling
-            hw_mrc.polling = False
+            polling = mrc.hw.polling
+            mrc.hw.polling = False
+
+            if device.hw is None:
+                yield progress.increment()
+                continue
 
             params = (yield device.get_config_parameters()).result()
             log.debug("read_config_parameters: params=%s", [p.address for p in params])
@@ -713,7 +761,7 @@ def read_config_parameters(devices):
 
             yield progress.increment()
         finally:
-            hw_mrc.polling = polling
+            mrc.hw.polling = polling
 
 def apply_parameters(source, dest, criticals, non_criticals):
     """Write parameters from source to dest. First criticals are set to their
