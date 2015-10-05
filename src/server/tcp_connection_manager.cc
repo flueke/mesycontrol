@@ -48,8 +48,10 @@ void TCPConnectionManager::start(TCPConnectionPtr c)
 void TCPConnectionManager::stop(TCPConnectionPtr c, bool graceful)
 {
   if (m_write_connection == c) {
-    // The current writer disconnects
-    set_write_connection(TCPConnectionPtr());
+    // The current writer disconnects. If there's only one connection left make
+    // it the new writer, otherwise make no connection a writer.
+    set_write_connection(m_connections.size() == 1 ?
+        *(m_connections.begin()) : TCPConnectionPtr());
   }
 
   m_connections.erase(c);
