@@ -487,7 +487,10 @@ class GUIApplication(QtCore.QObject):
         a.setEnabled((is_registry(node) and len(node.children)) or is_mrc(node))
 
         if a.isEnabled() and is_registry(node):
-            if all(mrc.is_connected() for mrc in node.ref.hw):
+            for mrc in node.ref:
+                print mrc, mrc.has_hw, mrc.has_hw and mrc.hw.is_connected()
+
+            if all((mrc.has_hw and mrc.hw.is_connected()) for mrc in node.ref):
                 a.setIcon(a.icons['disconnect'])
                 a.setToolTip("Disconnect all MRCs")
             else:
@@ -1243,10 +1246,10 @@ Initialize using the current hardware values or the device defaults?
     device_registry = property(lambda self: self.context.device_registry)
     linked_mode     = property(get_linked_mode, set_linked_mode)
 
-    # Logview updates from MRC connection state changes
     def _hw_mrc_added(self, mrc):
         self.log.debug("hw mrc added: %s", mrc.url)
         mrc.connecting.connect(partial(self._hw_mrc_connecting, mrc=mrc))
+        mrc.connected.connect(self._update_actions)
         mrc.disconnected.connect(partial(self._hw_mrc_disconnected, mrc=mrc))
 
     def _hw_mrc_connecting(self, f, mrc):
