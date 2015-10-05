@@ -233,7 +233,7 @@ class Controller(object):
             del self._poll_subscriptions[weakref.ref(subscriber)]
             return self._send_poll_request()
         except KeyError:
-            return False
+            return future.Future().set_result(False)
 
     def _send_poll_request(self):
         # Merge all poll items into one set.
