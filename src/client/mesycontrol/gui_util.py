@@ -28,6 +28,7 @@ class DeviceSubWindow(QtGui.QMdiSubWindow):
         self.setWidget(widget)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.window_name_prefix = window_name_prefix
+        self._linked_mode = False
         self.update_title_and_name()
         self.setWindowIcon(util.make_icon(":/window-icon.png"))
 
@@ -61,9 +62,17 @@ class DeviceSubWindow(QtGui.QMdiSubWindow):
     def get_toolbar(self):
         raise NotImplementedError()
 
+    def set_linked_mode(self, linked_mode):
+        self._linked_mode = linked_mode
+        self.update_title_and_name()
+
+    def get_linked_mode(self):
+        return self._linked_mode
+
     device          = property(lambda s: s.get_device())
     display_mode    = property(get_display_mode, set_display_mode)
     write_mode      = property(get_write_mode, set_write_mode)
+    linked_mode     = property(get_linked_mode, set_linked_mode)
 
     def update_title_and_name(self):
         """Updates the window title and the object name taking into account the
@@ -71,22 +80,26 @@ class DeviceSubWindow(QtGui.QMdiSubWindow):
         device       = self.device
         idc          = None
 
-        if self.display_mode == util.HARDWARE and device.hw is not None:
+        if self.display_mode == util.HARDWARE and device.has_hw:
             idc = device.hw_idc
-            profile = device.hw_profile
-        elif self.display_mode == util.CONFIG and device.cfg is not None:
+        elif self.display_mode == util.CONFIG and device.has_cfg:
             idc = device.cfg_idc
-            profile = device.cfg_profile
-        elif self.display_mode == util.COMBINED and device.has_hw and device.has_cfg and not device.idc_conflict:
-            idc = device.hw_idc
-            profile = device.hw_profile
+        elif self.display_mode == util.COMBINED:
+            if device.has_hw and device.has_cfg and not device.idc_conflict:
+                idc = device.hw_idc
+            elif device.has_cfg and not device.has_hw:
+                idc = device.cfg_idc
+
+        profile = device.hw_profile
 
         if idc is None:
             # The device is about to disappear and this window should close. Do
             # not attempt to update the title as no idc is known and device.mrc
             # will not be set.
-            self.log.debug("update_title_and_name: idc is None -> early return")
+            self.log.warning("update_title_and_name: idc is None -> early return")
             return
+
+        profile = device.hw_profile if idc == device.hw_idc else device.cfg_profile
 
         prefixes = {
                 util.COMBINED:  'combined',
@@ -94,19 +107,18 @@ class DeviceSubWindow(QtGui.QMdiSubWindow):
                 util.CONFIG:    'cfg',
                 }
 
-        device_name = profile.name
+        device_type_name = profile.name
 
-        name = "%s_%s_(%s, %d, %d)" % (
+        name = "%s_%s_%s_(%s, %d, %d)" % (
                 self.window_name_prefix, prefixes[self.display_mode],
-                device.mrc.url, device.bus, device.address)
+                device_type_name, device.mrc.url, device.bus, device.address)
 
         title = "%s @ (%s, %d, %d)" % (
-                device_name, device.mrc.get_display_url(),
+                device_type_name, device.mrc.get_display_url(),
                 device.bus, device.address)
 
-        if ((self.display_mode & util.CONFIG)
-                and device.cfg is not None
-                and len(device.cfg.name)):
+        if (device.has_cfg and len(device.cfg.name)
+                and ((self.display_mode & util.CONFIG) or self.linked_mode)):
             title = "%s - %s" % (device.cfg.name, title)
 
         if self.device.idc_conflict:

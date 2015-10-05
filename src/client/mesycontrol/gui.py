@@ -1225,6 +1225,8 @@ Initialize using the current hardware values or the device defaults?
                     elif not linked_mode:
                         if util.COMBINED in (window.display_mode, window.write_mode):
                             window.close()
+
+                    window.linked_mode = linked_mode
                 except AttributeError:
                     pass
 
@@ -1275,6 +1277,7 @@ Initialize using the current hardware values or the device defaults?
 
         widget = device_tableview.DeviceTableWidget(device, display_mode, write_mode)
         subwin = gui_util.DeviceTableSubWindow(widget=widget)
+        subwin.set_linked_mode(self.linked_mode)
         return self._register_device_subwindow(subwin)
 
     def _add_device_widget_window(self, app_device, display_mode, write_mode):
@@ -1283,6 +1286,7 @@ Initialize using the current hardware values or the device defaults?
 
         widget = app_device.make_device_widget(display_mode, write_mode)
         subwin = gui_util.DeviceWidgetSubWindow(widget=widget)
+        subwin.set_linked_mode(self.linked_mode)
         return self._register_device_subwindow(subwin)
 
     def _register_device_subwindow(self, subwin):
