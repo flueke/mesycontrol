@@ -215,12 +215,12 @@ class GUIApplication(QtCore.QObject):
 
         # Open device config
         action = QtGui.QAction(QtGui.QIcon.fromTheme("document-open"),
-                "Open device config", self, triggered=self._open_device_config)
+                "Load device config from file", self, triggered=self._open_device_config)
         self.actions['open_device_config'] = action
 
         # Save device config
         action = QtGui.QAction(QtGui.QIcon.fromTheme("document-save"),
-                "Save device config", self, triggered=self._save_device_config)
+                "Save device config to file", self, triggered=self._save_device_config)
         self.actions['save_device_config'] = action
 
         action = QtGui.QAction(QtGui.QIcon.fromTheme("document-properties"),
@@ -852,8 +852,24 @@ class GUIApplication(QtCore.QObject):
                 is_device_cfg(node), is_device_hw(node))
 
     def _check_config(self):
+        node = self._selected_tree_node
+
+        if is_registry(node):
+            gen = (d for mrc in node.ref for d in mrc)
+        elif is_mrc(node):
+            gen = (d for d in node.ref)
+        elif is_bus(node):
+            gen = (d for d in node.parent.ref if d.bus == node.bus_number)
+        elif is_device(node):
+            gen = (d for d in (node.ref,))
+        else:
+            self.log.warning("check config: unsupported node type %s", node)
+            return
+
         predicate = lambda d: not d.idc_conflict and d.has_hw and d.has_cfg
-        devices = filter(predicate, (d for mrc in self.app_registry for d in mrc))
+        devices   = filter(predicate, gen)
+
+        self.log.info("check config: node=%s, devices=%s", node, devices)
 
         runner = config_gui.ReadConfigParametersRunner(
                 devices=devices,
