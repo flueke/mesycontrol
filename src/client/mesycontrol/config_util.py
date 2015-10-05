@@ -523,6 +523,9 @@ def apply_device_configs(devices):
 
                 try:
                     f.result()
+                    (yield mrc.hw.scanbus(0)).result()
+                    (yield mrc.hw.scanbus(1)).result()
+                    progress.text = "Connected to %s" % mrc.get_display_url()
                     break
                 except hardware_controller.TimeoutError as e:
                     action = yield e
@@ -538,10 +541,6 @@ def apply_device_configs(devices):
         try:
             polling = mrc.hw.polling
             mrc.hw.polling = False
-
-            (yield mrc.hw.scanbus(0)).result()
-            (yield mrc.hw.scanbus(1)).result()
-            progress.text = "Connected to %s" % mrc.get_display_url()
 
             action = ACTION_RETRY
 
