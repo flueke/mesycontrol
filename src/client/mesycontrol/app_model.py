@@ -569,11 +569,9 @@ class Device(AppObject):
     def remove_polling_subscriber(self, subscriber):
         if not self.has_hw:
             raise RuntimeError("Hardware not present")
-        try:
-            self.hw.remove_polling_subscriber(subscriber)
-            self.log.debug("Removed poll subscriber %s", subscriber)
-        except KeyError:
-            pass
+
+        self.hw.remove_polling_subscriber(subscriber)
+        self.log.debug("Removed poll subscriber %s", subscriber)
 
     mrc             = pyqtProperty(object, get_mrc, set_mrc, notify=mrc_changed)
 
