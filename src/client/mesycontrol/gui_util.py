@@ -3,6 +3,7 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 from qt import Qt
+from qt import QtCore
 from qt import QtGui
 
 import logging
@@ -178,6 +179,8 @@ class DeviceTableSubWindow(DeviceSubWindow):
         super(DeviceTableSubWindow, self).__init__(
                 widget=widget, window_name_prefix='table',
                 parent=parent)
+
+        self.resize(QtCore.QSize(600, 400))
 
     def has_combined_display(self):
         return True
