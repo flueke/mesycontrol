@@ -138,7 +138,7 @@ class DeviceNode(HardwareTreeNode):
 
     def _on_hardware_set(self, app_device, old_device, new_device):
         signals = ['connected', 'connecting', 'disconnected', 'connection_error',
-                'address_conflict_changed', 'rc_changed', 'polling_changed']
+                'address_conflict_changed', 'rc_changed']
 
         if old_device is not None:
             for signal in signals:

@@ -20,7 +20,6 @@ class MRC(bm.MRC):
     connection_error            = pyqtSignal(object)    #: error object
 
     address_conflict_changed    = pyqtSignal(bool)
-    polling_changed             = pyqtSignal(bool)
 
     status_changed              = pyqtSignal(object)
 
@@ -33,7 +32,6 @@ class MRC(bm.MRC):
         self._connected  = False
         self._connecting = False
         self._disconnected = True
-        self._polling = True
         self.last_connection_error = None
         self._status = None
 
@@ -138,22 +136,12 @@ class MRC(bm.MRC):
     def scanbus(self, bus):
         return self.controller.scanbus(bus)
 
-    def should_poll(self):
-        return self._polling
-
-    def set_polling(self, on_off):
-        on_off = bool(on_off)
-        if self._polling != on_off:
-            self._polling = on_off
-            self.polling_changed.emit(on_off)
-
     def __str__(self):
-        return "hm.MRC(id=%s, url=%s, connected=%s, polling=%s)" % (
-                hex(id(self)), self.url, self.is_connected(), self.should_poll())
+        return "hm.MRC(id=%s, url=%s, connected=%s)" % (
+                hex(id(self)), self.url, self.is_connected())
 
     connection  = pyqtProperty(object, get_connection)
     controller  = pyqtProperty(object, get_controller, set_controller)
-    polling     = pyqtProperty(bool, should_poll, set_polling, notify=polling_changed)
 
 class Device(bm.Device):
     connected                   = pyqtSignal()
@@ -163,14 +151,12 @@ class Device(bm.Device):
 
     address_conflict_changed    = pyqtSignal(bool)
     rc_changed                  = pyqtSignal(bool)
-    polling_changed             = pyqtSignal(bool)
 
     def __init__(self, bus, address, idc, parent=None):
         super(Device, self).__init__(bus, address, idc, parent)
 
         self._address_conflict = False
         self._rc = False
-        self._polling = True
 
     def _read_parameter(self, address):
         if self.address_conflict:
@@ -219,20 +205,10 @@ class Device(bm.Device):
         ret.add_done_callback(on_rc_set)
         return ret
 
-    def should_poll(self):
-        return self.mrc.polling and self._polling
-
-    def set_polling(self, on_off):
-        on_off = bool(on_off)
-        if self._polling != on_off:
-            self._polling = on_off
-            self.polling_changed.emit(on_off)
-
     def add_poll_item(self, subscriber, item):
         """Add parameters that should be polled repeatedly.
-        As long as the given subscriber object is alive and polling is enabled
-        for this device and the device is connected, the given item will be
-        polled.
+        As long as the given subscriber object is alive and the device is
+        connected, the given item will be polled.
         Item may be a single parameter address or a tuple of (lower, upper)
         addresses to poll.
         If the server and mrc support reading parameter ranges and a tuple is
@@ -268,4 +244,3 @@ class Device(bm.Device):
             notify=address_conflict_changed)
 
     rc = pyqtProperty(bool, get_rc, update_rc, notify=rc_changed)
-    polling = pyqtProperty(bool, should_poll, set_polling, notify=polling_changed)

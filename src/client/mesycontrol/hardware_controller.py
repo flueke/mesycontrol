@@ -11,9 +11,6 @@ import hardware_model as hm
 import proto
 import util
 
-# Polling, poll sets
-# Read Range
-
 class ErrorResponse(RuntimeError):
     pass
 
@@ -34,6 +31,7 @@ class Controller(object):
         self.connection = connection
         self._mrc       = None
 
+        # Maps subscribers to a set of poll items
         self._poll_subscriptions = dict()
 
         self._connect_timer = QtCore.QTimer()

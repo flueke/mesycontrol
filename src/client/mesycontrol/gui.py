@@ -18,7 +18,7 @@ from qt import QtGui
 
 from basic_model import IDCConflict
 from gui_util import is_setup, is_registry, is_mrc, is_bus, is_device, is_device_cfg, is_device_hw
-from gui_util import is_config, is_hardware
+from gui_util import is_config
 from model_util import add_mrc_connection
 from util import make_icon
 import app_model as am
@@ -247,12 +247,6 @@ class GUIApplication(QtCore.QObject):
         #        triggered=self._refresh)
         #action.hw_toolbar = True
         #self.actions['refresh'] = action
-
-        # Toggle polling
-        action = QtGui.QAction(make_icon(":/polling.png"), "Toggle Polling", self,
-                checkable=True, triggered=self._toggle_polling)
-        action.hw_toolbar = True
-        self.actions['toggle_polling'] = action
 
         # Toggle RC
         action = QtGui.QAction(make_icon(":/remote-control.png"), "Toggle RC", self,
@@ -509,23 +503,6 @@ class GUIApplication(QtCore.QObject):
 
             a.setText(a.toolTip())
 
-        a = self.actions['toggle_polling']
-        a.setEnabled(
-                is_hardware(node)
-                and node.ref is not None
-                and node.ref.has_hw
-                and (is_mrc(node) or (is_device(node) and node.ref.mrc.hw.polling)))
-
-        if a.isEnabled():
-            a.setChecked(node.ref.hw.polling)
-            a.setToolTip("Disable polling" if a.isChecked() else "Enable polling")
-        elif (is_hardware(node) and is_device(node)
-                and node.ref.mrc.hw is not None
-                and not node.ref.mrc.hw.polling):
-            a.setToolTip("Polling disabled by parent MRC")
-
-        a.setText(a.toolTip())
-
         a = self.actions['toggle_rc']
         a.setEnabled(is_device(node) and node.ref.has_hw and not node.ref.hw.address_conflict)
 
@@ -641,7 +618,6 @@ class GUIApplication(QtCore.QObject):
 
         hw_signals = [
                 'address_conflict_changed',
-                'polling_changed',
                 'connected',
                 'connecting',
                 'disconnected',
@@ -793,12 +769,6 @@ class GUIApplication(QtCore.QObject):
 
     def _refresh(self):
         raise NotImplementedError()
-
-    def _toggle_polling(self):
-        node = self._selected_tree_node
-
-        if (is_mrc(node) or is_device(node)) and node.ref.has_hw:
-            node.ref.hw.polling = not node.ref.hw.polling
 
     def _toggle_rc(self):
         node = self._selected_tree_node
@@ -1357,7 +1327,6 @@ Initialize using the current hardware values or the device defaults?
         if is_mrc(node):
             add_action(self.actions['connect_disconnect'])
             #add_action(self.actions['refresh'])
-            add_action(self.actions['toggle_polling'])
             menu.addSeparator()
 
             mrc = node.ref
@@ -1374,7 +1343,6 @@ Initialize using the current hardware values or the device defaults?
             add_action(self.actions['open_device_widget'])
             add_action(self.actions['open_device_table'])
             add_action(self.actions['toggle_rc'])
-            add_action(self.actions['toggle_polling'])
             #add_action(self.actions['refresh'])
 
         if not menu.isEmpty():
