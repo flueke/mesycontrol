@@ -18,7 +18,7 @@ from qt import QtGui
 
 from basic_model import IDCConflict
 from gui_util import is_setup, is_registry, is_mrc, is_bus, is_device, is_device_cfg, is_device_hw
-from gui_util import is_config
+from gui_util import is_config, is_hardware
 from model_util import add_mrc_connection
 from util import make_icon
 import app_model as am
@@ -463,7 +463,8 @@ class GUIApplication(QtCore.QObject):
             a.setText("Add Device")
 
         a = self.actions['remove_config']
-        a.setEnabled((is_mrc(node) or is_device(node)) and node.ref.has_cfg)
+        a.setEnabled((is_mrc(node) or is_device(node)) and node.ref.has_cfg
+                and (self.linked_mode or is_config(node)))
 
         if a.isEnabled() and is_mrc(node):
             a.setText("Remove MRC config")
@@ -504,7 +505,8 @@ class GUIApplication(QtCore.QObject):
             a.setText(a.toolTip())
 
         a = self.actions['toggle_rc']
-        a.setEnabled(is_device(node) and node.ref.has_hw and not node.ref.hw.address_conflict)
+        a.setEnabled(is_device(node) and node.ref.has_hw and not node.ref.hw.address_conflict
+            and (is_hardware(node) or self.linked_mode))
 
         if a.isEnabled():
             a.setChecked(node.ref.hw.rc)
@@ -527,8 +529,7 @@ class GUIApplication(QtCore.QObject):
         self.actions['check_config'].setEnabled(self.linked_mode)
 
         self.actions['apply_config_to_hardware'].setEnabled(
-                self.linked_mode
-                and ((is_setup(node) and node.ref.has_cfg)
+                ((is_setup(node) and node.ref.has_cfg)
                     or (is_mrc(node) and node.ref.has_cfg)
                     or (is_bus(node)
                         and node.parent is not None
