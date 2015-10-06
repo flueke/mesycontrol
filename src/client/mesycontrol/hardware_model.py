@@ -22,7 +22,8 @@ class MRC(bm.MRC):
     address_conflict_changed    = pyqtSignal(bool)
 
     status_changed              = pyqtSignal(object)
-
+    write_access_changed        = pyqtSignal(bool, bool) #: has_write_access, can_acquire
+    silenced_changed            = pyqtSignal(bool)       #: is_silenced
 
     def __init__(self, url, parent=None):
         super(MRC, self).__init__(url, parent)
@@ -34,6 +35,9 @@ class MRC(bm.MRC):
         self._disconnected = True
         self.last_connection_error = None
         self._status = None
+        self._has_write_access = False
+        self._can_acquire_write_access = False
+        self._is_silenced = False
 
     def set_controller(self, controller):
         """Set the hardware controller this MRC should use.
@@ -55,6 +59,42 @@ class MRC(bm.MRC):
 
     def get_status(self):
         return self._status
+
+    def set_write_access(self, has_write_access, can_acquire):
+        """Updates the local write access and can_acquire flags.
+        Emits write_access_changed() if one of the two flags changed."""
+        if (self._has_write_access != has_write_access or
+                self._can_acquire_write_access != can_acquire):
+
+            self._has_write_access = has_write_access
+            self._can_acquire_write_access = can_acquire
+
+            self.write_access_changed.emit(
+                    self._has_write_access,
+                    self._can_acquire_write_access)
+
+    def acquire_write_access(self, force=False):
+        return self.controller.acquire_write_access(force)
+
+    def release_write_access(self):
+        return self.controller.release_write_access()
+
+    def has_write_access(self):
+        return self._has_write_access
+
+    def can_acquire_write_access(self):
+        return self._can_acquire_write_access
+
+    def update_silenced(self, silenced):
+        if self._silenced != silenced:
+            self._silenced = silenced
+            self.silenced_changed.emit(self._silenced)
+
+    def set_silenced(self, silenced):
+        return self.controller.set_silenced(silenced)
+
+    def is_silenced(self):
+        return self._silenced
 
     def add_device(self, device):
         super(MRC, self).add_device(device)
@@ -140,8 +180,10 @@ class MRC(bm.MRC):
         return "hm.MRC(id=%s, url=%s, connected=%s)" % (
                 hex(id(self)), self.url, self.is_connected())
 
-    connection  = pyqtProperty(object, get_connection)
-    controller  = pyqtProperty(object, get_controller, set_controller)
+    connection      = pyqtProperty(object, get_connection)
+    controller      = pyqtProperty(object, get_controller, set_controller)
+    write_access    = pyqtProperty(bool, has_write_access, set_write_access)
+    silenced        = pyqtProperty(bool, is_silenced)
 
 class Device(bm.Device):
     connected                   = pyqtSignal()

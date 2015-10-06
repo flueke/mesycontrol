@@ -254,6 +254,23 @@ class GUIApplication(QtCore.QObject):
         action.hw_toolbar = True
         self.actions['toggle_rc'] = action
 
+        # Write access
+        action = QtGui.QAction(make_icon(":/write-access.png"), "Toggle write access", self,
+                checkable=True, triggered=self._toggle_write_access)
+        action.hw_toolbar = True
+        self.actions['toggle_write_access'] = action
+
+        # Silent mode
+        icons = {
+                True:  make_icon(":/silent-mode-on.png"),
+                False: make_icon(":/silent-mode-off.png")
+                }
+        action = QtGui.QAction(icons[False], "Toggle silent mode", self,
+                checkable=True, triggered=self._toggle_silent_mode)
+        action.icons = icons
+        action.hw_toolbar = True
+        self.actions['toggle_silent_mode'] = action
+
         # Add connection
         action = QtGui.QAction(make_icon(":/add-mrc.png"), "Add MRC connection", self,
                 triggered=self._add_mrc_connection)
@@ -454,7 +471,7 @@ class GUIApplication(QtCore.QObject):
         self.actions['close_setup'].setEnabled(len(setup))
 
         a = self.actions['add_config']
-        a.setEnabled(self.linked_mode or (is_config(node) and not is_device(node)))
+        a.setEnabled(is_config(node) and not is_device(node))
 
         if is_setup(node):
             a.setText("Add MRC")
@@ -493,6 +510,7 @@ class GUIApplication(QtCore.QObject):
                 a.setToolTip("Connect all MRCs")
 
             a.setText(a.toolTip())
+            a.setStatusTip(a.toolTip())
 
         if a.isEnabled() and is_mrc(node):
             if node.ref.has_hw and node.ref.hw.is_connected():
@@ -503,6 +521,7 @@ class GUIApplication(QtCore.QObject):
                 a.setToolTip("Connect")
 
             a.setText(a.toolTip())
+            a.setStatusTip(a.toolTip())
 
         a = self.actions['toggle_rc']
         a.setEnabled(is_device(node) and node.ref.has_hw and not node.ref.hw.address_conflict
@@ -513,6 +532,8 @@ class GUIApplication(QtCore.QObject):
             a.setToolTip("Disable RC" if a.isChecked() else "Enable RC")
             a.setText(a.toolTip())
             a.setStatusTip(a.toolTip())
+
+        a = self.actions['write_access']
 
         self.actions['remove_mrc_connection'].setEnabled(is_mrc(node) and node.ref.has_hw)
 
@@ -780,6 +801,12 @@ class GUIApplication(QtCore.QObject):
 
             node.ref.hw.set_rc(not node.ref.hw.rc
                     ).add_done_callback(done)
+
+    def _toggle_write_access(self):
+        pass
+
+    def _toggle_silent_mode(self):
+        pass
 
     def _add_mrc_connection(self):
         gui_util.run_add_mrc_connection_dialog(

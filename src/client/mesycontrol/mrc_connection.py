@@ -12,9 +12,6 @@ import proto
 import server_process
 import util
 
-# FIXME: disconnected signal of MRCConnection emitted multiple times when
-# mesycontrol_server is killed
-
 class IsConnecting(Exception):
     pass
 
@@ -38,8 +35,6 @@ class AbstractConnection(QtCore.QObject):
 
     queue_empty             = pyqtSignal()
     queue_size_changed      = pyqtSignal(int)
-
-    # TODO: add write_access, silence
 
     def __init__(self, parent=None):
         super(AbstractConnection, self).__init__(parent)
