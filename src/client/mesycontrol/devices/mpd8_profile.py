@@ -10,12 +10,11 @@ profile_dict = {
         'name': 'MPD-8',
         'idc': idc,
         'parameters':
-            [ { 'address': i, 'name': 'ndis%d' % i, 'index': i, 'range': (0, 255) } for i in range(NUM_CHANNELS) ]
-            + 
-            [ { 'address': i+8,  'name': 'walk%d' % i, 'index': i, 'range': (0, 200) } for i in range(NUM_CHANNELS) ]
-            +
-            [
-
+        [ { 'address': i, 'name': 'ndis%d' % i, 'index': i, 'range': (0, 255) } for i in range(NUM_CHANNELS) ]
+        +
+        [ { 'address': i+8,  'name': 'walk%d' % i, 'index': i, 'range': (0, 200) } for i in range(NUM_CHANNELS) ]
+        +
+        [
             { 'address': 16, 'name': 'threshold_common', 'range': (0, 255) },
             { 'address': 32, 'name': 'gain_common', 'range': (0, 3) },
 
@@ -34,4 +33,4 @@ profile_dict = {
 
         'extensions': [
             ],
-}
+        }
