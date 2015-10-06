@@ -33,14 +33,20 @@ if __name__ == "__main__":
         logging.basicConfig(level=logging.DEBUG,
                 format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
-        fh = logging.FileHandler("mesycontrol.log", "w")
-        fh.setFormatter(logging.Formatter(fmt='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s'))
-        logging.getLogger().addHandler(fh)
-        logging.getLogger("mesycontrol.basic_tree_model").setLevel(logging.INFO)
-        logging.getLogger("mesycontrol.future").setLevel(logging.INFO)
-        logging.getLogger("mesycontrol.mc_treeview").setLevel(logging.INFO)
-        logging.getLogger("mesycontrol.tcp_client.MCTCPClient").setLevel(logging.INFO)
-        logging.getLogger("PyQt4.uic").setLevel(logging.INFO)
+        for ln in ("mesycontrol.basic_tree_model", "mesycontrol.future",
+                "mesycontrol.mc_treeview", "mesycontrol.tcp_client.MCTCPClient",
+                "PyQt4.uic"):
+            logging.getLogger(ln).setLevel(logging.INFO)
+
+        fn = QtGui.QDesktopServices.storageLocation(QtGui.QDesktopServices.DocumentsLocation)
+        fn = os.path.join(str(fn), "mesycontrol.log")
+
+        try:
+            fh = logging.FileHandler(fn, "w")
+            fh.setFormatter(logging.Formatter(fmt='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s'))
+            logging.getLogger().addHandler(fh)
+        except IOError:
+            pass
 
     logging.info("Starting up...")
 
