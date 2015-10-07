@@ -7,6 +7,7 @@ from qt import pyqtSignal
 from functools import partial
 import collections
 import weakref
+import sys
 
 import util
 from future import Future
@@ -30,7 +31,7 @@ EXIT_CODES = {
 # How long to wait after process startup before checking if the process is
 # still running. The server might exit right away if its listening port is in
 # use.
-STARTUP_DELAY_MS = 200
+STARTUP_DELAY_MS = 2000
 
 class ServerError(Exception):
     pass
@@ -83,7 +84,7 @@ class ServerProcess(QtCore.QObject):
 
     startup_delay_ms = 200
 
-    def __init__(self, binary='mesycontrol_server', listen_address='0.0.0.0', listen_port=BASE_PORT,
+    def __init__(self, binary='mesycontrol_server', listen_address='127.0.0.1', listen_port=BASE_PORT,
             serial_port=None, baud_rate=0, tcp_host=None, tcp_port=4001, verbosity=0,
             output_buffer_maxlen=10000, parent=None):
 
@@ -193,7 +194,7 @@ class ServerProcess(QtCore.QObject):
                 ret.set_result(True)
 
             self.process.finished.connect(on_finished)
-            if not kill:
+            if not kill and not sys.platform.startswith('win32'):
                 self.process.terminate()
             else:
                 self.process.kill()
@@ -242,8 +243,13 @@ class ServerProcess(QtCore.QObject):
         return args
 
     def _error(self, error):
-        self.log.error("%s, %s", self.process.errorString(), ServerProcess.exit_code_string(error))
-        self.error.emit(error, self.process.errorString(), ServerProcess.exit_code_string(error))
+        exit_code = self.process.exitCode()
+        self.log.error("error=%d (%s), exit_code=%d (%s)",
+                error, self.process.errorString(),
+                exit_code, ServerProcess.exit_code_string(exit_code))
+
+        self.error.emit(error, self.process.errorString(),
+                exit_code, ServerProcess.exit_code_string(exit_code))
 
     def _finished(self, code, status):
         self.log.debug("Finished: status=%d, code=%d, str=%s", code, status,
@@ -287,7 +293,12 @@ class ServerProcessPool(QtCore.QObject):
 
         raise RuntimeError("No listen ports available")
 
-    def _on_process_finished(self, qt_exit_status, exit_code, exit_code_string, process):
+    def _on_process_finished(self, exit_code, exit_status, process):
+        exit_code_string = ServerProcess.exit_code_string(exit_code)
+
+        self.log.debug("_on_process_finished: exit_code=%d (%s), exit_status=%d",
+                exit_code, exit_code_string, exit_status)
+
         if exit_code_string == 'exit_address_in_use':
             self.log.warning('listen_port %d in use by an external process', process.listen_port)
             self._unavailable_ports.add(process.listen_port)
