@@ -34,6 +34,9 @@ void TCPConnectionManager::start(TCPConnectionPtr c)
   c->send_message(MessageFactory::make_mrc_status_notification(
         m_mrc1_queue.get_mrc1_connection()->get_status()));
 
+  c->send_message(MessageFactory::make_silent_mode_notification(
+        m_mrc1_queue.get_mrc1_connection()->is_silenced()));
+
   if (m_connections.size() == 1) {
     // Automatically give write access to the first client
     set_write_connection(c);
