@@ -81,7 +81,7 @@ class GeneratorRunner(QtCore.QObject):
                     self._progress_update(obj)
 
                 else:
-                    self.log.debug("Calling _object_yielded with %s", obj)
+                    self.log.debug("Calling _object_yielded with %s (%s)", obj, type(obj))
                     self.arg, do_return = self._object_yielded(obj)
 
                     self.log.debug("invoked _object_yielded: %s, %s", self.arg, do_return)

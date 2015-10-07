@@ -331,7 +331,18 @@ class ReadConfigParametersRunner(config_util.GeneratorRunner):
         self.generator = config_util.read_config_parameters(self.devices)
 
     def _object_yielded(self, obj):
-        self.log.warning("Error: %s", obj)
+        if isinstance(obj, hardware_controller.TimeoutError):
+
+            answer = QMB.question(
+                    self.parent_widget,
+                    "Connection error",
+                    "Timeout connecting to %s" % obj.args[0],
+                    buttons=QMB.Retry | QMB.Ignore | QMB.Abort,
+                    defaultButton=QMB.Retry)
+
+            return (std_button_to_cfg_action(answer), False)
+
+        raise ValueError("Error: %s" % obj)
 
     def _progress_update(self, progress):
         super(ReadConfigParametersRunner, self)._progress_update(progress)
