@@ -22,8 +22,6 @@ TCPConnectionManager::TCPConnectionManager(MRC1RequestQueue &mrc1_queue)
 
   m_scanbus_poller.register_result_handler(boost::bind(
         &TCPConnectionManager::handle_scanbus_poll_complete, this, _1));
-
-  m_scanbus_poller.set_suspended(true);
 }
 
 void TCPConnectionManager::start(TCPConnectionPtr c)
@@ -40,12 +38,13 @@ void TCPConnectionManager::start(TCPConnectionPtr c)
   if (m_connections.size() == 1) {
     // Automatically give write access to the first client
     set_write_connection(c);
+
+    m_poller.start();
+    m_scanbus_poller.start();
   } else {
     // Notify the newly connected client that it does not have write access
     c->send_message(MessageFactory::make_write_access_notification(false, !m_write_connection));
   }
-
-  m_scanbus_poller.set_suspended(false);
 }
 
 void TCPConnectionManager::stop(TCPConnectionPtr c, bool graceful)
@@ -59,8 +58,12 @@ void TCPConnectionManager::stop(TCPConnectionPtr c, bool graceful)
 
   m_connections.erase(c);
   m_poller.remove_poller(c);
-  m_scanbus_poller.set_suspended(m_connections.empty());
   c->stop(graceful);
+
+  if (m_connections.empty()) {
+    m_poller.stop();
+    m_scanbus_poller.stop();
+  }
 }
 
 void TCPConnectionManager::stop_all(bool graceful)
@@ -70,13 +73,14 @@ void TCPConnectionManager::stop_all(bool graceful)
   std::for_each(m_connections.begin(), m_connections.end(),
       boost::bind(&TCPConnection::stop, _1, graceful));
 
+  std::for_each(m_connections.begin(), m_connections.end(),
+      boost::bind(&Poller::remove_poller, &m_poller, _1));
+
   m_connections.clear();
   set_write_connection(TCPConnectionPtr());
 
-  std::for_each(m_connections.begin(), m_connections.end(),
-      boost::bind(&Poller::remove_poller, &m_poller, _1));
   m_poller.stop();
-  m_scanbus_poller.set_suspended(true);
+  m_scanbus_poller.stop();
 }
 
 void TCPConnectionManager::dispatch_request(const TCPConnectionPtr &connection, const MessagePtr &request)
@@ -154,6 +158,14 @@ void TCPConnectionManager::dispatch_request(const TCPConnectionPtr &connection, 
           if (may_set) {
             m_mrc1_queue.get_mrc1_connection()->set_silenced(silenced);
             send_to_all(MessageFactory::make_silent_mode_notification(silenced));
+
+            if (silenced) {
+              m_poller.stop();
+              m_scanbus_poller.stop();
+            } else {
+              m_poller.start();
+              m_scanbus_poller.start();
+            }
           }
 
           response = MessageFactory::make_bool_response(may_set);
@@ -278,6 +290,14 @@ void TCPConnectionManager::handle_mrc1_status_change(const proto::MRCStatus::Sta
 {
   send_to_all(MessageFactory::make_mrc_status_notification(status, info, version,
         has_read_multi));
+
+  if (status == proto::MRCStatus::RUNNING && !m_connections.empty()) {
+    m_poller.start();
+    m_scanbus_poller.start();
+  } else {
+    m_poller.stop();
+    m_scanbus_poller.stop();
+  }
 }
 
 void TCPConnectionManager::set_write_connection(const TCPConnectionPtr &connection)

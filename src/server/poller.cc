@@ -1,6 +1,7 @@
 #include <boost/bind.hpp>
 #include "mrc1_request_queue.h"
 #include "poller.h"
+#include "protocol.h"
 
 namespace mesycontrol
 {
@@ -47,10 +48,8 @@ Poller::Poller(MRC1RequestQueue &mrc1_queue,
   , m_set_iter(m_set.end())
   , m_timer(mrc1_queue.get_mrc1_connection()->get_io_service())
   , m_min_interval(min_interval)
-  , m_stopping(false)
+  , m_stopped(true)
 {
-  m_queue.get_mrc1_connection()->register_status_change_callback(
-      boost::bind(&Poller::handle_mrc1_status_change, this, _1, _2, _3, _4));
 }
 
 void Poller::set_poll_items(const TCPConnectionPtr &connection, const PollItems &items)
@@ -69,10 +68,25 @@ void Poller::remove_poller(const TCPConnectionPtr &connection)
   m_map.erase(connection);
 }
 
+void Poller::start()
+{
+  if (!m_stopped)
+    return;
+
+  BOOST_LOG_SEV(m_log, log::lvl::info) << "polling started";
+  m_stopped = false;
+  m_timer.expires_from_now(boost::posix_time::milliseconds(0));
+  m_timer.async_wait(boost::bind(&Poller::handle_timeout, this, _1));
+}
+
 void Poller::stop()
 {
-  BOOST_LOG_SEV(m_log, log::lvl::info) << "poller stopping";
-  m_stopping = true;
+  if (m_stopped)
+    return;
+
+  BOOST_LOG_SEV(m_log, log::lvl::info) << "polling stopped";
+  m_stopped = true;
+  m_set_iter = m_set.end();
   m_timer.cancel();
 }
 
@@ -97,19 +111,9 @@ void Poller::notify_parameter_changed(
   }
 }
 
-void Poller::handle_mrc1_status_change(const proto::MRCStatus::Status &status,
-    const std::string &info, const std::string &version, bool has_read_multi)
-{
-  if (status == proto::MRCStatus::RUNNING) {
-    start_cycle();
-  } else {
-    stop_cycle();
-  }
-}
-
 void Poller::start_cycle()
 {
-  if (m_stopping)
+  if (m_stopped)
     return;
 
   m_set.clear();
@@ -140,7 +144,7 @@ void Poller::stop_cycle()
 
 void Poller::poll_next()
 {
-  if (m_stopping)
+  if (m_stopped)
     return;
 
   if (m_set_iter != m_set.end() && m_queue.size() == 0) {
@@ -162,6 +166,9 @@ void Poller::poll_next()
 
 void Poller::handle_response(const MessagePtr &request, const MessagePtr &response)
 {
+  if (m_stopped)
+    return;
+
   if (response->type() == proto::Message::RESP_READ) {
 
     BOOST_LOG_SEV(m_log, log::lvl::debug)
@@ -182,7 +189,9 @@ void Poller::handle_response(const MessagePtr &request, const MessagePtr &respon
     }
   } else {
     BOOST_LOG_SEV(m_log, log::lvl::debug)
-      << "handle_response: received non-read response. invoking poll_next()";
+      << "received non-read response "
+      << get_message_info(response)
+      << ", invoking poll_next()";
     poll_next();
   }
 }
@@ -218,43 +227,29 @@ ScanbusPoller::ScanbusPoller(MRC1RequestQueue &mrc1_queue,
   , m_queue(mrc1_queue)
   , m_timer(mrc1_queue.get_mrc1_connection()->get_io_service())
   , m_min_interval(min_interval)
-  , m_suspended(false)
+  , m_stopped(true)
 {
-  m_queue.get_mrc1_connection()->register_status_change_callback(
-      boost::bind(&ScanbusPoller::handle_mrc1_status_change, this, _1, _2, _3, _4));
+}
+
+void ScanbusPoller::start()
+{
+  if (!m_stopped)
+    return;
+
+  BOOST_LOG_SEV(m_log, log::lvl::info) << "scanbus polling started";
+  m_stopped = false;
+  m_timer.expires_from_now(boost::posix_time::milliseconds(0));
+  m_timer.async_wait(boost::bind(&ScanbusPoller::handle_timeout, this, _1));
 }
 
 void ScanbusPoller::stop()
 {
-  m_timer.cancel();
-}
-
-void ScanbusPoller::set_suspended(bool suspended)
-{
-  if (is_suspended() == suspended)
+  if (m_stopped)
     return;
 
-  m_suspended = suspended;
-
-  if (is_suspended()) {
-    BOOST_LOG_SEV(m_log, log::lvl::info) << "Scanbus polling suspended";
-    m_timer.cancel();
-  } else {
-    BOOST_LOG_SEV(m_log, log::lvl::info) << "Scanbus polling resumed";
-    m_timer.expires_from_now(boost::posix_time::milliseconds(0));
-    m_timer.async_wait(boost::bind(&ScanbusPoller::handle_timeout, this, _1));
-  }
-}
-
-void ScanbusPoller::handle_mrc1_status_change(const proto::MRCStatus::Status &status,
-    const std::string &info, const std::string &version, bool has_read_multi)
-{
-  if (status == proto::MRCStatus::RUNNING && !is_suspended()) {
-    m_timer.expires_from_now(boost::posix_time::milliseconds(0));
-    m_timer.async_wait(boost::bind(&ScanbusPoller::handle_timeout, this, _1));
-  } else {
-    m_timer.cancel();
-  }
+  BOOST_LOG_SEV(m_log, log::lvl::info) << "scanbus polling stopped";
+  m_stopped = true;
+  m_timer.cancel();
 }
 
 void ScanbusPoller::handle_response(const MessagePtr &request, const MessagePtr &response)
