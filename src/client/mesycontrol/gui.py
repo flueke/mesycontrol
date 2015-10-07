@@ -248,12 +248,6 @@ class GUIApplication(QtCore.QObject):
         #action.hw_toolbar = True
         #self.actions['refresh'] = action
 
-        # Toggle RC
-        action = QtGui.QAction(make_icon(":/remote-control.png"), "Toggle RC", self,
-                checkable=True, triggered=self._toggle_rc)
-        action.hw_toolbar = True
-        self.actions['toggle_rc'] = action
-
         # Write access
         action = QtGui.QAction(make_icon(":/write-access.png"), "Toggle write access", self,
                 checkable=True, triggered=self._toggle_write_access)
@@ -270,6 +264,12 @@ class GUIApplication(QtCore.QObject):
         action.icons = icons
         action.hw_toolbar = True
         self.actions['toggle_silent_mode'] = action
+
+        # Toggle RC
+        action = QtGui.QAction(make_icon(":/remote-control.png"), "Toggle RC", self,
+                checkable=True, triggered=self._toggle_rc)
+        action.hw_toolbar = True
+        self.actions['toggle_rc'] = action
 
         # Add connection
         action = QtGui.QAction(make_icon(":/add-mrc.png"), "Add MRC connection", self,
@@ -461,6 +461,12 @@ class GUIApplication(QtCore.QObject):
         for action in filter(f, self.actions.values()):
             self.treeview.hw_toolbar.addAction(action)
 
+
+    def _update_actions_cb(self, *args, **kwargs):
+        """Calls _update_actions(), ignoring args and kwargs. Usable as a
+        Future callback."""
+        return self._update_actions()
+
     def _update_actions(self):
         node        = self._selected_tree_node
 
@@ -499,9 +505,6 @@ class GUIApplication(QtCore.QObject):
         a.setEnabled((is_registry(node) and len(node.children)) or is_mrc(node))
 
         if a.isEnabled() and is_registry(node):
-            for mrc in node.ref:
-                print mrc, mrc.has_hw, mrc.has_hw and mrc.hw.is_connected()
-
             if all((mrc.has_hw and mrc.hw.is_connected()) for mrc in node.ref):
                 a.setIcon(a.icons['disconnect'])
                 a.setToolTip("Disconnect all MRCs")
@@ -533,9 +536,51 @@ class GUIApplication(QtCore.QObject):
             a.setText(a.toolTip())
             a.setStatusTip(a.toolTip())
 
-        a = self.actions['write_access']
+        # Write access
+        a = self.actions['toggle_write_access']
 
-        self.actions['remove_mrc_connection'].setEnabled(is_mrc(node) and node.ref.has_hw)
+        a.setEnabled(is_mrc(node)
+                and (is_hardware(node) or self.linked_mode)
+                and node.ref.hw.is_connected())
+
+        a.setChecked(a.isEnabled() and node.ref.hw.write_access)
+
+        if a.isChecked():
+            a.setToolTip("Release write access")
+        else:
+            a.setToolTip("Acquire write access")
+
+        a.setText(a.toolTip())
+        a.setStatusTip(a.toolTip())
+
+        # Silent mode
+        a = self.actions['toggle_silent_mode']
+
+        a.setEnabled(is_mrc(node)
+                and (is_hardware(node) or self.linked_mode)
+                and node.ref.hw.is_connected()
+                and node.ref.hw.write_access)
+
+        a.setChecked(is_mrc(node)
+                and node.ref.has_hw
+                and node.ref.hw.silenced)
+
+        #a.setChecked(a.isEnabled() and node.ref.hw.silenced)
+        a.setIcon(a.icons[a.isChecked()])
+
+        if a.isChecked():
+            a.setToolTip("Disable silent mode")
+        else:
+            a.setToolTip("Enable silent mode")
+
+        a.setText(a.toolTip())
+        a.setStatusTip(a.toolTip())
+
+        # Remove connection
+        a = self.actions['remove_mrc_connection']
+        a.setEnabled(is_mrc(node)
+                and (is_hardware(node) or self.linked_mode)
+                and node.ref.has_hw)
 
         a = self.actions['toggle_linked_mode']
         a.setChecked(self.linked_mode)
@@ -646,6 +691,11 @@ class GUIApplication(QtCore.QObject):
                 'connection_error'
                 ]
 
+        mrc_hw_signals = [
+                'write_access_changed',
+                'silenced_changed'
+                ]
+
         device_signals = [
                 'idc_conflict_changed',
                 'idc_changed',
@@ -661,6 +711,13 @@ class GUIApplication(QtCore.QObject):
         if prev_node is not None:
             if (is_mrc(prev_node) or is_device(prev_node)) and prev_node.ref.has_hw:
                 for sig in hw_signals:
+                    try:
+                        getattr(prev_node.ref.hw, sig).disconnect(self._update_actions)
+                    except TypeError:
+                        pass
+
+            if (is_mrc(prev_node) and prev_node.ref.has_hw):
+                for sig in mrc_hw_signals:
                     try:
                         getattr(prev_node.ref.hw, sig).disconnect(self._update_actions)
                     except TypeError:
@@ -684,6 +741,11 @@ class GUIApplication(QtCore.QObject):
             if (is_mrc(node) or is_device(node)) and node.ref.has_hw:
                 self.log.debug("_tree_node_selected: connecting hw_signals for node %s", node)
                 for sig in hw_signals:
+                    getattr(node.ref.hw, sig).connect(self._update_actions)
+
+            if (is_mrc(node) and node.ref.has_hw):
+                self.log.debug("_tree_node_selected: connecting mrc_hw_signals for node %s", node)
+                for sig in mrc_hw_signals:
                     getattr(node.ref.hw, sig).connect(self._update_actions)
 
             if is_device(node):
@@ -796,17 +858,51 @@ class GUIApplication(QtCore.QObject):
         node = self._selected_tree_node
 
         if is_device(node) and node.ref.has_hw:
-            def done(f):
-                self._update_actions()
-
-            node.ref.hw.set_rc(not node.ref.hw.rc
-                    ).add_done_callback(done)
+            f = node.ref.hw.set_rc(not node.ref.hw.rc)
+            f.add_done_callback(self._update_actions_cb)
 
     def _toggle_write_access(self):
-        pass
+        node = self._selected_tree_node
+        mrc  = node.ref.hw
+
+        if not mrc.is_connected():
+            return
+
+        f = None
+
+        if mrc.write_access:
+            f = mrc.release_write_access()
+        else:
+            force = False
+
+            if not mrc.can_acquire_write_access():
+                answer = QtGui.QMessageBox.question(
+                        self.mainwindow,
+                        "Force write access",
+                        "Write access is currently taken by another client.\nForcibly take write access?",
+                        QtGui.QMessageBox.Yes | QtGui.QMessageBox.Cancel,
+                        QtGui.QMessageBox.Cancel)
+
+                if answer == QtGui.QMessageBox.Cancel:
+                    self._update_actions()
+                    return
+
+                force = True
+
+            f = mrc.acquire_write_access(force)
+
+        if f is not None:
+            f.add_done_callback(self._update_actions_cb)
 
     def _toggle_silent_mode(self):
-        pass
+        node = self._selected_tree_node
+        mrc  = node.ref.hw
+
+        if not mrc.is_connected():
+            return
+
+        f = mrc.set_silenced(not mrc.silenced)
+        f.add_done_callback(self._update_actions_cb)
 
     def _add_mrc_connection(self):
         gui_util.run_add_mrc_connection_dialog(

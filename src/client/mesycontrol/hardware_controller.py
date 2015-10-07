@@ -289,6 +289,8 @@ class Controller(object):
         return "Controller(%s)" % util.display_url(self.connection.url)
 
     def _on_notification_received(self, msg):
+        self.log.debug("%s: received notification %s", self, msg.Type.Name(msg.type))
+
         if msg.type == proto.Message.NOTIFY_MRC_STATUS:
             self.mrc.set_status(msg)
 

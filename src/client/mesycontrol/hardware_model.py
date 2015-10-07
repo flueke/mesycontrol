@@ -37,7 +37,7 @@ class MRC(bm.MRC):
         self._status = None
         self._has_write_access = False
         self._can_acquire_write_access = False
-        self._is_silenced = False
+        self._silenced = False
 
     def set_controller(self, controller):
         """Set the hardware controller this MRC should use.
