@@ -541,6 +541,7 @@ class GUIApplication(QtCore.QObject):
 
         a.setEnabled(is_mrc(node)
                 and (is_hardware(node) or self.linked_mode)
+                and node.ref.has_hw
                 and node.ref.hw.is_connected())
 
         a.setChecked(a.isEnabled() and node.ref.hw.write_access)
@@ -558,6 +559,7 @@ class GUIApplication(QtCore.QObject):
 
         a.setEnabled(is_mrc(node)
                 and (is_hardware(node) or self.linked_mode)
+                and node.ref.has_hw
                 and node.ref.hw.is_connected()
                 and node.ref.hw.write_access)
 
@@ -837,9 +839,8 @@ class GUIApplication(QtCore.QObject):
                         futures.append(mrc.hw.connect())
 
             if len(futures):
-                def wrap(_):
-                    self._update_actions()
-                future.all_done(*futures).add_done_callback(wrap)
+                future.all_done(*futures).add_done_callback(
+                        self._update_actions_cb())
 
         if is_mrc(node):
             if not node.ref.has_hw:
