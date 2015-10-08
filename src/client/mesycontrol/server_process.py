@@ -31,7 +31,7 @@ EXIT_CODES = {
 # How long to wait after process startup before checking if the process is
 # still running. The server might exit right away if its listening port is in
 # use.
-STARTUP_DELAY_MS = 2000
+STARTUP_DELAY_MS = 500
 
 class ServerError(Exception):
     pass
@@ -312,7 +312,6 @@ pool = ServerProcessPool()
 if __name__ == "__main__":
     import logging
     import signal
-    import sys
 
     logging.basicConfig(level=logging.DEBUG,
             format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
