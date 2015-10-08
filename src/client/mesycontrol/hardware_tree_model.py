@@ -157,7 +157,10 @@ class DeviceNode(HardwareTreeNode):
 
         ret = Qt.ItemIsEnabled | Qt.ItemIsSelectable
 
-        if column == COL_RC and hw is not None and mrc.hw.is_connected():
+        if (column == COL_RC
+                and hw is not None
+                and mrc.hw.is_connected()
+                and not hw.address_conflict):
             ret |= Qt.ItemIsEditable
 
         return ret
