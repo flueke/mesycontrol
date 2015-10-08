@@ -164,7 +164,7 @@ class ReadResult(collections.namedtuple("ReadResult", "bus device address value"
 
 class SetResult(collections.namedtuple("SetResult", ReadResult._fields + ('requested_value',))):
     """The result type for a set operation.
-    Adds requested_value to the fields of ReadResult, conversion to int and
+    Adds requested_value to the fields of ReadResult and conversions to int and
     bool. The bool conversion returns True if value equals requested value.
     """
     def __int__(self):
