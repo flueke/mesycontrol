@@ -126,7 +126,7 @@ class ScanbusPoller
     typedef boost::function<void (const MessagePtr &)> ResultHandler;
 
     explicit ScanbusPoller(MRC1RequestQueue &mrc1_queue,
-        boost::posix_time::time_duration min_interval = boost::posix_time::milliseconds(5000));
+        boost::posix_time::time_duration min_interval = boost::posix_time::milliseconds(2000));
 
     void register_result_handler(const ResultHandler &handler)
     { m_result_handlers.push_back(handler); }
