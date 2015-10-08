@@ -6,12 +6,14 @@ from qt import pyqtProperty
 from qt import pyqtSignal
 
 import basic_model as bm
+import future
 import util
 
 DEFAULT_CONNECT_TIMEOUT_MS = 10000
 
 class AddressConflict(RuntimeError):
-    pass
+    def __str__(self):
+        return "Address conflict"
 
 class MRC(bm.MRC):
     connected                   = pyqtSignal()
@@ -202,12 +204,12 @@ class Device(bm.Device):
 
     def _read_parameter(self, address):
         if self.address_conflict:
-            raise AddressConflict()
+            return future.Future().set_exception(AddressConflict())
         return self.mrc.read_parameter(self.bus, self.address, address)
 
     def _set_parameter(self, address, value):
         if self.address_conflict:
-            raise AddressConflict()
+            return future.Future().set_exception(AddressConflict())
         return self.mrc.set_parameter(self.bus, self.address, address, value)
 
     def get_controller(self):
