@@ -293,7 +293,7 @@ def run_add_device_config_dialog(device_registry, registry, mrc, bus=None, paren
         dialog.accepted.connect(accepted)
         dialog.show()
     except RuntimeError as e:
-        log.exception(e)
+        log.exception("add device config")
         QtGui.QMessageBox.critical(parent_widget, "Error", str(e))
 
 def run_load_device_config(device, context, parent_widget):
@@ -323,7 +323,7 @@ def run_load_device_config(device, context, parent_widget):
         context.set_config_directory_hint(filename)
         return True
     except Exception as e:
-        log.exception(e)
+        log.exception("load device config")
         QtGui.QMessageBox.critical(parent_widget, "Error",
                 "Loading device config from %s failed:\n%s" % (filename, e))
         return False
@@ -348,7 +348,7 @@ def run_save_device_config(device, context, parent_widget):
         context.set_config_directory_hint(filename)
         return True
     except Exception as e:
-        log.exception(e)
+        log.exception("save device config")
         QtGui.QMessageBox.critical(parent_widget, "Error",
                 "Saving device config to %s failed:\n%s" % (filename, e))
         return False
@@ -367,7 +367,7 @@ def run_save_setup(context, parent_widget):
         setup.modified = False
         return True
     except Exception as e:
-        log.exception(e)
+        log.exception("save setup")
         QtGui.QMessageBox.critical(parent_widget, "Error", "Saving setup %s failed:\n%s" % (setup.filename, e))
         return False
 
@@ -400,7 +400,7 @@ def run_save_setup_as_dialog(context, parent_widget):
         context.set_setup_directory_hint(filename)
         return True
     except Exception as e:
-        log.exception(e)
+        log.exception("save setup as")
         QtGui.QMessageBox.critical(parent_widget, "Error", "Saving setup %s failed:\n%s" % (setup.filename, e))
         return False
     
@@ -431,7 +431,7 @@ def run_open_setup_dialog(context, parent_widget):
     try:
         context.open_setup(filename)
     except Exception as e:
-        log.exception(e)
+        log.exception("open setup")
         QtGui.QMessageBox.critical(parent_widget, "Error", "Opening setup file %s failed:\n%s" % (filename, e))
         return False
 
