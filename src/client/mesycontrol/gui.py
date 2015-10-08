@@ -468,7 +468,9 @@ class GUIApplication(QtCore.QObject):
         return self._update_actions()
 
     def _update_actions(self):
-        node        = self._selected_tree_node
+        node = self._selected_tree_node
+
+        self.log.debug("update actions: selected=%s", node)
 
         setup = self.app_registry.cfg
 
@@ -526,9 +528,17 @@ class GUIApplication(QtCore.QObject):
             a.setText(a.toolTip())
             a.setStatusTip(a.toolTip())
 
+        # Toggle RC
         a = self.actions['toggle_rc']
         a.setEnabled(is_device(node) and node.ref.has_hw and not node.ref.hw.address_conflict
             and (is_hardware(node) or self.linked_mode))
+
+        a.setEnabled(is_device(node)
+                and (is_hardware(node) or self.linked_mode)
+                and node.ref.has_hw
+                and node.ref.hw.is_connected()
+                and node.ref.hw.mrc.write_access
+                and not node.ref.hw.address_conflict)
 
         if a.isEnabled():
             a.setChecked(node.ref.hw.rc)
@@ -588,11 +598,17 @@ class GUIApplication(QtCore.QObject):
         a.setChecked(self.linked_mode)
         a.setIcon(a.icons[self.linked_mode])
 
+        # Open device widget
         self.actions['open_device_widget'].setEnabled(
-                (is_device_cfg(node) and node.ref.cfg_module.has_widget_class()) or
-                (is_device_hw(node) and node.ref.hw_module.has_widget_class()))
+                ((is_device_cfg(node) and node.ref.cfg_module.has_widget_class())
+                    or (is_device_hw(node) and node.ref.hw_module.has_widget_class()
+                        and (not node.ref.has_hw or not node.ref.hw.address_conflict))))
 
-        self.actions['open_device_table'].setEnabled(is_device(node))
+        # Open device table
+        self.actions['open_device_table'].setEnabled(
+                is_device_cfg(node)
+                or (is_device_hw(node)
+                    and (not node.ref.has_hw or not node.ref.hw.address_conflict)))
 
         self.actions['check_config'].setEnabled(self.linked_mode)
 
@@ -705,60 +721,60 @@ class GUIApplication(QtCore.QObject):
                 'hw_idc_changed'
                 ]
 
+        device_hw_signals = [
+                'rc_changed',
+                'address_conflict_changed'
+                ]
+
         app_signals = [
                 'hardware_set',
                 'config_set'
                 ]
 
+        def disconnect_signals(obj, signals):
+            self.log.debug("_tree_node_selected: disconnecting '%s' from '%s'", signals, obj)
+            for sig in signals:
+                try:
+                    getattr(obj, sig).disconnect(self._update_actions)
+                except TypeError:
+                    pass
+
+        def connect_signals(obj, signals):
+            self.log.debug("_tree_node_selected: connecting '%s' to '%s'", signals, obj)
+            for sig in signals:
+                getattr(obj, sig).connect(self._update_actions)
+
         if prev_node is not None:
             if (is_mrc(prev_node) or is_device(prev_node)) and prev_node.ref.has_hw:
-                for sig in hw_signals:
-                    try:
-                        getattr(prev_node.ref.hw, sig).disconnect(self._update_actions)
-                    except TypeError:
-                        pass
+                disconnect_signals(prev_node.ref.hw, hw_signals)
 
             if (is_mrc(prev_node) and prev_node.ref.has_hw):
-                for sig in mrc_hw_signals:
-                    try:
-                        getattr(prev_node.ref.hw, sig).disconnect(self._update_actions)
-                    except TypeError:
-                        pass
+                disconnect_signals(prev_node.ref.hw, mrc_hw_signals)
 
             if is_device(prev_node):
-                for sig in device_signals:
-                    try:
-                        getattr(prev_node.ref, sig).disconnect(self._update_actions)
-                    except TypeError:
-                        pass
+                disconnect_signals(prev_node.ref, device_signals)
+
+            if is_device(prev_node) and prev_node.ref.has_hw:
+                disconnect_signals(prev_node.ref.hw, device_hw_signals)
 
             if isinstance(prev_node.ref, am.AppObject):
-                for sig in app_signals:
-                    try:
-                        getattr(prev_node.ref, sig).disconnect(self._update_actions)
-                    except TypeError:
-                        pass
+                disconnect_signals(prev_node.ref, app_signals)
 
         if node is not None:
             if (is_mrc(node) or is_device(node)) and node.ref.has_hw:
-                self.log.debug("_tree_node_selected: connecting hw_signals for node %s", node)
-                for sig in hw_signals:
-                    getattr(node.ref.hw, sig).connect(self._update_actions)
+                connect_signals(node.ref.hw, hw_signals)
 
             if (is_mrc(node) and node.ref.has_hw):
-                self.log.debug("_tree_node_selected: connecting mrc_hw_signals for node %s", node)
-                for sig in mrc_hw_signals:
-                    getattr(node.ref.hw, sig).connect(self._update_actions)
+                connect_signals(node.ref.hw, mrc_hw_signals)
 
             if is_device(node):
-                self.log.debug("_tree_node_selected: connecting device_signals for node %s", node)
-                for sig in device_signals:
-                    getattr(node.ref, sig).connect(self._update_actions)
+                connect_signals(node.ref, device_signals)
+
+            if is_device(node) and node.ref.has_hw:
+                connect_signals(node.ref.hw, device_hw_signals)
 
             if isinstance(node.ref, am.AppObject):
-                self.log.debug("_tree_node_selected: connecting app_signals for node %s", node)
-                for sig in app_signals:
-                    getattr(node.ref, sig).connect(self._update_actions)
+                connect_signals(node.ref, app_signals)
 
         if is_device(node) and not self._show_device_windows(
                 node.ref, is_device_cfg(node), is_device_hw(node)):
@@ -1148,8 +1164,9 @@ Initialize using the current hardware values or the device defaults?
             display_mode = window.display_mode
             write_mode   = window.write_mode
 
-            self.log.debug("_on_subwindow_activated: d=%s, has_hw=%s, has_cfg=%s, display_mode=%d, write_mode=%d",
-                    device, device.has_hw, device.has_cfg, display_mode, write_mode)
+            self.log.debug("_on_subwindow_activated: d=%s, has_hw=%s, has_cfg=%s, display_mode=%s, write_mode=%s",
+                    device, device.has_hw, device.has_cfg,
+                    util.RW_MODE_NAMES[display_mode], util.RW_MODE_NAMES[write_mode])
 
             if display_mode & util.CONFIG:
                 self.treeview.select_config_node_by_ref(device)
@@ -1237,6 +1254,9 @@ Initialize using the current hardware values or the device defaults?
             window.close()
 
     def _tree_node_activated(self, node):
+        if is_device_hw(node) and node.ref.has_hw and node.ref.address_conflict:
+            return
+
         if is_device(node):
             device = node.ref
 
@@ -1375,8 +1395,10 @@ Initialize using the current hardware values or the device defaults?
 
     # Device table window creation
     def _add_device_table_window(self, device, display_mode, write_mode):
-        self.log.debug("Adding device table for %s with display_mode=%d, write_mode=%d",
-                device, display_mode, write_mode)
+        self.log.debug("Adding device table for %s with display_mode=%s, write_mode=%s",
+                device,
+                util.RW_MODE_NAMES[display_mode],
+                util.RW_MODE_NAMES[write_mode])
 
         widget = device_tableview.DeviceTableWidget(device, display_mode, write_mode)
         subwin = gui_util.DeviceTableSubWindow(widget=widget)
@@ -1384,8 +1406,10 @@ Initialize using the current hardware values or the device defaults?
         return self._register_device_subwindow(subwin)
 
     def _add_device_widget_window(self, app_device, display_mode, write_mode):
-        self.log.debug("Adding device widget for %s with display_mode=%d, write_mode=%d",
-                app_device, display_mode, write_mode)
+        self.log.debug("Adding device widget for %s with display_mode=%s, write_mode=%s",
+                app_device,
+                util.RW_MODE_NAMES[display_mode],
+                util.RW_MODE_NAMES[write_mode])
 
         widget = app_device.make_device_widget(display_mode, write_mode)
         subwin = gui_util.DeviceWidgetSubWindow(widget=widget)
