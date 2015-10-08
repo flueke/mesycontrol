@@ -70,7 +70,7 @@ class AbstractParameterBinding(object):
         if not self.has_rw_profile() and self.display_mode == util.CONFIG and self.profile.read_only:
             # read-only parameters are never stored in the config
             self._update_wrapper(future.Future().set_exception(
-                ParameterUnavailable("read_only parameter %s (%d) not stored in config" % (
+                ParameterUnavailable("Read-only parameter %s (%d) not stored in config" % (
                     self.profile.name, self.profile.address))))
             return
 
@@ -318,7 +318,17 @@ class AbstractParameterBinding(object):
 
         if result_future.exception() is not None:
             e = result_future.exception()
-            tt += ", exc=%s: %s" % (type(e).__name__, e)
+            if (isinstance(e, proto.MessageError)
+                    and proto.is_error_response(e.message)):
+
+                tt += ", error: %s" % proto.ResponseError.ErrorType.Name(
+                        e.message.response_error.type)
+
+                if len(e.text):
+                    tt += ", info=%s" % e.text
+
+            else:
+                tt += ", exc=%s: %s" % (type(e).__name__, e)
         else:
             result = result_future.result()
             value  = int(result)
