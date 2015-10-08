@@ -11,8 +11,9 @@ import traceback
 import weakref
 
 import basic_model as bm
-import util
 import future
+import proto
+import util
 
 log = logging.getLogger(__name__)
 
@@ -73,16 +74,21 @@ class AbstractParameterBinding(object):
                     self.profile.name, self.profile.address))))
             return
 
-        # For RW parameters the read address is used if hardware is present
-        # otherwise the write address is used as only that is actually stored
-        # in the config.
-        dev     = self.device.cfg if self.display_mode == util.CONFIG else self.device.hw
+        dev = self.device.cfg if self.display_mode == util.CONFIG else self.device.hw
 
         if dev is None:
             self._update_wrapper(future.Future().set_exception(
-                ParameterUnavailable("device is None")))
+                ParameterUnavailable("No device to read from")))
             return
 
+        if dev is self.device.hw and dev.address_conflict:
+            self._update_wrapper(future.Future().set_exception(
+                ParameterUnavailable("Address conflict")))
+            return
+
+        # For RW parameters the read address is used if hardware is present
+        # otherwise the write address is used as only that is actually stored
+        # in the config.
         address = self.read_address if dev is self.device.hw else self.write_address
         f       = dev.get_parameter(address).add_done_callback(self._update_wrapper)
         log.debug("populate: target=%s, addr=%d, future=%s, dev=%s", self.target, address, f, dev)
