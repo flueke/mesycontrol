@@ -125,6 +125,9 @@ class BusNode(btm.BasicTreeNode):
         if column == 0 and role == Qt.DisplayRole:
             return str(self.bus_number)
 
+        if column == 0 and role in (Qt.ToolTipRole, Qt.StatusTipRole):
+            return "Bus %d" % self.bus_number
+
         if column == 0 and role == Qt.DecorationRole:
             mrc = self.parent.ref.hw
             if mrc is not None and any(d.address_conflict for d in mrc.get_devices(self.bus_number)):
@@ -170,7 +173,7 @@ class DeviceNode(HardwareTreeNode):
         hw      = device.hw  # hardware_model.Device
         mrc     = device.mrc # app_model.MRC
 
-        if column == 0 and role in (Qt.DisplayRole, Qt.ToolTipRole, Qt.StatusTipRole):
+        if column == 0 and role == Qt.DisplayRole:
             if mrc.hw is None or not mrc.hw.is_connected():
                 return "%X <no mrc connection>" % device.address
             elif hw is None:
@@ -180,10 +183,10 @@ class DeviceNode(HardwareTreeNode):
                 name = self.model.device_registry.get_device_name(hw.idc)
                 data = "%s" % name
             except KeyError:
+                name = None
                 data = "idc=%d" % hw.idc
 
-            if role == Qt.DisplayRole:
-                return "%X %s" % (device.address, data)
+            return "%X %s" % (device.address, data)
 
         if column == COL_RC and hw is not None and mrc.hw.is_connected():
             if role == Qt.DisplayRole:
@@ -203,7 +206,7 @@ class DeviceNode(HardwareTreeNode):
                 if role in (Qt.ToolTipRole, Qt.StatusTipRole):
                     return "IDC conflict"
 
-            if device.has_hw and device.has_cfg and device.hw.is_connected():
+            if self.model.linked_mode and device.has_hw and device.has_cfg and device.hw.is_connected():
                 if role in (Qt.ToolTipRole, Qt.StatusTipRole):
                     if device.config_applied is True:
                         return "Hardware matches config"
@@ -240,7 +243,7 @@ class DeviceNode(HardwareTreeNode):
                     return QtGui.QPixmap(":/connected.png")
 
                 if role in (Qt.ToolTipRole, Qt.StatusTipRole):
-                    return "Connected"
+                    return "%s (idc=%d)" % (device.get_device_name(), hw.idc)
 
         if role == Qt.BackgroundRole and self.model.linked_mode:
             if hw is not None and hw.address_conflict:
