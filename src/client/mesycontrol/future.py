@@ -103,6 +103,8 @@ class Future(object):
         return self._progress_max
 
     def add_done_callback(self, fn):
+        assert fn is not None
+
         if self.done():
             self._exec_callback(fn)
         else:
@@ -111,6 +113,8 @@ class Future(object):
         return self
 
     def add_progress_callback(self, fn):
+        assert fn is not None
+
         if self.done():
             self._exec_callback(fn)
         else:
