@@ -69,14 +69,21 @@ class SetupNode(ConfigTreeNode):
         self.notify_all_columns_changed()
 
     def data(self, column, role):
-        if column == 0 and role == Qt.DisplayRole:
+        if column == 0 and role in (Qt.DisplayRole, Qt.ToolTipRole, Qt.StatusTipRole):
             setup = self.ref.cfg
 
             if len(setup):
                 ret = setup.filename if len(setup.filename) else "<unsaved setup>"
 
-                if setup.modified:
-                    ret += "*"
+                if role == Qt.DisplayRole:
+                    if setup.modified:
+                        ret += "*"
+
+                elif role in (Qt.ToolTipRole, Qt.StatusTipRole):
+                    ret = "Setup " + ret
+                    if setup.modified:
+                        ret += "(modified)"
+
                 return ret
 
             return "<empty setup>"
@@ -105,10 +112,10 @@ class MRCNode(ConfigTreeNode):
             return ret
 
     def data(self, column, role):
-        if column == 0 and role == Qt.DisplayRole:
-            mrc = self.ref
-            cfg = mrc.cfg
+        mrc = self.ref
+        cfg = mrc.cfg
 
+        if column == 0 and role == Qt.DisplayRole:
             if cfg is None:
                 return "<not present in setup>"
 
@@ -122,8 +129,14 @@ class MRCNode(ConfigTreeNode):
 
             return data
 
+        if column == 0 and role in (Qt.ToolTipRole, Qt.StatusTipRole):
+            ret = "MRC %s" % mrc.get_display_url()
+            if cfg is not None and cfg.modified:
+                ret += " (modified)"
+            return ret
+
         if column == 0 and role == Qt.EditRole:
-            return self.ref.cfg.name
+            return cfg.name
 
     def set_data(self, column, value, role):
         if role == Qt.EditRole and column == 0:
@@ -139,6 +152,9 @@ class BusNode(btm.BasicTreeNode):
     def data(self, column, role):
         if column == 0 and role == Qt.DisplayRole:
             return str(self.bus_number)
+
+        if column == 0 and role in (Qt.ToolTipRole, Qt.StatusTipRole):
+            return "Bus %d" % self.bus_number
 
 class DeviceNode(ConfigTreeNode):
     def __init__(self, device, parent=None):
@@ -173,6 +189,7 @@ class DeviceNode(ConfigTreeNode):
 
     def data(self, column, role):
         device = self.ref   # app_model.Device
+        hw     = device.hw  # hardware_model.Device
         cfg    = device.cfg # config_model.Device
 
         if column == 0 and role == Qt.DisplayRole:
@@ -197,6 +214,35 @@ class DeviceNode(ConfigTreeNode):
 
         if column == 0 and role == Qt.EditRole:
             return self.ref.cfg.name
+
+        if column == 0:
+            if hw is not None and cfg is not None and self.model.linked_mode and hw.address_conflict:
+                if role in (Qt.ToolTipRole, Qt.StatusTipRole):
+                    return "Address conflict"
+
+            if hw is not None and self.model.linked_mode and  device.idc_conflict:
+                if role in (Qt.ToolTipRole, Qt.StatusTipRole):
+                    return "IDC conflict"
+
+            if self.model.linked_mode and device.has_hw and device.has_cfg and device.hw.is_connected():
+                if role in (Qt.ToolTipRole, Qt.StatusTipRole):
+                    if device.config_applied is True:
+                        return "Hardware matches config"
+                    elif device.config_applied is False:
+                        return "Hardware and config differ"
+
+            if cfg is not None and role in (Qt.ToolTipRole, Qt.StatusTipRole):
+                data = str()
+                if len(cfg.name):
+                    data += cfg.name + " "
+
+                type_name = self.model.device_registry.get_device_name(cfg.idc)
+                data += "%s (idc=%d)" % (type_name, cfg.idc)
+
+                if cfg.modified:
+                    data += " (modified)"
+
+                return data
 
         if role == Qt.BackgroundRole and self.model.linked_mode:
             if device.idc_conflict or device.address_conflict:
