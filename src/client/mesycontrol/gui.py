@@ -1073,7 +1073,8 @@ Initialize using the current hardware values or the device defaults?
         elif is_device(node):
             devices = [node.ref]
 
-        assert len(devices)
+        if not len(devices):
+            return
 
         runner = config_gui.ApplyDeviceConfigsRunner(
                 devices=devices,
