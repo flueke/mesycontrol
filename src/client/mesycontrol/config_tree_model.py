@@ -34,12 +34,19 @@ class ConfigTreeNode(btm.BasicTreeNode):
     def __init__(self, ref, parent):
         super(ConfigTreeNode, self).__init__(ref=ref, parent=parent)
         ref.config_set.connect(self._on_config_set)
+        ref.hardware_set.connect(self._on_hardware_set)
 
         if ref.cfg is not None:
             self._on_config_set(ref, None, ref.cfg)
 
+        if ref.hw is not None:
+            self._on_hardware_set(ref, None, ref.hw)
+
     def _on_config_set(self, app_model, old_cfg, new_cfg):
         raise NotImplementedError()
+
+    def _on_hardware_set(self, app_model, old_hw, new_hw):
+        pass
 
 class SetupNode(ConfigTreeNode):
     def __init__(self, setup, parent=None):
@@ -150,6 +157,13 @@ class DeviceNode(ConfigTreeNode):
 
         self.notify_all_columns_changed()
 
+    def _on_hardware_set(self, app_device, old_hw, new_hw):
+        if old_hw is not None:
+            old_hw.address_conflict_changed.disconnect(self.notify_all_columns_changed)
+
+        if new_hw is not None:
+            new_hw.address_conflict_changed.connect(self.notify_all_columns_changed)
+
     def flags(self, column):
         if column == 0:
             ret = Qt.ItemIsEnabled | Qt.ItemIsSelectable
@@ -185,7 +199,7 @@ class DeviceNode(ConfigTreeNode):
             return self.ref.cfg.name
 
         if role == Qt.BackgroundRole and self.model.linked_mode:
-            if device.idc_conflict:
+            if device.idc_conflict or device.address_conflict:
                 return QtGui.QColor('red')
 
             if device.has_hw and device.has_cfg:
