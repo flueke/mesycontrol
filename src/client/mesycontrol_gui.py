@@ -33,8 +33,12 @@ if __name__ == "__main__":
         logging.basicConfig(level=logging.DEBUG,
                 format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
-        for ln in ("mesycontrol.basic_tree_model", "mesycontrol.future",
-                "mesycontrol.mc_treeview", "mesycontrol.tcp_client.MCTCPClient",
+        for ln in (
+                "mesycontrol.basic_tree_model",
+                "mesycontrol.future",
+                "mesycontrol.mc_treeview",
+                "mesycontrol.tcp_client.MCTCPClient",
+                "mesycontrol.hardware_controller.Controller",
                 "PyQt4.uic"):
             logging.getLogger(ln).setLevel(logging.INFO)
 
