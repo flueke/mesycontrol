@@ -546,7 +546,7 @@ class MCTreeItemDelegate(QtGui.QStyledItemDelegate):
             device = node.ref
             color  = None
 
-            if device.idc_conflict:
+            if device.idc_conflict or device.address_conflict:
                 color = QtGui.QColor('darkRed')
 
             elif device.has_hw and device.has_cfg:
@@ -555,6 +555,7 @@ class MCTreeItemDelegate(QtGui.QStyledItemDelegate):
                         color = QtGui.QColor('darkGreen')
                     elif device.config_applied is False:
                         color = QtGui.QColor('darkOrange')
+                    # else config_applied should be None meaning "unknown"
 
             if color is not None:
                 option.palette.setColor(QtGui.QPalette.Highlight, color)
