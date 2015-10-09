@@ -865,7 +865,7 @@ class GUIApplication(QtCore.QObject):
 
             if len(futures):
                 future.all_done(*futures).add_done_callback(
-                        self._update_actions_cb())
+                        self._update_actions_cb)
 
         if is_mrc(node):
             if not node.ref.has_hw:
