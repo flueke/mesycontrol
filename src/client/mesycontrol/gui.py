@@ -479,12 +479,12 @@ class GUIApplication(QtCore.QObject):
         self.actions['close_setup'].setEnabled(len(setup))
 
         a = self.actions['add_config']
-        a.setEnabled(is_config(node) and not is_device(node))
+        a.setEnabled(is_config(node) and not (is_device(node) and node.ref.has_cfg))
 
         if is_setup(node):
             a.setText("Add MRC")
 
-        if is_mrc(node) or is_bus(node):
+        if is_mrc(node) or is_bus(node) or is_device(node):
             a.setText("Add Device")
 
         a = self.actions['remove_config']
@@ -818,6 +818,17 @@ class GUIApplication(QtCore.QObject):
                     mrc=node.parent.ref,
                     bus=node.bus_number,
                     parent_widget=self.mainwindow)
+
+        if is_device(node):
+            assert not node.ref.has_cfg
+            gui_util.run_add_device_config_dialog(
+                registry=self.app_registry,
+                device_registry=self.context.device_registry,
+                mrc=node.ref.mrc,
+                bus=node.ref.bus,
+                address=node.ref.address,
+                parent_widget=self.mainwindow)
+
 
     def _remove_config(self):
         node = self._selected_tree_node

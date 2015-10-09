@@ -274,10 +274,14 @@ def run_edit_mrc_config(mrc, registry, parent_widget=None):
     dialog.show()
 
 # ===== Device =====
-def run_add_device_config_dialog(device_registry, registry, mrc, bus=None, parent_widget=None):
+def run_add_device_config_dialog(device_registry, registry, mrc, bus=None, address=None, parent_widget=None):
     try:
-        aa = [(b, d) for b in bm.BUS_RANGE for d in bm.DEV_RANGE
-                if not mrc.cfg or not mrc.cfg.get_device(b, d)]
+        if address is None:
+            aa = [(b, d) for b in bm.BUS_RANGE for d in bm.DEV_RANGE
+                    if not mrc.cfg or not mrc.cfg.get_device(b, d)]
+        else:
+            assert bus is not None
+            aa = [(bus, address)]
 
         dialog = AddDeviceDialog(bus=bus, available_addresses=aa,
                 known_idcs=device_registry.get_device_names(), parent=parent_widget)
