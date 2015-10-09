@@ -69,7 +69,7 @@ class ServerProcess(QtCore.QObject):
     started  = pyqtSignal()
     stopped  = pyqtSignal()
     error    = pyqtSignal(QProcess.ProcessError, str, int, str)
-    finished = pyqtSignal(QProcess.ExitStatus, int, str)
+    finished = pyqtSignal(QProcess.ExitStatus, int, str) #: exit_status, exit_code, exit_code_string
     output   = pyqtSignal(str)
 
     exit_codes = {
@@ -252,7 +252,7 @@ class ServerProcess(QtCore.QObject):
                 exit_code, ServerProcess.exit_code_string(exit_code))
 
     def _finished(self, code, status):
-        self.log.debug("Finished: status=%d, code=%d, str=%s", code, status,
+        self.log.debug("Finished: status=%d, code=%d, str=%s", status, code,
                 ServerProcess.exit_code_string(code))
         self.finished.emit(status, code, ServerProcess.exit_code_string(code))
 
@@ -293,8 +293,7 @@ class ServerProcessPool(QtCore.QObject):
 
         raise RuntimeError("No listen ports available")
 
-    def _on_process_finished(self, exit_code, exit_status, process):
-        exit_code_string = ServerProcess.exit_code_string(exit_code)
+    def _on_process_finished(self, exit_status, exit_code, exit_code_string, process):
 
         self.log.debug("_on_process_finished: exit_code=%d (%s), exit_status=%d",
                 exit_code, exit_code_string, exit_status)
