@@ -610,8 +610,6 @@ class GUIApplication(QtCore.QObject):
                 or (is_device_hw(node)
                     and (not node.ref.has_hw or not node.ref.hw.address_conflict)))
 
-        self.actions['check_config'].setEnabled(self.linked_mode)
-
         self.actions['apply_config_to_hardware'].setEnabled(
                 ((is_setup(node) and node.ref.has_cfg)
                     or (is_mrc(node) and node.ref.has_cfg)
@@ -999,6 +997,8 @@ class GUIApplication(QtCore.QObject):
         devices   = filter(predicate, gen)
 
         self.log.info("check config: node=%s, devices=%s", node, devices)
+
+        self.set_linked_mode(True)
 
         runner = config_gui.ReadConfigParametersRunner(
                 devices=devices,
