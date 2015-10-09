@@ -325,7 +325,7 @@ class GUIApplication(QtCore.QObject):
         self.actions['open_device_table'] = action
 
         # Check config
-        action = QtGui.QAction(make_icon(":/check-config.png"), "Check config", self,
+        action = QtGui.QAction(make_icon(":/check-config.png"), "Compare config and hardware", self,
                 triggered=self._check_config)
         action.splitter_toolbar = True
         self.actions['check_config'] = action
