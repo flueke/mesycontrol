@@ -38,7 +38,7 @@ class AbstractParameterBinding(object):
     def __init__(self, device, profile, target, display_mode, write_mode=None, fixed_modes=False, **kwargs):
         """
         device: app_model.Device or DeviceBase subclass
-        profile: parameter profile
+        profile: ParameterProfile or ReadWriteProfile
         target: any class instance or None
         display_mode: util.HARDWARE | util.CONFIG
         write_mode: util.HARDWARE | util.CONFIG | util.COMBINED
@@ -306,6 +306,7 @@ class AbstractParameterBinding(object):
 
     def _get_tooltip(self, result_future):
         log.debug("_get_tooltip: target=%s, result_future=%s", self.target, result_future)
+
         if self.has_rw_profile():
             tt  = "name=(r=%s,w=%s), " % (self.profile.read.name, self.profile.write.name)
             tt += "addr=(r=%d,w=%d)" % (self.read_address, self.write_address)
@@ -315,6 +316,31 @@ class AbstractParameterBinding(object):
 
         if result_future.cancelled():
             return tt
+
+        if (self.write_mode == util.COMBINED
+                and self.device.has_hw
+                and self.device.has_cfg
+                and self.profile is not None
+                and self.get_write_profile().should_be_stored()):
+            try:
+                f_cfg = self.device.cfg.get_parameter(self.write_address)
+                f_hw  = self.device.hw.get_parameter(self.read_address)
+
+                if not f_cfg.done():
+                    f_cfg.add_done_callback(self._update_wrapper)
+
+                if not f_hw.done():
+                    f_hw.add_done_callback(self._update_wrapper)
+
+                if f_cfg.done() and f_hw.done():
+                    cfg_value = int(f_cfg)
+                    hw_value  = int(f_hw)
+
+                    if cfg_value != hw_value:
+                        tt += ", cfg=%d, hw=%d" % (cfg_value, hw_value)
+            except (future.IncompleteFuture, KeyError,
+                    util.SocketError, util.Disconnected):
+                log.exception("_get_tooltip")
 
         if result_future.exception() is not None:
             e = result_future.exception()
@@ -375,6 +401,33 @@ class DefaultParameterBinding(AbstractParameterBinding):
                 raise RuntimeError()
         except Exception:
             pal.setColor(QtGui.QPalette.Base, QtGui.QColor('red'))
+            return pal
+
+        if (self.write_mode == util.COMBINED
+                and self.device.has_hw
+                and self.device.has_cfg
+                and self.profile is not None
+                and self.get_write_profile().should_be_stored()):
+            try:
+                f_cfg = self.device.cfg.get_parameter(self.write_address)
+                f_hw  = self.device.hw.get_parameter(self.read_address)
+
+                if not f_cfg.done():
+                    f_cfg.add_done_callback(self._update_wrapper)
+
+                if not f_hw.done():
+                    f_hw.add_done_callback(self._update_wrapper)
+
+                if f_cfg.done() and f_hw.done():
+                    cfg_value = int(f_cfg)
+                    hw_value  = int(f_hw)
+
+                    if cfg_value != hw_value:
+                        pal.setColor(QtGui.QPalette.Base, QtGui.QColor('orange'))
+
+            except (future.IncompleteFuture, KeyError,
+                    util.SocketError, util.Disconnected):
+                log.exception("_get_palette")
 
         return pal
 
