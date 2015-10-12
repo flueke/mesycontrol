@@ -23,7 +23,7 @@ class MRC(bm.MRC):
 
     address_conflict_changed    = pyqtSignal(bool)
 
-    status_changed              = pyqtSignal(object)
+    status_changed              = pyqtSignal(object)     #: proto.MRCStatus
     write_access_changed        = pyqtSignal(bool, bool) #: has_write_access, can_acquire
     silenced_changed            = pyqtSignal(bool)       #: is_silenced
 
@@ -56,6 +56,7 @@ class MRC(bm.MRC):
         return self._controller
 
     def set_status(self, status):
+        self.log.debug("set_status: old=%s, new=%s", self._status, status)
         self._status = status
         self.status_changed.emit(status)
 

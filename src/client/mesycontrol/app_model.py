@@ -423,8 +423,10 @@ class Device(AppObject):
             cfg_mem = self.cfg.get_cached_memory_ref()
 
             try:
-                self.log.debug("update_config_applied: addresses=%s", self._config_addresses)
+                #self.log.debug("update_config_applied: addresses=%s", self._config_addresses)
                 new_state = all((hw_mem[k] == cfg_mem[k] for k in self._config_addresses))
+                self.log.debug("update_config_applied: old_state=%s, new_state=%s (memory compare)",
+                        old_state, new_state)
             except KeyError as e:
                 hw_keys  = set(hw_mem.keys())
                 cfg_keys = set(cfg_mem.keys())
@@ -435,12 +437,14 @@ class Device(AppObject):
                 self.log.debug("update_config_applied: cfg.diff(hw)=%s", cfg_keys.difference(hw_keys))
                 new_state = None # Unknown
 
-            if new_state is not None:
+            if new_state is True:
                 extensions_match = self.hw.get_extensions() == self.cfg.get_extensions()
                 new_state = new_state and extensions_match
+                self.log.debug("update_config_applied: old_state=%s, new_state=%s (extension compare)",
+                        old_state, new_state)
 
         if new_state != old_state:
-            self.log.debug("%s: config_applied changed: %s", self, new_state)
+            self.log.debug("update_config_applied: %s: config_applied changed: %s", self, new_state)
             self._config_applied = new_state
             self.config_applied_changed.emit(new_state)
 
