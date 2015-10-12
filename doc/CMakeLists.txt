@@ -49,7 +49,7 @@ if (SPHINX_FOUND)
 
     COMMAND
     ${SPHINX_EXECUTABLE}
-    -b latex -v
+    -b latex
     -d "${SPHINX_CACHE_DIR}"
     "${SPHINX_SOURCE_DIR}"
     "${SPHINX_LATEX_DIR}"
