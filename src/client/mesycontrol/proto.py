@@ -18,7 +18,7 @@ def is_error_response(msg):
     return msg.type == Message.RESP_ERROR
 
 class MessageError(RuntimeError):
-    def __init__(self, message=None, request=None, text=None, *args):
+    def __init__(self, message=None, request=None, text=str(), *args):
         super(MessageError, self).__init__(*args)
         self.message = message
         self.request = request

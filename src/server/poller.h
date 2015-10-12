@@ -78,6 +78,7 @@ class Poller
     void register_result_handler(const ResultHandler &handler)
     { m_result_handlers.push_back(handler); }
 
+    void start();
     void stop();
 
     /// Notify the poller that a parameters value has been changed (due to a
@@ -97,9 +98,6 @@ class Poller
     /// PollItem instances in PollItemsMap.
     typedef boost::unordered_set<PollItem> PollSet;
 
-    void handle_mrc1_status_change(const proto::MRCStatus::Status &status,
-        const std::string &info, const std::string &version, bool has_read_multi);
-
     void start_cycle();
     void stop_cycle();
     void poll_next();
@@ -117,7 +115,7 @@ class Poller
     boost::posix_time::time_duration m_min_interval;
     ResultType m_result;
     std::vector<ResultHandler> m_result_handlers;
-    bool m_stopping;
+    bool m_stopped;
 };
 
 class ScanbusPoller
@@ -128,19 +126,15 @@ class ScanbusPoller
     typedef boost::function<void (const MessagePtr &)> ResultHandler;
 
     explicit ScanbusPoller(MRC1RequestQueue &mrc1_queue,
-        boost::posix_time::time_duration min_interval = boost::posix_time::milliseconds(5000));
+        boost::posix_time::time_duration min_interval = boost::posix_time::milliseconds(2000));
 
     void register_result_handler(const ResultHandler &handler)
     { m_result_handlers.push_back(handler); }
 
+    void start();
     void stop();
 
-    void set_suspended(bool suspended);
-    bool is_suspended() const { return m_suspended; }
-
   private:
-    void handle_mrc1_status_change(const proto::MRCStatus::Status &status,
-        const std::string &info, const std::string &version, bool has_read_multi);
     void handle_response(const MessagePtr &request, const MessagePtr &response);
     void handle_timeout(const boost::system::error_code &ec);
 
@@ -149,7 +143,7 @@ class ScanbusPoller
     boost::asio::deadline_timer m_timer;
     boost::posix_time::time_duration m_min_interval;
     std::vector<ResultHandler> m_result_handlers;
-    bool m_suspended;
+    bool m_stopped;
 };
 
 } // namespace mesycontrol

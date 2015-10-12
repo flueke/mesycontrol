@@ -11,9 +11,6 @@ import hardware_model as hm
 import proto
 import util
 
-# Polling, poll sets
-# Read Range
-
 class ErrorResponse(RuntimeError):
     pass
 
@@ -34,6 +31,7 @@ class Controller(object):
         self.connection = connection
         self._mrc       = None
 
+        # Maps subscribers to a set of poll items
         self._poll_subscriptions = dict()
 
         self._connect_timer = QtCore.QTimer()
@@ -189,6 +187,23 @@ class Controller(object):
         m.request_rc.rc  = on_off
         return self.connection.queue_request(m)
 
+    def acquire_write_access(self, force=False):
+        m = proto.Message()
+        m.type = proto.Message.REQ_ACQUIRE_WRITE_ACCESS
+        m.request_acquire_write_access.force = force
+        return self.connection.queue_request(m)
+
+    def release_write_access(self):
+        m = proto.Message()
+        m.type = proto.Message.REQ_RELEASE_WRITE_ACCESS
+        return self.connection.queue_request(m)
+
+    def set_silenced(self, silenced):
+        m = proto.Message()
+        m.type = proto.Message.REQ_SET_SILENCED
+        m.request_set_silenced.silenced = silenced
+        return self.connection.queue_request(m)
+
     def add_poll_item(self, subscriber, bus, address, item):
         """Add a poll subscription for the given (bus, address, item). Item may
         be a single parameter address or a tuple of (lower, upper) addresses to
@@ -233,7 +248,7 @@ class Controller(object):
             del self._poll_subscriptions[weakref.ref(subscriber)]
             return self._send_poll_request()
         except KeyError:
-            return False
+            return future.Future().set_result(False)
 
     def _send_poll_request(self):
         # Merge all poll items into one set.
@@ -274,6 +289,8 @@ class Controller(object):
         return "Controller(%s)" % util.display_url(self.connection.url)
 
     def _on_notification_received(self, msg):
+        self.log.debug("%s: received notification %s", self, msg.Type.Name(msg.type))
+
         if msg.type == proto.Message.NOTIFY_MRC_STATUS:
             self.mrc.set_status(msg)
 
@@ -305,6 +322,15 @@ class Controller(object):
         elif msg.type == proto.Message.NOTIFY_SCANBUS:
             self._handle_scanbus_result(msg)
 
+        elif msg.type == proto.Message.NOTIFY_WRITE_ACCESS:
+            self.mrc.set_write_access(
+                    msg.notify_write_access.has_access,
+                    msg.notify_write_access.can_acquire)
+
+        elif msg.type == proto.Message.NOTIFY_SILENCED:
+            self.mrc.update_silenced(
+                    msg.notify_silenced.silenced)
+
     def _handle_scanbus_result(self, msg):
         if proto.is_error_response(msg):
             self.log.error("%s: scanbus error: %s", self, msg)
@@ -320,9 +346,8 @@ class Controller(object):
             try:
                 entry = entries[addr]
             except IndexError:
-                # FIXME: this does happen seemingly at random
-                self.log.error("scanbus result error: addr=%s, entries=%s", addr, entries)
-                raise RuntimeError("invalid index into scanbus result: %s" % addr)
+                raise RuntimeError("invalid index into scanbus result: index=%s, data=%s"
+                        % (addr, entries))
 
             idc      = entry.idc
             rc       = entry.rc

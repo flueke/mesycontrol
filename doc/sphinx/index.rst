@@ -8,6 +8,16 @@
 *mesycontrol* documentation
 ===========================
 
+* TODO: Table View
+* TODO: Specialized GUIs
+* TODO:
+  * how it works with multiple clients (write access)
+  * silent mode
+  * polling, how it works
+  * scanbus polling
+  * configs, extensions, applying and comparing hardware and setup
+
+
 Introduction
 ------------
 *mesycontrol* is a remote control solution for detector readout systems by
@@ -70,12 +80,12 @@ connectivity and communication, and the client part (*mesycontrol_gui*)
 connecting to running server processes via TCP.
 
 The GUI client will transparently spawn its own server process if the user
-requests a MRC connection via serial port or USB.
+requests a local MRC connection via serial port or USB.
 
-In case the client PC does not have a direct (USB, Serial) connection to an
-MRC-1/MRCC the server can be run stand-alone on a machine with direct access to
-the hardware. The GUI client then connects via a TCP connection to the remotely
-running server process.
+In case the client PC does not have a direct connection to an MRC-1/MRCC the
+server can be run stand-alone on a machine with direct access to the hardware.
+The GUI client then connects via a TCP connection to the remotely running
+server process.
 
 The client supports connections to multiple servers and is thus able to control
 multiple MRC-1/MRCCs.
@@ -191,9 +201,6 @@ toolbar both modes can be changed after window creation.
 
 The modes currently in effect are also displayed in the device windows title
 bar.
-
-* TODO: Table View
-* TODO: Specialized GUIs
 
 .. raw:: latex
 

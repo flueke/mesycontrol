@@ -6,12 +6,14 @@ from qt import pyqtProperty
 from qt import pyqtSignal
 
 import basic_model as bm
+import future
 import util
 
 DEFAULT_CONNECT_TIMEOUT_MS = 10000
 
 class AddressConflict(RuntimeError):
-    pass
+    def __str__(self):
+        return "Address conflict"
 
 class MRC(bm.MRC):
     connected                   = pyqtSignal()
@@ -20,10 +22,10 @@ class MRC(bm.MRC):
     connection_error            = pyqtSignal(object)    #: error object
 
     address_conflict_changed    = pyqtSignal(bool)
-    polling_changed             = pyqtSignal(bool)
 
-    status_changed              = pyqtSignal(object)
-
+    status_changed              = pyqtSignal(object)     #: proto.MRCStatus
+    write_access_changed        = pyqtSignal(bool, bool) #: has_write_access, can_acquire
+    silenced_changed            = pyqtSignal(bool)       #: is_silenced
 
     def __init__(self, url, parent=None):
         super(MRC, self).__init__(url, parent)
@@ -33,9 +35,11 @@ class MRC(bm.MRC):
         self._connected  = False
         self._connecting = False
         self._disconnected = True
-        self._polling = True
         self.last_connection_error = None
         self._status = None
+        self._has_write_access = False
+        self._can_acquire_write_access = False
+        self._silenced = False
 
     def set_controller(self, controller):
         """Set the hardware controller this MRC should use.
@@ -52,11 +56,48 @@ class MRC(bm.MRC):
         return self._controller
 
     def set_status(self, status):
+        self.log.debug("set_status: old=%s, new=%s", self._status, status)
         self._status = status
         self.status_changed.emit(status)
 
     def get_status(self):
         return self._status
+
+    def set_write_access(self, has_write_access, can_acquire):
+        """Updates the local write access and can_acquire flags.
+        Emits write_access_changed() if one of the two flags changed."""
+        if (self._has_write_access != has_write_access or
+                self._can_acquire_write_access != can_acquire):
+
+            self._has_write_access = has_write_access
+            self._can_acquire_write_access = can_acquire
+
+            self.write_access_changed.emit(
+                    self._has_write_access,
+                    self._can_acquire_write_access)
+
+    def acquire_write_access(self, force=False):
+        return self.controller.acquire_write_access(force)
+
+    def release_write_access(self):
+        return self.controller.release_write_access()
+
+    def has_write_access(self):
+        return self._has_write_access
+
+    def can_acquire_write_access(self):
+        return self._can_acquire_write_access
+
+    def update_silenced(self, silenced):
+        if self._silenced != silenced:
+            self._silenced = silenced
+            self.silenced_changed.emit(self._silenced)
+
+    def set_silenced(self, silenced):
+        return self.controller.set_silenced(silenced)
+
+    def is_silenced(self):
+        return self._silenced
 
     def add_device(self, device):
         super(MRC, self).add_device(device)
@@ -138,22 +179,14 @@ class MRC(bm.MRC):
     def scanbus(self, bus):
         return self.controller.scanbus(bus)
 
-    def should_poll(self):
-        return self._polling
-
-    def set_polling(self, on_off):
-        on_off = bool(on_off)
-        if self._polling != on_off:
-            self._polling = on_off
-            self.polling_changed.emit(on_off)
-
     def __str__(self):
-        return "hm.MRC(id=%s, url=%s, connected=%s, polling=%s)" % (
-                hex(id(self)), self.url, self.is_connected(), self.should_poll())
+        return "hm.MRC(id=%s, url=%s, connected=%s)" % (
+                hex(id(self)), self.url, self.is_connected())
 
-    connection  = pyqtProperty(object, get_connection)
-    controller  = pyqtProperty(object, get_controller, set_controller)
-    polling     = pyqtProperty(bool, should_poll, set_polling, notify=polling_changed)
+    connection      = pyqtProperty(object, get_connection)
+    controller      = pyqtProperty(object, get_controller, set_controller)
+    write_access    = pyqtProperty(bool, has_write_access, set_write_access)
+    silenced        = pyqtProperty(bool, is_silenced)
 
 class Device(bm.Device):
     connected                   = pyqtSignal()
@@ -163,23 +196,21 @@ class Device(bm.Device):
 
     address_conflict_changed    = pyqtSignal(bool)
     rc_changed                  = pyqtSignal(bool)
-    polling_changed             = pyqtSignal(bool)
 
     def __init__(self, bus, address, idc, parent=None):
         super(Device, self).__init__(bus, address, idc, parent)
 
         self._address_conflict = False
         self._rc = False
-        self._polling = True
 
     def _read_parameter(self, address):
         if self.address_conflict:
-            raise AddressConflict()
+            return future.Future().set_exception(AddressConflict())
         return self.mrc.read_parameter(self.bus, self.address, address)
 
     def _set_parameter(self, address, value):
         if self.address_conflict:
-            raise AddressConflict()
+            return future.Future().set_exception(AddressConflict())
         return self.mrc.set_parameter(self.bus, self.address, address, value)
 
     def get_controller(self):
@@ -219,20 +250,10 @@ class Device(bm.Device):
         ret.add_done_callback(on_rc_set)
         return ret
 
-    def should_poll(self):
-        return self.mrc.polling and self._polling
-
-    def set_polling(self, on_off):
-        on_off = bool(on_off)
-        if self._polling != on_off:
-            self._polling = on_off
-            self.polling_changed.emit(on_off)
-
     def add_poll_item(self, subscriber, item):
         """Add parameters that should be polled repeatedly.
-        As long as the given subscriber object is alive and polling is enabled
-        for this device and the device is connected, the given item will be
-        polled.
+        As long as the given subscriber object is alive and the device is
+        connected, the given item will be polled.
         Item may be a single parameter address or a tuple of (lower, upper)
         addresses to poll.
         If the server and mrc support reading parameter ranges and a tuple is
@@ -268,4 +289,3 @@ class Device(bm.Device):
             notify=address_conflict_changed)
 
     rc = pyqtProperty(bool, get_rc, update_rc, notify=rc_changed)
-    polling = pyqtProperty(bool, should_poll, set_polling, notify=polling_changed)

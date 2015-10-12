@@ -42,14 +42,14 @@ if (SPHINX_FOUND)
 
     COMMAND
     ${SPHINX_EXECUTABLE}
-    -q -b html
+    -b html
     -d "${SPHINX_CACHE_DIR}"
     "${SPHINX_SOURCE_DIR}"
     "${SPHINX_HTML_DIR}"
 
     COMMAND
     ${SPHINX_EXECUTABLE}
-    -q -b latex
+    -b latex
     -d "${SPHINX_CACHE_DIR}"
     "${SPHINX_SOURCE_DIR}"
     "${SPHINX_LATEX_DIR}"

@@ -98,7 +98,7 @@ profile_dict = {
                     'units': [{'label': 'ns', 'name': 'nanoseconds', 'factor': 255/180.0, 'offset': 20}] },
             { 'address': 53, 'name': 'threshold_offset', 'range': (0, 200), 'default': 100 },   # hw version >= 4
             { 'address': 54, 'name': 'shaper_offset'   , 'range': (0, 200), 'default': 100 },   # hw version >= 4
-            { 'address': 55, 'name': 'sumdis_threshold' },                              # hw version >= 4 && hardware_info sumdis bit set
+            { 'address': 55, 'name': 'sumdis_threshold', 'range': (0, 255) },           # hw version >= 4 && hardware_info sumdis bit set
             { 'address': 56, 'name': 'pz_display_range', 'range': (1, 255) },           # ???
             { 'address': 57, 'name': 'ecl_delay_enable', 'range': (0, 1) },             # hw version >= 5
             { 'address': 58, 'name': 'tf_int_time', 'range': (0, 3) },                  # hw version >= 5

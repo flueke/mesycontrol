@@ -31,12 +31,15 @@
     <file alias="save-setup.png">resources/document-save.png</file>
     <file alias="select-display-mode.png">resources/eye-2x.png</file>
     <file alias="select-write-mode.png">resources/pencil-2x.png</file>
+    <file alias="silent-mode-off.png">resources/volume-high-2x.png</file>
+    <file alias="silent-mode-on.png">resources/volume-off-2x.png</file>
     <file alias="stop.png">resources/process-stop.png</file>
     <file alias="unlinked.png">resources/link-intact-2x.png</file>
     <file alias="warning.png">resources/warning-2x.png</file>
-    <file alias="window-icon.png">resources/window-icon-3.png</file>
     <file alias="window-icon-2.png">resources/window-icon-2.png</file>
     <file alias="window-icon-3.png">resources/window-icon-3.png</file>
+    <file alias="window-icon.png">resources/window-icon-3.png</file>
+    <file alias="write-access.png">resources/media-record-2x.png</file>
 
 
     <file>resources/applications-utilities.png</file>

@@ -3,6 +3,7 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 from qt import Qt
+from qt import QtCore
 from qt import QtGui
 
 import logging
@@ -28,6 +29,7 @@ class DeviceSubWindow(QtGui.QMdiSubWindow):
         self.setWidget(widget)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.window_name_prefix = window_name_prefix
+        self._linked_mode = False
         self.update_title_and_name()
         self.setWindowIcon(util.make_icon(":/window-icon.png"))
 
@@ -61,9 +63,17 @@ class DeviceSubWindow(QtGui.QMdiSubWindow):
     def get_toolbar(self):
         raise NotImplementedError()
 
+    def set_linked_mode(self, linked_mode):
+        self._linked_mode = linked_mode
+        self.update_title_and_name()
+
+    def get_linked_mode(self):
+        return self._linked_mode
+
     device          = property(lambda s: s.get_device())
     display_mode    = property(get_display_mode, set_display_mode)
     write_mode      = property(get_write_mode, set_write_mode)
+    linked_mode     = property(get_linked_mode, set_linked_mode)
 
     def update_title_and_name(self):
         """Updates the window title and the object name taking into account the
@@ -71,22 +81,26 @@ class DeviceSubWindow(QtGui.QMdiSubWindow):
         device       = self.device
         idc          = None
 
-        if self.display_mode == util.HARDWARE and device.hw is not None:
+        if self.display_mode == util.HARDWARE and device.has_hw:
             idc = device.hw_idc
-            profile = device.hw_profile
-        elif self.display_mode == util.CONFIG and device.cfg is not None:
+        elif self.display_mode == util.CONFIG and device.has_cfg:
             idc = device.cfg_idc
-            profile = device.cfg_profile
-        elif self.display_mode == util.COMBINED and device.has_hw and device.has_cfg and not device.idc_conflict:
-            idc = device.hw_idc
-            profile = device.hw_profile
+        elif self.display_mode == util.COMBINED:
+            if device.has_hw and device.has_cfg and not device.idc_conflict:
+                idc = device.hw_idc
+            elif device.has_cfg and not device.has_hw:
+                idc = device.cfg_idc
+
+        profile = device.hw_profile
 
         if idc is None:
             # The device is about to disappear and this window should close. Do
             # not attempt to update the title as no idc is known and device.mrc
             # will not be set.
-            self.log.debug("update_title_and_name: idc is None -> early return")
+            self.log.warning("update_title_and_name: idc is None -> early return")
             return
+
+        profile = device.hw_profile if idc == device.hw_idc else device.cfg_profile
 
         prefixes = {
                 util.COMBINED:  'combined',
@@ -94,19 +108,18 @@ class DeviceSubWindow(QtGui.QMdiSubWindow):
                 util.CONFIG:    'cfg',
                 }
 
-        device_name = profile.name
+        device_type_name = profile.name
 
-        name = "%s_%s_(%s, %d, %d)" % (
+        name = "%s_%s_%s_(%s, %d, %d)" % (
                 self.window_name_prefix, prefixes[self.display_mode],
-                device.mrc.url, device.bus, device.address)
+                device_type_name, device.mrc.url, device.bus, device.address)
 
         title = "%s @ (%s, %d, %d)" % (
-                device_name, device.mrc.get_display_url(),
+                device_type_name, device.mrc.get_display_url(),
                 device.bus, device.address)
 
-        if ((self.display_mode & util.CONFIG)
-                and device.cfg is not None
-                and len(device.cfg.name)):
+        if (device.has_cfg and len(device.cfg.name)
+                and ((self.display_mode & util.CONFIG) or self.linked_mode)):
             title = "%s - %s" % (device.cfg.name, title)
 
         if self.device.idc_conflict:
@@ -166,6 +179,8 @@ class DeviceTableSubWindow(DeviceSubWindow):
         super(DeviceTableSubWindow, self).__init__(
                 widget=widget, window_name_prefix='table',
                 parent=parent)
+
+        self.resize(QtCore.QSize(600, 400))
 
     def has_combined_display(self):
         return True
@@ -259,10 +274,14 @@ def run_edit_mrc_config(mrc, registry, parent_widget=None):
     dialog.show()
 
 # ===== Device =====
-def run_add_device_config_dialog(device_registry, registry, mrc, bus=None, parent_widget=None):
+def run_add_device_config_dialog(device_registry, registry, mrc, bus=None, address=None, parent_widget=None):
     try:
-        aa = [(b, d) for b in bm.BUS_RANGE for d in bm.DEV_RANGE
-                if not mrc.cfg or not mrc.cfg.get_device(b, d)]
+        if address is None:
+            aa = [(b, d) for b in bm.BUS_RANGE for d in bm.DEV_RANGE
+                    if not mrc.cfg or not mrc.cfg.get_device(b, d)]
+        else:
+            assert bus is not None
+            aa = [(bus, address)]
 
         dialog = AddDeviceDialog(bus=bus, available_addresses=aa,
                 known_idcs=device_registry.get_device_names(), parent=parent_widget)
@@ -278,7 +297,7 @@ def run_add_device_config_dialog(device_registry, registry, mrc, bus=None, paren
         dialog.accepted.connect(accepted)
         dialog.show()
     except RuntimeError as e:
-        log.exception(e)
+        log.exception("add device config")
         QtGui.QMessageBox.critical(parent_widget, "Error", str(e))
 
 def run_load_device_config(device, context, parent_widget):
@@ -308,7 +327,7 @@ def run_load_device_config(device, context, parent_widget):
         context.set_config_directory_hint(filename)
         return True
     except Exception as e:
-        log.exception(e)
+        log.exception("load device config")
         QtGui.QMessageBox.critical(parent_widget, "Error",
                 "Loading device config from %s failed:\n%s" % (filename, e))
         return False
@@ -333,7 +352,7 @@ def run_save_device_config(device, context, parent_widget):
         context.set_config_directory_hint(filename)
         return True
     except Exception as e:
-        log.exception(e)
+        log.exception("save device config")
         QtGui.QMessageBox.critical(parent_widget, "Error",
                 "Saving device config to %s failed:\n%s" % (filename, e))
         return False
@@ -352,7 +371,7 @@ def run_save_setup(context, parent_widget):
         setup.modified = False
         return True
     except Exception as e:
-        log.exception(e)
+        log.exception("save setup")
         QtGui.QMessageBox.critical(parent_widget, "Error", "Saving setup %s failed:\n%s" % (setup.filename, e))
         return False
 
@@ -385,7 +404,7 @@ def run_save_setup_as_dialog(context, parent_widget):
         context.set_setup_directory_hint(filename)
         return True
     except Exception as e:
-        log.exception(e)
+        log.exception("save setup as")
         QtGui.QMessageBox.critical(parent_widget, "Error", "Saving setup %s failed:\n%s" % (setup.filename, e))
         return False
     
@@ -416,7 +435,7 @@ def run_open_setup_dialog(context, parent_widget):
     try:
         context.open_setup(filename)
     except Exception as e:
-        log.exception(e)
+        log.exception("open setup")
         QtGui.QMessageBox.critical(parent_widget, "Error", "Opening setup file %s failed:\n%s" % (filename, e))
         return False
 

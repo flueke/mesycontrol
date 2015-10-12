@@ -87,6 +87,12 @@ class CopyFunction(object):
 Version = collections.namedtuple('Version', 'major minor')
 
 def get_config_parameters(app_device):
+    # Start out with the default parameters defined in the profile. Then try to
+    # read the version register and remove parameters accordingly. If the
+    # hardware_info register is available use that information to keep/remove
+    # additional parameters.
+    # If no hardware is present the profile default parameters are returned.
+
     profile = app_device.profile
     params  = profile.get_config_parameters()
 
@@ -97,11 +103,16 @@ def get_config_parameters(app_device):
     ret     = future.Future()
 
     def version_done(f):
-        version = f.result()
+        try:
+            version = f.result()
+        except Exception as e:
+            device.log.warning("could not read MSCF-16 version: %s", e)
+            ret.set_result(params)
+            return
 
         def maybe_remove(min_version, *param_names):
             if version < min_version:
-                device.log.debug("version %s < %s -> removing %s",
+                device.log.info("version %s < %s -> removing %s",
                         version, min_version, param_names)
                 for n in param_names:
                     params.remove(profile[n])
@@ -115,11 +126,14 @@ def get_config_parameters(app_device):
 
         if version >= (5, 3):
             def hw_info_done(f):
-                hw_info = f.result()
+                try:
+                    hw_info = f.result()
+                    if not hw_info.has_sumdis():
+                        device.log.info("sumdis_threshold not available according to hw_info register")
+                        params.remove(profile['sumdis_threshold'])
+                except Exception as e:
+                    device.log.warning("could not read MSCF-16 hardware info register: %s", e)
 
-                if not hw_info.has_sumdis():
-                    device.log.debug("sumdis_threshold not available according to hw_info register")
-                    params.remove(profile['sumdis_threshold'])
                 ret.set_result(params)
 
             device.get_hardware_info().add_done_callback(hw_info_done)
@@ -168,7 +182,7 @@ class MSCF16(DeviceBase):
 
         @set_result_on(ret)
         def done(f):
-            return decode_version(int(f))
+            return decode_version(int(f.result()))
 
         self.get_hw_parameter('version').add_done_callback(done)
 
@@ -191,7 +205,7 @@ class MSCF16(DeviceBase):
 
         @set_result_on(ret)
         def get_param_done(f):
-            return decode_fun(int(f))
+            return decode_fun(int(f.result()))
 
         @set_exception_on(ret)
         def has_versions_done(f):
@@ -243,7 +257,7 @@ class MSCF16(DeviceBase):
 
         @set_result_on(ret)
         def done(f):
-            return GAIN_FACTOR ** int(f) * self.get_gain_jumper(group)
+            return GAIN_FACTOR ** int(f.result()) * self.get_gain_jumper(group)
 
         self.get_parameter('gain_group%d' % group).add_done_callback(done)
 
@@ -270,7 +284,7 @@ class MSCF16(DeviceBase):
 
         @set_result_on(ret)
         def done(f):
-            return SHAPING_TIMES_US[self.get_extension('shaping_time')][int(f)]
+            return SHAPING_TIMES_US[self.get_extension('shaping_time')][int(f.result())]
 
         self.get_parameter('shaping_time_group%d' % group).add_done_callback(done)
 
@@ -322,7 +336,7 @@ class MSCF16(DeviceBase):
         def apply_to_single(f):
             futures = list()
             for i in range(n_single_params):
-                futures.append(self.set_parameter(single_param_name_fmt % i, int(f)))
+                futures.append(self.set_parameter(single_param_name_fmt % i, int(f.result())))
             f_all = future.all_done(*futures).add_done_callback(all_applied)
             future.progress_forwarder(f_all, ret)
 
@@ -744,7 +758,7 @@ class ShapingPage(QtGui.QGroupBox):
 
     def _auto_pz_button_clicked(self, channel):
         def done(f):
-            auto_pz = int(f)
+            auto_pz = int(f.result())
             # Turn auto pz off if the button of the active channel was clicked.
             # Otherwise turn it on for that channel.
             self.device.set_auto_pz(0 if auto_pz == channel+1 else channel+1)
@@ -877,7 +891,7 @@ class TimingPage(QtGui.QGroupBox):
                 self.check_ecl_delay.setEnabled(f.result())
                 if not f.result():
                     self.check_ecl_delay.setToolTip("N/A")
-            except util.Disconnected:
+            except Exception:
                 pass
 
         self.device.has_ecl_enable().add_done_callback(done)
@@ -885,14 +899,11 @@ class TimingPage(QtGui.QGroupBox):
     def _tf_int_time_cb(self, param_future):
         def done(f):
             try:
-                enabled = f.result()
-            except (pb.ParameterUnavailable, util.Disconnected):
-                enabled = False
-
-            self.spin_tf_int_time.setEnabled(enabled)
-
-            if not enabled:
-                self.spin_tf_int_time.setToolTip("N/A")
+                self.spin_tf_int_time.setEnabled(f.result())
+                if not f.result():
+                    self.spin_tf_int_time.setToolTip("N/A")
+            except Exception:
+                pass
 
         self.device.has_tf_int_time().add_done_callback(done)
 
@@ -914,7 +925,7 @@ class ChannelModeBinding(pb.AbstractParameterBinding):
             for rb in self.target:
                 rb.setEnabled(True)
 
-            rb = self.target[0] if int(rf) else self.target[1]
+            rb = self.target[0] if int(rf.result()) else self.target[1]
 
             with util.block_signals(rb):
                 rb.setChecked(True)
@@ -1148,32 +1159,38 @@ class MiscPage(QtGui.QWidget):
         self._on_hardware_set(device, None, device.hw)
 
     def _on_hardware_set(self, device, old, new):
-        hw_is_ok = new is not None and new.idc == idc
+        hw_is_ok = (new is not None
+                and not new.address_conflict
+                and not device.idc_conflict)
 
         self.pb_copy_panel2rc.setEnabled(hw_is_ok)
         self.pb_copy_rc2panel.setEnabled(hw_is_ok)
         self.pb_copy_common2single.setEnabled(hw_is_ok)
 
-        if old is not None:
-            old.connected.disconnect(self._on_hardware_connected)
-            old.disconnected.disconnect(self._on_hardware_disconnected)
+        signals = ['connected', 'disconnected', 'address_conflict_changed']
 
-        if new is not None:
-            new.connected.connect(self._on_hardware_connected)
-            new.disconnected.connect(self._on_hardware_disconnected)
+        for sig in signals:
+                if old is not None:
+                    try:
+                        getattr(old, sig).disconnect(self._hardware_state_changed)
+                    except TypeError:
+                        pass
+
+                if new is not None:
+                    getattr(new, sig).connect(self._hardware_state_changed)
 
         for binding in self.bindings:
             binding.populate()
 
-    def _on_hardware_connected(self):
-        for b in (self.pb_copy_panel2rc, self.pb_copy_rc2panel,
-                self.pb_copy_common2single):
-            b.setEnabled(True)
+    def _hardware_state_changed(self):
+        hw = self.device.hw
+        en = (hw is not None
+                and hw.is_connected()
+                and not hw.address_conflict)
 
-    def _on_hardware_disconnected(self):
         for b in (self.pb_copy_panel2rc, self.pb_copy_rc2panel,
                 self.pb_copy_common2single):
-            b.setEnabled(False)
+            b.setEnabled(en)
 
     def _copy_panel2rc(self):
         def progress(f):
