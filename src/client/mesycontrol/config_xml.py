@@ -234,7 +234,11 @@ def value2xml(tb, value):
         list2xml(tb, value)
     elif isinstance(value, dict):
         dict2xml(tb, value)
+    elif isinstance(value, tuple):
+        list2xml(tb, value)
     else:
+        import traceback
+        traceback.print_stack()
         raise TypeError("value2xml: unhandled value type '%s'" % type(value).__name__)
     return tb
 
