@@ -7,6 +7,8 @@ import StringIO
 
 from .. import config_model as cm
 from .. import config_xml as cxml
+from .. qt import QtCore
+from xml.etree import ElementTree as ET
 
 expected = """<?xml version="1.0" ?>
 <mesycontrol version="1">
@@ -236,3 +238,21 @@ def test_read_setup():
     assert len(setup.get_mrcs()) == 2
     assert setup.get_mrc('/dev/ttyUSB0').get_device(0, 0).idc == 1
     assert setup.get_mrc('/dev/ttyUSB1').get_device(0, 7).idc == 2
+
+def test_value2xml_string_types():
+    tb = cxml.CommentTreeBuilder()
+
+    l = ["Hello World!", u"Hello Unicode World!", QtCore.QString("Hello QString World!")]
+
+    for txt in l:
+        cxml.value2xml(tb, txt)
+        tree = ET.ElementTree(tb.close())
+        xml = cxml._xml_tree_to_string(tree)
+
+        et = ET.fromstring(xml)
+        value = cxml.xml2value(et)
+
+        assert txt == value
+
+    tree = ET.ElementTree(tb.close())
+    xml = cxml._xml_tree_to_string(tree)
