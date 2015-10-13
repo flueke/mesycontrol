@@ -212,7 +212,7 @@ def make_device_config(bus, address, idc, name=str(), device_profile=None):
             ret.set_parameter(pp.address, pp.default)
 
         for name, value in device_profile.get_extensions().iteritems():
-            ret.set_extension(name, value)
+            ret.set_extension(name, value['default'])
 
     ret.modified = False
 
