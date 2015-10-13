@@ -630,9 +630,15 @@ class DiscriminatorPage(QtGui.QGroupBox):
         # following 16:  8 delays, 8 fractions, 16 thresholds
         # last row    : delay chip max delay
 
-        self.delay_common           = util.DelayedSpinBox()
-        self.delay_common.setPrefix("Tap ")
-        self.delay_label_common     = make_dynamic_label(longest_value='%d ns' % DELAY_CHIP_LIMITS_NS[1])
+        def make_delay_combo():
+            ret = QtGui.QComboBox()
+            for i in range(device.profile['delay_common'].range[1]+1):
+                ret.addItem("Tap %d" % i, i)
+
+            return ret
+
+        self.delay_common = make_delay_combo()
+        self.delay_label_common = make_dynamic_label(longest_value='%d ns' % DELAY_CHIP_LIMITS_NS[1])
         self.delay_common_layout    = util.make_apply_common_button_layout(
                 self.delay_common, "Apply to groups", self._apply_common_delay)[0]
 
@@ -706,9 +712,9 @@ class DiscriminatorPage(QtGui.QGroupBox):
 
         offset = layout.rowCount()
         layout.addWidget(make_title_label("Group"),     offset, 0)
-        layout.addWidget(make_title_label("Delay"),     offset, 1, 1, 2, Qt.AlignCenter)
+        layout.addWidget(make_title_label("Delay"),     offset, 1, 1, 1, Qt.AlignCenter)
         layout.addWidget(make_title_label("Fraction"),  offset, 3)
-        layout.addWidget(make_title_label("Chan"),   offset, 4)
+        layout.addWidget(make_title_label("Chan"),      offset, 4, 1, 1, Qt.AlignRight)
         layout.addWidget(make_title_label("Threshold"), offset, 5, 1, 2, Qt.AlignCenter)
 
         for i in range(NUM_CHANNELS):
@@ -721,6 +727,7 @@ class DiscriminatorPage(QtGui.QGroupBox):
                 group_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1])) 
                 delay_input = util.DelayedSpinBox()
                 delay_input.setPrefix("Tap ")
+                delay_input = make_delay_combo()
                 delay_label = make_dynamic_label(longest_value='%d ns' % DELAY_CHIP_LIMITS_NS[1])
                 fraction_input = make_fraction_combo()
 
@@ -1190,7 +1197,8 @@ class TriggerSetupWidget(QtGui.QWidget):
         self.bindings = list()
 
         layout = QtGui.QGridLayout(self)
-        layout.setSpacing(2)
+        layout.setHorizontalSpacing(3)
+        layout.setVerticalSpacing(5)
         layout.setContentsMargins(4, 4, 4, 4)
 
         trigger_labels  = ['OR all', 'Mult', 'PA', 'Mon0', 'Mon1', 'OR1', 'OR0', 'Veto', 'GG']
@@ -1243,9 +1251,6 @@ class TriggerSetupWidget(QtGui.QWidget):
             layout.addWidget(label, label_row, i+1)
             self.trigger_source_labels.append(label)
 
-            #def update_cb(f, label=label):
-            #    label.setText(str(int(f)))
-
             self.bindings.append(BitPatternBinding(
                 device=device, profile=device.profile['trigger%d' % i],
                 display_mode=display_mode, write_mode=write_mode,
@@ -1259,7 +1264,7 @@ class TriggerSetupWidget(QtGui.QWidget):
         layout.setRowMinimumHeight(label_row, 24)
 
         # Spacer between T2 and GG
-        layout.addItem(QtGui.QSpacerItem(10, 1),
+        layout.addItem(QtGui.QSpacerItem(5, 1),
                 row_offset, 4, layout.rowCount(), 1)
 
         gg_col = 5
@@ -1285,7 +1290,8 @@ class TriggerSetupWidget(QtGui.QWidget):
             display_mode=display_mode, write_mode=write_mode,
             target=self.gg_source_helper, label=self.gg_source_label))
 
-        layout.addItem(QtGui.QSpacerItem(10, 1),
+        # Spacer between GG and the right side widgets
+        layout.addItem(QtGui.QSpacerItem(15, 1),
                 0, 6, layout.rowCount(), 1)
 
         # OR all label
