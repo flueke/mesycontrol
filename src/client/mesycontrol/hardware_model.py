@@ -7,6 +7,7 @@ from qt import pyqtSignal
 
 import basic_model as bm
 import future
+import proto
 import util
 
 DEFAULT_CONNECT_TIMEOUT_MS = 10000
@@ -40,6 +41,7 @@ class MRC(bm.MRC):
         self._has_write_access = False
         self._can_acquire_write_access = False
         self._silenced = False
+        self._connect_future = None
 
     def set_controller(self, controller):
         """Set the hardware controller this MRC should use.
@@ -59,6 +61,23 @@ class MRC(bm.MRC):
         self.log.debug("set_status: old=%s, new=%s", self._status, status)
         self._status = status
         self.status_changed.emit(status)
+
+        if self._connect_future is None:
+            self._connect_future = future.Future()
+
+        if status in (proto.MRCStatus.CONNECTING, proto.MRCStatus.INITIALIZING):
+            self.set_connecting(self._connect_future)
+
+        elif status == proto.MRCStatus.RUNNING:
+            self.set_connected()
+            self._connect_future.set_result(True)
+            self._connect_future = None
+
+        elif status in (proto.MRCStatus.STOPPED, proto.MRCStatus.CONNECT_FAILED,
+                proto.MRCStatus.INIT_FAILED):
+            self.set_disconnected()
+            self._connect_future.set_result(False)
+            self._connect_future = None
 
     def get_status(self):
         return self._status

@@ -253,9 +253,6 @@ class DeviceProfile(object):
     def get_volatile_addresses(self):
         return map(lambda p: p.address, filter(lambda p: p.poll, self.parameters))
 
-    #def set_extension(self, name, value):
-    #    self._extensions[name] = value
-
     def set_extension(self, ext):
         d = dict()
         d['name'] = name = ext['name']
@@ -287,7 +284,6 @@ def from_dict(d):
         ret.add_parameter(ParameterProfile.fromDict(pd))
 
     for ext in d.get('extensions', list()):
-        #ret.set_extension(ext['name'], ext['value'])
         ret.set_extension(ext)
 
     return ret

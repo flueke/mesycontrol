@@ -292,7 +292,7 @@ class Controller(object):
         self.log.debug("%s: received notification %s", self, msg.Type.Name(msg.type))
 
         if msg.type == proto.Message.NOTIFY_MRC_STATUS:
-            self.mrc.set_status(msg)
+            self.mrc.set_status(msg.mrc_status.status)
 
         elif msg.type == proto.Message.NOTIFY_POLLED_ITEMS:
             items = msg.notify_polled_items.items
