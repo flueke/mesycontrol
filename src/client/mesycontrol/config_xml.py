@@ -224,8 +224,8 @@ def _xml_tree_to_string(tree):
     return pretty
 
 def value2xml(tb, value):
-    if isinstance(value, str):
-        _add_tag(tb, "value", value, {'type': 'str'})
+    if isinstance(value, (str, unicode, QtCore.QString)):
+        _add_tag(tb, "value", str(value), {'type': 'str'})
     elif isinstance(value, int):
         _add_tag(tb, "value", value, {'type': 'int'})
     elif isinstance(value, float):
