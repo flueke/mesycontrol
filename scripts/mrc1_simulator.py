@@ -25,8 +25,9 @@ import random
 import socket
 import sys
 
-class MesytecDevice:
+class MesytecDevice(object):
    def __init__(self, bus, port, id_):
+      super(MesytecDevice, self).__init__()
       self.bus  = bus
       self.port = port
       self.id   = id_
@@ -91,6 +92,10 @@ class MSCF16(MesytecDevice):
       self.params[56]  = random.uniform(0, 255)             # PZ display range
       self.params[100] = 0                                  # auto PZ
 
+class MCFD16(MesytecDevice):
+   def __init__(self, bus, port):
+      super(MCFD16, self).__init__(bus, port, 26)
+
 class MRC1:
    def __init__(self):
       #self.busses = [[random.choice([MHV4(bus, port), MSCF16(bus, port), None])
@@ -101,6 +106,7 @@ class MRC1:
       self.busses[0][1] = MSCF16(0, 1)
       self.busses[1][0] = MHV4  (1, 0)
       self.busses[1][1] = MSCF16(1, 1)
+      self.busses[1][2] = MCFD16(1, 2)
       self.prompt_enabled = True
       self.echo_enabled   = True
 
