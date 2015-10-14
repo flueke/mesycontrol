@@ -143,7 +143,7 @@ profile_dict = {
             ],
 
         'extensions': [
-            { 'name': 'gain_jumpers',       'value': [ dict(name=str(i), value=1, limits=(1, 200)) for i in range(NUM_GROUPS)] },
+            { 'name': 'gain_jumpers',       'value': [ 1 for i in range(NUM_GROUPS)] },
             { 'name': 'module_name',        'value': 'F' },                             # the mscf16 suffix (F, LN)
             { 'name': 'shaping_time',       'value': 1 },                               # 1, 2, 4, 8
             { 'name': 'input_type',         'value': 'V' },                             # Voltage or Charge integrating

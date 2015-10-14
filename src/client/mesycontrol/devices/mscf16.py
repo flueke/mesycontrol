@@ -597,8 +597,8 @@ class ShapingPage(QtGui.QGroupBox):
         layout.addWidget(self.pb_auto_pz_all,       0, 5)
 
         layout.addWidget(make_title_label("Group"),         1, 0, 1, 1, Qt.AlignRight)
-        layout.addWidget(make_title_label("Shaping time"),  1, 1, 1, 2, Qt.AlignCenter)
-        layout.addWidget(make_title_label("Chan"),       1, 3)
+        layout.addWidget(make_title_label("Shaping time"),  1, 1, 1, 2, Qt.AlignLeft)
+        layout.addWidget(make_title_label("Chan"),          1, 3, 1, 1, Qt.AlignRight)
         layout.addWidget(make_title_label("PZ"),            1, 4)
 
         for chan in range(NUM_CHANNELS):
@@ -1299,7 +1299,7 @@ class SettingsDialog(QtGui.QDialog):
             for idx, value in enumerate(ext_value):
                 spin = getattr(self, 'spin_gain_jumpers_group%d' % idx)
                 with util.block_signals(spin):
-                    spin.setValue(value)
+                    spin.setValue(int(value))
 
         elif name == 'module_name':
             idx = self.combo_type.findText(ext_value)
