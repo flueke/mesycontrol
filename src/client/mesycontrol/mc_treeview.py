@@ -282,7 +282,7 @@ class MCTreeView(QtGui.QWidget):
         self.cfg_view.setItemDelegate(MCTreeItemDelegate(self._director))
 
         self.cfg_view.selectionModel().selectionChanged.connect(self._cfg_selection_changed)
-        self.cfg_view.doubleClicked.connect(self._cfg_view_activated)
+        self.cfg_view.doubleClicked.connect(self._cfg_view_double_clicked)
         self.cfg_view.clicked.connect(self._cfg_view_clicked)
 
         self.hw_view   = HardwareTreeView()
@@ -296,7 +296,7 @@ class MCTreeView(QtGui.QWidget):
         self.hw_view.setFirstColumnSpanned(0, QtCore.QModelIndex(), True)
 
         self.hw_view.selectionModel().selectionChanged.connect(self._hw_selection_changed)
-        self.hw_view.doubleClicked.connect(self._hw_view_activated)
+        self.hw_view.doubleClicked.connect(self._hw_view_double_clicked)
         self.hw_view.clicked.connect(self._hw_view_clicked)
 
         self.cfg_view.expandAll()
@@ -467,6 +467,14 @@ class MCTreeView(QtGui.QWidget):
             self.node_selected.emit(idx.internalPointer())
         except IndexError:
             pass
+
+    # double clicked
+    def _cfg_view_double_clicked(self, idx):
+        self._cfg_view_activated(idx)
+
+    def _hw_view_double_clicked(self, idx):
+        if idx.column() != htm.COL_RC:
+            self._hw_view_activated(idx)
 
     # activated
     def _cfg_view_activated(self, idx):
