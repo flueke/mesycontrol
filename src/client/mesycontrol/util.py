@@ -19,6 +19,7 @@ import gc
 import logging
 import math
 import os
+import re
 import sys
 
 HARDWARE = 1
@@ -249,16 +250,22 @@ def list_serial_ports_windows(type_mask):
     for i in itertools.count():
         try:
             val  = winreg.EnumValue(key, i)
-            name = str(val[1])
+            device, name = val[:2]
 
-            if type_mask & SERIAL_SERIAL and name.startswith("Serial"):
+            serial_pattern = r"^.*\Serial[0-9]+$"
+            usb_pattern    = r"^.*\VCP[0-9]+$"
+
+            matches_serial = re.match(serial_pattern, device)
+            matches_usb    = re.match(usb_pattern, device)
+
+            if type_mask & SERIAL_SERIAL and matches_serial:
                 yield name
 
-            if type_mask & SERIAL_USB and name.startswith("VCP"):
+            if type_mask & SERIAL_USB and matches_usb:
                 yield name
 
             # names not matching the qualifiers above
-            if not name.startswith("Serial") and not name.startswith("VCP") and type_mask & SERIAL_SERIAL:
+            if not matches_serial and not matches_usb and type_mask & SERIAL_SERIAL:
                 yield name
 
         except EnvironmentError:
