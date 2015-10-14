@@ -208,21 +208,31 @@ def make_logging_source_adapter(module_name, object_instance):
 
     return ret
 
-def list_serial_ports():
-    if sys.platform.startswith('linux'):
-        return list_serial_ports_linux()
-    elif sys.platform.startswith('win32'):
-        return list(list_serial_ports_windows())
+SERIAL_USB    = 1
+SERIAL_SERIAL = 2
 
-def list_serial_ports_linux():
+def list_serial_ports(type_mask=SERIAL_USB | SERIAL_SERIAL):
+    if sys.platform.startswith('linux'):
+        return list_serial_ports_linux(type_mask)
+    elif sys.platform.startswith('win32'):
+        return list(list_serial_ports_windows(type_mask))
+
+def list_serial_ports_linux(type_mask):
     import glob
-    patterns = ("/dev/ttyUSB?", "/dev/ttyUSB??", "/dev/ttyS?", "/dev/ttyS??")
-    ret      = list()
+    patterns = list()
+
+    if type_mask & SERIAL_USB:
+        patterns.extend(("/dev/ttyUSB?", "/dev/ttyUSB??"))
+
+    if type_mask & SERIAL_SERIAL:
+        patterns.extend(("/dev/ttyS?", "/dev/ttyS??"))
+
+    ret = list()
     for p in patterns:
         ret.extend(sorted(glob.glob(p)))
     return ret
 
-def list_serial_ports_windows():
+def list_serial_ports_windows(type_mask):
     """
     Uses the Win32 registry to return an iterator
     of serial (COM) ports existing on this computer.
@@ -238,8 +248,19 @@ def list_serial_ports_windows():
 
     for i in itertools.count():
         try:
-            val = winreg.EnumValue(key, i)
-            yield str(val[1])
+            val  = winreg.EnumValue(key, i)
+            name = str(val[1])
+
+            if type_mask & SERIAL_SERIAL and name.startswith("Serial"):
+                yield name
+
+            if type_mask & SERIAL_USB and name.startswith("VCP"):
+                yield name
+
+            # names not matching the qualifiers above
+            if not name.startswith("Serial") and not name.startswith("VCP") and type_mask & SERIAL_SERIAL:
+                yield name
+
         except EnvironmentError:
             break
 

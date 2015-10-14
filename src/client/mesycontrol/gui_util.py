@@ -194,8 +194,11 @@ class DeviceTableSubWindow(DeviceSubWindow):
 # ===== MRC =====
 def run_add_mrc_config_dialog(registry, parent_widget=None):
     urls_in_use = [mrc.url for mrc in registry.cfg.get_mrcs()]
-    serial_ports = util.list_serial_ports()
-    dialog = AddMRCDialog(serial_ports=serial_ports,
+    serial_ports_usb = util.list_serial_ports(util.SERIAL_USB)
+    serial_ports_serial = util.list_serial_ports(util.SERIAL_SERIAL)
+    dialog = AddMRCDialog(
+            serial_ports_usb=serial_ports_usb,
+            serial_ports_serial=serial_ports_serial,
             urls_in_use=urls_in_use, parent=parent_widget)
     dialog.setModal(True)
 
@@ -216,8 +219,12 @@ def run_add_mrc_config_dialog(registry, parent_widget=None):
 
 def run_add_mrc_connection_dialog(registry, parent_widget=None):
     urls_in_use = [mrc.url for mrc in registry.hw.get_mrcs()]
-    serial_ports = util.list_serial_ports()
-    dialog = AddMRCDialog(serial_ports=serial_ports, urls_in_use=urls_in_use,
+    serial_ports_usb = util.list_serial_ports(util.SERIAL_USB)
+    serial_ports_serial = util.list_serial_ports(util.SERIAL_SERIAL)
+    dialog = AddMRCDialog(
+            serial_ports_usb=serial_ports_usb,
+            serial_ports_serial=serial_ports_serial,
+            urls_in_use=urls_in_use,
             do_connect_default=True, parent=parent_widget)
     dialog.setModal(True)
 
@@ -235,9 +242,13 @@ def run_add_mrc_connection_dialog(registry, parent_widget=None):
 def run_edit_mrc_config(mrc, registry, parent_widget=None):
     urls_in_use = [mrc_.url for mrc_ in registry.cfg.get_mrcs()]
     urls_in_use.remove(mrc.url)
-    serial_ports = util.list_serial_ports()
+    serial_ports_usb = util.list_serial_ports(util.SERIAL_USB)
+    serial_ports_serial = util.list_serial_ports(util.SERIAL_SERIAL)
 
-    dialog = AddMRCDialog(serial_ports=serial_ports, urls_in_use=urls_in_use,
+    dialog = AddMRCDialog(
+            serial_ports_usb=serial_ports_usb,
+            serial_ports_serial=serial_ports_serial,
+            urls_in_use=urls_in_use,
             url=mrc.url, do_connect_default=False, parent=parent_widget,
             title="Edit MRC config")
     dialog.setModal(True)
