@@ -847,8 +847,7 @@ class GUIApplication(QtCore.QObject):
     def _rename_config(self):
         node = self._selected_tree_node
 
-        if (is_config(node) and
-                (is_mrc(node) or is_device(node)) and
+        if ((is_mrc(node) or is_device(node)) and
                 node.ref.has_cfg):
             self.treeview.cfg_view.edit(
                     self.treeview.cfg_model.index_for_ref(node.ref))
