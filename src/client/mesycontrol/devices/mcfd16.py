@@ -711,11 +711,11 @@ class DiscriminatorPage(QtGui.QGroupBox):
         layout.addWidget(self.threshold_label_common,   offset, 6)
 
         offset = layout.rowCount()
-        layout.addWidget(make_title_label("Group"),     offset, 0)
+        layout.addWidget(make_title_label("Group"),     offset, 0, 1, 1, Qt.AlignRight)
         layout.addWidget(make_title_label("Delay"),     offset, 1, 1, 1, Qt.AlignCenter)
-        layout.addWidget(make_title_label("Fraction"),  offset, 3)
+        layout.addWidget(make_title_label("Fraction"),  offset, 3, 1, 1, Qt.AlignCenter)
         layout.addWidget(make_title_label("Chan"),      offset, 4, 1, 1, Qt.AlignRight)
-        layout.addWidget(make_title_label("Threshold"), offset, 5, 1, 2, Qt.AlignCenter)
+        layout.addWidget(make_title_label("Threshold"), offset, 5, 1, 1, Qt.AlignCenter)
 
         for i in range(NUM_CHANNELS):
             channels_per_group  = NUM_CHANNELS / NUM_GROUPS
@@ -921,8 +921,8 @@ class WidthAndDeadtimePage(QtGui.QGroupBox):
 
         offset += 1
         layout.addWidget(make_title_label("Group"),     offset, 0, 1, 1, Qt.AlignRight)
-        layout.addWidget(make_title_label("Width"),     offset, 1, 1, 2, Qt.AlignCenter)
-        layout.addWidget(make_title_label("Dead time"), offset, 3, 1, 2, Qt.AlignCenter)
+        layout.addWidget(make_title_label("Width"),     offset, 1, 1, 1, Qt.AlignCenter)
+        layout.addWidget(make_title_label("Dead time"), offset, 3, 1, 1, Qt.AlignCenter)
 
         self.width_inputs = list()
         self.width_labels = list()
@@ -1339,7 +1339,7 @@ class TriggerSetupWidget(QtGui.QWidget):
             return combo
 
         # Monitor 0
-        label = QtGui.QLabel("TM0")
+        label = QtGui.QLabel("TM0:")
         sz    = label.sizeHint()
         label.setFixedSize(sz)
         combo = make_monitor_combo()
@@ -1361,7 +1361,7 @@ class TriggerSetupWidget(QtGui.QWidget):
             target=combo))
 
         # Monitor 1
-        label = QtGui.QLabel("TM1")
+        label = QtGui.QLabel("TM1:")
         label.setFixedSize(sz)
         combo = make_monitor_combo()
         mon_layout = QtGui.QHBoxLayout()
@@ -1381,7 +1381,7 @@ class TriggerSetupWidget(QtGui.QWidget):
             target=combo))
 
         # Trigger Pattern 1
-        self.trigger_pattern1 = BitPatternWidget("TP1")
+        self.trigger_pattern1 = BitPatternWidget("TP1:")
         self.trigger_pattern1.setToolTip("trigger_pattern1_low, trigger_pattern1_high")
         self.trigger_pattern1.setStatusTip(self.trigger_pattern1.toolTip())
         self.trigger_pattern1.title_label.setFixedSize(sz)
@@ -1397,7 +1397,7 @@ class TriggerSetupWidget(QtGui.QWidget):
             target=self.trigger_pattern1))
 
         # Trigger Pattern 0
-        self.trigger_pattern0 = BitPatternWidget("TP0")
+        self.trigger_pattern0 = BitPatternWidget("TP0:")
         self.trigger_pattern0.setToolTip("trigger_pattern0_low, trigger_pattern0_high")
         self.trigger_pattern0.setStatusTip(self.trigger_pattern0.toolTip())
         self.trigger_pattern0.title_label.setFixedSize(sz)
@@ -1582,16 +1582,27 @@ class MCFD16SetupWidget(QtGui.QWidget):
         gb_layout.addWidget(self.coincidence_widget)
         gbs.append(gb)
 
-        layout = QtGui.QHBoxLayout(self)
+        layout = QtGui.QGridLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
-        for gb in gbs:
-            v_layout = QtGui.QVBoxLayout()
-            v_layout.addWidget(gb)
-            v_layout.addStretch(1)
-            gb_layout.setContentsMargins(0, 0, 0, 0)
-            layout.addLayout(v_layout)
 
-        layout.addStretch(1)
+        # First row contains the group boxes
+        for col, gb in enumerate(gbs):
+            layout.addWidget(gb, 0, col)
+
+        # row spacer
+        layout.addItem(
+                QtGui.QSpacerItem(0, 0, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding),
+                layout.rowCount(), 0, 1, layout.columnCount())
+
+        # column spacer
+        layout.addItem(
+                QtGui.QSpacerItem(0, 0, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding),
+                0, layout.columnCount(), layout.rowCount(), 1)
+
+        # stretch factor for spacer cells
+        # => widgets stay top-left and won't grow
+        layout.setColumnStretch(layout.columnCount() - 1, 1)
+        layout.setRowStretch(layout.rowCount() - 1, 1)
 
     def get_parameter_bindings(self):
         return itertools.chain(
