@@ -6,6 +6,7 @@ from qt import pyqtProperty
 from qt import pyqtSignal
 from qt import QtCore
 from qt import QtGui
+from qt import Qt
 
 import future
 import util
@@ -239,6 +240,19 @@ class DeviceWidgetBase(QtGui.QWidget):
         self.device.hardware_set.connect(self._on_device_hardware_set)
         self._on_device_hardware_set(self.device, None, self.device.hw)
 
+        self.addAction(QtGui.QAction(
+            util.make_icon(":/device-notes.png"),
+            "Device Notes", self,
+            triggered=self._edit_device_notes))
+
+        layout = QtGui.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.tab_widget = QtGui.QTabWidget()
+        layout.addWidget(self.tab_widget)
+
+    def add_widget_tab(self, widget):
+        self.tab_widget.addTab(widget, "Widget")
+
     def get_display_mode(self):
         return self.device.read_mode
 
@@ -271,6 +285,17 @@ class DeviceWidgetBase(QtGui.QWidget):
 
     def get_parameter_bindings(self):
         raise NotImplementedError()
+
+    def has_toolbar(self):
+        return len(self.actions())
+
+    def get_toolbar(self):
+        tb = QtGui.QToolBar()
+
+        for a in self.actions():
+            tb.addAction(a)
+
+        return tb
 
     def showEvent(self, event):
         if not event.spontaneous():
@@ -316,3 +341,19 @@ class DeviceWidgetBase(QtGui.QWidget):
 
     def _on_hardware_disconnected(self):
         self.hardware_connected_changed.emit(False)
+
+    def _edit_device_notes(self):
+        d = DeviceNotesDialog(self.device, self)
+        d.show()
+
+class DeviceNotesDialog(QtGui.QDialog):
+    def __init__(self, device, parent=None):
+        super(DeviceNotesDialog, self).__init__(parent)
+
+        self._text_edit  = QtGui.QPlainTextEdit()
+        self._button_box = QtGui.QDialogButtonBox(
+                QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Discard)
+
+        l = QtGui.QVBoxLayout(self)
+        l.addWidget(self._text_edit)
+        l.addWidget(self._button_box)
