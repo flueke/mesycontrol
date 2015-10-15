@@ -254,17 +254,21 @@ class DeviceProfile(object):
         return map(lambda p: p.address, filter(lambda p: p.poll, self.parameters))
 
     def set_extension(self, ext):
-        d = dict()
-        d['name'] = name = ext['name']
-        d['default']  = ext['value']
+        #d = dict()
+        #d['name'] = name = ext['name']
+        #d['default'] = ext['value']
 
-        if 'limits' in ext:
-            d['limits'] = ext['limits']
+        #if 'limits' in ext:
+        #    d['limits'] = ext['limits']
 
-        if 'values' in ext:
-            d['values'] = ext['values']
+        #if 'values' in ext:
+        #    d['values'] = ext['values']
 
-        self._extensions[name] = d
+        #self._extensions[name] = d
+        # FIXME: change extension mechanism to handle extension meta data
+        # => stored extension values in config are different from extension
+        # definitions in the device profile.
+        self._extensions[ext['name']] = ext['value']
 
     def get_extension(self, name):
         return self._extensions[name]
