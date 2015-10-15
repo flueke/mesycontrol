@@ -470,8 +470,14 @@ class MHV4Widget(DeviceWidgetBase):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(MHV4Widget, self).__init__(device, display_mode, write_mode, parent)
 
+        self._action_settings = QtGui.QAction(
+                util.make_icon(":/preferences.png"),
+                "MHV-4 Settings", self,
+                triggered=self._show_preferences)
+
+        self.addAction(self._action_settings)
+
         self.channels = list()
-        self._toolbar = None
 
         # Channel controls
         channel_layout = QtGui.QHBoxLayout()
@@ -490,7 +496,11 @@ class MHV4Widget(DeviceWidgetBase):
         layout = QtGui.QVBoxLayout() 
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(channel_layout)
-        self.setLayout(layout)
+
+        widget = QtGui.QWidget()
+        widget.setLayout(layout)
+        self.tab_widget.addTab(widget, device.profile.name)
+        self._add_preferences_tab()
 
     def get_parameter_bindings(self):
         bindings = list()
@@ -500,17 +510,23 @@ class MHV4Widget(DeviceWidgetBase):
 
         return itertools.chain(*bindings)
 
-    def has_toolbar(self):
-        return True
+    def _add_preferences_tab(self):
+        bindings = list()
+        tabs = QtGui.QTabWidget()
 
-    def get_toolbar(self):
-        if self._toolbar is None:
-            self._toolbar = tb = QtGui.QToolBar()
+        for i in range(NUM_CHANNELS):
+            csw = ChannelSettingsWidget(self.device, i, self.display_mode, self.write_mode)
+            tabs.addTab(csw, "Channel %d" % (i+1))
+            bindings.append(csw.bindings)
 
-            tb.addAction(util.make_icon(":/preferences.png"),
-                    "MHV-4 Settings").triggered.connect(self._show_preferences)
+        gsw = GlobalSettingsWidget(self.device, self.display_mode, self.write_mode)
+        tabs.addTab(gsw, "Global")
+        bindings.append(gsw.bindings)
 
-        return self._toolbar
+        self.tab_widget.addTab(tabs, "Settings")
+
+        for b in itertools.chain(*bindings):
+            b.populate()
 
     def _show_preferences(self):
         bindings = list()

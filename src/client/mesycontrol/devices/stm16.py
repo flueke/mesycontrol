@@ -33,6 +33,7 @@ class STM16(DeviceBase):
 
     def __init__(self, app_device, read_mode, write_mode, parent=None):
         super(STM16, self).__init__(app_device, read_mode, write_mode, parent)
+        self.extension_changed.connect(self._on_extension_changed)
 
     def get_gain_adjust(self):
         return self.get_extension('gain_adjust')
@@ -52,6 +53,10 @@ class STM16(DeviceBase):
         self.get_parameter('gain_group%d' % group).add_done_callback(done)
 
         return ret
+
+    def _on_extension_changed(self, name, value):
+        if name == 'gain_adjust':
+            self.gain_adjust_changed.emit(self.get_gain_adjust())
 
 dynamic_label_style = "QLabel { background-color: lightgrey; }"
 
@@ -191,12 +196,12 @@ class STM16Widget(DeviceWidgetBase):
         super(STM16Widget, self).__init__(device, display_mode, write_mode, parent)
         self.device  = device
 
-        self.gain_page   = GainPage(device, display_mode, write_mode, self)
-        self.timing_page = TimingPage(device, display_mode, write_mode, self)
+        self.gain_page   = GainPage(device, display_mode, write_mode)
+        self.timing_page = TimingPage(device, display_mode, write_mode)
 
         self.pages = [self.gain_page, self.timing_page]
 
-        layout = QtGui.QHBoxLayout(self)
+        layout = QtGui.QHBoxLayout()
         layout.setContentsMargins(*(4 for i in range(4)))
         layout.setSpacing(4)
 
@@ -206,6 +211,10 @@ class STM16Widget(DeviceWidgetBase):
             vbox.addStretch(1)
             layout.addItem(vbox)
             page.installEventFilter(self)
+
+        widget = QtGui.QWidget()
+        widget.setLayout(layout)
+        self.tab_widget.addTab(widget, device.profile.name)
 
     def get_parameter_bindings(self):
         return itertools.chain(*(p.bindings for p in self.pages))

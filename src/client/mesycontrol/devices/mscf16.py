@@ -378,7 +378,12 @@ class MSCF16Widget(DeviceWidgetBase):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(MSCF16Widget, self).__init__(device, display_mode, write_mode, parent)
 
-        self._toolbar = None
+        self._action_settings = QtGui.QAction(
+                util.make_icon(":/preferences.png"),
+                "MSCF-16 Settings", self,
+                triggered=self._show_settings)
+
+        self.addAction(self._action_settings)
 
         self.gain_page      = GainPage(device, display_mode, write_mode, self)
         self.shaping_page   = ShapingPage(device, display_mode, write_mode, self)
@@ -387,6 +392,12 @@ class MSCF16Widget(DeviceWidgetBase):
 
         self.pages = [self.gain_page, self.shaping_page, self.timing_page, self.misc_page]
 
+        tb = QtGui.QToolButton(self)
+        tb.setDefaultAction(self._action_settings)
+        tb.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        action_layout = QtGui.QGridLayout()
+        action_layout.addWidget(tb, 0, 0)
+
         layout = QtGui.QHBoxLayout(self)
         layout.setContentsMargins(*(4 for i in range(4)))
         layout.setSpacing(4)
@@ -394,6 +405,9 @@ class MSCF16Widget(DeviceWidgetBase):
         for page in self.pages:
             vbox = QtGui.QVBoxLayout()
             vbox.addWidget(page)
+            if page is self.gain_page:
+                vbox.setSpacing(4)
+                vbox.addLayout(action_layout)
             vbox.addStretch(1)
             layout.addItem(vbox)
 
@@ -406,19 +420,6 @@ class MSCF16Widget(DeviceWidgetBase):
         for page in self.pages:
             if hasattr(page, 'handle_hardware_connected_changed'):
                 page.handle_hardware_connected_changed(connected)
-
-    def has_toolbar(self):
-        return True
-
-    def get_toolbar(self):
-        if self._toolbar is None:
-            self._toolbar = tb = QtGui.QToolBar()
-
-            tb.addAction(util.make_icon(":/preferences.png"),
-                    "MSCF-16 Settings").triggered.connect(
-                            self._show_settings)
-
-        return self._toolbar
 
     def _show_settings(self):
         d = SettingsDialog(self.device, self)
@@ -1253,6 +1254,7 @@ class MiscPage(QtGui.QWidget):
 class SettingsDialog(QtGui.QDialog):
     def __init__(self, device, parent=None):
         super(SettingsDialog, self).__init__(parent)
+        self.log = util.make_logging_source_adapter(__name__, self)
         util.loadUi(":/ui/mscf16_settings.ui", self)
         self.device = device
 
@@ -1290,6 +1292,7 @@ class SettingsDialog(QtGui.QDialog):
 
         # Fake extension change events to select correct indexes
         for name, value in device.get_extensions().iteritems():
+            self.log.debug("fake extension change: name=%s, value=%s", name, value)
             self._on_device_extension_changed(name, value)
 
         self.device.extension_changed.connect(self._on_device_extension_changed)

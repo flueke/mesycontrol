@@ -376,7 +376,7 @@ class MCFD16Widget(DeviceWidgetBase):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(MCFD16Widget, self).__init__(device, display_mode, write_mode, parent)
 
-        self.tab_widget = QtGui.QTabWidget()
+        #self.tab_widget = QtGui.QTabWidget()
 
         self.tab_widget.addTab(
                 MCFD16ControlsWidget(device, display_mode, write_mode, self),
@@ -386,9 +386,9 @@ class MCFD16Widget(DeviceWidgetBase):
                 MCFD16SetupWidget(device, display_mode, write_mode, self),
                 "Trigger / Coincidence Setup")
 
-        layout = QtGui.QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.tab_widget)
+        #layout = QtGui.QVBoxLayout(self)
+        #layout.setContentsMargins(0, 0, 0, 0)
+        #layout.addWidget(self.tab_widget)
 
     def get_parameter_bindings(self):
         tb  = self.tab_widget
