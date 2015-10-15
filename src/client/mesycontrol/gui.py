@@ -1475,7 +1475,7 @@ Initialize using the current hardware values or the device defaults?
             if node.ref.has_cfg:
                 add_action(self.actions['save_device_config'])
             add_action(self.actions['remove_config'])
-            add_action(self.actions['show_device_extensions'])
+            #add_action(self.actions['show_device_extensions'])
 
         if not menu.isEmpty():
             menu.exec_(view.mapToGlobal(pos))
@@ -1510,7 +1510,7 @@ Initialize using the current hardware values or the device defaults?
             add_action(self.actions['open_device_table'])
             add_action(self.actions['toggle_rc'])
             #add_action(self.actions['refresh'])
-            add_action(self.actions['show_device_extensions'])
+            #add_action(self.actions['show_device_extensions'])
 
         if not menu.isEmpty():
             menu.exec_(view.mapToGlobal(pos))
