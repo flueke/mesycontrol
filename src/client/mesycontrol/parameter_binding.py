@@ -91,7 +91,8 @@ class AbstractParameterBinding(object):
         # in the config.
         address = self.read_address if dev is self.device.hw else self.write_address
         f       = dev.get_parameter(address).add_done_callback(self._update_wrapper)
-        log.debug("populate: target=%s, addr=%d, future=%s, dev=%s", self.target, address, f, dev)
+        log.debug("populate: target=%s, addr=%d, future=%s, dev=%s ======================================",
+                self.target, address, f, dev)
 
     def get_address(self):
         return self.profile.address
@@ -115,7 +116,10 @@ class AbstractParameterBinding(object):
         if self.fixed_modes:
             return False
 
-        self._write_mode = mode
+        if self._write_mode != mode:
+            self._write_mode = mode
+            self.populate()
+
         return True
 
     def get_display_mode(self):
@@ -209,6 +213,8 @@ class AbstractParameterBinding(object):
             new_hw.disconnected.connect(self.populate)
             new_hw.connected.connect(self.populate)
 
+        self.populate()
+
     def _on_device_cfg_set(self, device, old_cfg, new_cfg):
         log.debug("_on_device_cfg_set: device=%s, old=%s, new=%s",
                 device, old_cfg, new_cfg)
@@ -219,15 +225,19 @@ class AbstractParameterBinding(object):
         if new_cfg is not None:
             new_cfg.parameter_changed.connect(self._on_cfg_parameter_changed)
 
+        self.populate()
+
     def _on_hw_parameter_changed(self, address, value):
-        if address == self.read_address and self.display_mode == util.HARDWARE:
-            f = self.device.hw.get_parameter(self.read_address).add_done_callback(self._update_wrapper)
-            log.debug("_on_hw_parameter_changed: target=%s, addr=%d, future=%s", self.target, self.read_address, f)
+        if address == self.read_address and (self.display_mode == util.HARDWARE or self.write_mode == util.COMBINED):
+            #f = self.device.hw.get_parameter(self.read_address).add_done_callback(self._update_wrapper)
+            #log.debug("_on_hw_parameter_changed: target=%s, addr=%d, future=%s", self.target, self.read_address, f)
+            self.populate()
 
     def _on_cfg_parameter_changed(self, address, value):
         if address == self.write_address and self.display_mode == util.CONFIG:
-            f = self.device.cfg.get_parameter(self.write_address).add_done_callback(self._update_wrapper)
-            log.debug("_on_cfg_parameter_changed: target=%s, addr=%d, future=%s", self.target, self.write_address, f)
+            #f = self.device.cfg.get_parameter(self.write_address).add_done_callback(self._update_wrapper)
+            #log.debug("_on_cfg_parameter_changed: target=%s, addr=%d, future=%s", self.target, self.write_address, f)
+            self.populate()
 
     def _write_value(self, value):
         log.debug("_write_value: self=%s, target=%s, %d=%d", self, self.target, self.write_address, value)
@@ -287,8 +297,11 @@ class AbstractParameterBinding(object):
                     ).add_done_callback(on_cfg_set)
 
     def _update_wrapper(self, result_future):
-        log.debug("_update_wrapper: target=%s, addr=%d, result_future=%s",
-                self.target, self.read_address, result_future)
+        log.debug("_update_wrapper: target=%s, raddr=%d, waddr=%d, result_future=%s",
+                self.target, self.read_address, self.write_address, result_future)
+
+        if not result_future.exception():
+            log.debug("_update_wrapper: result=%s", result_future.result())
 
         self._update(result_future)
         self._exec_callbacks(result_future)
@@ -372,15 +385,16 @@ class AbstractParameterBinding(object):
 
 class DefaultParameterBinding(AbstractParameterBinding):
     def __init__(self, **kwargs):
+        self._original_palette = None
         super(DefaultParameterBinding, self).__init__(**kwargs)
 
         log.info("DefaultParameterBinding: target=%s", self.target)
 
-        if isinstance(self.target, QtGui.QWidget):
-            self._original_palette = QtGui.QPalette(self.target.palette())
-        else:
-            self._original_palette = None
-            log.info("DefaultParameterBinding: non QWidget target %s", self.target)
+        #if isinstance(self.target, QtGui.QWidget):
+        #    self._original_palette = QtGui.QPalette(self.target.palette())
+        #else:
+        #    self._original_palette = None
+        #    log.info("DefaultParameterBinding: non QWidget target %s", self.target)
 
     def _update(self, result_future):
         log.debug("_update: target=%s, result_future=%s", self.target, result_future)
@@ -393,6 +407,9 @@ class DefaultParameterBinding(AbstractParameterBinding):
             (ParameterUnavailable, util.Disconnected)))
 
     def _get_palette(self, rf):
+        if self._original_palette is None and isinstance(self.target, QtGui.QWidget):
+            self._original_palette = QtGui.QPalette(self.target.palette())
+
         pal = QtGui.QPalette(self._original_palette)
 
         try:
@@ -401,6 +418,7 @@ class DefaultParameterBinding(AbstractParameterBinding):
                 raise RuntimeError()
         except Exception:
             pal.setColor(QtGui.QPalette.Base, QtGui.QColor('red'))
+            log.debug("_get_palette: Exception from result future; setting red background color")
             return pal
 
         if (self.write_mode == util.COMBINED
@@ -409,25 +427,35 @@ class DefaultParameterBinding(AbstractParameterBinding):
                 and self.profile is not None
                 and self.get_write_profile().should_be_stored()):
             try:
+                log.debug("_get_palette: comparing hardware and config")
                 f_cfg = self.device.cfg.get_parameter(self.write_address)
                 f_hw  = self.device.hw.get_parameter(self.read_address)
 
                 if not f_cfg.done():
+                    log.debug("_get_palette: adding update callback to config future")
                     f_cfg.add_done_callback(self._update_wrapper)
 
                 if not f_hw.done():
+                    log.debug("_get_palette: adding update callback to hardware future")
                     f_hw.add_done_callback(self._update_wrapper)
 
                 if f_cfg.done() and f_hw.done():
                     cfg_value = int(f_cfg)
                     hw_value  = int(f_hw)
+                    log.debug("_get_palette: both cfg and hw futures are done; ra=%d, wa=%d, cfg_value=%d, hw_value=%d",
+                            self.read_address, self.write_address, cfg_value, hw_value)
 
                     if cfg_value != hw_value:
+                        log.debug("_get_palette: ra=%d, wa=%d, cfg and hw differ; returning orange",
+                                self.read_address, self.write_address)
                         pal.setColor(QtGui.QPalette.Base, QtGui.QColor('orange'))
 
             except (future.IncompleteFuture, KeyError,
                     util.SocketError, util.Disconnected):
                 log.exception("_get_palette")
+
+        else:
+            log.debug("_get_palette: hw vs cfg condition failed; returning original palette")
 
         return pal
 
