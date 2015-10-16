@@ -1427,9 +1427,12 @@ Initialize using the current hardware values or the device defaults?
                 util.RW_MODE_NAMES[display_mode],
                 util.RW_MODE_NAMES[write_mode])
 
-        widget = app_device.make_device_widget(display_mode, write_mode)
+        widget = app_device.make_device_widget(display_mode, write_mode,
+                make_settings=self.context.make_qsettings)
+
         subwin = gui_util.DeviceWidgetSubWindow(widget=widget)
         subwin.set_linked_mode(self.linked_mode)
+
         return self._register_device_subwindow(subwin)
 
     def _register_device_subwindow(self, subwin):

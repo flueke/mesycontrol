@@ -540,17 +540,21 @@ class Device(AppObject):
 
         return module.device_class(self, read_mode, write_mode)
 
-    def make_device_widget(self, display_mode, write_mode, parent=None):
+    def make_device_widget(self, display_mode, write_mode, make_settings=None, parent=None):
         try:
             module = self.module
         except IDCConflict:
             module = self.cfg_module if display_mode & util.CONFIG else self.hw_module
 
-        return module.device_ui_class(
+        ret = module.device_ui_class(
                 device=self.make_specialized_device(display_mode, write_mode),
                 display_mode=display_mode,
                 write_mode=write_mode,
                 parent=parent)
+
+        ret.make_settings = make_settings
+
+        return ret
 
     def has_specialized_class(self):
         return self.module.has_specialized_class()
