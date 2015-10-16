@@ -41,6 +41,9 @@
     <file alias="window-icon.png">resources/window-icon-3.png</file>
     <file alias="write-access.png">resources/media-record-2x.png</file>
     <file alias="device-notes.png">resources/document-2x.png</file>
+    <file alias="edit.png">resources/accessories-text-editor.png</file>
+    <file alias="collapse-up.png">resources/data-transfer-upload-2x.png</file>
+    <file alias="collapse-down.png">resources/data-transfer-download-2x.png</file>
 
 
     <file>resources/applications-utilities.png</file>
