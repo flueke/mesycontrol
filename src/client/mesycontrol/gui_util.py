@@ -544,3 +544,79 @@ class ServerLogView(QtGui.QPlainTextEdit):
 
     def _on_server_output(self, data):
         self.appendPlainText(data.trimmed())
+
+class DeviceNotesWidget(QtGui.QWidget):
+    DISPLAY_ROWS = 3
+    ADD_PIXELS_PER_ROW = 5
+
+    def __init__(self, device, parent=None):
+        super(DeviceNotesWidget, self).__init__(parent)
+
+        self.device = device
+
+        device.read_mode_changed.connect(self._on_device_read_mode_changed)
+        device.write_mode_changed.connect(self._on_device_write_mode_changed)
+        device.extension_changed.connect(self._on_device_extension_changed)
+
+        self.text_edit = QtGui.QPlainTextEdit()
+        self.text_edit.setReadOnly(True)
+
+        fm = self.text_edit.fontMetrics()
+        rh = fm.lineSpacing() + DeviceNotesWidget.ADD_PIXELS_PER_ROW
+        self.text_edit.setFixedHeight(DeviceNotesWidget.DISPLAY_ROWS * rh)
+
+        pal = self.text_edit.palette()
+        pal.setColor(QtGui.QPalette.Base, QtGui.QColor('lightgrey'))
+        self.text_edit.setPalette(pal)
+
+        layout = QtGui.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self.text_edit)
+
+        self.edit_button = QtGui.QPushButton(util.make_icon(":/edit.png"), str(),
+                clicked=self._on_edit_button_clicked)
+        self.edit_button.setToolTip("Edit Device Notes")
+        self.edit_button.setStatusTip(self.edit_button.toolTip())
+
+        button_layout = QtGui.QVBoxLayout()
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        button_layout.addWidget(self.edit_button, 0, Qt.AlignHCenter)
+        button_layout.addStretch(1)
+
+        layout.addLayout(button_layout)
+
+        self._populate()
+
+    def _on_device_read_mode_changed(self, read_mode):
+        self._populate()
+
+    def _on_device_write_mode_changed(self, write_mode):
+        self._populate()
+
+    def _on_device_extension_changed(self, name, value):
+        if name == 'user_notes':
+            self._populate()
+
+    def _populate(self):
+        with util.block_signals(self.text_edit):
+            try:
+                self.text_edit.setPlainText(
+                        self.device.get_extension('user_notes'))
+            except KeyError:
+                self.text_edit.clear()
+            self.text_edit.document().setModified(False)
+
+    def _on_edit_button_clicked(self):
+        self.text_edit.setReadOnly(not self.text_edit.isReadOnly())
+
+        pal = QtGui.QPalette()
+
+        if self.text_edit.isReadOnly():
+            pal.setColor(QtGui.QPalette.Base, QtGui.QColor('lightgrey'))
+
+            if self.text_edit.document().isModified():
+                self.device.set_extension('user_notes', self.text_edit.toPlainText())
+                self.text_edit.document().setModified(False)
+
+        self.text_edit.setPalette(pal)
