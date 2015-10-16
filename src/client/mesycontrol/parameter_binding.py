@@ -213,8 +213,6 @@ class AbstractParameterBinding(object):
             new_hw.disconnected.connect(self.populate)
             new_hw.connected.connect(self.populate)
 
-        self.populate()
-
     def _on_device_cfg_set(self, device, old_cfg, new_cfg):
         log.debug("_on_device_cfg_set: device=%s, old=%s, new=%s",
                 device, old_cfg, new_cfg)
@@ -225,18 +223,16 @@ class AbstractParameterBinding(object):
         if new_cfg is not None:
             new_cfg.parameter_changed.connect(self._on_cfg_parameter_changed)
 
-        self.populate()
-
     def _on_hw_parameter_changed(self, address, value):
         if address == self.read_address and (self.display_mode == util.HARDWARE or self.write_mode == util.COMBINED):
-            #f = self.device.hw.get_parameter(self.read_address).add_done_callback(self._update_wrapper)
-            #log.debug("_on_hw_parameter_changed: target=%s, addr=%d, future=%s", self.target, self.read_address, f)
+            f = self.device.hw.get_parameter(self.read_address).add_done_callback(self._update_wrapper)
+            log.debug("_on_hw_parameter_changed: target=%s, addr=%d, future=%s", self.target, self.read_address, f)
             self.populate()
 
     def _on_cfg_parameter_changed(self, address, value):
         if address == self.write_address and self.display_mode == util.CONFIG:
-            #f = self.device.cfg.get_parameter(self.write_address).add_done_callback(self._update_wrapper)
-            #log.debug("_on_cfg_parameter_changed: target=%s, addr=%d, future=%s", self.target, self.write_address, f)
+            f = self.device.cfg.get_parameter(self.write_address).add_done_callback(self._update_wrapper)
+            log.debug("_on_cfg_parameter_changed: target=%s, addr=%d, future=%s", self.target, self.write_address, f)
             self.populate()
 
     def _write_value(self, value):
@@ -339,11 +335,14 @@ class AbstractParameterBinding(object):
                 f_cfg = self.device.cfg.get_parameter(self.write_address)
                 f_hw  = self.device.hw.get_parameter(self.read_address)
 
+                def populate_cb(_):
+                    self.populate()
+
                 if not f_cfg.done():
-                    f_cfg.add_done_callback(self._update_wrapper)
+                    f_cfg.add_done_callback(populate_cb)
 
                 if not f_hw.done():
-                    f_hw.add_done_callback(self._update_wrapper)
+                    f_hw.add_done_callback(populate_cb)
 
                 if f_cfg.done() and f_hw.done():
                     cfg_value = int(f_cfg)
@@ -385,16 +384,15 @@ class AbstractParameterBinding(object):
 
 class DefaultParameterBinding(AbstractParameterBinding):
     def __init__(self, **kwargs):
-        self._original_palette = None
         super(DefaultParameterBinding, self).__init__(**kwargs)
 
         log.info("DefaultParameterBinding: target=%s", self.target)
 
-        #if isinstance(self.target, QtGui.QWidget):
-        #    self._original_palette = QtGui.QPalette(self.target.palette())
-        #else:
-        #    self._original_palette = None
-        #    log.info("DefaultParameterBinding: non QWidget target %s", self.target)
+        if isinstance(self.target, QtGui.QWidget):
+            self._original_palette = QtGui.QPalette(self.target.palette())
+        else:
+            self._original_palette = None
+            log.info("DefaultParameterBinding: non QWidget target %s", self.target)
 
     def _update(self, result_future):
         log.debug("_update: target=%s, result_future=%s", self.target, result_future)
@@ -407,9 +405,6 @@ class DefaultParameterBinding(AbstractParameterBinding):
             (ParameterUnavailable, util.Disconnected)))
 
     def _get_palette(self, rf):
-        if self._original_palette is None and isinstance(self.target, QtGui.QWidget):
-            self._original_palette = QtGui.QPalette(self.target.palette())
-
         pal = QtGui.QPalette(self._original_palette)
 
         try:
