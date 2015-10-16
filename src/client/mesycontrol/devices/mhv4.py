@@ -470,13 +470,6 @@ class MHV4Widget(DeviceWidgetBase):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(MHV4Widget, self).__init__(device, display_mode, write_mode, parent)
 
-        self._action_settings = QtGui.QAction(
-                util.make_icon(":/preferences.png"),
-                "MHV-4 Settings", self,
-                triggered=self._show_preferences)
-
-        self.addAction(self._action_settings)
-
         self.channels = list()
 
         # Channel controls
@@ -500,7 +493,7 @@ class MHV4Widget(DeviceWidgetBase):
         widget = QtGui.QWidget()
         widget.setLayout(layout)
         self.tab_widget.addTab(widget, device.profile.name)
-        self._add_preferences_tab()
+        self.settings_bindings = self._add_settings_tab()
 
     def get_parameter_bindings(self):
         bindings = list()
@@ -508,9 +501,11 @@ class MHV4Widget(DeviceWidgetBase):
         for cw in self.channels:
             bindings.append(cw().bindings)
 
+        bindings.extend(self.settings_bindings)
+
         return itertools.chain(*bindings)
 
-    def _add_preferences_tab(self):
+    def _add_settings_tab(self):
         bindings = list()
         tabs = QtGui.QTabWidget()
 
@@ -528,37 +523,7 @@ class MHV4Widget(DeviceWidgetBase):
         for b in itertools.chain(*bindings):
             b.populate()
 
-    def _show_preferences(self):
-        bindings = list()
-        tabs = QtGui.QTabWidget()
-
-        for i in range(NUM_CHANNELS):
-            csw = ChannelSettingsWidget(self.device, i, self.display_mode, self.write_mode)
-            tabs.addTab(csw, "Channel %d" % (i+1))
-            bindings.append(csw.bindings)
-
-        gsw = GlobalSettingsWidget(self.device, self.display_mode, self.write_mode)
-        tabs.addTab(gsw, "Global")
-        bindings.append(gsw.bindings)
-
-        d = QtGui.QDialog(self)
-        d.setModal(True)
-        d.setWindowTitle("MHV-4 Settings")
-
-        pb = QtGui.QPushButton("Close", clicked=d.close)
-        pb_l = QtGui.QHBoxLayout()
-        pb_l.addStretch(1)
-        pb_l.addWidget(pb)
-        pb_l.addStretch(1)
-
-        l = QtGui.QVBoxLayout(d)
-        l.addWidget(tabs)
-        l.addLayout(pb_l)
-
-        for b in itertools.chain(*bindings):
-            b.populate()
-
-        d.show()
+        return bindings
 
 idc             = 27
 device_class    = MHV4
