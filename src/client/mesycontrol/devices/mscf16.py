@@ -378,13 +378,6 @@ class MSCF16Widget(DeviceWidgetBase):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(MSCF16Widget, self).__init__(device, display_mode, write_mode, parent)
 
-        self._action_settings = QtGui.QAction(
-                util.make_icon(":/preferences.png"),
-                "MSCF-16 Settings", self,
-                triggered=self._show_settings)
-
-        self.addAction(self._action_settings)
-
         self.gain_page      = GainPage(device, display_mode, write_mode, self)
         self.shaping_page   = ShapingPage(device, display_mode, write_mode, self)
         self.timing_page    = TimingPage(device, display_mode, write_mode, self)
@@ -392,24 +385,22 @@ class MSCF16Widget(DeviceWidgetBase):
 
         self.pages = [self.gain_page, self.shaping_page, self.timing_page, self.misc_page]
 
-        tb = QtGui.QToolButton(self)
-        tb.setDefaultAction(self._action_settings)
-        tb.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        action_layout = QtGui.QGridLayout()
-        action_layout.addWidget(tb, 0, 0)
-
-        layout = QtGui.QHBoxLayout(self)
+        layout = QtGui.QHBoxLayout()
         layout.setContentsMargins(*(4 for i in range(4)))
         layout.setSpacing(4)
 
         for page in self.pages:
             vbox = QtGui.QVBoxLayout()
             vbox.addWidget(page)
-            if page is self.gain_page:
-                vbox.setSpacing(4)
-                vbox.addLayout(action_layout)
             vbox.addStretch(1)
             layout.addItem(vbox)
+
+        widget = QtGui.QWidget()
+        widget.setLayout(layout)
+        self.tab_widget.addTab(widget, device.profile.name)
+
+        self.settings_widget = SettingsWidget(device)
+        self.tab_widget.addTab(self.settings_widget, "Settings")
 
         self.hardware_connected_changed.connect(self._on_hardware_connected_changed)
 
@@ -420,10 +411,6 @@ class MSCF16Widget(DeviceWidgetBase):
         for page in self.pages:
             if hasattr(page, 'handle_hardware_connected_changed'):
                 page.handle_hardware_connected_changed(connected)
-
-    def _show_settings(self):
-        d = SettingsDialog(self.device, self)
-        d.show()
 
 class GainPage(QtGui.QGroupBox):
     def __init__(self, device, display_mode, write_mode, parent=None):
@@ -1251,9 +1238,9 @@ class MiscPage(QtGui.QWidget):
 
         self.device.get_hardware_info().add_done_callback(done)
 
-class SettingsDialog(QtGui.QDialog):
+class SettingsWidget(QtGui.QWidget):
     def __init__(self, device, parent=None):
-        super(SettingsDialog, self).__init__(parent)
+        super(SettingsWidget, self).__init__(parent)
         self.log = util.make_logging_source_adapter(__name__, self)
         util.loadUi(":/ui/mscf16_settings.ui", self)
         self.device = device
@@ -1320,7 +1307,6 @@ class SettingsDialog(QtGui.QDialog):
                 o.setCurrentIndex(idx)
 
         elif name == 'input_connector':
-            print ext_value
             idx = self.combo_input_connector.findText(ext_value)
             with util.block_signals(self.combo_input_connector) as o:
                 o.setCurrentIndex(idx)
