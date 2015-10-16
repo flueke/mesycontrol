@@ -240,18 +240,32 @@ class DeviceWidgetBase(QtGui.QWidget):
         self.device.hardware_set.connect(self._on_device_hardware_set)
         self._on_device_hardware_set(self.device, None, self.device.hw)
 
-        self.addAction(QtGui.QAction(
-            util.make_icon(":/device-notes.png"),
-            "Device Notes", self,
-            triggered=self._edit_device_notes))
+        self.notes_widget = DeviceNotesWidget(specialized_device)
+
+        self.hide_notes_button = QtGui.QPushButton(util.make_icon(":/collapse-up.png"), str(),
+                clicked=self._toggle_hide_notes)
+        self.hide_notes_button.setToolTip("Hide Device notes")
+        self.hide_notes_button.setStatusTip(self.hide_notes_button.toolTip())
+
+        self.tab_widget = QtGui.QTabWidget()
+        self.tab_widget.setCornerWidget(self.hide_notes_button, Qt.TopRightCorner)
 
         layout = QtGui.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        self.tab_widget = QtGui.QTabWidget()
+        layout.addWidget(self.notes_widget)
         layout.addWidget(self.tab_widget)
+        layout.setStretch(1, 1)
 
-    def add_widget_tab(self, widget):
-        self.tab_widget.addTab(widget, "Widget")
+    def _toggle_hide_notes(self):
+        self.notes_widget.setVisible(not self.notes_widget.isVisible())
+
+        if self.notes_widget.isVisible():
+            self.hide_notes_button.setIcon(util.make_icon(":/collapse-up.png"))
+            self.hide_notes_button.setToolTip("Hide Device notes")
+        else:
+            self.hide_notes_button.setIcon(util.make_icon(":/collapse-down.png"))
+            self.hide_notes_button.setToolTip("Show Device notes")
+        self.hide_notes_button.setStatusTip(self.hide_notes_button.toolTip())
 
     def get_display_mode(self):
         return self.device.read_mode
@@ -342,18 +356,78 @@ class DeviceWidgetBase(QtGui.QWidget):
     def _on_hardware_disconnected(self):
         self.hardware_connected_changed.emit(False)
 
-    def _edit_device_notes(self):
-        d = DeviceNotesDialog(self.device, self)
-        d.show()
+NOTES_DISPLAY_ROWS = 3
+NOTES_DISPLAY_ADD_PIXELS_PER_ROW = 5
 
-class DeviceNotesDialog(QtGui.QDialog):
+class DeviceNotesWidget(QtGui.QWidget):
     def __init__(self, device, parent=None):
-        super(DeviceNotesDialog, self).__init__(parent)
+        super(DeviceNotesWidget, self).__init__(parent)
 
-        self._text_edit  = QtGui.QPlainTextEdit()
-        self._button_box = QtGui.QDialogButtonBox(
-                QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Discard)
+        self.device = device
 
-        l = QtGui.QVBoxLayout(self)
-        l.addWidget(self._text_edit)
-        l.addWidget(self._button_box)
+        device.read_mode_changed.connect(self._on_device_read_mode_changed)
+        device.write_mode_changed.connect(self._on_device_write_mode_changed)
+        device.extension_changed.connect(self._on_device_extension_changed)
+
+        self.text_edit = QtGui.QPlainTextEdit()
+        self.text_edit.setReadOnly(True)
+
+        fm = self.text_edit.fontMetrics()
+        rh = fm.lineSpacing() + NOTES_DISPLAY_ADD_PIXELS_PER_ROW
+        self.text_edit.setFixedHeight(NOTES_DISPLAY_ROWS*rh)
+
+        pal = self.text_edit.palette()
+        pal.setColor(QtGui.QPalette.Base, QtGui.QColor('lightgrey'))
+        self.text_edit.setPalette(pal)
+
+        layout = QtGui.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self.text_edit)
+
+        self.edit_button = QtGui.QPushButton(util.make_icon(":/edit.png"), str(),
+                clicked=self._on_edit_button_clicked)
+        self.edit_button.setToolTip("Edit Device Notes")
+        self.edit_button.setStatusTip(self.edit_button.toolTip())
+
+        button_layout = QtGui.QVBoxLayout()
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        button_layout.addWidget(self.edit_button, 0, Qt.AlignHCenter)
+        button_layout.addStretch(1)
+
+        layout.addLayout(button_layout)
+
+        self._populate()
+
+    def _on_device_read_mode_changed(self, read_mode):
+        self._populate()
+
+    def _on_device_write_mode_changed(self, write_mode):
+        self._populate()
+
+    def _on_device_extension_changed(self, name, value):
+        if name == 'user_notes':
+            self._populate()
+
+    def _populate(self):
+        with util.block_signals(self.text_edit):
+            try:
+                self.text_edit.setPlainText(
+                        self.device.get_extension('user_notes'))
+            except KeyError:
+                self.text_edit.clear()
+            self.text_edit.document().setModified(False)
+
+    def _on_edit_button_clicked(self):
+        self.text_edit.setReadOnly(not self.text_edit.isReadOnly())
+
+        pal = QtGui.QPalette()
+
+        if self.text_edit.isReadOnly():
+            pal.setColor(QtGui.QPalette.Base, QtGui.QColor('lightgrey'))
+
+            if self.text_edit.document().isModified():
+                self.device.set_extension('user_notes', self.text_edit.toPlainText())
+                self.text_edit.document().setModified(False)
+
+        self.text_edit.setPalette(pal)
