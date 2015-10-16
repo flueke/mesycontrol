@@ -242,17 +242,22 @@ def test_read_setup():
 def test_value2xml_string_types():
     tb = cxml.CommentTreeBuilder()
 
-    l = ["Hello World!", u"Hello Unicode World!", QtCore.QString("Hello QString World!")]
+    l = [
+            "Hello World!",
+            u"Hello Unicode World!",
+            QtCore.QString("Hello QString World!"),
+            u"Hello unicode €uro World!",
+            QtCore.QString.fromUtf8("Hello QString.fromUtf8 €uro World!")
+            ]
 
     for txt in l:
         cxml.value2xml(tb, txt)
         tree = ET.ElementTree(tb.close())
         xml = cxml._xml_tree_to_string(tree)
 
-        et = ET.fromstring(xml)
+        et = ET.fromstring(xml.encode('utf-8'))
         value = cxml.xml2value(et)
 
-        assert txt == value
+        print type(txt), type(value)
 
-    tree = ET.ElementTree(tb.close())
-    xml = cxml._xml_tree_to_string(tree)
+        assert txt == value
