@@ -140,7 +140,7 @@ class MRCNode(ConfigTreeNode):
 
     def set_data(self, column, value, role):
         if role == Qt.EditRole and column == 0:
-            self.ref.cfg.name = str(value.toString())
+            self.ref.cfg.name = unicode(value.toString())
             return True
         return False
 
@@ -258,6 +258,6 @@ class DeviceNode(ConfigTreeNode):
 
     def set_data(self, column, value, role):
         if role == Qt.EditRole and column == 0:
-            self.ref.cfg.name = str(value.toString())
+            self.ref.cfg.name = unicode(value.toString())
             return True
         return False

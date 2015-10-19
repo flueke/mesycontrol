@@ -81,7 +81,7 @@ class Setup(bm.MRCRegistry):
 
 class MRC(bm.MRC):
     modified_changed    = pyqtSignal(bool)
-    name_changed        = pyqtSignal(str)
+    name_changed        = pyqtSignal(unicode)
 
     def __init__(self, url=None, parent=None):
         super(MRC, self).__init__(url, parent)
@@ -103,7 +103,7 @@ class MRC(bm.MRC):
 
     @modifies
     def set_name(self, name):
-        name = str(name) if name is not None else str()
+        name = unicode(name) if name is not None else unicode()
         if self.name != name:
             self._name = name
             self.name_changed.emit(self.name)
@@ -132,7 +132,7 @@ class MRC(bm.MRC):
     set_url     = modifies(bm.MRC.set_url)
 
     modified    = pyqtProperty(bool, is_modified, set_modified, notify=modified_changed)
-    name        = pyqtProperty(str, get_name, set_name, notify=name_changed)
+    name        = pyqtProperty(unicode, get_name, set_name, notify=name_changed)
 
 class Device(bm.Device):
     modified_changed    = pyqtSignal(bool)
@@ -156,7 +156,7 @@ class Device(bm.Device):
 
     @modifies
     def set_name(self, name):
-        name = str(name) if name is not None else str()
+        name = unicode(name) if name is not None else unicode()
         if self.name != name:
             self._name = name
             self.name_changed.emit(self.name)
@@ -197,9 +197,9 @@ class Device(bm.Device):
                 hex(id(self)), self.bus, self.address, self.idc, self.mrc)
 
     modified    = pyqtProperty(bool, is_modified, set_modified, notify=modified_changed)
-    name        = pyqtProperty(str, get_name, set_name, notify=name_changed)
+    name        = pyqtProperty(unicode, get_name, set_name, notify=name_changed)
 
-def make_device_config(bus, address, idc, name=str(), device_profile=None):
+def make_device_config(bus, address, idc, name=unicode(), device_profile=None):
     if device_profile is not None and device_profile.idc != idc:
         raise ValueError("idc does not match device profile idc")
 

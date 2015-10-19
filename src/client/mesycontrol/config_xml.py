@@ -79,7 +79,7 @@ def write_setup(setup, dest, idc_to_parameter_names=dict()):
     data = _xml_tree_to_string(tree)
 
     try:
-        dest.write(data)
+        dest.write(data.encode('utf-8'))
     except AttributeError:
         with open(dest, 'w') as fp:
             fp.write(data.encode('utf-8'))
@@ -111,10 +111,10 @@ def write_device_config(device_config, dest, parameter_names=dict()):
     data = _xml_tree_to_string(tree)
 
     try:
-        dest.write(data)
+        dest.write(data.encode('utf-8'))
     except AttributeError:
         with open(dest, 'w') as fp:
-            fp.write(data)
+            fp.write(data.encode('utf-8'))
 
 class CommentTreeBuilder(TreeBuilder):
     def comment(self, data):
