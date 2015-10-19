@@ -191,12 +191,12 @@ void MRC1Connection::stop()
   stop(boost::system::error_code(), proto::MRCStatus::STOPPED);
 }
 
-void MRC1Connection::stop(const boost::system::error_code &reason, proto::MRCStatus::Status new_status)
+void MRC1Connection::stop(const boost::system::error_code &reason, proto::MRCStatus::StatusCode new_status)
 {
   stop_impl();
   m_timeout_timer.cancel();
   m_last_error = reason;
-  set_status(new_status, reason.message());
+  set_status(new_status, reason);
   BOOST_LOG_SEV(m_log, log::lvl::info) << "stopped";
 }
 
@@ -378,21 +378,25 @@ void MRC1Connection::handle_reconnect_timeout(const boost::system::error_code &e
   }
 }
 
-void MRC1Connection::set_status(const proto::MRCStatus::Status &status,
-    const std::string &info, const std::string &version, bool has_read_multi)
+void MRC1Connection::set_status(
+    const proto::MRCStatus::StatusCode &status,
+    const boost::system::error_code &reason,
+    const std::string &version,
+    bool has_read_multi)
 {
   BOOST_LOG_SEV(m_log, log::lvl::info) << "MRC status changed: "
-    << proto::MRCStatus::Status_Name(m_status)
+    << proto::MRCStatus::StatusCode_Name(m_status)
     << " -> "
-    << proto::MRCStatus::Status_Name(status)
-    << "(info=\""  << info
+    << proto::MRCStatus::StatusCode_Name(status)
+    << "(reason="  << reason.value()
+    << ",info=\""  << reason.message()
     << "\",version="  << version
     << ",has_read_multi=" << has_read_multi << ")";
 
   m_status = status;
 
   BOOST_FOREACH(StatusChangeCallback callback, m_status_change_callbacks) {
-    callback(m_status, info, version, has_read_multi);
+    callback(m_status, reason, version, has_read_multi);
   }
 }
 

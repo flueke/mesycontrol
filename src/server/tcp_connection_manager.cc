@@ -285,10 +285,13 @@ void TCPConnectionManager::handle_read_after_set(const TCPConnectionPtr &connect
   }
 }
 
-void TCPConnectionManager::handle_mrc1_status_change(const proto::MRCStatus::Status &status,
-    const std::string &info, const std::string &version, bool has_read_multi)
+void TCPConnectionManager::handle_mrc1_status_change(
+    const proto::MRCStatus::StatusCode &status,
+    const boost::system::error_code &reason,
+    const std::string &version,
+    bool has_read_multi)
 {
-  send_to_all(MessageFactory::make_mrc_status_notification(status, info, version,
+  send_to_all(MessageFactory::make_mrc_status_notification(status, reason, version,
         has_read_multi));
 
   if (status == proto::MRCStatus::RUNNING && !m_connections.empty()) {

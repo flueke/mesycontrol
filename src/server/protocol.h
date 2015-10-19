@@ -3,6 +3,7 @@
 
 #include <boost/cstdint.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/system/error_code.hpp>
 
 #include "config.h"
 #include "mesycontrol.pb.h"
@@ -38,12 +39,16 @@ class MessageFactory
     static MessagePtr make_parameter_set_notification(boost::uint8_t bus, boost::uint8_t dev,
         boost::uint8_t par, boost::int32_t value, boost::int32_t requested_value, bool mirror = false);
 
-    static MessagePtr make_mrc_status_response(const proto::MRCStatus::Status &status,
-        const std::string &info=std::string(), const std::string &version=std::string(),
+    static MessagePtr make_mrc_status_response(
+        const proto::MRCStatus::StatusCode &status,
+        const boost::system::error_code &reason = boost::system::error_code(),
+        const std::string &version=std::string(),
         bool has_read_multi=false);
 
-    static MessagePtr make_mrc_status_notification(const proto::MRCStatus::Status &status,
-        const std::string &info=std::string(), const std::string &version=std::string(),
+    static MessagePtr make_mrc_status_notification(
+        const proto::MRCStatus::StatusCode &status,
+        const boost::system::error_code &reason = boost::system::error_code(),
+        const std::string &version=std::string(),
         bool has_read_multi=false);
 
     static MessagePtr make_read_multi_response(boost::uint8_t bus, boost::uint8_t dev,
