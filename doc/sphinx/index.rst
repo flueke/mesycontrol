@@ -40,34 +40,63 @@ Features
 * Offline editing: device configurations can be created/edited without access
   to the hardware.
 
-Installation and dependencies
------------------------------
-Linux
-^^^^^
+Installation
+------------
+Linux installation
+^^^^^^^^^^^^^^^^^^
 *mesycontrol* requires the Qt libraries >= 4.8 to be installed on your system.
 Also be sure to pick the right archive for your distribution and architecture
 as trying to run the 32 bit version of the software on a 64 bit linux
 installation will most likely result in errors about missing libraries. 
 
 The installation itself is simple: unpack the tar.bz2 archive and execute the
-*mesycontrol_gui* binary to get started:::
+*mesycontrol_gui* binary to get started::
 
   $ tar xf mesycontrol-0.5.tar.bz2
   $ ./mesycontrol-0.5/bin/mesycontrol_gui
 
-Note: so far *mesycontrol* has only been tested on Debian Wheezy, Ubuntu 12.04
-and OpenSUSE 12.1 but it should work on other distributions and versions as
-long as the C++ and Qt libraries stay binary compatible.
+.. note::
+
+  So far *mesycontrol* has only been tested on Debian Wheezy, Ubuntu 12.04
+  and OpenSUSE 12.1 but it should work on other distributions and versions as
+  long as the C++ and Qt libraries stay binary compatible.
+
+Linux USB and serial port permissions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+In order to access local USB and serial ports the user running mesycontrol
+needs write access to the corresponding device files. The device files for USB
+ports are /dev/ttyUSB0, /dev/ttyUSB1, etc. - serial ports are usually named
+/dev/ttyS0, /dev/ttyS1, etc.
+
+These device files are usually group writeable and owned by the *dialout* group.
+
+The following contains example shell commands for various Linux distributions
+to add a user to the dialout group.
+
+Debian, Ubuntu and derivatives
+""""""""""""""""""""""""""""""
+::
+
+  $ sudo adduser the_user dialout
+
+OpenSUSE, Fedora
+""""""""""""""""
+::
+
+  $ sudo usermod -a -G dialout the_user
+
+.. note::
+
+  For the group membership changes to take effect a re-login is required.
 
 Windows
 ^^^^^^^
-*mesycontrol* does not require any additional dependencies on Windows. Running
-the supplied installer and following the wizard should correctly install the
-software and create a start menu entry for the GUI application.
+*mesycontrol* does not require any additional dependencies on Windows. Extract
+the Zip file and run the file *bin\\mesycontrol_gui.exe*.
 
-.. raw:: latex
-
-  \newpage
+.. *mesycontrol* does not require any additional dependencies on Windows. Running
+.. the supplied installer and following the wizard should correctly install the
+.. software and create a start menu entry for the GUI application.
 
 Architecture Overview
 ---------------------
@@ -89,6 +118,10 @@ server process.
 
 The client supports connections to multiple servers and is thus able to control
 multiple MRC-1/MRCCs.
+
+.. raw:: latex
+
+  \newpage
 
 Using mesycontrol
 -----------------
