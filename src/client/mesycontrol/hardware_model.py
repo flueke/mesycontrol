@@ -7,6 +7,7 @@ from qt import pyqtSignal
 
 import basic_model as bm
 import future
+import os
 import proto
 import util
 
@@ -58,22 +59,33 @@ class MRC(bm.MRC):
         return self._controller
 
     def set_status(self, status):
-        self.log.debug("set_status: old=%s, new=%s", self._status, status)
+        code_old = None if self._status is None else self._status.code
+        code_new = None if status is None else status.code
+
+        reason_old = None if self._status is None else self._status.reason
+        reason_new = None if status is None else status.reason
+
+        self.log.debug("set_status: code_old=%s, code_new=%s", code_old, code_new)
+        self.log.debug("set_status: reason_old=%s, reason_new=%s", reason_old, reason_new)
+
+        if reason_new is not None:
+            self.log.debug("set_status: reason_new=%s", os.strerror(reason_new))
+
         self._status = status
         self.status_changed.emit(status)
 
         if self._connect_future is None:
             self._connect_future = future.Future()
 
-        if status in (proto.MRCStatus.CONNECTING, proto.MRCStatus.INITIALIZING):
+        if status.code in (proto.MRCStatus.CONNECTING, proto.MRCStatus.INITIALIZING):
             self.set_connecting(self._connect_future)
 
-        elif status == proto.MRCStatus.RUNNING:
+        elif status.code == proto.MRCStatus.RUNNING:
             self.set_connected()
             self._connect_future.set_result(True)
             self._connect_future = None
 
-        elif status in (proto.MRCStatus.STOPPED, proto.MRCStatus.CONNECT_FAILED,
+        elif status.code in (proto.MRCStatus.STOPPED, proto.MRCStatus.CONNECT_FAILED,
                 proto.MRCStatus.INIT_FAILED):
             self.set_disconnected()
             self._connect_future.set_result(False)
