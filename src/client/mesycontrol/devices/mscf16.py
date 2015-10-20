@@ -93,6 +93,10 @@ def get_config_parameters(app_device):
     # additional parameters.
     # If no hardware is present the profile default parameters are returned.
 
+    # FIXME: it might be better to return the minimal profile if no version
+    # info can be read. At a later point when hardware is connected and version
+    # info is available the list of config parameters has to be updated.
+
     profile = app_device.profile
     params  = profile.get_config_parameters()
 
@@ -1283,7 +1287,9 @@ class SettingsWidget(QtGui.QWidget):
             self._on_device_extension_changed(name, value)
 
         self.device.extension_changed.connect(self._on_device_extension_changed)
+        self.device.read_mode_changed.connect(self._on_device_read_mode_changed)
 
+    # ===== device changes =====
     def _on_device_extension_changed(self, name, ext_value):
         if name == 'gain_jumpers':
             for idx, value in enumerate(ext_value):
@@ -1323,6 +1329,11 @@ class SettingsWidget(QtGui.QWidget):
             with util.block_signals(self.combo_discriminator) as o:
                 o.setCurrentIndex(idx)
 
+    def _on_device_read_mode_changed(self, read_mode):
+        for k, v in self.device.get_extensions().iteritems():
+            self._on_device_extension_changed(k, v)
+
+    # ===== GUI changes =====
     def _spin_gain_jumpers_value_changed(self, value, group):
         self.device.set_gain_jumper(group, value)
 
