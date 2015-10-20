@@ -306,24 +306,6 @@ class GUIApplication(QtCore.QObject):
         action.splitter_toolbar = True
         self.actions['toggle_linked_mode'] = action
 
-        # Widget window
-        action = QtGui.QAction(make_icon(":/open-device-widget.png"),
-                "Open device widget", self, triggered=self._open_device_widget)
-
-        action.setToolTip("Open device widget")
-        action.setStatusTip(action.toolTip())
-        action.splitter_toolbar = True
-        self.actions['open_device_widget'] = action
-
-        # Table window
-        action = QtGui.QAction(make_icon(":/open-device-table.png"),
-                "Open device table", self, triggered=self._open_device_table)
-
-        action.setToolTip("Open device table")
-        action.setStatusTip(action.toolTip())
-        action.splitter_toolbar = True
-        self.actions['open_device_table'] = action
-
         # Check config
         action = QtGui.QAction(make_icon(":/check-config.png"), "Compare config and hardware", self,
                 triggered=self._check_config)
@@ -341,6 +323,24 @@ class GUIApplication(QtCore.QObject):
                 "Copy hardware values to config", self, triggered=self._apply_hardware_to_config)
         action.splitter_toolbar = True
         self.actions['apply_hardware_to_config'] = action
+
+        # Widget window
+        action = QtGui.QAction(make_icon(":/open-device-widget.png"),
+                "Open device widget", self, triggered=self._open_device_widget)
+
+        action.setToolTip("Open device widget")
+        action.setStatusTip(action.toolTip())
+        action.splitter_toolbar = True
+        self.actions['open_device_widget'] = action
+
+        # Table window
+        action = QtGui.QAction(make_icon(":/open-device-table.png"),
+                "Open device table", self, triggered=self._open_device_table)
+
+        action.setToolTip("Open device table")
+        action.setStatusTip(action.toolTip())
+        action.splitter_toolbar = True
+        self.actions['open_device_table'] = action
 
         # ===== Mainwindow toolbar =====
 
