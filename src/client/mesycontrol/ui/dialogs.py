@@ -254,7 +254,7 @@ class AddDeviceDialog(QtGui.QDialog):
                 idc = self.idc_combo.itemData(idx)
                 idc, _ = idc.toInt()
 
-            name = str(self.name_input.text())
+            name = unicode(self.name_input.text())
 
             self._result = AddDeviceDialog.Result(
                     bus, address, idc, name)
