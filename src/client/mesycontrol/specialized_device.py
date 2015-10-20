@@ -152,7 +152,7 @@ class DeviceBase(QtCore.QObject):
         return dev.set_parameter(address, value)
 
     def get_extension(self, name):
-        dev = self.hw if self.write_mode == util.HARDWARE else self.cfg
+        dev = self.hw if self.read_mode == util.HARDWARE else self.cfg
         return dev.get_extension(name)
 
     def set_extension(self, name, value):
@@ -165,7 +165,7 @@ class DeviceBase(QtCore.QObject):
             dev.set_extension(name, value)
 
     def get_extensions(self):
-        dev = self.hw if self.write_mode == util.HARDWARE else self.cfg
+        dev = self.hw if self.read_mode == util.HARDWARE else self.cfg
         return dev.get_extensions()
 
     def get_module(self):
