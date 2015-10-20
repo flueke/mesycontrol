@@ -307,12 +307,12 @@
      </item>
      <item>
       <property name="text">
-       <string>Serial Server (TCP)</string>
+       <string>Serial Server (remote)</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Mesycontrol Server (TCP)</string>
+       <string>Mesycontrol Server (remote)</string>
       </property>
      </item>
     </widget>
