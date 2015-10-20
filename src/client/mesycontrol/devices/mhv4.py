@@ -242,6 +242,9 @@ class ChannelWidget(QtGui.QWidget):
             if source == sensor_num:
                 self._update_temperature_display(rf_source, rf_sensor)
 
+        if self.device.read_mode != util.HARDWARE:
+            return
+
         self.device.get_parameter('channel%d_tcomp_source_read' % self.channel
                 ).add_done_callback(tcomp_source_done)
 
@@ -253,6 +256,9 @@ class ChannelWidget(QtGui.QWidget):
         else:
             def sensor_read_done(rf_sensor):
                 self._update_temperature_display(rf_source, rf_sensor)
+
+            if self.device.read_mode != util.HARDWARE:
+                return
 
             self.device.get_parameter('sensor%d_temp_read' % source
                     ).add_done_callback(sensor_read_done)
