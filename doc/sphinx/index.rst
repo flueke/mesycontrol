@@ -8,14 +8,14 @@
 *mesycontrol* documentation
 ===========================
 
-* TODO: Table View
-* TODO: Specialized GUIs
-* TODO:
-  * how it works with multiple clients (write access)
-  * silent mode
-  * polling, how it works
-  * scanbus polling
-  * configs, extensions, applying and comparing hardware and setup
+.. * TODO: Table View
+.. * TODO: Specialized GUIs
+.. * TODO:
+..   * how it works with multiple clients (write access)
+..   * silent mode
+..   * polling, how it works
+..   * scanbus polling
+..   * configs, extensions, applying and comparing hardware and setup
 
 
 Introduction
