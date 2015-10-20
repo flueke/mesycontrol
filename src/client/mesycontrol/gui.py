@@ -21,10 +21,12 @@ from gui_util import is_setup, is_registry, is_mrc, is_bus, is_device, is_device
 from gui_util import is_config, is_hardware
 from model_util import add_mrc_connection
 from util import make_icon
+
 import app_model as am
 import config_gui
 import device_tableview
 import future
+import gui_tutorial
 import gui_util
 import resources
 import util
@@ -55,6 +57,7 @@ class GUIApplication(QtCore.QObject):
         self.mainwindow.mdiArea.subWindowActivated.connect(self._on_subwindow_activated)
         self.mainwindow.toolbar.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         self.mainwindow.toolbar.setIconSize(GUIApplication.TOOLBAR_ICON_SIZE)
+        self.mainwindow.actionQuickstart.triggered.connect(self._show_quickstart)
         font = self.mainwindow.toolbar.font()
         font.setPixelSize(GUIApplication.TOOLBAR_FONT_SIZE)
         self.mainwindow.toolbar.setFont(font)
@@ -1562,6 +1565,23 @@ Initialize using the current hardware values or the device defaults?
         extensions_param = extensions_to_ptree(extensions, profile)
         #extensions_param.sigTreeStateChanged.connect(on_tree_state_changed)
         tree.setParameters(extensions_param, showTop=False)
+
+    def _show_quickstart(self):
+        subwin = self.mainwindow.findChild(QtGui.QMdiSubWindow, "quickstart")
+
+        if subwin:
+            subwin.raise_()
+            subwin.showNormal()
+            return
+
+        subwin = QtGui.QMdiSubWindow()
+        subwin.setWidget(gui_tutorial.TutorialWidget(self))
+        subwin.setWindowTitle("Quickstart")
+        subwin.setObjectName("quickstart")
+        subwin.setWindowIcon(util.make_icon(":/window-icon.png"))
+        subwin.resize(QtCore.QSize(600, 400))
+        self.mainwindow.mdiArea.addSubWindow(subwin)
+        subwin.show()
 
 def on_tree_state_changed(emitting_param, changes):
     print "on_tree_state_changed"

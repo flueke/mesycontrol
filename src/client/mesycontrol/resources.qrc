@@ -74,6 +74,7 @@
     <file>ui/subprogress_widget.ui</file>
 
     <file alias="gpl.txt">resources/gpl.txt</file>
+    <file alias="quickstart.html">resources/quickstart.html</file>
 </qresource>
 </RCC>
 <!-- vim:ft=xml

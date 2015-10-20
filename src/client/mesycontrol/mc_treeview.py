@@ -273,6 +273,7 @@ class MCTreeView(QtGui.QWidget):
         self.hw_model  = self._director.hw_model
 
         self.cfg_view  = ConfigTreeView()
+        self.cfg_view.setObjectName('config_tree_view')
         self.cfg_view.setModel(self.cfg_model)
         self.cfg_model.rowsInserted.connect(self.cfg_view.expandAll)
         self.cfg_model.rowsInserted.connect(partial(self.cfg_view.resizeColumnToContents, 0))
@@ -286,6 +287,7 @@ class MCTreeView(QtGui.QWidget):
         self.cfg_view.clicked.connect(self._cfg_view_clicked)
 
         self.hw_view   = HardwareTreeView()
+        self.hw_view.setObjectName('hardware_tree_view')
         self.hw_view.setModel(self.hw_model)
         self.hw_model.rowsInserted.connect(self.hw_view.expandAll)
         self.hw_model.rowsInserted.connect(partial(self.hw_view.resizeColumnToContents, 0))
