@@ -1478,6 +1478,8 @@ Initialize using the current hardware values or the device defaults?
             if node.ref.has_cfg:
                 add_action(self.actions['save_device_config'])
             add_action(self.actions['remove_config'])
+            if self.actions['add_config'].isEnabled():
+                add_action(self.actions['add_config'])
             #add_action(self.actions['show_device_extensions'])
 
         if not menu.isEmpty():
