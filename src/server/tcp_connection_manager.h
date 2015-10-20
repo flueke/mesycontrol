@@ -7,6 +7,7 @@
 #include "tcp_connection.h"
 #include "mrc1_request_queue.h"
 #include "logging.h"
+#include "poller.h"
 
 namespace mesycontrol
 {
@@ -43,10 +44,16 @@ class TCPConnectionManager: private boost::noncopyable
     void handle_read_after_set(const TCPConnectionPtr &connection,
         const MessagePtr &request, const MessagePtr &response);
 
-    void handle_mrc1_status_change(const proto::MRCStatus::Status &status,
-        const std::string &info, const std::string &version, bool has_read_multi);
+    void handle_mrc1_status_change(
+        const proto::MRCStatus::StatusCode &status,
+        const boost::system::error_code &reason,
+        const std::string &version,
+        bool has_read_multi);
 
     void set_write_connection(const TCPConnectionPtr &connection);
+
+    void handle_poll_cycle_complete(const Poller::ResultType &result);
+    void handle_scanbus_poll_complete(const MessagePtr &sc_notification);
 
     /// The managed connections.
     std::set<TCPConnectionPtr> m_connections;
@@ -62,6 +69,9 @@ class TCPConnectionManager: private boost::noncopyable
 
     /// Flag to indicate that the read_after_set response should not be send.
     bool m_skip_read_after_set_response;
+
+    Poller m_poller;
+    ScanbusPoller m_scanbus_poller;
 };
 
 } // namespace mesycontrol

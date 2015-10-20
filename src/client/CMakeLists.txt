@@ -39,7 +39,6 @@ set(PYTHON_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_profile.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_registry.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_tableview.py"
-    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_view.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/eventloop_callback.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/future.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/gui_mainwindow.py"
@@ -51,13 +50,13 @@ set(PYTHON_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/__init__.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/log_view.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/mc_treeview.py"
+    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/mesycontrol_pb2.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/model_util.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/mrc_connection.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/parameter_binding.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/proto.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/qt.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/resources.py"
-    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/script.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/server_process.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/specialized_device.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/tcp_client.py"
@@ -73,8 +72,6 @@ set(PYTHON_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/devices/mscf16.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/devices/stm16_profile.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/devices/stm16.py"
-    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_tableview.py"
-    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_view.py"
 
     # mesycontrol/ui/*.py
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/ui/connect_dialog.py"
@@ -88,9 +85,7 @@ set(PYTHON_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/ui/mhv4_channel_settings.ui"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/ui/mhv4_channel.ui"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/ui/mhv4_global_settings.ui"
-    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/ui/mscf16_channel_settings.ui"
-    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/ui/mscf16_global_settings.ui"
-    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/ui/mscf16_panel.ui"
+    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/ui/mscf16_settings.ui"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/ui/subprogress_widget.ui"
 )
 

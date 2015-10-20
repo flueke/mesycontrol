@@ -17,9 +17,10 @@ class EatReturnCombo(QtGui.QComboBox):
 
 class AddMRCDialog(QtGui.QDialog):
     Result = collections.namedtuple("Result", "url connect")
-    SERIAL, TCP, MC = range(3)
+    SERIAL_USB, SERIAL_SERIAL, TCP, MC = range(4)
 
-    def __init__(self, serial_ports, urls_in_use=list(), url=None,
+    def __init__(self, serial_ports_usb, serial_ports_serial,
+            urls_in_use=list(), url=None,
             do_connect_default=False, title="Add MRC", parent=None):
         super(AddMRCDialog, self).__init__(parent)
         self.urls_in_use = urls_in_use
@@ -27,15 +28,21 @@ class AddMRCDialog(QtGui.QDialog):
 
         self.setWindowTitle(title)
         self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(False)
-        self.combo_serial_port.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+'), None))
+
+        for combo in (self.combo_serial_port_usb, self.combo_serial_port_serial):
+            combo.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+'), None))
+
         self.le_tcp_host.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+'), None))
         self.le_mesycontrol_host.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+'), None))
         self.le_tcp_host.setText('localhost')
         self.le_mesycontrol_host.setText('localhost')
         self.cb_connect.setChecked(do_connect_default)
 
-        for port in serial_ports:
-            self.combo_serial_port.addItem(port)
+        for port in serial_ports_usb:
+            self.combo_serial_port_usb.addItem(port)
+
+        for port in serial_ports_serial:
+            self.combo_serial_port_serial.addItem(port)
 
         for le in self.findChildren(QtGui.QLineEdit):
             le.textChanged.connect(self._validate_inputs)
@@ -66,11 +73,19 @@ class AddMRCDialog(QtGui.QDialog):
 
     def _get_current_url(self):
         idx = self.stacked_widget.currentIndex()
-        if idx == AddMRCDialog.SERIAL:
-            baud_text = self.combo_baud_rate.currentText()
+
+        if idx == AddMRCDialog.SERIAL_USB:
+            baud_text = self.combo_baud_rate_usb.currentText()
             baud_rate = int(baud_text) if baud_text != 'auto' else 0
             return util.build_connection_url(
-                    serial_port=str(self.combo_serial_port.currentText()),
+                    serial_port=str(self.combo_serial_port_usb.currentText()),
+                    baud_rate=baud_rate)
+
+        if idx == AddMRCDialog.SERIAL_SERIAL:
+            baud_text = self.combo_baud_rate_serial.currentText()
+            baud_rate = int(baud_text) if baud_text != 'auto' else 0
+            return util.build_connection_url(
+                    serial_port=str(self.combo_serial_port_serial.currentText()),
                     baud_rate=baud_rate)
 
         if idx == AddMRCDialog.TCP:
@@ -87,36 +102,54 @@ class AddMRCDialog(QtGui.QDialog):
         d = util.parse_connection_url(url)
 
         if 'serial_port' in d:
-            idx = self.combo_serial_port.findText(d['serial_port'])
+            combo_port  = self.combo_serial_port_usb
+            combo_baud  = self.combo_baud_rate_usb
+            idx         = combo_port.findText(d['serial_port'])
+
             if idx < 0:
-                self.combo_serial_port.addItem(d['serial_port'])
-                idx = self.combo_serial_port.count() - 1
-            self.combo_serial_port.setCurrentIndex(idx)
+                combo_port  = self.combo_serial_port_serial
+                combo_baud  = self.combo_baud_rate_serial
+                idx         = combo_port.findText(d['serial_port'])
+
+            if idx < 0:
+                self.combo_serial_port_serial.addItem(d['serial_port'])
+                idx         = self.combo_serial_port_serial.count() - 1
+                combo_port  = self.combo_serial_port_serial
+                combo_baud  = self.combo_baud_rate_serial
+
+            combo_port.setCurrentIndex(idx)
 
             baud_text = str(d['baud_rate'])
 
             if baud_text == '0':
                 baud_text = 'auto'
 
-            idx = self.combo_baud_rate.findText(baud_text)
+            idx = combo_baud.findText(baud_text)
 
             if idx < 0:
-                self.combo_baud_rate.addItem(baud_text)
-                idx = self.combo_baud_rate.count() - 1
+                combo_baud.addItem(baud_text)
+                idx = self.combo_baud.count() - 1
 
-            self.combo_baud_rate.setCurrentIndex(idx)
+            combo_baud.setCurrentIndex(idx)
 
-            self.stacked_widget.setCurrentIndex(AddMRCDialog.SERIAL)
+            idx = (AddMRCDialog.SERIAL_USB
+                    if combo_port is self.combo_serial_port_usb
+                    else AddMRCDialog.SERIAL_SERIAL)
+
+            self.stacked_widget.setCurrentIndex(idx)
+            self.combo_type.setCurrentIndex(idx)
 
         if 'host' in d:
             self.le_tcp_host.setText(d['host'])
             self.spin_tcp_port.setValue(d['port'])
             self.stacked_widget.setCurrentIndex(AddMRCDialog.TCP)
+            self.combo_type.setCurrentIndex(AddMRCDialog.TCP)
 
         if 'mc_host' in d:
             self.le_mesycontrol_host.setText(d['mc_host'])
             self.spin_mesycontrol_port.setValue(d['mc_port'])
             self.stacked_widget.setCurrentIndex(AddMRCDialog.MC)
+            self.combo_type.setCurrentIndex(AddMRCDialog.MC)
 
     def accept(self):
         url  = self._get_current_url()
@@ -221,7 +254,7 @@ class AddDeviceDialog(QtGui.QDialog):
                 idc = self.idc_combo.itemData(idx)
                 idc, _ = idc.toInt()
 
-            name = str(self.name_input.text())
+            name = unicode(self.name_input.text())
 
             self._result = AddDeviceDialog.Result(
                     bus, address, idc, name)

@@ -242,6 +242,9 @@ class ChannelWidget(QtGui.QWidget):
             if source == sensor_num:
                 self._update_temperature_display(rf_source, rf_sensor)
 
+        if self.device.read_mode != util.HARDWARE:
+            return
+
         self.device.get_parameter('channel%d_tcomp_source_read' % self.channel
                 ).add_done_callback(tcomp_source_done)
 
@@ -253,6 +256,9 @@ class ChannelWidget(QtGui.QWidget):
         else:
             def sensor_read_done(rf_sensor):
                 self._update_temperature_display(rf_source, rf_sensor)
+
+            if self.device.read_mode != util.HARDWARE:
+                return
 
             self.device.get_parameter('sensor%d_temp_read' % source
                     ).add_done_callback(sensor_read_done)
@@ -471,7 +477,6 @@ class MHV4Widget(DeviceWidgetBase):
         super(MHV4Widget, self).__init__(device, display_mode, write_mode, parent)
 
         self.channels = list()
-        self._toolbar = None
 
         # Channel controls
         channel_layout = QtGui.QHBoxLayout()
@@ -490,7 +495,11 @@ class MHV4Widget(DeviceWidgetBase):
         layout = QtGui.QVBoxLayout() 
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(channel_layout)
-        self.setLayout(layout)
+
+        widget = QtGui.QWidget()
+        widget.setLayout(layout)
+        self.tab_widget.addTab(widget, device.profile.name)
+        self.settings_bindings = self._add_settings_tab()
 
     def get_parameter_bindings(self):
         bindings = list()
@@ -498,21 +507,11 @@ class MHV4Widget(DeviceWidgetBase):
         for cw in self.channels:
             bindings.append(cw().bindings)
 
+        bindings.extend(self.settings_bindings)
+
         return itertools.chain(*bindings)
 
-    def has_toolbar(self):
-        return True
-
-    def get_toolbar(self):
-        if self._toolbar is None:
-            self._toolbar = tb = QtGui.QToolBar()
-
-            tb.addAction(util.make_icon(":/preferences.png"),
-                    "MHV-4 Settings").triggered.connect(self._show_preferences)
-
-        return self._toolbar
-
-    def _show_preferences(self):
+    def _add_settings_tab(self):
         bindings = list()
         tabs = QtGui.QTabWidget()
 
@@ -525,24 +524,12 @@ class MHV4Widget(DeviceWidgetBase):
         tabs.addTab(gsw, "Global")
         bindings.append(gsw.bindings)
 
-        d = QtGui.QDialog(self)
-        d.setModal(True)
-        d.setWindowTitle("MHV-4 Settings")
-
-        pb = QtGui.QPushButton("Close", clicked=d.close)
-        pb_l = QtGui.QHBoxLayout()
-        pb_l.addStretch(1)
-        pb_l.addWidget(pb)
-        pb_l.addStretch(1)
-
-        l = QtGui.QVBoxLayout(d)
-        l.addWidget(tabs)
-        l.addLayout(pb_l)
+        self.tab_widget.addTab(tabs, "Settings")
 
         for b in itertools.chain(*bindings):
             b.populate()
 
-        d.show()
+        return bindings
 
 idc             = 27
 device_class    = MHV4

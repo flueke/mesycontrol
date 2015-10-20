@@ -191,12 +191,12 @@ void MRC1Connection::stop()
   stop(boost::system::error_code(), proto::MRCStatus::STOPPED);
 }
 
-void MRC1Connection::stop(const boost::system::error_code &reason, proto::MRCStatus::Status new_status)
+void MRC1Connection::stop(const boost::system::error_code &reason, proto::MRCStatus::StatusCode new_status)
 {
   stop_impl();
   m_timeout_timer.cancel();
   m_last_error = reason;
-  set_status(new_status, reason.message());
+  set_status(new_status, reason);
   BOOST_LOG_SEV(m_log, log::lvl::info) << "stopped";
 }
 
@@ -246,7 +246,7 @@ bool MRC1Connection::write_command(const MessagePtr &command,
   m_write_buffer             = command_string + command_terminator;
   m_reply_parser.set_current_request(command);
 
-  BOOST_LOG_SEV(m_log, log::lvl::debug)
+  BOOST_LOG_SEV(m_log, log::lvl::trace)
     << "writing '" << get_mrc1_command_string(command) << "'";
 
   start_write(m_write_buffer,
@@ -291,7 +291,7 @@ void MRC1Connection::handle_read_line(const boost::system::error_code &ec, std::
     std::getline(is, reply_line);
     is.ignore(1); // consume the trailing \r
 
-    BOOST_LOG_SEV(m_log, log::lvl::debug) << "received line '" << reply_line << "'";
+    BOOST_LOG_SEV(m_log, log::lvl::trace) << "received line '" << reply_line << "'";
 
     if (!m_reply_parser.parse_line(reply_line)) {
       BOOST_LOG_SEV(m_log, log::lvl::trace) << "Reply parser needs more input";
@@ -300,7 +300,7 @@ void MRC1Connection::handle_read_line(const boost::system::error_code &ec, std::
           boost::bind(&MRC1Connection::handle_read_line, shared_from_this(), _1, _2));
     } else {
       BOOST_LOG_SEV(m_log, log::lvl::debug) << "reply parsing done, result="
-        << m_reply_parser.get_response_message();
+        << proto::Message::Type_Name(m_reply_parser.get_response_message()->type());
 
       /* Parsing complete. Call the response handler. */
       m_io_service.post(boost::bind(m_current_response_handler, m_current_command,
@@ -378,21 +378,25 @@ void MRC1Connection::handle_reconnect_timeout(const boost::system::error_code &e
   }
 }
 
-void MRC1Connection::set_status(const proto::MRCStatus::Status &status,
-    const std::string &info, const std::string &version, bool has_read_multi)
+void MRC1Connection::set_status(
+    const proto::MRCStatus::StatusCode &status,
+    const boost::system::error_code &reason,
+    const std::string &version,
+    bool has_read_multi)
 {
   BOOST_LOG_SEV(m_log, log::lvl::info) << "MRC status changed: "
-    << proto::MRCStatus::Status_Name(m_status)
+    << proto::MRCStatus::StatusCode_Name(m_status)
     << " -> "
-    << proto::MRCStatus::Status_Name(status)
-    << "(i="  << info
-    << ",v="  << version
-    << ",rb=" << has_read_multi << ")";
+    << proto::MRCStatus::StatusCode_Name(status)
+    << "(reason="  << reason.value()
+    << ",info=\""  << reason.message()
+    << "\",version="  << version
+    << ",has_read_multi=" << has_read_multi << ")";
 
   m_status = status;
 
   BOOST_FOREACH(StatusChangeCallback callback, m_status_change_callbacks) {
-    callback(m_status, info, version, has_read_multi);
+    callback(m_status, reason, version, has_read_multi);
   }
 }
 

@@ -8,7 +8,6 @@ from qt import pyqtProperty
 from qt import pyqtSignal
 
 from functools import wraps
-import logging
 import traceback
 import sys
 
@@ -45,7 +44,7 @@ class Future(object):
 
     def __del__(self):
         if self._exception is not None and not self._exception_observed:
-            logging.getLogger().error("Unobserved exception in Future: %s %s",
+            self.log.error("Unobserved exception in Future: %s %s",
                     type(self._exception), self._exception)
 
     # ===== Client functionality =====
@@ -104,6 +103,8 @@ class Future(object):
         return self._progress_max
 
     def add_done_callback(self, fn):
+        assert fn is not None
+
         if self.done():
             self._exec_callback(fn)
         else:
@@ -112,6 +113,8 @@ class Future(object):
         return self
 
     def add_progress_callback(self, fn):
+        assert fn is not None
+
         if self.done():
             self._exec_callback(fn)
         else:
@@ -199,7 +202,7 @@ class Future(object):
         try:
             cb(self)
         except Exception:
-            logging.getLogger().exception("Callback %s raised", cb)
+            self.log.exception("Callback %s raised", cb)
 
 def all_done(*futures):
     """Returns a future that completes once all of the given futures complete.

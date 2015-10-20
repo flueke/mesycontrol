@@ -273,6 +273,7 @@ class MCTreeView(QtGui.QWidget):
         self.hw_model  = self._director.hw_model
 
         self.cfg_view  = ConfigTreeView()
+        self.cfg_view.setObjectName('config_tree_view')
         self.cfg_view.setModel(self.cfg_model)
         self.cfg_model.rowsInserted.connect(self.cfg_view.expandAll)
         self.cfg_model.rowsInserted.connect(partial(self.cfg_view.resizeColumnToContents, 0))
@@ -282,10 +283,11 @@ class MCTreeView(QtGui.QWidget):
         self.cfg_view.setItemDelegate(MCTreeItemDelegate(self._director))
 
         self.cfg_view.selectionModel().selectionChanged.connect(self._cfg_selection_changed)
-        self.cfg_view.activated.connect(self._cfg_view_activated)
+        self.cfg_view.doubleClicked.connect(self._cfg_view_double_clicked)
         self.cfg_view.clicked.connect(self._cfg_view_clicked)
 
         self.hw_view   = HardwareTreeView()
+        self.hw_view.setObjectName('hardware_tree_view')
         self.hw_view.setModel(self.hw_model)
         self.hw_model.rowsInserted.connect(self.hw_view.expandAll)
         self.hw_model.rowsInserted.connect(partial(self.hw_view.resizeColumnToContents, 0))
@@ -296,7 +298,7 @@ class MCTreeView(QtGui.QWidget):
         self.hw_view.setFirstColumnSpanned(0, QtCore.QModelIndex(), True)
 
         self.hw_view.selectionModel().selectionChanged.connect(self._hw_selection_changed)
-        self.hw_view.activated.connect(self._hw_view_activated)
+        self.hw_view.doubleClicked.connect(self._hw_view_double_clicked)
         self.hw_view.clicked.connect(self._hw_view_clicked)
 
         self.cfg_view.expandAll()
@@ -306,7 +308,7 @@ class MCTreeView(QtGui.QWidget):
         self.cfg_toolbar        = util.SimpleToolBar(Qt.Horizontal)
         self.cfg_toolbar.layout().setContentsMargins(0, 0, 0, 0)
         self.hw_toolbar         = util.SimpleToolBar(Qt.Horizontal)
-        self.hw_toolbar.layout().setContentsMargins(2, 0, 2, 0)
+        self.hw_toolbar.layout().setContentsMargins(0, 0, 0, 0)
 
         cfg_widget = QtGui.QWidget()
         cfg_layout = QtGui.QVBoxLayout(cfg_widget)
@@ -320,7 +322,7 @@ class MCTreeView(QtGui.QWidget):
         hw_layout.addWidget(self.hw_toolbar)
         hw_layout.addWidget(self.hw_view)
 
-        splitter = DoubleClickSplitter()
+        self.splitter = splitter = DoubleClickSplitter()
         splitter.setChildrenCollapsible(False)
         splitter.addWidget(hw_widget)
         splitter.addWidget(self.splitter_toolbar)
@@ -468,6 +470,14 @@ class MCTreeView(QtGui.QWidget):
         except IndexError:
             pass
 
+    # double clicked
+    def _cfg_view_double_clicked(self, idx):
+        self._cfg_view_activated(idx)
+
+    def _hw_view_double_clicked(self, idx):
+        if idx.column() != htm.COL_RC:
+            self._hw_view_activated(idx)
+
     # activated
     def _cfg_view_activated(self, idx):
         self.log.debug("_cfg_view_activated")
@@ -546,15 +556,16 @@ class MCTreeItemDelegate(QtGui.QStyledItemDelegate):
             device = node.ref
             color  = None
 
-            if device.idc_conflict:
+            if device.idc_conflict or device.address_conflict:
                 color = QtGui.QColor('darkRed')
 
             elif device.has_hw and device.has_cfg:
-
-                if device.hw.is_connected() and device.config_applied:
-                    color = QtGui.QColor('darkGreen')
-                else:
-                    color = QtGui.QColor('darkOrange')
+                if device.hw.is_connected():
+                    if device.config_applied is True:
+                        color = QtGui.QColor('darkGreen')
+                    elif device.config_applied is False:
+                        color = QtGui.QColor('darkOrange')
+                    # else config_applied should be None meaning "unknown"
 
             if color is not None:
                 option.palette.setColor(QtGui.QPalette.Highlight, color)

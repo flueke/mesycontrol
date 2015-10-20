@@ -3,6 +3,7 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 from qt import QtCore
+from qt import QtGui
 import contextlib
 import os
 
@@ -79,14 +80,14 @@ class Context(QtCore.QObject):
         v = os.path.dirname(str(v))
 
         if not len(v):
-            v = str(s.value('Files/last_setup_directory', QtCore.QString()).toString())
+            v = QtGui.QDesktopServices.storageLocation(
+                    QtGui.QDesktopServices.DocumentsLocation)
 
         return v
 
     def set_setup_directory_hint(self, filename):
         s = self.make_qsettings()
         s.setValue('Files/last_setup_file', filename)
-        s.setValue('Files/last_setup_directory', os.path.dirname(filename))
 
     def get_config_directory_hint(self):
         s = self.make_qsettings()
@@ -95,14 +96,14 @@ class Context(QtCore.QObject):
         v = os.path.dirname(str(v))
 
         if not len(v):
-            v = str(s.value('Files/last_config_dir', QtCore.QString()).toString())
+            v = QtGui.QDesktopServices.storageLocation(
+                    QtGui.QDesktopServices.DocumentsLocation)
 
         return v
 
     def set_config_directory_hint(self, filename):
         s = self.make_qsettings()
         s.setValue('Files/last_config_file', filename)
-        s.setValue('Files/last_config_dir', os.path.dirname(filename))
 
     setup = property(
             fget=lambda self: self.app_registry.get_config(),

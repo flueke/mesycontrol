@@ -50,6 +50,8 @@
     <property name="title">
      <string>&amp;Help</string>
     </property>
+    <addaction name="actionQuickstart"/>
+    <addaction name="separator"/>
     <addaction name="actionAbout"/>
     <addaction name="actionAbout_Qt"/>
    </widget>
@@ -75,20 +77,6 @@
     <bool>false</bool>
    </attribute>
   </widget>
-  <action name="action_Quit">
-   <property name="text">
-    <string>&amp;Quit</string>
-   </property>
-   <property name="statusTip">
-    <string>Quit the application</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+Q</string>
-   </property>
-   <property name="shortcutContext">
-    <enum>Qt::ApplicationShortcut</enum>
-   </property>
-  </action>
   <action name="action_Cascade_Windows">
    <property name="text">
     <string>&amp;Cascade Windows</string>
@@ -177,6 +165,14 @@
    </property>
    <property name="toolTip">
     <string>Save Setup As...</string>
+   </property>
+  </action>
+  <action name="actionQuickstart">
+   <property name="text">
+    <string>Quickstart</string>
+   </property>
+   <property name="shortcut">
+    <string>F1</string>
    </property>
   </action>
  </widget>

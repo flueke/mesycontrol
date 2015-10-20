@@ -7,6 +7,7 @@ from qt import pyqtSignal
 from qt import QtCore
 
 import collections
+import copy
 import weakref
 
 import future
@@ -163,7 +164,7 @@ class ReadResult(collections.namedtuple("ReadResult", "bus device address value"
 
 class SetResult(collections.namedtuple("SetResult", ReadResult._fields + ('requested_value',))):
     """The result type for a set operation.
-    Adds requested_value to the fields of ReadResult, conversion to int and
+    Adds requested_value to the fields of ReadResult and conversions to int and
     bool. The bool conversion returns True if value equals requested value.
     """
     def __int__(self):
@@ -387,9 +388,13 @@ class Device(QtCore.QObject):
         return ret
 
     def set_extension(self, name, value):
-        is_new = name not in self._extensions
+        is_new    = name not in self._extensions
+        cur_value = self._extensions.get(name, None)
 
-        if self._extensions.get(name, None) != value:
+        if cur_value != value:
+            self.log.debug("extension %s changes from %s to %s (is_new=%s)",
+                    name, cur_value, value, is_new)
+
             self._extensions[name] = value
             if is_new:
                 self.extension_added.emit(name, value)
@@ -401,7 +406,10 @@ class Device(QtCore.QObject):
         return name in self._extensions
 
     def get_extension(self, name):
-        return self._extensions[name]
+        # Return a copy here as otherwise modifications to list and dict values
+        # would modify the extension store directly without set_extension being
+        # used. Thus the modified flag of configs would not be set.
+        return copy.deepcopy(self._extensions[name])
 
     def get_extensions(self):
         return dict(self._extensions)

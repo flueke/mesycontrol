@@ -23,12 +23,18 @@ namespace
     return ret;
   }
 
-  MessagePtr make_status_message(const proto::Message::Type &type, const proto::MRCStatus::Status &status,
-      const std::string &info, const std::string &version, bool has_read_multi)
+  MessagePtr make_status_message(
+      const proto::Message::Type &type,
+      const proto::MRCStatus::StatusCode &status,
+      const boost::system::error_code &reason,
+      const std::string &version,
+      bool has_read_multi)
   {
     MessagePtr ret(make_message(type));
-    ret->mutable_mrc_status()->set_status(status);
-    ret->mutable_mrc_status()->set_info(info);
+    ret->mutable_mrc_status()->set_code(status);
+    ret->mutable_mrc_status()->set_reason(reason.value());
+    if (reason.value())
+      ret->mutable_mrc_status()->set_info(reason.message());
     ret->mutable_mrc_status()->set_version(version);
     ret->mutable_mrc_status()->set_has_read_multi(has_read_multi);
     return ret;
@@ -39,6 +45,13 @@ MessagePtr MessageFactory::make_scanbus_response(boost::uint8_t bus)
 {
   MessagePtr ret(make_message(proto::Message::RESP_SCANBUS));
   ret->mutable_scanbus_result()->set_bus(bus);
+  return ret;
+}
+
+MessagePtr MessageFactory::make_scanbus_request(boost::uint8_t bus)
+{
+  MessagePtr ret(make_message(proto::Message::REQ_SCANBUS));
+  ret->mutable_request_scanbus()->set_bus(bus);
   return ret;
 }
 
@@ -120,18 +133,24 @@ MessagePtr MessageFactory::make_parameter_set_notification(boost::uint8_t bus, b
   return ret;
 }
 
-MessagePtr MessageFactory::make_mrc_status_response(const proto::MRCStatus::Status &status,
-    const std::string &info, const std::string &version, bool has_read_multi)
+MessagePtr MessageFactory::make_mrc_status_response(
+    const proto::MRCStatus::StatusCode &status,
+    const boost::system::error_code &reason,
+    const std::string &version,
+    bool has_read_multi)
 {
   return make_status_message(proto::Message::RESP_MRC_STATUS,
-      status, info, version, has_read_multi);
+      status, reason, version, has_read_multi);
 }
 
-MessagePtr MessageFactory::make_mrc_status_notification(const proto::MRCStatus::Status &status,
-    const std::string &info, const std::string &version, bool has_read_multi)
+MessagePtr MessageFactory::make_mrc_status_notification(
+    const proto::MRCStatus::StatusCode &status,
+    const boost::system::error_code &reason,
+    const std::string &version,
+    bool has_read_multi)
 {
   return make_status_message(proto::Message::NOTIFY_MRC_STATUS,
-      status, info, version, has_read_multi);
+      status, reason, version, has_read_multi);
 }
 
 MessagePtr MessageFactory::make_read_multi_response(boost::uint8_t bus, boost::uint8_t dev,
@@ -233,18 +252,27 @@ std::string get_message_info(const MessagePtr &msg)
 {
   if (msg->type() == proto::Message::RESP_MRC_STATUS
       || msg->type() == proto::Message::NOTIFY_MRC_STATUS) {
+
     return boost::str(
-        boost::format( "%1%: status=%2%, version=%3%, info=%4%, rb_supported=%5%")
+        boost::format("%1%: status=%2%, version=%3%, info=\"%4%\", rb_supported=%5%")
         % proto::Message::Type_Name(msg->type())
-        % proto::MRCStatus::Status_Name(msg->mrc_status().status())
+        % proto::MRCStatus::StatusCode_Name(msg->mrc_status().code())
         % msg->mrc_status().version()
         % msg->mrc_status().info()
         % msg->mrc_status().has_read_multi());
   }
 
+  if (msg->type() == proto::Message::RESP_ERROR) {
+    return boost::str(
+        boost::format("%1%: %2%, info=\"%3%\"")
+        % proto::Message::Type_Name(msg->type())
+        % proto::ResponseError::ErrorType_Name(msg->response_error().type())
+        % msg->response_error().info());
+  }
+
   if (is_mrc1_command(msg)) {
     return boost::str(
-        boost::format("%1%: %2%")
+        boost::format("%1%: \"%2%\"")
         % proto::Message::Type_Name(msg->type())
         % get_mrc1_command_string(msg));
   }

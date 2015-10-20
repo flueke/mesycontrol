@@ -44,12 +44,12 @@ MessagePtr MRC1ReplyParser::get_error_response(const std::string &reply_line)
     error_type = proto::ResponseError::NO_RESPONSE;
   }
 
-  if (regex_match(reply_line, re_bus_address)) {
+  else if (regex_match(reply_line, re_bus_address)) {
     BOOST_LOG_SEV(m_log, log::lvl::error) << "MRC: address conflict";
     error_type = proto::ResponseError::ADDRESS_CONFLICT;
   }
 
-  if (regex_match(reply_line, re_error)) {
+  else if (regex_match(reply_line, re_error)) {
     BOOST_LOG_SEV(m_log, log::lvl::error) << "MRC: error: " << reply_line;
     error_type = proto::ResponseError::UNKNOWN;
   }

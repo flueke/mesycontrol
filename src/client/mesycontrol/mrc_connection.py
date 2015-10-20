@@ -4,6 +4,7 @@
 
 from qt import QtCore
 from qt import pyqtSignal
+import errno
 
 from future import Future
 from future import progress_forwarder
@@ -11,9 +12,6 @@ from tcp_client import MCTCPClient
 import proto
 import server_process
 import util
-
-# FIXME: disconnected signal of MRCConnection emitted multiple times when
-# mesycontrol_server is killed
 
 class IsConnecting(Exception):
     pass
@@ -38,8 +36,6 @@ class AbstractConnection(QtCore.QObject):
 
     queue_empty             = pyqtSignal()
     queue_size_changed      = pyqtSignal(int)
-
-    # TODO: add write_access, silence
 
     def __init__(self, parent=None):
         super(AbstractConnection, self).__init__(parent)
@@ -66,9 +62,6 @@ class AbstractConnection(QtCore.QObject):
         raise NotImplementedError()
 
     def get_url(self):
-        raise NotImplementedError()
-
-    def get_status(self):
         raise NotImplementedError()
 
     url = property(lambda self: self.get_url())
@@ -126,7 +119,7 @@ class MRCConnection(AbstractConnection):
 
     def _on_client_notification_received(self, msg):
         if self.is_connecting() and msg.type == proto.Message.NOTIFY_MRC_STATUS:
-            if msg.mrc_status.status == proto.MRCStatus.RUNNING:
+            if msg.mrc_status.code == proto.MRCStatus.RUNNING:
                 self._is_connecting = False
                 self._is_connected  = True
                 self._connecting_future.set_result(True)
@@ -135,7 +128,7 @@ class MRCConnection(AbstractConnection):
                 self.log.debug("%s: connected & running", self.url)
             else:
                 self._connecting_future.set_progress_text("MRC status: %s%s%s" % (
-                        proto.MRCStatus.Status.Name(msg.mrc_status.status),
+                        proto.MRCStatus.StatusCode.Name(msg.mrc_status.code),
                         " - " if len(msg.mrc_status.info) else str(),
                         msg.mrc_status.info
                         ))
@@ -183,10 +176,9 @@ class LocalMRCConnection(AbstractConnection):
     def __init__(self, server_options=dict(), parent=None):
         super(LocalMRCConnection, self).__init__(parent)
         self.log = util.make_logging_source_adapter(__name__, self)
-        #self.server = server_process.ServerProcess(**server_options)
         self.server = server_process.pool.create_process(server_options)
-        self.connection = MRCConnection(self.server.listen_address, self.server.listen_port)
 
+        self.connection = MRCConnection(self.server.listen_address, self.server.listen_port)
         self.connection.connected.connect(self.connected)
         self.connection.disconnected.connect(self.disconnected)
         self.connection.connection_error.connect(self.connection_error)
@@ -194,6 +186,7 @@ class LocalMRCConnection(AbstractConnection):
         self.connection.request_sent.connect(self.request_sent)
         self.connection.message_received.connect(self.message_received)
         self.connection.notification_received.connect(self.notification_received)
+        self.connection.notification_received.connect(self._on_connection_notification_received)
         self.connection.error_message_received.connect(self.error_message_received)
         self.connection.queue_empty.connect(self.queue_empty)
         self.connection.queue_size_changed.connect(self.queue_size_changed)
@@ -203,13 +196,14 @@ class LocalMRCConnection(AbstractConnection):
 
     def connect(self):
         # Start server, wait for connect_delay_ms, connect to server, done
-        ret = Future()
+        self._connecting_future = ret = Future()
 
         def on_connection_connected(f):
             try:
                 self._is_connecting = False
                 ret.set_result(f.result())
                 self._is_connected  = True
+                self._connecting_future = None
                 self.log.debug("Connected to %s", self.url)
 
             except Exception as e:
@@ -283,6 +277,25 @@ class LocalMRCConnection(AbstractConnection):
                 host=self.server.tcp_host, port=self.server.tcp_port)
 
         return util.build_connection_url(**d)
+
+    def _on_connection_notification_received(self, msg):
+        if (self.is_connecting()
+                and msg.type == proto.Message.NOTIFY_MRC_STATUS
+                and msg.mrc_status.reason == errno.EACCES
+                and self.server.serial_port is not None):
+            try:
+                import os, pwd, grp
+                ser = self.server.serial_port
+                fs  = os.stat(ser)
+                o   = pwd.getpwuid(fs.st_uid)[0]
+                g   = grp.getgrgid(fs.st_gid)[0]
+                p   = oct(fs.st_mode & 0777)
+                txt = "No write permission on %s (owner=%s,group=%s,perms=%s)!" % (
+                        ser, o, g, p)
+                self._connecting_future.set_progress_text(txt)
+                return
+            except ImportError:
+                self.log.exception()
 
 def factory(**kwargs):
     """Connection factory.

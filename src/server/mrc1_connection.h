@@ -27,8 +27,11 @@ class MRC1Connection:
     /** Default timeout between reconnect attempts. */
     static const boost::posix_time::time_duration default_reconnect_timeout;
 
-    typedef boost::function<void (const proto::MRCStatus::Status &,
-        const std::string &, const std::string &, bool)> StatusChangeCallback;
+    typedef boost::function<void (
+        const proto::MRCStatus::StatusCode &,
+        const boost::system::error_code &,
+        const std::string &, bool)>
+      StatusChangeCallback;
 
     MRC1Connection(boost::asio::io_service &io_service);
 
@@ -57,7 +60,7 @@ class MRC1Connection:
     bool get_auto_reconnect() const { return m_auto_reconnect; }
     void set_auto_reconnect(bool auto_reconnect) { m_auto_reconnect = auto_reconnect; }
 
-    proto::MRCStatus::Status get_status() const { return m_status; }
+    proto::MRCStatus::StatusCode get_status() const { return m_status; }
     bool is_initializing() const { return m_status == proto::MRCStatus::INITIALIZING; }
     bool is_running() const { return m_status == proto::MRCStatus::RUNNING; }
     bool is_stopped() const;
@@ -127,10 +130,13 @@ class MRC1Connection:
     void handle_io_timeout(const boost::system::error_code &ec);
     void handle_reconnect_timeout(const boost::system::error_code &ec);
     void stop(const boost::system::error_code &reason,
-        proto::MRCStatus::Status new_status = proto::MRCStatus::STOPPED);
+        proto::MRCStatus::StatusCode new_status = proto::MRCStatus::STOPPED);
     void reconnect_if_enabled();
-    void set_status(const proto::MRCStatus::Status &status, const std::string &info=std::string(),
-        const std::string &version=std::string(), bool has_read_multi=false);
+    void set_status(
+        const proto::MRCStatus::StatusCode &status,
+        const boost::system::error_code &reason = boost::system::error_code(),
+        const std::string &version = std::string(),
+        bool has_read_multi = false);
 
     friend class MRC1Initializer;
 
@@ -142,7 +148,7 @@ class MRC1Connection:
     ResponseHandler m_current_response_handler;
     std::string m_write_buffer;
     boost::asio::streambuf m_read_buffer;
-    proto::MRCStatus::Status m_status;
+    proto::MRCStatus::StatusCode m_status;
     MRC1ReplyParser m_reply_parser;
     boost::system::error_code m_last_error;
     bool m_silenced;

@@ -79,10 +79,10 @@ def write_setup(setup, dest, idc_to_parameter_names=dict()):
     data = _xml_tree_to_string(tree)
 
     try:
-        dest.write(data)
+        dest.write(data.encode('utf-8'))
     except AttributeError:
         with open(dest, 'w') as fp:
-            fp.write(data)
+            fp.write(data.encode('utf-8'))
 
 def read_device_config(source):
     et   = ET.parse(source)
@@ -111,10 +111,10 @@ def write_device_config(device_config, dest, parameter_names=dict()):
     data = _xml_tree_to_string(tree)
 
     try:
-        dest.write(data)
+        dest.write(data.encode('utf-8'))
     except AttributeError:
         with open(dest, 'w') as fp:
-            fp.write(data)
+            fp.write(data.encode('utf-8'))
 
 class CommentTreeBuilder(TreeBuilder):
     def comment(self, data):
@@ -215,7 +215,7 @@ def _build_setup_tree(setup, idc_to_parameter_names, tb):
 def _add_tag(tb, tag, text=None, attrs = {}):
     tb.start(tag, attrs)
     if text is not None:
-        tb.data(str(text))
+        tb.data(unicode(text))
     tb.end(tag)
 
 def _xml_tree_to_string(tree):
@@ -224,7 +224,10 @@ def _xml_tree_to_string(tree):
     return pretty
 
 def value2xml(tb, value):
-    if isinstance(value, str):
+    if isinstance(value, basestring):
+        _add_tag(tb, "value", value, {'type': 'str'})
+    elif isinstance(value, QtCore.QString):
+        value = unicode(value)
         _add_tag(tb, "value", value, {'type': 'str'})
     elif isinstance(value, int):
         _add_tag(tb, "value", value, {'type': 'int'})
@@ -234,7 +237,11 @@ def value2xml(tb, value):
         list2xml(tb, value)
     elif isinstance(value, dict):
         dict2xml(tb, value)
+    elif isinstance(value, tuple):
+        list2xml(tb, value)
     else:
+        import traceback
+        traceback.print_stack()
         raise TypeError("value2xml: unhandled value type '%s'" % type(value).__name__)
     return tb
 
@@ -258,7 +265,7 @@ def dict2xml(tb, d):
 def xml2value(node):
     t = node.attrib['type']
     if t == 'str':
-        return str(node.text)
+        return node.text
     elif t == 'int':
         return int(node.text)
     elif t == 'float':

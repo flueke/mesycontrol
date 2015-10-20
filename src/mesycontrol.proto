@@ -137,7 +137,7 @@ message ResponseReadMulti {
 }
 
 message MRCStatus {
-  enum Status {
+  enum StatusCode {
     STOPPED         = 0; // Not connected to the MRC
     CONNECTING      = 1; // The connection is being established.
     CONNECT_FAILED  = 2; // The last connection attempt failed.
@@ -146,10 +146,11 @@ message MRCStatus {
     RUNNING         = 5; // MRC connection established and ready to accept requests.
   }
 
-  Status status       = 1;
-  string info         = 2; // Additional status information.
-  string version      = 3; // The MRC version if known.
-  bool has_read_multi = 4; // True if read multi ('rb' command) is available.
+  StatusCode code     = 1;
+  int32 reason        = 2; // boost::system::error_code::value()
+  string info         = 3; // Additional status information. (boost::system::error_code::message())
+  string version      = 4; // The MRC version if known.
+  bool has_read_multi = 5; // True if read multi ('rb' command) is available.
 }
 
 message NotifyWriteAccess {

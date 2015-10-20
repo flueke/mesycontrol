@@ -11,8 +11,9 @@ import traceback
 import weakref
 
 import basic_model as bm
-import util
 import future
+import proto
+import util
 
 log = logging.getLogger(__name__)
 
@@ -37,13 +38,16 @@ class AbstractParameterBinding(object):
     def __init__(self, device, profile, target, display_mode, write_mode=None, fixed_modes=False, **kwargs):
         """
         device: app_model.Device or DeviceBase subclass
-        profile: parameter profile
+        profile: ParameterProfile or ReadWriteProfile
         target: any class instance or None
         display_mode: util.HARDWARE | util.CONFIG
         write_mode: util.HARDWARE | util.CONFIG | util.COMBINED
         fixed_modes: If True set_display_mode() and set_write_mode() won't have any effect.
                      Use this to create e.g. hardware only bindings.
         """
+        log.debug("AbstractParameterBinding: device=%s, profile=%s, target=%s",
+                device, profile, target)
+
         self._device        = weakref.ref(device)
         self.profile        = profile
         self._display_mode  = display_mode
@@ -66,23 +70,29 @@ class AbstractParameterBinding(object):
         if not self.has_rw_profile() and self.display_mode == util.CONFIG and self.profile.read_only:
             # read-only parameters are never stored in the config
             self._update_wrapper(future.Future().set_exception(
-                ParameterUnavailable("read_only parameter %s (%d) not stored in config" % (
+                ParameterUnavailable("Read-only parameter %s (%d) not stored in config" % (
                     self.profile.name, self.profile.address))))
+            return
+
+        dev = self.device.cfg if self.display_mode == util.CONFIG else self.device.hw
+
+        if dev is None:
+            self._update_wrapper(future.Future().set_exception(
+                ParameterUnavailable("No device to read from")))
+            return
+
+        if dev is self.device.hw and dev.address_conflict:
+            self._update_wrapper(future.Future().set_exception(
+                ParameterUnavailable("Address conflict")))
             return
 
         # For RW parameters the read address is used if hardware is present
         # otherwise the write address is used as only that is actually stored
         # in the config.
-        dev     = self.device.cfg if self.display_mode == util.CONFIG else self.device.hw
-
-        if dev is None:
-            self._update_wrapper(future.Future().set_exception(
-                ParameterUnavailable("device is None")))
-            return
-
         address = self.read_address if dev is self.device.hw else self.write_address
         f       = dev.get_parameter(address).add_done_callback(self._update_wrapper)
-        log.debug("populate: target=%s, addr=%d, future=%s", self.target, address, f)
+        log.debug("populate: target=%s, addr=%d, future=%s, dev=%s ======================================",
+                self.target, address, f, dev)
 
     def get_address(self):
         return self.profile.address
@@ -106,7 +116,10 @@ class AbstractParameterBinding(object):
         if self.fixed_modes:
             return False
 
-        self._write_mode = mode
+        if self._write_mode != mode:
+            self._write_mode = mode
+            self.populate()
+
         return True
 
     def get_display_mode(self):
@@ -182,6 +195,8 @@ class AbstractParameterBinding(object):
                     obj_ref, meth, args, kwargs = tup
                     getattr(obj_ref(), meth)(result_future, *args, **kwargs)
 
+            except util.Disconnected:
+                pass
             except Exception as e:
                 log.warning("target=%s, update callback raised %s: %s", self.target, type(e), e)
                 traceback.print_exc()
@@ -198,6 +213,9 @@ class AbstractParameterBinding(object):
             new_hw.connected.connect(self.populate)
 
     def _on_device_cfg_set(self, device, old_cfg, new_cfg):
+        log.debug("_on_device_cfg_set: device=%s, old=%s, new=%s",
+                device, old_cfg, new_cfg)
+
         if old_cfg is not None:
             old_cfg.parameter_changed.disconnect(self._on_cfg_parameter_changed)
 
@@ -205,17 +223,19 @@ class AbstractParameterBinding(object):
             new_cfg.parameter_changed.connect(self._on_cfg_parameter_changed)
 
     def _on_hw_parameter_changed(self, address, value):
-        if address == self.read_address and self.display_mode == util.HARDWARE:
+        if address == self.read_address and (self.display_mode == util.HARDWARE or self.write_mode == util.COMBINED):
             f = self.device.hw.get_parameter(self.read_address).add_done_callback(self._update_wrapper)
             log.debug("_on_hw_parameter_changed: target=%s, addr=%d, future=%s", self.target, self.read_address, f)
+            self.populate()
 
     def _on_cfg_parameter_changed(self, address, value):
         if address == self.write_address and self.display_mode == util.CONFIG:
             f = self.device.cfg.get_parameter(self.write_address).add_done_callback(self._update_wrapper)
             log.debug("_on_cfg_parameter_changed: target=%s, addr=%d, future=%s", self.target, self.write_address, f)
+            self.populate()
 
     def _write_value(self, value):
-        log.debug("_write_value: target=%s, %d=%d", self.target, self.write_address, value)
+        log.debug("_write_value: self=%s, target=%s, %d=%d", self, self.target, self.write_address, value)
 
         if self.has_rw_profile():
             self._write_value_rw(value)
@@ -244,6 +264,7 @@ class AbstractParameterBinding(object):
 
     def _write_value_rw(self, value):
         # Profile is split into read and write addresses.
+        log.debug("_write_value_rw: target=%s, %d=%d", self.target, self.write_address, value)
 
         if self.write_mode == util.CONFIG:
             self.device.cfg.set_parameter(self.write_address, value
@@ -271,8 +292,11 @@ class AbstractParameterBinding(object):
                     ).add_done_callback(on_cfg_set)
 
     def _update_wrapper(self, result_future):
-        log.debug("_update_wrapper: target=%s, addr=%d, result_future=%s",
-                self.target, self.read_address, result_future)
+        log.debug("_update_wrapper: target=%s, raddr=%d, waddr=%d, result_future=%s",
+                self.target, self.read_address, self.write_address, result_future)
+
+        if not result_future.exception():
+            log.debug("_update_wrapper: result=%s", result_future.result())
 
         self._update(result_future)
         self._exec_callbacks(result_future)
@@ -289,6 +313,8 @@ class AbstractParameterBinding(object):
         raise NotImplementedError()
 
     def _get_tooltip(self, result_future):
+        log.debug("_get_tooltip: target=%s, result_future=%s", self.target, result_future)
+
         if self.has_rw_profile():
             tt  = "name=(r=%s,w=%s), " % (self.profile.read.name, self.profile.write.name)
             tt += "addr=(r=%d,w=%d)" % (self.read_address, self.write_address)
@@ -299,9 +325,47 @@ class AbstractParameterBinding(object):
         if result_future.cancelled():
             return tt
 
+        if (self.write_mode == util.COMBINED
+                and self.device.has_hw
+                and self.device.has_cfg
+                and self.profile is not None
+                and self.get_write_profile().should_be_stored()):
+            try:
+                f_cfg = self.device.cfg.get_parameter(self.write_address)
+                f_hw  = self.device.hw.get_parameter(self.read_address)
+
+                def populate_cb(_):
+                    self.populate()
+
+                if not f_cfg.done():
+                    f_cfg.add_done_callback(populate_cb)
+
+                if not f_hw.done():
+                    f_hw.add_done_callback(populate_cb)
+
+                if f_cfg.done() and f_hw.done():
+                    cfg_value = int(f_cfg)
+                    hw_value  = int(f_hw)
+
+                    if cfg_value != hw_value:
+                        tt += ", cfg=%d, hw=%d" % (cfg_value, hw_value)
+            except (future.IncompleteFuture, KeyError,
+                    util.SocketError, util.Disconnected):
+                log.exception("_get_tooltip")
+
         if result_future.exception() is not None:
             e = result_future.exception()
-            tt += ", exc=%s: %s" % (type(e).__name__, e)
+            if (isinstance(e, proto.MessageError)
+                    and proto.is_error_response(e.message)):
+
+                tt += ", error: %s" % proto.ResponseError.ErrorType.Name(
+                        e.message.response_error.type)
+
+                if len(e.text):
+                    tt += ", info=%s" % e.text
+
+            else:
+                tt += ", exc=%s: %s" % (type(e).__name__, e)
         else:
             result = result_future.result()
             value  = int(result)
@@ -320,18 +384,24 @@ class AbstractParameterBinding(object):
 class DefaultParameterBinding(AbstractParameterBinding):
     def __init__(self, **kwargs):
         super(DefaultParameterBinding, self).__init__(**kwargs)
-        self.log = util.make_logging_source_adapter(__name__, self)
+
+        log.info("DefaultParameterBinding: target=%s", self.target)
+
         if isinstance(self.target, QtGui.QWidget):
             self._original_palette = QtGui.QPalette(self.target.palette())
+        else:
+            self._original_palette = None
+            log.info("DefaultParameterBinding: non QWidget target %s", self.target)
 
     def _update(self, result_future):
-        self.log.debug("_update: target=%s, result_future=%s", self.target, result_future)
+        log.debug("_update: target=%s, result_future=%s", self.target, result_future)
 
         pal = self._get_palette(result_future)
         self.target.setPalette(pal)
         self.target.setToolTip(self._get_tooltip(result_future))
         self.target.setStatusTip(self.target.toolTip())
-        self.target.setEnabled(not isinstance(result_future.exception(), ParameterUnavailable))
+        self.target.setEnabled(not isinstance(result_future.exception(),
+            (ParameterUnavailable, util.Disconnected)))
 
     def _get_palette(self, rf):
         pal = QtGui.QPalette(self._original_palette)
@@ -342,6 +412,44 @@ class DefaultParameterBinding(AbstractParameterBinding):
                 raise RuntimeError()
         except Exception:
             pal.setColor(QtGui.QPalette.Base, QtGui.QColor('red'))
+            log.debug("_get_palette: Exception from result future; setting red background color")
+            return pal
+
+        if (self.write_mode == util.COMBINED
+                and self.device.has_hw
+                and self.device.has_cfg
+                and self.profile is not None
+                and self.get_write_profile().should_be_stored()):
+            try:
+                log.debug("_get_palette: comparing hardware and config")
+                f_cfg = self.device.cfg.get_parameter(self.write_address)
+                f_hw  = self.device.hw.get_parameter(self.read_address)
+
+                if not f_cfg.done():
+                    log.debug("_get_palette: adding update callback to config future")
+                    f_cfg.add_done_callback(self._update_wrapper)
+
+                if not f_hw.done():
+                    log.debug("_get_palette: adding update callback to hardware future")
+                    f_hw.add_done_callback(self._update_wrapper)
+
+                if f_cfg.done() and f_hw.done():
+                    cfg_value = int(f_cfg)
+                    hw_value  = int(f_hw)
+                    log.debug("_get_palette: both cfg and hw futures are done; ra=%d, wa=%d, cfg_value=%d, hw_value=%d",
+                            self.read_address, self.write_address, cfg_value, hw_value)
+
+                    if cfg_value != hw_value:
+                        log.debug("_get_palette: ra=%d, wa=%d, cfg and hw differ; returning orange",
+                                self.read_address, self.write_address)
+                        pal.setColor(QtGui.QPalette.Base, QtGui.QColor('orange'))
+
+            except (future.IncompleteFuture, KeyError,
+                    util.SocketError, util.Disconnected):
+                log.exception("_get_palette")
+
+        else:
+            log.debug("_get_palette: hw vs cfg condition failed; returning original palette")
 
         return pal
 
@@ -350,22 +458,21 @@ class TargetlessParameterBinding(AbstractParameterBinding):
     functionality is needed."""
     def __init__(self, **kwargs):
         super(TargetlessParameterBinding, self).__init__(target=None, **kwargs)
-        self.log = util.make_logging_source_adapter(__name__, self)
-        self.log.debug("TargetlessParameterBinding: kwargs: %s", kwargs)
+        log.debug("TargetlessParameterBinding: kwargs: %s", kwargs)
 
     def set_display_mode(self, mode):
-        self.log.debug("TargetlessParameterBinding: set_display_mode %s", util.RW_MODE_NAMES[mode])
-        if mode == util.CONFIG:
-            import traceback
-            traceback.print_stack()
+        log.debug("TargetlessParameterBinding: set_display_mode %s", util.RW_MODE_NAMES[mode])
+        #if mode == util.CONFIG:
+        #    import traceback
+        #    traceback.print_stack()
         super(TargetlessParameterBinding, self).set_display_mode(mode)
 
     def set_write_mode(self, mode):
-        self.log.debug("TargetlessParameterBinding: set_write_mode %s", util.RW_MODE_NAMES[mode])
+        log.debug("TargetlessParameterBinding: set_write_mode %s", util.RW_MODE_NAMES[mode])
         super(TargetlessParameterBinding, self).set_write_mode(mode)
 
     def _update(self, result_future):
-        self.log.debug("TargetlessParameterBinding: _update rf=%s, display_mode=%s",
+        log.debug("TargetlessParameterBinding: _update rf=%s, display_mode=%s",
                 result_future, util.RW_MODE_NAMES[self.display_mode])
         pass
 
@@ -389,7 +496,9 @@ class SpinBoxParameterBinding(DefaultParameterBinding):
 
         try:
             with util.block_signals(self.target):
-                self.target.setValue(int(result_future.result()))
+                result = int(result_future.result())
+                self.target.setValue(result)
+                log.debug("SpinBoxParameterBinding: _update: addr=%d, result=%d", self.address, result)
         except Exception:
             pass
 
@@ -470,11 +579,14 @@ class RadioButtonGroupParameterBinding(DefaultParameterBinding):
         self._write_value(button_id)
 
     def _update(self, rf):
-        self.target.button(int(rf)).setChecked(True)
+        try:
+            self.target.button(int(rf)).setChecked(True)
 
-        for b in self.target.buttons():
-            b.setToolTip(self._get_tooltip(rf))
-            b.setStatusTip(b.toolTip())
+            for b in self.target.buttons():
+                b.setToolTip(self._get_tooltip(rf))
+                b.setStatusTip(b.toolTip())
+        except Exception:
+            pass
 
     @staticmethod
     def predicate(target):
@@ -532,6 +644,7 @@ class SliderParameterBinding(DefaultParameterBinding):
 
 class Factory(object):
     def __init__(self):
+        self.log = util.make_logging_source_adapter(__name__, self)
         self.predicate_binding_class_pairs = list()
         self.classinfo_bindings = list()
 
@@ -563,7 +676,9 @@ class Factory(object):
 
         if cls is not None:
             try:
-                return cls(**kwargs)
+                ret = cls(**kwargs)
+                self.log.debug("created binding %s", ret)
+                return ret
             except Exception as e:
                 e.args = e.args + ("class=%s, kwargs=%s" % (cls.__name__, kwargs),)
                 raise

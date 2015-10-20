@@ -19,6 +19,7 @@ import gc
 import logging
 import math
 import os
+import re
 import sys
 
 HARDWARE = 1
@@ -208,21 +209,31 @@ def make_logging_source_adapter(module_name, object_instance):
 
     return ret
 
-def list_serial_ports():
-    if sys.platform.startswith('linux'):
-        return list_serial_ports_linux()
-    elif sys.platform.startswith('win32'):
-        return list(list_serial_ports_windows())
+SERIAL_USB    = 1
+SERIAL_SERIAL = 2
 
-def list_serial_ports_linux():
+def list_serial_ports(type_mask=SERIAL_USB | SERIAL_SERIAL):
+    if sys.platform.startswith('linux'):
+        return list_serial_ports_linux(type_mask)
+    elif sys.platform.startswith('win32'):
+        return list(list_serial_ports_windows(type_mask))
+
+def list_serial_ports_linux(type_mask):
     import glob
-    patterns = ("/dev/ttyUSB?", "/dev/ttyUSB??", "/dev/ttyS?", "/dev/ttyS??")
-    ret      = list()
+    patterns = list()
+
+    if type_mask & SERIAL_USB:
+        patterns.extend(("/dev/ttyUSB?", "/dev/ttyUSB??"))
+
+    if type_mask & SERIAL_SERIAL:
+        patterns.extend(("/dev/ttyS?", "/dev/ttyS??"))
+
+    ret = list()
     for p in patterns:
         ret.extend(sorted(glob.glob(p)))
     return ret
 
-def list_serial_ports_windows():
+def list_serial_ports_windows(type_mask):
     """
     Uses the Win32 registry to return an iterator
     of serial (COM) ports existing on this computer.
@@ -238,8 +249,25 @@ def list_serial_ports_windows():
 
     for i in itertools.count():
         try:
-            val = winreg.EnumValue(key, i)
-            yield str(val[1])
+            val  = winreg.EnumValue(key, i)
+            device, name = val[:2]
+
+            serial_pattern = r"^.*\Serial[0-9]+$"
+            usb_pattern    = r"^.*\VCP[0-9]+$"
+
+            matches_serial = re.match(serial_pattern, device)
+            matches_usb    = re.match(usb_pattern, device)
+
+            if type_mask & SERIAL_SERIAL and matches_serial:
+                yield name
+
+            if type_mask & SERIAL_USB and matches_usb:
+                yield name
+
+            # names not matching the qualifiers above
+            if not matches_serial and not matches_usb and type_mask & SERIAL_SERIAL:
+                yield name
+
         except EnvironmentError:
             break
 
@@ -416,10 +444,12 @@ def wait_for_signal(signal, expected_args=None, timeout_ms=0, emitting_callable=
 
 @contextlib.contextmanager
 def block_signals(o):
-    was_blocked = o.signalsBlocked()
-    o.blockSignals(True)
-    yield o
-    o.blockSignals(was_blocked)
+    try:
+        was_blocked = o.signalsBlocked()
+        o.blockSignals(True)
+        yield o
+    finally:
+        o.blockSignals(was_blocked)
 
 class ExceptionHookRegistry(object):
     """Exception handler registry for use with sys.excepthook.

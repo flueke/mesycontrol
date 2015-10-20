@@ -6,8 +6,10 @@ from qt import pyqtProperty
 from qt import pyqtSignal
 from qt import QtCore
 from qt import QtGui
+from qt import Qt
 
 import future
+import gui_util
 import util
 
 class DeviceBase(QtCore.QObject):
@@ -38,6 +40,7 @@ class DeviceBase(QtCore.QObject):
     write_mode_changed      = pyqtSignal(object)
 
     parameter_changed       = pyqtSignal(int, object)
+    extension_changed       = pyqtSignal(str, object)
 
     def __init__(self, app_device, read_mode, write_mode, parent=None):
         """
@@ -78,6 +81,9 @@ class DeviceBase(QtCore.QObject):
 
         self.app_device.hw_parameter_changed.connect(self._on_hw_parameter_changed)
         self.app_device.cfg_parameter_changed.connect(self._on_cfg_parameter_changed)
+
+        self.app_device.hw_extension_changed.connect(self._on_hw_extension_changed)
+        self.app_device.cfg_extension_changed.connect(self._on_cfg_extension_changed)
 
         self._read_mode  = read_mode
         self._write_mode = write_mode
@@ -146,16 +152,21 @@ class DeviceBase(QtCore.QObject):
         return dev.set_parameter(address, value)
 
     def get_extension(self, name):
-        dev = self.hw if self.write_mode == util.HARDWARE else self.cfg
+        dev = self.hw if self.read_mode == util.HARDWARE else self.cfg
         return dev.get_extension(name)
 
     def set_extension(self, name, value):
+        self.log.debug("set_extension: name=%s, value=%s", name, value)
         if self.write_mode == util.COMBINED:
             self.cfg.set_extension(name, value)
             self.hw.set_extension(name, value)
         else:
             dev = self.hw if self.write_mode == util.HARDWARE else self.cfg
             dev.set_extension(name, value)
+
+    def get_extensions(self):
+        dev = self.hw if self.read_mode == util.HARDWARE else self.cfg
+        return dev.get_extensions()
 
     def get_module(self):
         return self.cfg_module if self.read_mode & util.CONFIG else self.hw_module
@@ -187,6 +198,10 @@ class DeviceBase(QtCore.QObject):
         if self.read_mode & util.HARDWARE:
             self.parameter_changed.emit(address, value)
 
+    def _on_hw_extension_changed(self, name, value):
+        if self.read_mode & util.HARDWARE:
+            self.extension_changed.emit(name, value)
+
     # ===== CFG =====
     def get_cfg_parameter(self, address_or_name):
         address = self.profile[address_or_name].address
@@ -207,18 +222,63 @@ class DeviceBase(QtCore.QObject):
         if self.read_mode & util.CONFIG:
             self.parameter_changed.emit(address, value)
 
+    def _on_cfg_extension_changed(self, name, value):
+        if self.read_mode & util.CONFIG:
+            self.extension_changed.emit(name, value)
+
 class DeviceWidgetBase(QtGui.QWidget):
+    """Base class for device specific widgets."""
     display_mode_changed = pyqtSignal(int)
     write_mode_changed   = pyqtSignal(int)
+    hardware_connected_changed = pyqtSignal(bool)
 
     def __init__(self, specialized_device, display_mode, write_mode, parent=None):
+        """Construct a device specific widget.
+        * specialized_device should be a DeviceBase subclass tailored to the specific device.
+        * display_mode and write_mode are the display and write modes to use with the device.
+        """
         super(DeviceWidgetBase, self).__init__(parent)
         self.log = util.make_logging_source_adapter(__name__, self)
         self.device = specialized_device
         self._display_mode = display_mode
         self._write_mode   = write_mode
+        self.make_settings = None
 
         self.device.hardware_set.connect(self._on_device_hardware_set)
+        self._on_device_hardware_set(self.device, None, self.device.hw)
+
+        self.notes_widget = gui_util.DeviceNotesWidget(specialized_device)
+
+        self.hide_notes_button = QtGui.QPushButton(util.make_icon(":/collapse-up.png"), str(),
+                clicked=self._toggle_hide_notes)
+        self.hide_notes_button.setToolTip("Hide Device notes")
+        self.hide_notes_button.setStatusTip(self.hide_notes_button.toolTip())
+
+        self.tab_widget = QtGui.QTabWidget()
+        self.tab_widget.setCornerWidget(self.hide_notes_button, Qt.TopRightCorner)
+
+        layout = QtGui.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.notes_widget)
+        layout.addWidget(self.tab_widget)
+        layout.setStretch(1, 1)
+
+    def _toggle_hide_notes(self):
+        self.set_notes_visible(not self.notes_visible())
+
+    def notes_visible(self):
+        return self.notes_widget.isVisible()
+
+    def set_notes_visible(self, visible):
+        self.notes_widget.setVisible(visible)
+
+        if self.notes_widget.isVisible():
+            self.hide_notes_button.setIcon(util.make_icon(":/collapse-up.png"))
+            self.hide_notes_button.setToolTip("Hide Device notes")
+        else:
+            self.hide_notes_button.setIcon(util.make_icon(":/collapse-down.png"))
+            self.hide_notes_button.setToolTip("Show Device notes")
+        self.hide_notes_button.setStatusTip(self.hide_notes_button.toolTip())
 
     def get_display_mode(self):
         return self.device.read_mode
@@ -253,8 +313,20 @@ class DeviceWidgetBase(QtGui.QWidget):
     def get_parameter_bindings(self):
         raise NotImplementedError()
 
+    def has_toolbar(self):
+        return len(self.actions())
+
+    def get_toolbar(self):
+        tb = QtGui.QToolBar()
+
+        for a in self.actions():
+            tb.addAction(a)
+
+        return tb
+
     def showEvent(self, event):
         if not event.spontaneous():
+
             for binding in self.get_parameter_bindings():
                 binding.populate()
 
@@ -264,13 +336,58 @@ class DeviceWidgetBase(QtGui.QWidget):
             if (self.device.has_hw and
                     ((self.display_mode & util.HARDWARE)
                         or not self.device.idc_conflict)):
+                self.log.debug("showEvent: adding default poll subscription")
                 self.device.add_default_polling_subscription(self)
 
         super(DeviceWidgetBase, self).showEvent(event)
 
+    def closeEvent(self, event):
+        if (self.parent()
+                and len(self.parent().objectName())
+                and self.make_settings):
+            settings = self.make_settings()
+            name = "DeviceWidgets/%s_notes_visible" % self.parent().objectName()
+            settings.setValue(name, self.notes_visible())
+
+        super(DeviceWidgetBase, self).closeEvent(event)
+
+    def event(self, e):
+        if (e.type() == QtCore.QEvent.Polish
+                and self.parent()
+                and len(self.parent().objectName())
+                and self.make_settings):
+
+            settings = self.make_settings()
+            name = "DeviceWidgets/%s_notes_visible" % self.parent().objectName()
+            if settings.contains(name):
+                self.set_notes_visible(settings.value(name).toBool())
+
+        return super(DeviceWidgetBase, self).event(e)
+
     def _on_device_hardware_set(self, device, old, new):
+        self.log.debug("_on_device_hardware_set: device=%s, old=%s, new=%s",
+                device, old, new)
+
         if old is not None:
+            self.log.debug("_on_device_hardware_set: removing old poll subscription")
             old.remove_polling_subscriber(self)
+            old.connected.disconnect(self._on_hardware_connected)
+            old.disconnected.disconnect(self._on_hardware_disconnected)
 
         if new is not None:
+            if ((self.display_mode & util.HARDWARE) or not self.device.idc_conflict):
+                self.log.debug("_on_device_hardware_set: adding default poll subscription")
+                self.device.add_default_polling_subscription(self)
+            new.connected.connect(self._on_hardware_connected)
+            new.disconnected.connect(self._on_hardware_disconnected)
+
+    def _on_hardware_connected(self):
+
+        if ((self.display_mode & util.HARDWARE) or not self.device.idc_conflict):
+            self.log.debug("_on_hardware_connected: adding default poll subscription")
             self.device.add_default_polling_subscription(self)
+
+        self.hardware_connected_changed.emit(True)
+
+    def _on_hardware_disconnected(self):
+        self.hardware_connected_changed.emit(False)

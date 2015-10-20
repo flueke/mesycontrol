@@ -1,0 +1,82 @@
+<!-- vim:tw=120 -->
+<html>
+<body style="background-color: lightyellow;">
+  <center><h1>mesycontrol quickstart guide</h1></center>
+
+  There are two ways to get started: either connect to an MRC using the <a
+    href="flash-widget://hardware_tree_view">hardware side</a> of the device tree or create and edit a setup using the
+  <a href="flash-widget://config_tree_view">config side</a>.
+
+  <h2>Connecting to an MRC</h2>
+
+  <p>
+  Use the <a href="flash-action://add_mrc_connection"><img src=":/add-mrc.png"/> Add MRC connection</a> button or the
+  corresponding context menu entry and enter your connection details in the dialog.
+  </p>
+
+  <p>
+  Once the connection is established the busses are scanned and connected devices will appear in the hardware tree
+  view. By double-clicking on a device or using the <a href="flash-action://open_device_widget"><img
+  src=":/open-device-widget.png"/> Open device widget</a> button a device specific window can be opened, allowing direct
+  editing of hardware parameters.
+  </p>
+
+  <p>
+  To create a configuration using the currently connected devices select the &quot;Connections&quot; node of the
+  hardware tree and use the <a href="flash-action://apply_hardware_to_config"><img src=":/apply-hardware-to-config.png"/>
+  Copy hardware to config</a> button. Select MRC or Device nodes to only copy the corresponding part of the tree to the
+  configuration.
+  </p>
+
+  <h2>Creating a Setup</h2>
+
+  <p>
+  A complete configuration (possibly containing multiple MRCs) can be created and edited without requiring access to
+  the hardware. Use the <a href="flash-action://add_config"><img src=":/add-config.png"/> Add config</a> button or the
+  config-side context menu to add MRC and Device configs. Editing device parameters works the same way as for hardware
+  devices: use the <a href="flash-action://open_device_widget"><img src=":/open-device-widget.png"/></a> button or
+  double-click the device to open a device specific window.
+  </p>
+
+  <p>
+  MRCs and Devices can be renamed using the context menu or pressing <i>F2</i> on the selected node.
+  </p>
+
+  <p>
+  To apply configuration values to the hardware use the <a href="flash-action://apply_config_to_hardware">
+  <img src=":/apply-config-to-hardware.png"/>Apply config to hardware</a> button. As for the hardware side subtrees can
+  be applied by selecting the corresponding node in the config tree.
+  </p>
+
+  <h2>Linked mode and comparing hardware &amp; config</h2>
+
+  <p>
+  Using the <a href="flash-action://toggle_linked_mode"><img src=":/linked.png"/> Toggle linked mode</a> button
+  <b>linked mode</b> can be activated. In this mode the hardware and setup trees are compared against each other,
+  differences and conflicts are highlighted, and devices missing from either side are also shown.
+  
+  <p>
+  In linked-mode it is possible to have changes to device parameters apply to both the hardware and the config side
+  keeping both trees in sync. Use the <a href="flash-action-disabled://select_write_mode"><img src=":/select-write-mode.png"/>
+   Write mode</a> and <a href="flash-action-disabled://select_display_mode"><img src=":/select-display-mode.png"/>
+   Display mode</a> buttons in the top toolbar to control which values are displayed and where changed parameters
+  are written to. <b>Note:</b> These two settings are window specific.
+  </p>
+
+  <p>
+  Use the <a href="flash-action://check_config"><img src=":/check-config.png"/> Compare config and hardware</a> action
+  to re-read all hardware parameters and check the state of config vs. hardware. Required connections will be
+  automatically established. This is a quick way of ensuring that the hardware is in the state defined by the
+  configuration.
+  </p>
+
+
+  <!--
+<ul>
+<li><a href="flash-action://toggle_linked_mode"><img src=":/linked.png"/>Linked Mode</a>
+<li><a href="flash-action://check_config"><img src=":/check-config.png"/>Compare config and hardware</a>
+</ul>
+  -->
+
+</body>
+</html>

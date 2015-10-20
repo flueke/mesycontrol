@@ -40,8 +40,8 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         super(DeviceTableModel, self).__init__(parent)
         self.log        = util.make_logging_source_adapter(__name__, self)
 
-        self.display_mode  = display_mode
-        self.write_mode = write_mode
+        self._display_mode = display_mode
+        self._write_mode   = write_mode
 
         self._device    = None
         self.device     = device
@@ -82,13 +82,32 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         elif self.display_mode & util.HARDWARE:
             return self.device.get_hw_profile()
 
+    def set_display_mode(self, mode):
+        self._display_mode = mode
+        self._all_fields_changed()
+
+    def get_display_mode(self):
+        return self._display_mode
+
+    def set_write_mode(self, mode):
+        self._write_mode = mode
+        self._all_fields_changed()
+
+    def get_write_mode(self):
+        return self._write_mode
+
     device = pyqtProperty(object, get_device, set_device)
     profile = pyqtProperty(object, get_profile)
+    display_mode = pyqtProperty(object, get_display_mode, set_display_mode)
+    write_mode   = pyqtProperty(object, get_write_mode, set_write_mode)
 
     def _on_device_hardware_set(self, app_device, old_hw, new_hw):
+        self.log.debug("_on_device_hardware_set: dev=%s, old=%s, new=%s",
+                app_device, old_hw, new_hw)
+
         signal_slot_map = {
                 'parameter_changed': self._on_hw_parameter_changed,
-                'connected': self._all_fields_changed,
+                'connected': self._on_hardware_connected,
                 'connecting': self._all_fields_changed,
                 'disconnected': self._all_fields_changed,
                 'connection_error': self._all_fields_changed,
@@ -100,6 +119,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 getattr(old_hw, signal).disconnect(slot)
 
             try:
+                self.log.debug("_on_device_hardware_set: removing old poll subscription")
                 old_hw.remove_polling_subscriber(self)
             except KeyError:
                 pass
@@ -108,7 +128,8 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
             for signal, slot in signal_slot_map.iteritems():
                 getattr(new_hw, signal).connect(slot)
 
-            app_device.add_default_polling_subscription(self)
+            if new_hw.is_connected():
+                self._on_hardware_connected()
 
         self._all_fields_changed()
 
@@ -123,6 +144,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
 
     def _on_device_idc_conflict_changed(self, conflict):
         if self.device.has_hw:
+            self.log.debug("_on_device_idc_conflict_changed: removing poll subscription")
             self.device.hw.remove_polling_subscriber(self)
         
         if self.display_mode == util.COMBINED and conflict:
@@ -131,8 +153,14 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         elif (self.device.has_hw and
                 ((self.display_mode & util.HARDWARE)
                     or not self.device.idc_conflict)):
-            for addr in self.device.get_hw_profile().get_volatile_addresses():
-                self.device.hw.add_poll_item(self, addr)
+            self.log.debug("_on_device_idc_conflict_changed: Adding poll subscription")
+            self.device.add_default_polling_subscription(self)
+
+    def _on_hardware_connected(self):
+        if ((self.display_mode & util.HARDWARE) or not self.device.idc_conflict):
+            self.log.info("_on_hardware_connected: adding poll subscription")
+            self.device.add_default_polling_subscription(self)
+        self._all_fields_changed()
 
     def _on_hw_parameter_changed(self, address, value):
         self.dataChanged.emit(
@@ -223,8 +251,12 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 return pp.name
 
             elif col == COL_HW_VALUE:
-                if hw is None or hw.is_disconnected():
+                if hw is None:
+                    return "<device not present>"
+
+                if hw.is_disconnected():
                     return "<not connected>"
+
                 if hw.is_connecting():
                     return "<connecting>"
 
@@ -360,7 +392,9 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 cfg = self.device.cfg
 
                 def set_hw(f):
-                    if not f.exception() and  self.write_mode == util.COMBINED:
+                    if (not f.exception()
+                            and self.write_mode == util.COMBINED
+                            and self.device.has_hw):
                         self.device.hw.set_parameter(row, value)
 
                 cfg.set_parameter(row, value).add_done_callback(set_hw)

@@ -3,7 +3,6 @@
 # Author: Florian Lüke <florianlueke@gmx.net>
 
 from functools import partial
-import collections
 import weakref
 
 from qt import QtCore
@@ -221,6 +220,9 @@ class Device(AppObject):
     hw_parameter_changed    = pyqtSignal(int, object)
     cfg_parameter_changed   = pyqtSignal(int, object)
 
+    hw_extension_changed    = pyqtSignal(str, object)
+    cfg_extension_changed   = pyqtSignal(str, object)
+
     def __init__(self, bus, address, mrc=None, hw_device=None, cfg_device=None,
             hw_module=None, cfg_module=None, parent=None):
         self.bus        = int(bus)
@@ -259,6 +261,7 @@ class Device(AppObject):
 
     def _on_hardware_set(self, app_model, old_hw, new_hw):
         self._update_idc_conflict()
+        self._update_config_addresses()
         self.update_config_applied()
 
         if old_hw is not None:
@@ -266,15 +269,20 @@ class Device(AppObject):
             old_hw.parameter_changed.disconnect(self.hw_parameter_changed)
             old_hw.memory_cleared.disconnect(self.update_config_applied)
             old_hw.idc_changed.disconnect(self._on_hw_idc_changed)
+            old_hw.extension_changed.disconnect(self.hw_extension_changed)
+            old_hw.extension_changed.disconnect(self.update_config_applied)
 
         if new_hw is not None:
             new_hw.parameter_changed.connect(self.update_config_applied)
             new_hw.parameter_changed.connect(self.hw_parameter_changed)
             new_hw.memory_cleared.connect(self.update_config_applied)
             new_hw.idc_changed.connect(self._on_hw_idc_changed)
+            new_hw.extension_changed.connect(self.hw_extension_changed)
+            new_hw.extension_changed.connect(self.update_config_applied)
 
     def _on_config_set(self, app_model, old_cfg, new_cfg):
         self._update_idc_conflict()
+        self._update_config_addresses()
         self.update_config_applied()
 
         if old_cfg is not None:
@@ -282,12 +290,16 @@ class Device(AppObject):
             old_cfg.parameter_changed.disconnect(self.cfg_parameter_changed)
             old_cfg.memory_cleared.disconnect(self.update_config_applied)
             old_cfg.idc_changed.disconnect(self._on_cfg_idc_changed)
+            old_cfg.extension_changed.disconnect(self.cfg_extension_changed)
+            old_cfg.extension_changed.disconnect(self.update_config_applied)
 
         if new_cfg is not None:
             new_cfg.parameter_changed.connect(self.update_config_applied)
             new_cfg.parameter_changed.connect(self.cfg_parameter_changed)
             new_cfg.memory_cleared.connect(self.update_config_applied)
             new_cfg.idc_changed.connect(self._on_cfg_idc_changed)
+            new_cfg.extension_changed.connect(self.cfg_extension_changed)
+            new_cfg.extension_changed.connect(self.update_config_applied)
 
     def get_mrc(self):
         return None if self._mrc is None else self._mrc()
@@ -406,7 +418,7 @@ class Device(AppObject):
     # ===== config ==== #
     def update_config_applied(self):
         old_state = self.is_config_applied()
-        new_state = False
+        new_state = None # unknown
 
         if self.idc_conflict:
             new_state = False
@@ -415,31 +427,30 @@ class Device(AppObject):
             cfg_mem = self.cfg.get_cached_memory_ref()
 
             try:
-                self.log.debug("update_config_applied: addresses=%s", self._config_addresses)
+                #self.log.debug("update_config_applied: addresses=%s", self._config_addresses)
                 new_state = all((hw_mem[k] == cfg_mem[k] for k in self._config_addresses))
-            except KeyError:
-                self.log.debug("update_config_applied: Key(s) missing from mem cache")
+                self.log.debug("update_config_applied: old_state=%s, new_state=%s (memory compare)",
+                        old_state, new_state)
+            except KeyError as e:
+                hw_keys  = set(hw_mem.keys())
+                cfg_keys = set(cfg_mem.keys())
+                self.log.debug("update_config_applied: missing address: %s", e)
+                self.log.debug("update_config_applied: hw_keys =%s", hw_keys)
+                self.log.debug("update_config_applied: cfg_keys=%s", cfg_keys)
+                self.log.debug("update_config_applied: hw.diff(cfg)=%s", hw_keys.difference(cfg_keys))
+                self.log.debug("update_config_applied: cfg.diff(hw)=%s", cfg_keys.difference(hw_keys))
                 new_state = None # Unknown
 
-            #if not new_state:
-            #    details = list()
-            #    for k in self._config_addresses:
-            #        hw  = hw_mem[k] if k in hw_mem else None
-            #        cfg = cfg_mem[k] if k in cfg_mem else None
-            #        if hw != cfg or (k not in hw_mem and k not in cfg_mem):
-            #            detail = collections.namedtuple('MemoryDiff', 'address, hardware, config')(k, hw, cfg)
-            #            details.append(detail)
-            #    self.log.debug("update_config_applied: %s", details)
-
-            if new_state is not None:
+            if new_state is True:
                 extensions_match = self.hw.get_extensions() == self.cfg.get_extensions()
                 new_state = new_state and extensions_match
+                self.log.debug("update_config_applied: old_state=%s, new_state=%s (extension compare)",
+                        old_state, new_state)
 
         if new_state != old_state:
+            self.log.debug("update_config_applied: %s: config_applied changed: %s", self, new_state)
             self._config_applied = new_state
             self.config_applied_changed.emit(new_state)
-
-        self.log.debug("%s: config_applied=%s", self, new_state)
 
     def _update_config_addresses(self):
         if self.idc_conflict:
@@ -529,17 +540,21 @@ class Device(AppObject):
 
         return module.device_class(self, read_mode, write_mode)
 
-    def make_device_widget(self, display_mode, write_mode, parent=None):
+    def make_device_widget(self, display_mode, write_mode, make_settings=None, parent=None):
         try:
             module = self.module
         except IDCConflict:
             module = self.cfg_module if display_mode & util.CONFIG else self.hw_module
 
-        return module.device_ui_class(
+        ret = module.device_ui_class(
                 device=self.make_specialized_device(display_mode, write_mode),
                 display_mode=display_mode,
                 write_mode=write_mode,
                 parent=parent)
+
+        ret.make_settings = make_settings
+
+        return ret
 
     def has_specialized_class(self):
         return self.module.has_specialized_class()
@@ -558,16 +573,17 @@ class Device(AppObject):
         if not self.has_hw:
             raise RuntimeError("Hardware not present")
 
-        for addr in self.hw_profile.get_volatile_addresses():
-            self.hw.add_poll_item(subscriber, addr)
+        self.log.debug("Adding poll subscription (idc=%d, %s) for %s",
+                self.hw.idc, self.hw_profile.name, subscriber)
+
+        self.hw.add_poll_items(subscriber, self.hw_profile.get_volatile_addresses())
 
     def remove_polling_subscriber(self, subscriber):
         if not self.has_hw:
             raise RuntimeError("Hardware not present")
-        try:
-            self.hw.remove_polling_subscriber(subscriber)
-        except KeyError:
-            pass
+
+        self.hw.remove_polling_subscriber(subscriber)
+        self.log.debug("Removed poll subscriber %s", subscriber)
 
     mrc             = pyqtProperty(object, get_mrc, set_mrc, notify=mrc_changed)
 

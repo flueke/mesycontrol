@@ -4,8 +4,10 @@ project(mesycontrol)
 # Create binaries in the root of the build directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-# Add the local cmake directory to the module path
+# Add the local cmake directory and the current source directory to the module
+# path. The latter is needed for CMake/CPack to find and use NSIS.template.in.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+#list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Pull information from git:
 # GIT_SHA1 contains the complete git hash
@@ -37,6 +39,7 @@ set(CPACK_PACKAGE_EXECUTABLES "mesycontrol_gui;mesycontrol GUI")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "mesycontrol")
 set(CPACK_OUTPUT_FILE_PREFIX "packages")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/src/client/mesycontrol/resources/gpl.txt")
+set(CPACK_STRIP_FILES TRUE)
 
 if (WIN32)
     set(CPACK_GENERATOR "ZIP" "NSIS")
@@ -45,6 +48,9 @@ if (WIN32)
     set(CPACK_NSIS_MUI_FINISHPAGE_RUN "mesycontrol_gui.exe")
     set(CPACK_NSIS_URL_INFO_ABOUT "http://www.mesytec.com")
     set(CPACK_NSIS_CONTACT "info@mesytec.com")
+    set(CPACK_NSIS_MENU_LINKS
+        "share/doc/mesycontrol.pdf" "Documentation")
+    #set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES")
 else(WIN32)
     set(CPACK_GENERATOR "TBZ2" "STGZ")
 endif(WIN32)

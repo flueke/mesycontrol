@@ -11,9 +11,6 @@ import hardware_model as hm
 import proto
 import util
 
-# Polling, poll sets
-# Read Range
-
 class ErrorResponse(RuntimeError):
     pass
 
@@ -21,31 +18,21 @@ class TimeoutError(RuntimeError):
     def __str__(self):
         return "Connection timed out"
 
-SCANBUS_INTERVAL_MSEC  = 5000
-POLL_MIN_INTERVAL_MSEC =  500
-
 class Controller(object):
     """Link between hardware_model.MRC and MRCConnection.
     Reacts to changes to the connection state and updates the hardware model
     accordingly. Also takes requests from the hardware model and forwards them
     to the connection.
     """
-    def __init__(self, connection,
-            scanbus_interval_msec=SCANBUS_INTERVAL_MSEC,
-            poll_min_interval_msec=POLL_MIN_INTERVAL_MSEC):
+    def __init__(self, connection):
 
         self.log        = util.make_logging_source_adapter(__name__, self)
 
         self.connection = connection
         self._mrc       = None
-        self._scanbus_timer = QtCore.QTimer()
-        self._scanbus_timer.timeout.connect(self._on_scanbus_timer_timeout)
-        self.set_scanbus_interval(scanbus_interval_msec)
 
-        self._poll_timer = QtCore.QTimer()
-        self._poll_timer.timeout.connect(self._on_poll_timer_timeout)
-        self._poll_items = weakref.WeakKeyDictionary()
-        self.set_poll_min_interval(poll_min_interval_msec)
+        # Maps subscribers to a set of poll items
+        self._poll_subscriptions = dict()
 
         self._connect_timer = QtCore.QTimer()
         self._connect_timer.setSingleShot(True)
@@ -56,15 +43,7 @@ class Controller(object):
             for i in bm.BUS_RANGE:
                 self.scanbus(i)
 
-            self._scanbus_timer.start()
-            self._poll_timer.start()
-
-        def on_disconnected():
-            self._scanbus_timer.stop()
-            self._poll_timer.stop()
-
         self.connection.connected.connect(on_connected)
-        self.connection.disconnected.connect(on_disconnected)
         self.connection.notification_received.connect(self._on_notification_received)
 
     def set_mrc(self, mrc):
@@ -191,37 +170,7 @@ class Controller(object):
     def scanbus(self, bus):
         def on_bus_scanned(f):
             try:
-                bus     = f.result().response.scanbus_result.bus
-                entries = f.result().response.scanbus_result.entries
-
-                self.log.debug("%s: received scanbus response %d: %s", self, bus, entries)
-
-                for addr in bm.DEV_RANGE:
-                    entry    = entries[addr]
-                    idc      = entry.idc
-                    rc       = entry.rc
-                    conflict = entry.conflict
-
-                    device  = self.mrc.get_device(bus, addr)
-
-                    if idc <= 0 and device is not None:
-                        self.log.debug("%s: scanbus: removing device (%d, %d)", self, bus, addr)
-                        self.mrc.remove_device(device)
-                    elif idc > 0:
-                        if device is None:
-                            self.log.debug("%s: scanbus: creating device (%d, %d, idc=%d)", self, bus, addr, idc)
-                            device = hm.Device(bus, addr, idc)
-                            self.mrc.add_device(device)
-
-                        device.idc = idc
-                        device.rc  = rc
-                        device.address_conflict = conflict
-
-                        if device.address_conflict:
-                            self.log.debug("%s: scanbus: address conflict on (%d, %d)", self, bus, addr)
-
-                self.mrc.address_conflict = any((d.address_conflict for d in self.mrc))
-
+                self._handle_scanbus_result(f.result().response)
             except Exception:
                 self.log.exception("%s: scanbus error" % self)
 
@@ -238,73 +187,96 @@ class Controller(object):
         m.request_rc.rc  = on_off
         return self.connection.queue_request(m)
 
-    def set_scanbus_interval(self, msec):
-        self._scanbus_timer.setInterval(msec)
+    def acquire_write_access(self, force=False):
+        m = proto.Message()
+        m.type = proto.Message.REQ_ACQUIRE_WRITE_ACCESS
+        m.request_acquire_write_access.force = force
+        return self.connection.queue_request(m)
 
-    def get_scanbus_interval(self):
-        return self._scanbus_timer.interval()
+    def release_write_access(self):
+        m = proto.Message()
+        m.type = proto.Message.REQ_RELEASE_WRITE_ACCESS
+        return self.connection.queue_request(m)
 
-    def _on_scanbus_timer_timeout(self):
-        if self.connection.is_connected():
-            for i in bm.BUS_RANGE:
-                self.scanbus(i)
+    def set_silenced(self, silenced):
+        m = proto.Message()
+        m.type = proto.Message.REQ_SET_SILENCED
+        m.request_set_silenced.silenced = silenced
+        return self.connection.queue_request(m)
 
-    def set_poll_min_interval(self, msec):
-        self._poll_timer.setInterval(msec)
+    def add_poll_item(self, subscriber, bus, address, item):
+        """Add a poll subscription for the given (bus, address, item). Item may
+        be a single parameter address or a tuple of (lower, upper) addresses to
+        poll. The poll item is removed if the given subscriber is destroyed."""
 
-    def get_poll_min_interval(self):
-        return self._poll_timer.interval()
+        def on_subscriber_finalized(ref):
+            self.log.debug("on_subscriber_finalized: %s", ref)
+            del self._poll_subscriptions[ref]
+            self._send_poll_request()
 
-    def _on_poll_timer_timeout(self):
-        if not self.connection.is_connected():
-            return
+        sub_ref = weakref.ref(subscriber, on_subscriber_finalized)
+        items   = self._poll_subscriptions.setdefault(sub_ref, set())
 
-        if self.connection.get_queue_size() > 0:
-            return
+        if not len(items):
+            self.log.info("got a new subscriber: %s", subscriber)
 
-        if len(self._poll_items):
-            self.log.debug("%s: polling subscribers: %s",
-                    self, self._poll_items.keys())
+        items.add((bus, address, item))
+        return self._send_poll_request()
 
+    def add_poll_items(self, subscriber, items):
+
+        def on_subscriber_finalized(ref):
+            self.log.debug("on_subscriber_finalized: %s", ref)
+            del self._poll_subscriptions[ref]
+            self._send_poll_request()
+
+        sub_ref   = weakref.ref(subscriber, on_subscriber_finalized)
+        cur_items = self._poll_subscriptions.setdefault(sub_ref, set())
+
+        if not len(cur_items):
+            self.log.info("got a new subscriber: %s", subscriber)
+
+        for tup in items:
+            cur_items.add(tup)
+
+        return self._send_poll_request()
+
+    def remove_polling_subscriber(self, subscriber):
+        self.log.debug("remove_polling_subscriber: %s", subscriber)
+
+        try:
+            del self._poll_subscriptions[weakref.ref(subscriber)]
+            return self._send_poll_request()
+        except KeyError:
+            return future.Future().set_result(False)
+
+    def _send_poll_request(self):
         # Merge all poll items into one set.
         # Note: This does not try to merge any overlapping ranges. Those will
         # lead to parameters being read multiple times.
-        items = reduce(lambda x, y: x.union(y), self._poll_items.values(), set())
+        items = reduce(lambda x, y: x.union(y), self._poll_subscriptions.values(), set())
 
-        polled_items_by_device = dict()
+        self.log.debug("_send_poll_request: request contains %d items", len(items))
+
+        m = proto.Message()
+        m.type = proto.Message.REQ_SET_POLL_ITEMS
 
         for bus, dev, item in items:
-            device = self.mrc.get_device(bus, dev)
-            if not device or not device.polling:
-                continue
+            proto_item = m.request_set_poll_items.items.add()
+            proto_item.bus = bus
+            proto_item.dev = dev
 
-            polled_items = polled_items_by_device.setdefault((bus, dev), set())
-
-            # Note: below device.read_parameter() is used instead of
-            # self.read_parameter(). This ensures the device can update its
-            # memory cache and keep track of reads in progress.
             try:
                 lower, upper = item
-                polled_items.add((lower, upper))
-                for param in xrange(lower, upper+1):
-                    device.read_parameter(param)
+                proto_item.par   = lower
+                proto_item.count = (upper - lower) + 1
             except TypeError:
-                polled_items.add(item)
-                device.read_parameter(item)
+                proto_item.par   = item
+                proto_item.count = 1
 
-        for bus, dev in sorted(polled_items_by_device.keys()):
-            self.log.debug("%s: polled (%d, %d): %s", self, bus, dev,
-                    sorted(polled_items_by_device[(bus, dev)]))
+        assert len(items) == len(m.request_set_poll_items.items)
 
-    def add_poll_item(self, subscriber, bus, address, item):
-        items = self._poll_items.setdefault(subscriber, set())
-        items.add((bus, address, item))
-
-    def remove_polling_subscriber(self, subscriber):
-        try:
-            del self._poll_items[subscriber]
-        except KeyError:
-            pass
+        return self.connection.queue_request(m)
 
     def _on_connect_timer_timeout(self):
         if self._connect_future is not None and not self._connect_future.done():
@@ -317,5 +289,86 @@ class Controller(object):
         return "Controller(%s)" % util.display_url(self.connection.url)
 
     def _on_notification_received(self, msg):
+        self.log.debug("%s: received notification %s", self, msg.Type.Name(msg.type))
+
         if msg.type == proto.Message.NOTIFY_MRC_STATUS:
-            self.mrc.set_status(msg)
+            self.mrc.set_status(msg.mrc_status)
+
+        elif msg.type == proto.Message.NOTIFY_POLLED_ITEMS:
+            items = msg.notify_polled_items.items
+
+            self.log.debug("%s: received poll notification (%d items)",
+                    self, len(items))
+
+            for item in items:
+                device = self.mrc.get_device(item.bus, item.dev)
+
+                if device is None:
+                    continue
+
+                for i, value in enumerate(item.values):
+                    device.set_cached_parameter(item.par + i, value)
+
+        elif msg.type == proto.Message.NOTIFY_SET:
+            res = msg.set_result
+            self.log.debug("%s: received set notification %s", self, res)
+
+            if not res.mirror:
+                device = self.mrc.get_device(res.bus, res.dev)
+
+                if device is not None:
+                    device.set_cached_parameter(res.par, res.val)
+
+        elif msg.type == proto.Message.NOTIFY_SCANBUS:
+            self._handle_scanbus_result(msg)
+
+        elif msg.type == proto.Message.NOTIFY_WRITE_ACCESS:
+            self.mrc.set_write_access(
+                    msg.notify_write_access.has_access,
+                    msg.notify_write_access.can_acquire)
+
+        elif msg.type == proto.Message.NOTIFY_SILENCED:
+            self.mrc.update_silenced(
+                    msg.notify_silenced.silenced)
+
+    def _handle_scanbus_result(self, msg):
+        if proto.is_error_response(msg):
+            self.log.error("%s: scanbus error: %s", self, msg)
+            return
+
+        bus     = msg.scanbus_result.bus
+        entries = msg.scanbus_result.entries
+
+        self.log.debug("%s: received scanbus result: bus=%d, len(entries)=%d",
+                self, bus, len(entries))
+
+        for addr in bm.DEV_RANGE:
+            try:
+                entry = entries[addr]
+            except IndexError:
+                raise RuntimeError("invalid index into scanbus result: index=%s, data=%s"
+                        % (addr, entries))
+
+            idc      = entry.idc
+            rc       = entry.rc
+            conflict = entry.conflict
+
+            device  = self.mrc.get_device(bus, addr)
+
+            if idc <= 0 and device is not None:
+                self.log.debug("%s: scanbus: removing device (%d, %d)", self, bus, addr)
+                self.mrc.remove_device(device)
+            elif idc > 0:
+                if device is None:
+                    self.log.debug("%s: scanbus: creating device (%d, %d, idc=%d)", self, bus, addr, idc)
+                    device = hm.Device(bus, addr, idc)
+                    self.mrc.add_device(device)
+
+                device.idc = idc
+                device.rc  = rc
+                device.address_conflict = conflict
+
+                if device.address_conflict:
+                    self.log.debug("%s: scanbus: address conflict on (%d, %d)", self, bus, addr)
+
+        self.mrc.address_conflict = any((d.address_conflict for d in self.mrc))
