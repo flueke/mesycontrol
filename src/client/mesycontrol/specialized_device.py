@@ -284,6 +284,9 @@ class DeviceWidgetBase(QtGui.QWidget):
         return self.device.read_mode
 
     def set_display_mode(self, display_mode):
+        if self.device.read_mode == display_mode:
+            return
+
         self.device.read_mode = display_mode
 
         for binding in self.get_parameter_bindings():
@@ -291,10 +294,16 @@ class DeviceWidgetBase(QtGui.QWidget):
 
         self.display_mode_changed.emit(self.display_mode)
 
+        if self.write_mode != util.COMBINED:
+            self.write_mode = self.display_mode
+
     def get_write_mode(self):
         return self.device.write_mode
 
     def set_write_mode(self, write_mode):
+        if self.device.write_mode == write_mode:
+            return
+
         self.device.write_mode = write_mode
 
         for binding in self.get_parameter_bindings():
@@ -302,13 +311,20 @@ class DeviceWidgetBase(QtGui.QWidget):
 
         self.write_mode_changed.emit(self.write_mode)
 
-    display_mode = property(
-            fget=lambda s: s.get_display_mode(),
-            fset=lambda s,v: s.set_display_mode(v))
+        if write_mode != util.COMBINED:
+            self.display_mode = self.write_mode
 
-    write_mode   = property(
+    display_mode = pyqtProperty(
+            object,
+            fget=lambda s: s.get_display_mode(),
+            fset=lambda s,v: s.set_display_mode(v),
+            notify=display_mode_changed)
+
+    write_mode   = pyqtProperty(
+            object,
             fget=lambda s: s.get_write_mode(),
-            fset=lambda s, v: s.set_write_mode(v))
+            fset=lambda s, v: s.set_write_mode(v),
+            notify=write_mode_changed)
 
     def get_parameter_bindings(self):
         raise NotImplementedError()
