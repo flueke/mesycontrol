@@ -19,7 +19,7 @@ class LogView(QtGui.QTextEdit):
         self.setLineWrapMode(line_wrap)
 
         self.formatter = logging.Formatter(
-                fmt='%(asctime)s: %(message)s',
+                fmt='%(asctime)s %(name)s: %(message)s',
                 datefmt='%H:%M:%S')
 
         self._mutex = QtCore.QMutex()
