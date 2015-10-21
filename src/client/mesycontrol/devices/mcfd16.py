@@ -177,6 +177,9 @@ CONV_TABLE_WIDTH_NS = {
         609, 216: 616, 217: 624, 218: 632, 219: 639, 220: 647, 221: 656,
         222: 664}
 
+CHANNEL_MODE_COMMON     = 0
+CHANNEL_MODE_INDIVIDUAL = 1
+
 class Polarity(object):
     negative = 1
     positive = 0
@@ -206,6 +209,8 @@ class MCFD16(DeviceBase):
         self.log = util.make_logging_source_adapter(__name__, self)
 
         self.parameter_changed.connect(self._on_parameter_changed)
+
+        self._on_hardware_set(app_device, None, self.hw)
 
     def get_delay_chip_ns(self):
         return self.get_extension('delay_chip_ns')
@@ -368,6 +373,24 @@ class MCFD16(DeviceBase):
         self.get_parameter(common_param_name).add_done_callback(apply_to_single)
 
         return ret
+
+    def _on_hardware_set(self, app_device, old, new):
+        # Overrides DeviceBase._on_hardware_set which is connected by DeviceBase.
+        super(MCFD16, self)._on_hardware_set(app_device, old, new)
+
+        if new is not None and (self.read_mode & util.HARDWARE):
+            def on_channel_mode_read(f):
+                try:
+                    mode = int(f.result())
+                    if mode == CHANNEL_MODE_COMMON:
+                        self.log.warning("Detected \"common\" channel mode. Switching to individual mode.")
+                        self.set_hw_parameter('single_channel_mode', CHANNEL_MODE_INDIVIDUAL)
+                except Exception:
+                    pass
+
+            self.read_hw_parameter('single_channel_mode').add_done_callback(
+                    on_channel_mode_read)
+
 
 # ==========  GUI ========== 
 dynamic_label_style = "QLabel { background-color: lightgrey; }"

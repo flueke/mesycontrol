@@ -32,6 +32,8 @@ GAIN_FACTOR         = mscf16_profile.GAIN_FACTOR
 GAIN_JUMPER_LIMITS  = mscf16_profile.GAIN_JUMPER_LIMITS
 AUTO_PZ_ALL         = NUM_CHANNELS + 1
 SHAPING_TIMES_US    = mscf16_profile.SHAPING_TIMES_US
+CHANNEL_MODE_COMMON     = 0
+CHANNEL_MODE_INDIVIDUAL = 1
 
 cg_helper = util.ChannelGroupHelper(NUM_CHANNELS, NUM_GROUPS)
 
@@ -362,6 +364,19 @@ class MSCF16(DeviceBase):
 
         if new is not None:
             new.parameter_changed.connect(self._on_hw_parameter_changed)
+
+            if (self.read_mode & util.HARDWARE):
+                def on_channel_mode_read(f):
+                    try:
+                        mode = int(f.result())
+                        if mode == CHANNEL_MODE_COMMON:
+                            self.log.warning("Detected \"common\" channel mode. Switching to individual mode.")
+                        self.set_hw_parameter('single_channel_mode', CHANNEL_MODE_INDIVIDUAL)
+                    except Exception:
+                        pass
+
+                self.read_hw_parameter('single_channel_mode').add_done_callback(
+                        on_channel_mode_read)
 
     def _on_hw_parameter_changed(self, address, value):
         if address == self.profile['auto_pz'].address:
