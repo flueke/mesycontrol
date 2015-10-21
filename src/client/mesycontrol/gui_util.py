@@ -261,9 +261,11 @@ def run_edit_mrc_config(mrc, registry, parent_widget=None):
             for d in device_configs:
                 mrc.cfg.remove_device(d)
 
+            name = mrc.cfg.name
             registry.cfg.remove_mrc(mrc.cfg)
 
             new_mrc = cm.MRC(url)
+            new_mrc.name = name
 
             for d in device_configs:
                 new_mrc.add_device(d)
