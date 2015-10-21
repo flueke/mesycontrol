@@ -243,7 +243,7 @@ class DeviceNode(HardwareTreeNode):
                     return QtGui.QPixmap(":/connected.png")
 
                 if role in (Qt.ToolTipRole, Qt.StatusTipRole):
-                    return "%s (idc=%d)" % (device.get_device_name(), hw.idc)
+                    return "%s (idc=%d)" % (device.hw_profile.name, hw.idc)
 
         if role == Qt.BackgroundRole and self.model.linked_mode:
             if hw is not None and hw.address_conflict:
