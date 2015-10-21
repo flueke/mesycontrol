@@ -256,16 +256,42 @@ class MSCF16(DeviceBase):
         self.get_version().add_done_callback(done)
         return ret
 
-    # ===== gain =====
-    def get_total_gain(self, group):
-        # FIXME: calculation depends on mscf type (integrating or not)
+    def is_charge_integrating(self):
         ret = future.Future()
 
-        @set_result_on(ret)
-        def done(f):
-            return GAIN_FACTOR ** int(f.result()) * self.get_gain_jumper(group)
+        @future.set_result_on(ret)
+        def hw_info_done(f):
+            try:
+                return f.result().is_integrating()
+            except Exception:
+                return self.get_extension('input_type') == 'C'
 
-        self.get_parameter('gain_group%d' % group).add_done_callback(done)
+        self.get_hardware_info().add_done_callback(hw_info_done)
+
+        return ret
+
+    # ===== gain =====
+    # FIXME: update gain labels on input_type extension change
+    # FIXME: update gain labels on hw_info availablity change
+    def get_total_gain(self, group):
+        ret = future.Future()
+
+        f_gain_group  = self.get_parameter('gain_group%d' % group)
+        f_integrating = self.is_charge_integrating()
+
+        @future.set_result_on(ret)
+        def done(_):
+            gain   = GAIN_FACTOR ** int(f_gain_group.result())
+            jumper = self.get_gain_jumper(group)
+
+            if f_integrating.result():
+                print "integrating"
+                return gain / jumper # FIXME: units
+            else:
+                print "voltage"
+                return gain * jumper # this is unit-less
+
+        future.all_done(f_gain_group, f_integrating).add_done_callback(done)
 
         return ret
 
