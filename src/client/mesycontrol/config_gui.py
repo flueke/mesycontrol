@@ -13,9 +13,13 @@ QMB = QtGui.QMessageBox
 
 def std_button_to_cfg_action(button):
     d = {
-            QMB.Retry: config_util.ACTION_RETRY,
-            QMB.Ignore: config_util.ACTION_SKIP,
-            QMB.Abort: config_util.ACTION_ABORT
+            QMB.Retry:      config_util.ACTION_RETRY,
+            QMB.Ignore:     config_util.ACTION_SKIP,
+            QMB.Abort:      config_util.ACTION_ABORT,
+            QMB.Yes:        config_util.ACTION_YES,
+            QMB.YesToAll:   config_util.ACTION_YES_TO_ALL,
+            QMB.No:         config_util.ACTION_NO,
+            QMB.NoToAll:    config_util.ACTION_NO_TO_ALL,
             }
     if button in d:
         return d[button]
@@ -235,6 +239,23 @@ class ApplyDeviceConfigsRunner(config_util.GeneratorRunner):
                     str(obj),
                     buttons=QMB.Retry | QMB.Ignore | QMB.Abort,
                     defaultButton=QMB.Retry)
+
+            return (std_button_to_cfg_action(answer), False)
+
+        if isinstance(obj, config_util.RcOff):
+            device = obj.device
+
+            s = "%s @ (%s, %d, %X)" % (
+                    device.get_device_name(),
+                    device.mrc.get_display_url(),
+                    device.bus, device.address)
+
+            answer = QMB.question(
+                    self.parent_widget,
+                    "RC setting",
+                    "RC is disabled for %s.\nDo you want to enable RC now?" % s,
+                    buttons=QMB.No | QMB.NoToAll | QMB.Yes | QMB.YesToAll | QMB.Abort,
+                    defaultButton=QMB.Yes)
 
             return (std_button_to_cfg_action(answer), False)
 

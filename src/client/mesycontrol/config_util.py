@@ -233,7 +233,11 @@ class MissingDestinationMRC(RuntimeError):
 class Aborted(RuntimeError):
     pass
 
-ACTION_SKIP, ACTION_ABORT, ACTION_RETRY = range(3)
+class RcOff(RuntimeError):
+    def __init__(self, device):
+        self.device = device
+
+ACTION_SKIP, ACTION_ABORT, ACTION_RETRY, ACTION_YES, ACTION_YES_TO_ALL, ACTION_NO, ACTION_NO_TO_ALL = range(7)
 
 def apply_device_config(device):
     """Device may be an app_model.Device instance or a DeviceBase
@@ -487,6 +491,8 @@ def apply_device_configs(devices):
 
     progress             = ProgressUpdate(current=0, total=len(mrcs_to_connect) + len(devices))
     progress.subprogress = ProgressUpdate(current=0, total=0)
+    auto_enable_rc       = False
+    do_not_enable_rc     = False
 
     yield progress
 
@@ -532,6 +538,7 @@ def apply_device_configs(devices):
                 yield progress.increment()
                 continue
 
+        # ===== Missing devices =====
         action = ACTION_RETRY
 
         while device.hw is None and action == ACTION_RETRY:
@@ -545,9 +552,40 @@ def apply_device_configs(devices):
             yield progress.increment()
             continue
 
+        # ===== IDC conflict =====
+        action = ACTION_RETRY
+
+        while device.idc_conflict and action == ACTION_RETRY:
+            action = yield IDCConflict("%s, %d, %d)" % (
+                device.mrc.get_display_url(), device.bus, device.address))
+
+            if action == ACTION_SKIP:
+                break
+
+        if action == ACTION_SKIP:
+            yield progress.increment()
+            continue
+
         progress.text = "Current device: (%s, %d, %d)" % (
                 device.mrc.get_display_url(), device.bus, device.address)
         yield progress
+
+        # ===== RC =====
+        if (device.hw and not device.idc_conflict
+                and not device.hw.rc and not do_not_enable_rc):
+
+            if auto_enable_rc:
+                (yield device.hw.set_rc(True)).result()
+            else:
+                action = yield RcOff(device=device)
+
+                if action in (ACTION_YES, ACTION_YES_TO_ALL):
+                    (yield device.hw.set_rc(True)).result()
+
+                    if action == ACTION_YES_TO_ALL:
+                        auto_enable_rc = True
+                elif action == ACTION_NO_TO_ALL:
+                    do_not_enable_rc = True
 
         gen = apply_device_config(device)
         arg = None
