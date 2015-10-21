@@ -75,8 +75,8 @@ class GUIApplication(QtCore.QObject):
         self.logview = self.mainwindow.logview
         sys.excepthook.register_handler(self.logview.handle_exception)
         callback_handler = util.CallbackHandler()
-        callback_handler.addFilter(util.MinimumLevelFilter(logging.ERROR))
-        callback_handler.addFilter(util.HasExceptionFilter())
+        callback_handler.addFilter(util.MinimumLevelFilter(logging.WARNING))
+        #callback_handler.addFilter(util.HasExceptionFilter())
         callback_handler.add_callback(self.logview.handle_log_record)
         logging.getLogger().addHandler(callback_handler)
 
@@ -105,6 +105,11 @@ class GUIApplication(QtCore.QObject):
         # Init
         self._setup_changed(self.app_registry, None, self.app_registry.cfg)
         self._update_actions()
+
+        settings = self.context.make_qsettings()
+        if settings.value('MainWindow/first_run', QtCore.QVariant(True)).toBool():
+            settings.setValue('MainWindow/first_run', False)
+            self._show_quickstart()
 
     def _setup_changed(self, app_registry, old, new):
         if old:
