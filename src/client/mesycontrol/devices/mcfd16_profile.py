@@ -104,7 +104,7 @@ profile_dict = {
             { 'address': 71, 'name': 'bwl_enable', 'range': (0, 1) }, # cpu firmware version >= 2.18
 
             # Mode & RC
-            { 'address': 72, 'name': 'single_channel_mode', 'range': (0, 1), 'default': 1 },
+            { 'address': 72, 'name': 'single_channel_mode', 'range': (0, 1), 'default': 1 }, # 0=common, 1=individual
             { 'address': 73, 'name': 'rc', 'read_only': True, 'poll': True,   'range': (0, 1) }, # Marked as read only to avoid storing/loading it
 
             # Timing parameters

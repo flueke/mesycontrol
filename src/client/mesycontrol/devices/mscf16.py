@@ -910,25 +910,29 @@ class TimingPage(QtGui.QGroupBox):
 class ChannelModeBinding(pb.AbstractParameterBinding):
     def __init__(self, **kwargs):
         super(ChannelModeBinding, self).__init__(**kwargs)
-        self.target[0].toggled.connect(self._write_value)
+        self.target[0].toggled.connect(self._mode_single_toggled)
+        self.target[1].toggled.connect(self._mode_common_toggled)
 
     def _update(self, rf):
         try:
-            for rb in self.target:
-                rb.setEnabled(True)
-
             rb = self.target[0] if int(rf.result()) else self.target[1]
 
             with util.block_signals(rb):
                 rb.setChecked(True)
-
         except Exception:
-            for rb in self.target:
-                rb.setEnabled(False)
+            pass
 
         for rb in self.target:
             rb.setToolTip(self._get_tooltip(rf))
             rb.setStatusTip(rb.toolTip())
+
+    def _mode_single_toggled(self, checked):
+        if checked:
+            self._write_value(1)
+
+    def _mode_common_toggled(self, checked):
+        if checked:
+            self._write_value(0)
 
 class HardwareInfoWidget(QtGui.QWidget):
     def __init__(self, parent=None):
@@ -1048,6 +1052,7 @@ class MiscPage(QtGui.QWidget):
         # Channel mode
         self.rb_mode_single = QtGui.QRadioButton("Individual")
         self.rb_mode_common = QtGui.QRadioButton("Common")
+        self.rb_mode_common.setEnabled(False)
 
         self.bindings.append(ChannelModeBinding(
             device=device,

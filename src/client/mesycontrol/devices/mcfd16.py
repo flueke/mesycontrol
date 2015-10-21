@@ -1006,6 +1006,7 @@ class MCFD16ControlsWidget(QtGui.QWidget):
         mode_layout.setContentsMargins(2, 2, 2, 2)
         self.rb_mode_single = QtGui.QRadioButton("Individual")
         self.rb_mode_common = QtGui.QRadioButton("Common")
+        self.rb_mode_common.setEnabled(False)
 
         self.rbg_mode = QtGui.QButtonGroup()
         self.rbg_mode.addButton(self.rb_mode_single, 1)
