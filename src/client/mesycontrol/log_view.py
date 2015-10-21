@@ -12,7 +12,7 @@ import traceback
 import util
 
 class LogView(QtGui.QTextEdit):
-    def __init__(self, max_lines=10000, line_wrap=QtGui.QTextEdit.NoWrap, parent=None):
+    def __init__(self, max_lines=10000, line_wrap=QtGui.QTextEdit.WidgetWidth, parent=None):
         super(LogView, self).__init__(parent)
         self.setReadOnly(True)
         self.document().setMaximumBlockCount(max_lines)
