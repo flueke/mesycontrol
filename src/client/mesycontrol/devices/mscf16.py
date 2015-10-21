@@ -371,7 +371,7 @@ class MSCF16(DeviceBase):
                         mode = int(f.result())
                         if mode == CHANNEL_MODE_COMMON:
                             self.log.warning("Detected \"common\" channel mode. Switching to individual mode.")
-                        self.set_hw_parameter('single_channel_mode', CHANNEL_MODE_INDIVIDUAL)
+                            self.set_hw_parameter('single_channel_mode', CHANNEL_MODE_INDIVIDUAL)
                     except Exception:
                         pass
 
