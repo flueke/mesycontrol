@@ -1575,6 +1575,7 @@ Initialize using the current hardware values or the device defaults?
         subwin = self.mainwindow.findChild(QtGui.QMdiSubWindow, "quickstart")
 
         if subwin:
+            subwin.widget().show()
             subwin.raise_()
             subwin.showNormal()
             return
