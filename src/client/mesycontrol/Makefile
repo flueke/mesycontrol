@@ -1,4 +1,4 @@
-.PHONY: all
+.PHONY: all clean
 
 all: resources.py mesycontrol_pb2.py
 
@@ -7,3 +7,6 @@ resources.py: resources.qrc
 
 mesycontrol_pb2.py: ../../mesycontrol.proto
 	protoc -I ../../ --python_out=./ ../../mesycontrol.proto
+
+clean:
+	rm -f resources.py mesycontrol_pb2.py
