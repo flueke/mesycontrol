@@ -272,6 +272,20 @@ class MSCF16(DeviceBase):
 
         return ret
 
+    def has_sumdis_threshold(self):
+        ret = future.Future()
+
+        @future.set_result_on(ret)
+        def hw_info_done(f):
+            try:
+                return f.result().has_sumdis()
+            except Exception:
+                return False
+
+        self.get_hardware_info().add_done_callback(hw_info_done)
+
+        return ret
+
     # ===== gain =====
     # FIXME: update gain labels on hw_info availablity change
     def get_total_gain(self, group):
@@ -1200,11 +1214,27 @@ class MiscPage(QtGui.QWidget):
             ).add_update_callback(
                 self._hardware_info_cb))
 
+        # More
+        self.spin_sumdis_threshold = util.DelayedSpinBox()
+        self.bindings.append(pb.factory.make_binding(
+            device=device,
+            profile=device.profile['sumdis_threshold'],
+            display_mode=display_mode,
+            write_mode=write_mode,
+            target=self.spin_sumdis_threshold
+            ).add_update_callback(self._sumdis_threshold_cb))
+
+        more_box = QtGui.QGroupBox("More")
+        more_layout = QtGui.QFormLayout(more_box)
+        more_layout.setContentsMargins(2, 2, 2, 2)
+        more_layout.addRow("Sumdis Threshold", self.spin_sumdis_threshold)
+
         layout.addWidget(trigger_box)
         layout.addWidget(monitor_box)
         layout.addWidget(mode_box)
         layout.addWidget(copy_box)
         layout.addWidget(version_box)
+        layout.addWidget(more_box)
 
         self._on_hardware_set(device, None, device.hw)
 
@@ -1299,6 +1329,17 @@ class MiscPage(QtGui.QWidget):
             self.hardware_info_widget.set_hardware_info(hw_info)
 
         self.device.get_hardware_info().add_done_callback(done)
+
+    def _sumdis_threshold_cb(self, read_sumdis_future):
+        def done(f):
+            try:
+                self.spin_sumdis_threshold.setEnabled(f.result())
+                if not f.result():
+                    self.spin_sumdis_threshold.setToolTip("N/A")
+            except Exception:
+                pass
+
+        self.device.has_sumdis_threshold().add_done_callback(done)
 
 class SettingsWidget(QtGui.QWidget):
     def __init__(self, device, parent=None):
