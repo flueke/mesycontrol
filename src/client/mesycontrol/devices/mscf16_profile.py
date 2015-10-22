@@ -7,11 +7,12 @@ threshold_percent = { 'label': '%', 'name': 'percent', 'factor': 256/30.0 }
 # Note: The major part of the fpga version equals the hardware version.
 # Note2: The fpga version is only readable if the software version is >= 5.3.
 
-idc                 = 20
-NUM_CHANNELS        = 16        # number of channels
-NUM_GROUPS          =  4        # number of channel groups
-GAIN_FACTOR         = 1.22      # gain step factor
-GAIN_JUMPER_LIMITS  = (1, 100)  # limits of the hardware gain jumpers
+idc                   = 20
+NUM_CHANNELS          = 16          # number of channels
+NUM_GROUPS            =  4          # number of channel groups
+GAIN_FACTOR           = 1.22        # gain step factor
+GAIN_JUMPER_LIMITS_V  = (1, 100)    # limits of the hardware gain jumpers for voltage input MSCFs
+GAIN_JUMPER_LIMITS_C  = (50/1000.0, 20000/1000.0) # gain jumper limits for charge integrating MSCFs in nC
 
 # hardware setting (shaping_time extension) -> list indexed by shaping time register
 SHAPING_TIMES_US    = {

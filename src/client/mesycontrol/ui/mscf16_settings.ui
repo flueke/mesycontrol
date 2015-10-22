@@ -30,18 +30,12 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="1">
-       <widget class="QSpinBox" name="spin_gain_jumpers_group0"/>
-      </item>
       <item row="1" column="0">
        <widget class="QLabel" name="label_8">
         <property name="text">
          <string>4-7</string>
         </property>
        </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QSpinBox" name="spin_gain_jumpers_group1"/>
       </item>
       <item row="2" column="0">
        <widget class="QLabel" name="label_9">
@@ -50,9 +44,6 @@
         </property>
        </widget>
       </item>
-      <item row="2" column="1">
-       <widget class="QSpinBox" name="spin_gain_jumpers_group2"/>
-      </item>
       <item row="3" column="0">
        <widget class="QLabel" name="label_10">
         <property name="text">
@@ -60,8 +51,33 @@
         </property>
        </widget>
       </item>
+      <item row="0" column="1">
+       <widget class="QDoubleSpinBox" name="spin_gain_jumpers_group0">
+        <property name="decimals">
+         <number>0</number>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QDoubleSpinBox" name="spin_gain_jumpers_group1">
+        <property name="decimals">
+         <number>0</number>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QDoubleSpinBox" name="spin_gain_jumpers_group2">
+        <property name="decimals">
+         <number>0</number>
+        </property>
+       </widget>
+      </item>
       <item row="3" column="1">
-       <widget class="QSpinBox" name="spin_gain_jumpers_group3"/>
+       <widget class="QDoubleSpinBox" name="spin_gain_jumpers_group3">
+        <property name="decimals">
+         <number>0</number>
+        </property>
+       </widget>
       </item>
      </layout>
     </widget>

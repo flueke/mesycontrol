@@ -29,7 +29,8 @@ import mscf16_profile
 NUM_CHANNELS        = mscf16_profile.NUM_CHANNELS
 NUM_GROUPS          = mscf16_profile.NUM_GROUPS
 GAIN_FACTOR         = mscf16_profile.GAIN_FACTOR
-GAIN_JUMPER_LIMITS  = mscf16_profile.GAIN_JUMPER_LIMITS
+GAIN_JUMPER_LIMITS_V  = mscf16_profile.GAIN_JUMPER_LIMITS_V
+GAIN_JUMPER_LIMITS_C  = mscf16_profile.GAIN_JUMPER_LIMITS_C
 AUTO_PZ_ALL         = NUM_CHANNELS + 1
 SHAPING_TIMES_US    = mscf16_profile.SHAPING_TIMES_US
 CHANNEL_MODE_COMMON     = 0
@@ -164,7 +165,7 @@ def decode_hardware_info(val):
 
 # ==========  Device ========== 
 class MSCF16(DeviceBase):
-    gain_jumper_changed     = pyqtSignal(int, int) # group, value
+    gain_jumper_changed     = pyqtSignal(int, float) # group, value
     auto_pz_channel_changed = pyqtSignal(int)
 
     def __init__(self, app_device, read_mode, write_mode, parent=None):
@@ -174,6 +175,7 @@ class MSCF16(DeviceBase):
         self._auto_pz_channel = 0
 
         self._on_hardware_set(app_device, None, self.hw)
+        self.extension_changed.connect(self._on_extension_changed)
 
     # ===== version registers =====
     def get_version(self):
@@ -271,7 +273,6 @@ class MSCF16(DeviceBase):
         return ret
 
     # ===== gain =====
-    # FIXME: update gain labels on input_type extension change
     # FIXME: update gain labels on hw_info availablity change
     def get_total_gain(self, group):
         ret = future.Future()
@@ -285,10 +286,9 @@ class MSCF16(DeviceBase):
             jumper = self.get_gain_jumper(group)
 
             if f_integrating.result():
-                print "integrating"
+                # Gain adjustable from 100 pC to 20 nC
                 return gain / jumper # FIXME: units
             else:
-                print "voltage"
                 return gain * jumper # this is unit-less
 
         future.all_done(f_gain_group, f_integrating).add_done_callback(done)
@@ -304,7 +304,6 @@ class MSCF16(DeviceBase):
         if jumpers[group] != jumper_value:
             jumpers[group] = jumper_value
             self.set_extension('gain_jumpers', jumpers)
-            self.gain_jumper_changed.emit(group, jumper_value)
 
     def apply_common_gain(self):
         return self._apply_common_to_single(
@@ -416,6 +415,12 @@ class MSCF16(DeviceBase):
             self._auto_pz_channel = value
             self.auto_pz_channel_changed.emit(value)
 
+    def _on_extension_changed(self, name, value):
+        if name == 'gain_jumpers':
+            for g, v in enumerate(value):
+                self.gain_jumper_changed.emit(g, v)
+
+
 # ==========  GUI ========== 
 dynamic_label_style = "QLabel { background-color: lightgrey; }"
 
@@ -464,6 +469,7 @@ class GainPage(QtGui.QGroupBox):
         self.device = device
 
         device.gain_jumper_changed.connect(self._on_device_gain_jumper_changed)
+        device.extension_changed.connect(self._on_device_extension_changed)
 
         self.gain_inputs    = list()
         self.gain_labels    = list()
@@ -530,16 +536,22 @@ class GainPage(QtGui.QGroupBox):
     def _on_device_gain_jumper_changed(self, group, value):
         self._update_gain_label(group)
 
+    def _on_device_extension_changed(self, name, value):
+        if name == 'input_type':
+            for i in range(NUM_GROUPS):
+                self._update_gain_label(i)
+
     def _update_gain_label_cb(self, f, group):
         self._update_gain_label(group)
 
     def _update_gain_label(self, group):
         def done(f):
             try:
-                self.gain_labels[group].setText("%.1f" % f.result())
+                self.gain_labels[group].setText("%.3f" % f.result())
+                self.gain_labels[group].setToolTip(str())
             except Exception as e:
-                self.log.warning("_update_gain_label: %s: %s", type(e), e)
                 self.gain_labels[group].setText("N/A")
+                self.gain_labels[group].setToolTip(str(e))
 
         self.device.get_total_gain(group).add_done_callback(done)
 
@@ -1298,8 +1310,8 @@ class SettingsWidget(QtGui.QWidget):
         # Gain jumpers
         for idx in range(NUM_GROUPS):
             spin = getattr(self, 'spin_gain_jumpers_group%d' % idx)
-            spin.setMinimum(GAIN_JUMPER_LIMITS[0])
-            spin.setMaximum(GAIN_JUMPER_LIMITS[1])
+            spin.setMinimum(GAIN_JUMPER_LIMITS_V[0])
+            spin.setMaximum(GAIN_JUMPER_LIMITS_V[1])
             spin.valueChanged.connect(partial(self._spin_gain_jumpers_value_changed, group=idx))
 
         # Module name
@@ -1327,13 +1339,10 @@ class SettingsWidget(QtGui.QWidget):
         self.combo_discriminator.addItem('LE')
         self.combo_discriminator.currentIndexChanged.connect(self._discriminator_index_changed)
 
-        # Fake extension change events to select correct indexes
-        for name, value in device.get_extensions().iteritems():
-            self.log.debug("fake extension change: name=%s, value=%s", name, value)
-            self._on_device_extension_changed(name, value)
-
         self.device.extension_changed.connect(self._on_device_extension_changed)
+        self.device.parameter_changed.connect(self._on_device_parameter_changed)
         self.device.read_mode_changed.connect(self._on_device_read_mode_changed)
+        self._on_device_read_mode_changed(device.read_mode)
 
     # ===== device changes =====
     def _on_device_extension_changed(self, name, ext_value):
@@ -1341,7 +1350,7 @@ class SettingsWidget(QtGui.QWidget):
             for idx, value in enumerate(ext_value):
                 spin = getattr(self, 'spin_gain_jumpers_group%d' % idx)
                 with util.block_signals(spin):
-                    spin.setValue(int(value))
+                    spin.setValue(float(value))
 
         elif name == 'module_name':
             idx = self.combo_type.findText(ext_value)
@@ -1357,6 +1366,8 @@ class SettingsWidget(QtGui.QWidget):
             idx = self.combo_input_type.findText(ext_value)
             with util.block_signals(self.combo_input_type) as o:
                 o.setCurrentIndex(idx)
+
+            self._update_gain_jumper_spins()
 
         elif name == 'input_connector':
             idx = self.combo_input_connector.findText(ext_value)
@@ -1376,8 +1387,37 @@ class SettingsWidget(QtGui.QWidget):
                 o.setCurrentIndex(idx)
 
     def _on_device_read_mode_changed(self, read_mode):
+        self._update_gain_jumper_spins()
+        # Create extension change events to repopulate the GUI
         for k, v in self.device.get_extensions().iteritems():
             self._on_device_extension_changed(k, v)
+
+    def _on_device_parameter_changed(self, address, value):
+        if address == self.device.profile['hardware_info'].address:
+            self._update_gain_jumper_spins()
+
+    def _update_gain_jumper_spins(self):
+        def done(f):
+            if f.exception() or not f.result():
+                limits      = GAIN_JUMPER_LIMITS_V
+                suffix      = str()
+                decimals    = 0
+                ss          = 1.0
+            else:
+                limits      = GAIN_JUMPER_LIMITS_C
+                suffix      = " nC"
+                decimals    = 2
+                ss          = 0.01
+
+            for idx in range(NUM_GROUPS):
+                spin = getattr(self, 'spin_gain_jumpers_group%d' % idx)
+                spin.setMinimum(limits[0])
+                spin.setMaximum(limits[1])
+                spin.setSuffix(suffix)
+                spin.setDecimals(decimals)
+                spin.setSingleStep(ss)
+
+        self.device.is_charge_integrating().add_done_callback(done)
 
     # ===== GUI changes =====
     def _spin_gain_jumpers_value_changed(self, value, group):
