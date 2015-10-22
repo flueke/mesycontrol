@@ -559,15 +559,23 @@ class GainPage(QtGui.QGroupBox):
         self._update_gain_label(group)
 
     def _update_gain_label(self, group):
-        def done(f):
+        f_gain        = self.device.get_total_gain(group)
+        f_integrating = self.device.is_charge_integrating()
+
+        def done(_):
             try:
-                self.gain_labels[group].setText("%.3f" % f.result())
+                if f_integrating.result():
+                    tmpl = "%.2f nC"
+                else:
+                    tmpl = "%.2f"
+
+                self.gain_labels[group].setText(tmpl % f_gain.result())
                 self.gain_labels[group].setToolTip(str())
             except Exception as e:
                 self.gain_labels[group].setText("N/A")
                 self.gain_labels[group].setToolTip(str(e))
 
-        self.device.get_total_gain(group).add_done_callback(done)
+        future.all_done(f_gain, f_integrating).add_done_callback(done)
 
 class AutoPZSpin(QtGui.QStackedWidget):
     def __init__(self, parent=None):
