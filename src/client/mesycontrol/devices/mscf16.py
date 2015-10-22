@@ -127,9 +127,10 @@ def get_config_parameters(app_device):
         maybe_remove((4, 0), 'blr_threshold', 'blr_enable', 'coincidence_time',
                 'shaper_offset', 'threshold_offset')
 
-        maybe_remove((5, 0), 'ecl_delay_enable', 'tf_int_time')
+        maybe_remove((5, 3), 'sumdis_threshold', 'ecl_delay_enable')
 
-        maybe_remove((5, 3), 'sumdis_threshold')
+        maybe_remove((5, 4), 'tf_int_time')
+
 
         if version >= (5, 3):
             def hw_info_done(f):
@@ -240,12 +241,14 @@ class MSCF16(DeviceBase):
                 'hardware_info', decode_hardware_info)
 
     # FIXME: simplify this. DRY! This also does throw if hardware is not present.
+    # The version conditions appear twice: once in get_config_parameters() and again here!
+    # Also no user info string can be generated easily, e.g. "Requires version >= 5.3".
     def has_ecl_enable(self):
         ret = future.Future()
 
         @future.set_result_on(ret)
         def done(f):
-            return f.result() >= (5, 0)
+            return f.result() >= (5, 3)
         self.get_version().add_done_callback(done)
         return ret
 
@@ -254,7 +257,7 @@ class MSCF16(DeviceBase):
 
         @future.set_result_on(ret)
         def done(f):
-            return f.result() >= (5, 0)
+            return f.result() >= (5, 4)
         self.get_version().add_done_callback(done)
         return ret
 
