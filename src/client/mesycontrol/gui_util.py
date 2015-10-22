@@ -37,7 +37,9 @@ class DeviceSubWindow(QtGui.QMdiSubWindow):
         widget.write_mode_changed.connect(self.update_title_and_name)
 
         self.device.config_set.connect(self._on_device_config_set)
+        self.device.hardware_set.connect(self._on_device_hardware_set)
         self._on_device_config_set(self.device, None, self.device.cfg)
+        self._on_device_hardware_set(self.device, None, self.device.hw)
 
     def get_device(self):
         return self.widget().device
@@ -149,6 +151,18 @@ class DeviceSubWindow(QtGui.QMdiSubWindow):
         if new_cfg is not None:
             for signal in signals:
                 getattr(new_cfg, signal).connect(self.update_title_and_name)
+
+    def _on_device_hardware_set(self, app_device, old_hw, new_hw):
+        signals = ['address_conflict_changed']
+
+        if old_hw is not None:
+            for signal in signals:
+                getattr(old_hw, signal).disconnect(self.update_title_and_name)
+
+        if new_hw is not None:
+            for signal in signals:
+                getattr(new_hw, signal).connect(self.update_title_and_name)
+
 
 class DeviceWidgetSubWindow(DeviceSubWindow):
     def __init__(self, widget, parent=None):
