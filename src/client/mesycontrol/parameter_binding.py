@@ -396,14 +396,63 @@ class DefaultParameterBinding(AbstractParameterBinding):
     def _update(self, result_future):
         log.debug("_update: target=%s, result_future=%s", self.target, result_future)
 
-        pal = self._get_palette(result_future)
-        self.target.setPalette(pal)
+        def on_palette_done(f):
+            self.target.setPalette(f.result())
+
+        self._get_palette(result_future).add_done_callback(on_palette_done)
+
         self.target.setToolTip(self._get_tooltip(result_future))
         self.target.setStatusTip(self.target.toolTip())
         self.target.setEnabled(not isinstance(result_future.exception(),
             (ParameterUnavailable, util.Disconnected)))
 
     def _get_palette(self, rf):
+        pal = QtGui.QPalette(self._original_palette)
+
+        try:
+            result = rf.result()
+            if isinstance(result, bm.SetResult) and not result:
+                raise RuntimeError()
+        except Exception:
+            pal.setColor(QtGui.QPalette.Base, QtGui.QColor('red'))
+            log.debug("_get_palette: Exception from result future; setting red background color")
+            return future.Future().set_result(pal)
+
+        ret = future.Future()
+
+        if (self.write_mode == util.COMBINED
+                and self.device.has_hw
+                and self.device.has_cfg
+                and self.profile is not None
+                and self.get_write_profile().should_be_stored()):
+            try:
+                f_cfg    = self.device.cfg.get_parameter(self.write_address)
+                f_hw     = self.device.hw.get_parameter(self.read_address)
+                f_params = self.device.get_config_parameters()
+
+                def all_done(_):
+                    has_param = any(pp.address in (self.write_address, self.read_address) for pp in f_params.result())
+                    if has_param:
+                        cfg_value = int(f_cfg)
+                        hw_value  = int(f_hw)
+
+                        if cfg_value != hw_value:
+                            log.debug("_get_palette: ra=%d, wa=%d, cfg and hw differ; returning orange",
+                                    self.read_address, self.write_address)
+                            pal.setColor(QtGui.QPalette.Base, QtGui.QColor('orange'))
+                            ret.set_result(pal)
+
+                future.all_done(f_cfg, f_hw, f_params).add_done_callback(all_done)
+
+            except (future.IncompleteFuture, KeyError,
+                    util.SocketError, util.Disconnected):
+                log.exception("_get_palette")
+                ret.set_result(pal)
+        else:
+            ret.set_result(pal)
+        return ret
+
+    def _get_palette_old(self, rf):
         pal = QtGui.QPalette(self._original_palette)
 
         try:
