@@ -9,6 +9,19 @@ import signal
 import sys
 import weakref
 
+is_windows = sys.platform.startswith('win32')
+
+try:
+    import colorlog
+except ImportError:
+    colorlog = None
+
+if colorlog and is_windows:
+    try:
+        import colorama
+    except ImportError:
+        colorama = None
+
 from mesycontrol import app_context
 from mesycontrol import gui
 from mesycontrol import gui_mainwindow
@@ -18,7 +31,7 @@ from mesycontrol.qt import QtCore
 from mesycontrol.qt import QtGui
 
 if __name__ == "__main__":
-    if not sys.platform.startswith('win32'):
+    if not is_windows:
         parser = argparse.ArgumentParser(description='mesycontrol GUI command line arguments')
         parser.add_argument('--logging-config', metavar='FILE')
         parser.add_argument('--setup', metavar='FILE')
@@ -31,7 +44,14 @@ if __name__ == "__main__":
         logging.config.fileConfig(opts.logging_config)
     else:
         logging.basicConfig(level=logging.DEBUG,
-                format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
+                format='[%(asctime)-15s] [%(name)s.%(levelname)-8s] %(message)s')
+
+        if colorlog and (not is_windows or colorama):
+            fmt  = '%(bg_blue)s[%(asctime)-15s]%(reset)s '
+            fmt += '[%(green)s%(name)s%(reset)s.%(log_color)s%(levelname)-8s%(reset)s] %(message)s'
+            fmt  = colorlog.ColoredFormatter(fmt)
+            hdlr = logging.getLogger().handlers[0]
+            hdlr.setFormatter(fmt)
 
         for ln in (
                 "mesycontrol.basic_tree_model",
