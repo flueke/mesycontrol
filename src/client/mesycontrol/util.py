@@ -198,6 +198,7 @@ def mrc_urls_match(url1, url2):
         return d1 == d2
 
 def make_logging_source_adapter(module_name, object_instance):
+    module_name = module_name.replace('mesycontrol.', str())
     logger_name = "%s.%s" % (module_name, object_instance.__class__.__name__)
 
     # Add the findCaller method to LoggerAdapter

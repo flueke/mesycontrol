@@ -54,11 +54,11 @@ if __name__ == "__main__":
             hdlr.setFormatter(fmt)
 
         for ln in (
-                "mesycontrol.basic_tree_model",
-                "mesycontrol.future",
-                "mesycontrol.mc_treeview",
-                "mesycontrol.tcp_client.MCTCPClient",
-                "mesycontrol.hardware_controller.Controller",
+                "basic_tree_model",
+                "future",
+                "mc_treeview",
+                "tcp_client.MCTCPClient",
+                "hardware_controller.Controller",
                 "PyQt4.uic"):
             logging.getLogger(ln).setLevel(logging.INFO)
 
@@ -67,7 +67,7 @@ if __name__ == "__main__":
 
         try:
             fh = logging.FileHandler(fn, "w")
-            fh.setFormatter(logging.Formatter(fmt='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s'))
+            fh.setFormatter(logging.Formatter(fmt='[%(asctime)-15s] [%(name)s.%(levelname)-8s] %(message)s'))
             logging.getLogger().addHandler(fh)
         except IOError:
             pass
