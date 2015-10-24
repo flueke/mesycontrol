@@ -620,12 +620,29 @@ class DelayedDoubleSpinBox(QtGui.QDoubleSpinBox):
     # argument if used in a .ui file...
     def __init__(self, parent=None, delay=0.5):
         super(DelayedDoubleSpinBox, self).__init__(parent)
+        self.log = make_logging_source_adapter(__name__, self)
 
         def delayed_slt():
+            self.log.debug("%s delayed_slt invoked. value=%d", self, self.value())
             self.delayed_valueChanged.emit(self.value())
 
         self.proxy = SignalProxy(signal=self.valueChanged,
                 slot=delayed_slt, delay=delay)
+
+        self.delayed_valueChanged.connect(self._on_delayed_valueChanged)
+
+    def blockSignals(self, b):
+        super(DelayedDoubleSpinBox, self).blockSignals(b)
+        self.log.debug("%s proxy.block=%s", self, b)
+        self.proxy.block = b
+
+    def _on_delayed_valueChanged(self, value):
+        self.log.debug("%s delayed_valueChanged(%s) emitted",
+                self, value)
+
+    def setValue(self, value):
+        self.log.debug("%s setValue(%s)", self, value)
+        super(DelayedDoubleSpinBox, self).setValue(value)
 
 class FixedWidthVerticalToolBar(QtGui.QWidget):
     """Like a vertical QToolBar but having a fixed width. I did not manage to
