@@ -355,7 +355,7 @@ class AbstractParameterBinding(object):
                         tt += ", cfg=%d, hw=%d" % (cfg_value, hw_value)
             except (future.IncompleteFuture, KeyError,
                     util.SocketError, util.Disconnected):
-                log.exception("_get_tooltip")
+                pass
 
         if result_future.exception() is not None:
             e = result_future.exception()
