@@ -374,22 +374,32 @@ class MCFD16(DeviceBase):
 
         return ret
 
-    def _on_hardware_set(self, app_device, old, new):
-        # Overrides DeviceBase._on_hardware_set which is connected by DeviceBase.
-        super(MCFD16, self)._on_hardware_set(app_device, old, new)
+    def ensure_individual_channel_mode(self):
+        ret = future.Future()
 
-        if new is not None and (self.read_mode & util.HARDWARE):
-            def on_channel_mode_read(f):
-                try:
-                    mode = int(f.result())
-                    if mode == CHANNEL_MODE_COMMON:
-                        self.log.warning("Detected \"common\" channel mode. Switching to individual mode.")
-                        self.set_hw_parameter('single_channel_mode', CHANNEL_MODE_INDIVIDUAL)
-                except Exception:
-                    pass
+        def done(f):
+            try:
+                mode = int(f.result())
 
-            self.read_hw_parameter('single_channel_mode').add_done_callback(
-                    on_channel_mode_read)
+                if mode == CHANNEL_MODE_COMMON:
+                    self.log.warning("%s: Detected common channel mode. Setting individual mode.",
+                            self.get_display_string())
+
+                    @future.set_result_on(ret)
+                    def set_done(f_set):
+                        return bool(f_set.result())
+
+                    self.set_hw_parameter('single_channel_mode', CHANNEL_MODE_INDIVIDUAL
+                            ).add_done_callback(set_done)
+                else:
+                    ret.set_result(True)
+            except Exception as e:
+                self.log.warning("%s: %s", self.get_display_string(), str(e))
+                ret.set_exception(e)
+
+        self.read_hw_parameter('single_channel_mode').add_done_callback(done)
+
+        return ret
 
 
 # ==========  GUI ========== 
@@ -411,6 +421,12 @@ class MCFD16Widget(DeviceWidgetBase):
         tb  = self.tab_widget
         gen = (tb.widget(i).get_parameter_bindings() for i in range(tb.count()))
         return itertools.chain(*gen)
+
+    def showEvent(self, event):
+        if not event.spontaneous():
+            self.device.ensure_individual_channel_mode()
+
+        super(MCFD16Widget, self).showEvent(event)
 
 def make_dynamic_label(initial_value="", longest_value=None, fixed_width=True, fixed_height=False,
         alignment=Qt.AlignRight | Qt.AlignVCenter):
