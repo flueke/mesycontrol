@@ -226,6 +226,12 @@ class DeviceBase(QtCore.QObject):
         if self.read_mode & util.CONFIG:
             self.extension_changed.emit(name, value)
 
+    def get_display_string(self):
+        return "{mrc},{self.bus},{self.address} {devicename}".format(
+                devicename=self.profile.name,
+                mrc=self.mrc.get_display_url(),
+                self=self)
+
 class DeviceWidgetBase(QtGui.QWidget):
     """Base class for device specific widgets."""
     display_mode_changed = pyqtSignal(int)

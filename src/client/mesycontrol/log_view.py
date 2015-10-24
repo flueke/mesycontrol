@@ -18,8 +18,12 @@ class LogView(QtGui.QTextEdit):
         self.document().setMaximumBlockCount(max_lines)
         self.setLineWrapMode(line_wrap)
 
-        self.formatter = logging.Formatter(
+        self.err_fmt = logging.Formatter(
                 fmt='%(asctime)s %(name)s: %(message)s',
+                datefmt='%H:%M:%S')
+
+        self.fmt = logging.Formatter(
+                fmt='%(asctime)s: %(message)s',
                 datefmt='%H:%M:%S')
 
         self._mutex = QtCore.QMutex()
@@ -40,8 +44,9 @@ class LogView(QtGui.QTextEdit):
             try:
                 if log_record.levelno >= logging.ERROR:
                     self.setTextColor(QtGui.QColor("#ff0000"))
-
-                self.append(self.formatter.format(log_record), prepend_time=False)
+                    self.append(self.err_fmt.format(log_record), prepend_time=False)
+                else:
+                    self.append(self.fmt.format(log_record), prepend_time=False)
             finally:
                 self.setTextColor(self._original_text_color)
 
