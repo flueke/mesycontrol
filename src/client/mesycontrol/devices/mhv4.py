@@ -288,9 +288,6 @@ class ChannelWidget(QtGui.QWidget):
 
     @pyqtSlot(int)
     def on_slider_target_voltage_valueChanged(self, value):
-        with util.block_signals(self.spin_target_voltage):
-            self.spin_target_voltage.setValue(value)
-
         slider = self.slider_target_voltage
         slider.setToolTip("%d V" % value)
 
