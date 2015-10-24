@@ -407,19 +407,6 @@ class MSCF16(DeviceBase):
         if new is not None:
             new.parameter_changed.connect(self._on_hw_parameter_changed)
 
-            if (self.read_mode & util.HARDWARE):
-                def on_channel_mode_read(f):
-                    try:
-                        mode = int(f.result())
-                        if mode == CHANNEL_MODE_COMMON:
-                            self.log.warning("Detected \"common\" channel mode. Switching to individual mode.")
-                            self.set_hw_parameter('single_channel_mode', CHANNEL_MODE_INDIVIDUAL)
-                    except Exception:
-                        pass
-
-                self.read_hw_parameter('single_channel_mode').add_done_callback(
-                        on_channel_mode_read)
-
     def _on_hw_parameter_changed(self, address, value):
         if address == self.profile['auto_pz'].address:
             # Refresh the channels PZ value once auto pz is done.
@@ -437,6 +424,32 @@ class MSCF16(DeviceBase):
             for g, v in enumerate(value):
                 self.gain_jumper_changed.emit(g, v)
 
+    def ensure_individual_channel_mode(self):
+        ret = future.Future()
+
+        def done(f):
+            try:
+                mode = int(f.result())
+
+                if mode == CHANNEL_MODE_COMMON:
+                    self.log.warning("%s: Detected common channel mode. Setting individual mode.",
+                            self.get_display_string())
+
+                    @future.set_result_on(ret)
+                    def set_done(f_set):
+                        return bool(f_set.result())
+
+                    self.set_hw_parameter('single_channel_mode', CHANNEL_MODE_INDIVIDUAL
+                            ).add_done_callback(set_done)
+                else:
+                    ret.set_result(True)
+            except Exception as e:
+                self.log.warning("%s: %s", self.get_display_string(), str(e))
+                ret.set_exception(e)
+
+        self.read_hw_parameter('single_channel_mode').add_done_callback(done)
+
+        return ret
 
 # ==========  GUI ========== 
 dynamic_label_style = "QLabel { background-color: lightgrey; }"
@@ -478,6 +491,12 @@ class MSCF16Widget(DeviceWidgetBase):
         for page in self.pages:
             if hasattr(page, 'handle_hardware_connected_changed'):
                 page.handle_hardware_connected_changed(connected)
+
+    def showEvent(self, event):
+        if not event.spontaneous():
+            self.device.ensure_individual_channel_mode()
+
+        super(MSCF16Widget, self).showEvent(event)
 
 class GainPage(QtGui.QGroupBox):
     def __init__(self, device, display_mode, write_mode, parent=None):
