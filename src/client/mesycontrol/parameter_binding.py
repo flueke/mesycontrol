@@ -298,7 +298,11 @@ class AbstractParameterBinding(object):
         if not result_future.exception():
             log.debug("_update_wrapper: result=%s", result_future.result())
 
-        self._update(result_future)
+        try:
+            self._update(result_future)
+        except Exception as e:
+            log.debug("_update raised %s", e)
+
         self._exec_callbacks(result_future)
 
     def _update(self, result_future):
@@ -440,17 +444,17 @@ class DefaultParameterBinding(AbstractParameterBinding):
                             log.debug("_get_palette: ra=%d, wa=%d, cfg and hw differ; returning orange",
                                     self.read_address, self.write_address)
                             pal.setColor(QtGui.QPalette.Base, QtGui.QColor('orange'))
-                            ret.set_result(pal)
+
+                    ret.set_result(pal)
 
                 future.all_done(f_cfg, f_hw, f_params).add_done_callback(all_done)
+                return ret
 
             except (future.IncompleteFuture, KeyError,
                     util.SocketError, util.Disconnected):
                 log.exception("_get_palette")
-                ret.set_result(pal)
-        else:
-            ret.set_result(pal)
-        return ret
+
+        return ret.set_result(pal)
 
     def _get_palette_old(self, rf):
         pal = QtGui.QPalette(self._original_palette)
@@ -629,7 +633,8 @@ class RadioButtonGroupParameterBinding(DefaultParameterBinding):
 
     def _update(self, rf):
         try:
-            self.target.button(int(rf)).setChecked(True)
+            with util.block_signals(self.target):
+                self.target.button(int(rf)).setChecked(True)
 
             for b in self.target.buttons():
                 b.setToolTip(self._get_tooltip(rf))
@@ -679,10 +684,11 @@ class SliderParameterBinding(DefaultParameterBinding):
 
     def _update(self, rf):
         super(SliderParameterBinding, self)._update(rf)
-        if self.unit is None:
-            self.target.setValue(int(rf))
-        else:
-            value = self.unit.unit_value(int(rf))
+        value = int(rf.result())
+        if self.unit is not None:
+            value = self.unit.unit_value(value)
+
+        with util.block_signals(self.target):
             self.target.setValue(value)
 
     def _value_changed(self, dvalue):
