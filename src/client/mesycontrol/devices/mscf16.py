@@ -411,7 +411,7 @@ class MSCF16(DeviceBase):
         if address == self.profile['auto_pz'].address:
             # Refresh the channels PZ value once auto pz is done.
             # auto_pz = 0 means auto pz is not currently running
-            # 0 < auto_pz < NUM_CHANNELS means auto pz is running for that channel
+            # 0 < auto_pz <= NUM_CHANNELS means auto pz is running for that channel
             # self._auto_pz_channel is the last channel that auto pz was running for
             if 0 < self._auto_pz_channel <= NUM_CHANNELS:
                 self.read_hw_parameter('pz_value_channel%d' % (self._auto_pz_channel-1))
