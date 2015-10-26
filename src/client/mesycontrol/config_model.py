@@ -211,8 +211,8 @@ def make_device_config(bus, address, idc, name=unicode(), device_profile=None):
         for pp in pps:
             ret.set_parameter(pp.address, pp.default)
 
-        for name, value in device_profile.get_extensions().iteritems():
-            ret.set_extension(name, value)
+        for name, ext_profile in device_profile.get_extensions().iteritems():
+            ret.set_extension(name, ext_profile['value'])
 
     ret.modified = False
 
