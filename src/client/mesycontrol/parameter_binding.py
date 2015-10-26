@@ -223,13 +223,13 @@ class AbstractParameterBinding(object):
             new_cfg.parameter_changed.connect(self._on_cfg_parameter_changed)
 
     def _on_hw_parameter_changed(self, address, value):
-        if address == self.read_address:
+        if self.device is not None and self.device.has_hw and address == self.read_address:
             f = self.device.hw.get_parameter(self.read_address).add_done_callback(self._update_wrapper)
             log.debug("_on_hw_parameter_changed: target=%s, addr=%d, future=%s", self.target, self.read_address, f)
             self.populate()
 
     def _on_cfg_parameter_changed(self, address, value):
-        if address == self.write_address:
+        if self.device is not None and self.device.has_cfg and address == self.write_address:
             f = self.device.cfg.get_parameter(self.write_address).add_done_callback(self._update_wrapper)
             log.debug("_on_cfg_parameter_changed: target=%s, addr=%d, future=%s", self.target, self.write_address, f)
             self.populate()
@@ -452,7 +452,7 @@ class DefaultParameterBinding(AbstractParameterBinding):
 
             except (future.IncompleteFuture, KeyError,
                     util.SocketError, util.Disconnected):
-                log.exception("_get_palette")
+                pass
 
         return ret.set_result(pal)
 
