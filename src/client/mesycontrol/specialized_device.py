@@ -335,6 +335,9 @@ class DeviceWidgetBase(QtGui.QWidget):
     def get_parameter_bindings(self):
         raise NotImplementedError()
 
+    def clear_parameter_bindings(self):
+        raise NotImplementedError()
+
     def has_toolbar(self):
         return len(self.actions())
 
@@ -371,6 +374,7 @@ class DeviceWidgetBase(QtGui.QWidget):
             name = "DeviceWidgets/%s_notes_visible" % self.parent().objectName()
             settings.setValue(name, self.notes_visible())
 
+        self.clear_parameter_bindings()
         super(DeviceWidgetBase, self).closeEvent(event)
 
     def event(self, e):

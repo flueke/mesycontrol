@@ -474,6 +474,7 @@ class MHV4Widget(DeviceWidgetBase):
         super(MHV4Widget, self).__init__(device, display_mode, write_mode, parent)
 
         self.channels = list()
+        self.settings_widgets = list()
 
         # Channel controls
         channel_layout = QtGui.QHBoxLayout()
@@ -508,6 +509,13 @@ class MHV4Widget(DeviceWidgetBase):
 
         return itertools.chain(*bindings)
 
+    def clear_parameter_bindings(self):
+        for cw in self.channels:
+            cw().bindings = list()
+
+        for sw in self.settings_widgets:
+            sw().bindings = list()
+
     def _add_settings_tab(self):
         bindings = list()
         tabs = QtGui.QTabWidget()
@@ -516,10 +524,12 @@ class MHV4Widget(DeviceWidgetBase):
             csw = ChannelSettingsWidget(self.device, i, self.display_mode, self.write_mode)
             tabs.addTab(csw, "Channel %d" % (i+1))
             bindings.append(csw.bindings)
+            self.settings_widgets.append(weakref.ref(csw))
 
         gsw = GlobalSettingsWidget(self.device, self.display_mode, self.write_mode)
         tabs.addTab(gsw, "Global")
         bindings.append(gsw.bindings)
+        self.settings_widgets.append(weakref.ref(gsw))
 
         self.tab_widget.addTab(tabs, "Settings")
 

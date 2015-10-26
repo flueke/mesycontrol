@@ -219,6 +219,10 @@ class STM16Widget(DeviceWidgetBase):
     def get_parameter_bindings(self):
         return itertools.chain(*(p.bindings for p in self.pages))
 
+    def clear_parameter_bindings(self):
+        for p in self.pages:
+            p.bindings = list()
+
 idc             = 19
 device_class    = STM16
 device_ui_class = STM16Widget

@@ -431,6 +431,10 @@ class MCFD16Widget(DeviceWidgetBase):
         gen = (tb.widget(i).get_parameter_bindings() for i in range(tb.count()))
         return itertools.chain(*gen)
 
+    def clear_parameter_bindings(self):
+        for i in range(self.tab_widget.count()):
+            self.tab_widget.widget(i).clear_parameter_bindings()
+
     def showEvent(self, event):
         if not event.spontaneous():
             self.device.ensure_individual_channel_mode()
@@ -1096,6 +1100,12 @@ class MCFD16ControlsWidget(QtGui.QWidget):
                 self.preamp_page.bindings,
                 self.discriminator_page.bindings,
                 self.width_deadtime_page.bindings)
+
+    def clear_parameter_bindings(self):
+        self.bindings = list()
+        self.preamp_page.bindings = list()
+        self.discriminator_page.bindings = list()
+        self.width_deadtime_page.bindings = list()
                 
 class BitPatternHelper(QtCore.QObject):
     value_changed = pyqtSignal(int)
@@ -1525,6 +1535,9 @@ class TriggerSetupWidget(QtGui.QWidget):
     def get_parameter_bindings(self):
         return self.bindings
 
+    def clear_parameter_bindings(self):
+        self.bindings = list()
+
 class PairCoincidenceSetupWidget(QtGui.QWidget):
     """Pair coincidence matrix display."""
 
@@ -1601,6 +1614,9 @@ class PairCoincidenceSetupWidget(QtGui.QWidget):
     def get_parameter_bindings(self):
         return self.bindings
 
+    def clear_parameter_bindings(self):
+        self.bindings = list()
+
 class MCFD16SetupWidget(QtGui.QWidget):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(MCFD16SetupWidget, self).__init__(parent)
@@ -1652,7 +1668,11 @@ class MCFD16SetupWidget(QtGui.QWidget):
                 self.trigger_widget.get_parameter_bindings(),
                 self.coincidence_widget.get_parameter_bindings())
 
-# ==========  Module ========== 
+    def clear_parameter_bindings(self):
+        self.trigger_widget.clear_parameter_bindings()
+        self.coincidence_widget.clear_parameter_bindings()
+
+# ==========  Module ==========
 idc             = 26
 device_class    = MCFD16
 device_ui_class = MCFD16Widget

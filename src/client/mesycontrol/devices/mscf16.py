@@ -497,6 +497,10 @@ class MSCF16Widget(DeviceWidgetBase):
     def get_parameter_bindings(self):
         return itertools.chain(*(p.bindings for p in self.pages))
 
+    def clear_parameter_bindings(self):
+        for p in self.pages:
+            p.bindings = list()
+
     def _on_hardware_connected_changed(self, connected):
         for page in self.pages:
             if hasattr(page, 'handle_hardware_connected_changed'):
@@ -831,7 +835,7 @@ class ShapingPage(QtGui.QGroupBox):
                 text  = "%.2f µs" % f.result()
                 label = self.sht_labels[group]
                 label.setText(QtCore.QString.fromUtf8(text))
-            except Exception as e:
+            except Exception:
                 self.sht_labels[group].setText("N/A")
 
         self.device.get_effective_shaping_time(group).add_done_callback(done)
