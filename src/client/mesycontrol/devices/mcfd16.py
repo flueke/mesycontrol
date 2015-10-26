@@ -375,13 +375,14 @@ class MCFD16(DeviceBase):
         return ret
 
     def ensure_individual_channel_mode(self):
+        """If any of cfg and hw are in common mode change them to individual mode"""
         ret = future.Future()
 
-        def done(f):
+        def done(f_list):
             try:
-                mode = int(f.result())
+                do_set = any(int(f.result()) == CHANNEL_MODE_COMMON for f in f_list.result())
 
-                if mode == CHANNEL_MODE_COMMON:
+                if do_set:
                     self.log.warning("%s: Detected common channel mode. Setting individual mode.",
                             self.get_display_string())
 
@@ -389,7 +390,8 @@ class MCFD16(DeviceBase):
                     def set_done(f_set):
                         return bool(f_set.result())
 
-                    self.set_hw_parameter('single_channel_mode', CHANNEL_MODE_INDIVIDUAL
+                    # This takes the write mode into account. No extra checks need to be done.
+                    self.set_parameter('single_channel_mode', CHANNEL_MODE_INDIVIDUAL
                             ).add_done_callback(set_done)
                 else:
                     ret.set_result(True)
@@ -397,12 +399,19 @@ class MCFD16(DeviceBase):
                 self.log.warning("%s: %s", self.get_display_string(), str(e))
                 ret.set_exception(e)
 
-        self.read_hw_parameter('single_channel_mode').add_done_callback(done)
+        f_list = list()
+
+        if self.write_mode & util.CONFIG and self.has_cfg:
+            f_list.append(self.get_cfg_parameter('single_channel_mode'))
+
+        if self.write_mode & util.HARDWARE and self.has_hw:
+            f_list.append(self.get_hw_parameter('single_channel_mode'))
+
+        future.all_done(*f_list).add_done_callback(done)
 
         return ret
 
-
-# ==========  GUI ========== 
+# ==========  GUI ==========
 dynamic_label_style = "QLabel { background-color: lightgrey; }"
 
 class MCFD16Widget(DeviceWidgetBase):
