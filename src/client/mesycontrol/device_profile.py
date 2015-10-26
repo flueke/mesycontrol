@@ -268,7 +268,7 @@ class DeviceProfile(object):
         # FIXME: change extension mechanism to handle extension meta data
         # => stored extension values in config are different from extension
         # definitions in the device profile.
-        self._extensions[ext['name']] = ext['value']
+        self._extensions[ext['name']] = ext
 
     def get_extension(self, name):
         return self._extensions[name]

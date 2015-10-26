@@ -91,7 +91,7 @@ class AbstractParameterBinding(object):
         # in the config.
         address = self.read_address if dev is self.device.hw else self.write_address
         f       = dev.get_parameter(address).add_done_callback(self._update_wrapper)
-        log.debug("populate: target=%s, addr=%d, future=%s, dev=%s ======================================",
+        log.debug("populate: target=%s, addr=%d, future=%s, dev=%s",
                 self.target, address, f, dev)
 
     def get_address(self):

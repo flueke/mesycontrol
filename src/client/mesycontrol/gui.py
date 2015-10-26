@@ -1488,7 +1488,7 @@ Initialize using the current hardware values or the device defaults?
             add_action(self.actions['remove_config'])
             if self.actions['add_config'].isEnabled():
                 add_action(self.actions['add_config'])
-            #add_action(self.actions['show_device_extensions'])
+            add_action(self.actions['show_device_extensions'])
 
         if not menu.isEmpty():
             menu.exec_(view.mapToGlobal(pos))
@@ -1523,7 +1523,7 @@ Initialize using the current hardware values or the device defaults?
             add_action(self.actions['open_device_table'])
             add_action(self.actions['toggle_rc'])
             #add_action(self.actions['refresh'])
-            #add_action(self.actions['show_device_extensions'])
+            add_action(self.actions['show_device_extensions'])
 
         if not menu.isEmpty():
             menu.exec_(view.mapToGlobal(pos))
@@ -1568,7 +1568,7 @@ Initialize using the current hardware values or the device defaults?
         extensions = device.get_extensions()
         print "extensions:", extensions
         extensions_param = extensions_to_ptree(extensions, profile)
-        #extensions_param.sigTreeStateChanged.connect(on_tree_state_changed)
+        extensions_param.sigTreeStateChanged.connect(on_tree_state_changed)
         tree.setParameters(extensions_param, showTop=False)
 
     def _show_quickstart(self):
@@ -1605,35 +1605,59 @@ def extensions_to_ptree(extensions, device_profile):
 
     def list2param(name, value):
         ret = pt.Parameter.create(name=name, type='group')
+        ret.type = type(list())
         for idx, val in enumerate(value):
             ret.addChild(value2param(name=str(idx), value=val))
         return ret
 
+    def dict2param(name, value):
+        ret = pt.Parameter.create(name=name, type='group')
+        ret.type = type(dict())
+        for k, v in value.iteritems():
+            ret.addChild(value2param(name=str(k), value=v))
+        return ret
+
     def value2param(name, value):
+        log = logging.getLogger(__name__)
+        log.warning("value2param n=%s, v=%s", name, value)
         try:
             ext_profile = device_profile.get_extension(name)
+            log.warning("ext_profile from device_profile")
         except KeyError:
             ext_profile = dict(name=name)
+            log.warning("ext_profile from dict")
 
+        log.warning("ext_profile=%s", ext_profile)
         print ext_profile
 
-        if 'values' in ext_profile:
-            return pt.Parameter.create(value=value, type='list', **ext_profile)
+        #if 'values' in ext_profile:
+        #    log.warning(value)
+        #    log.warning(ext_profile)
+        #    return pt.Parameter.create(value=value, type='list', **ext_profile)
         if isinstance(value, str):
-            return pt.Parameter.create(value=value, type='str', **ext_profile)
+            log.warning("str")
+            return pt.Parameter.create(type='str', **ext_profile)
         elif isinstance(value, int):
-            return pt.Parameter.create(value=value, type='int', **ext_profile)
+            log.warning("int")
+            return pt.Parameter.create(type='int', **ext_profile)
         elif isinstance(value, float):
-            return pt.Parameter.create(value=value, type='float', **ext_profile)
+            log.warning("float")
+            return pt.Parameter.create(type='float', **ext_profile)
         elif isinstance(value, list):
+            log.warning("list2param %s=%s", name, value)
             return list2param(name, value)
+        elif isinstance(value, dict):
+            log.warning("dict2param %s=%s", name, value)
+            return dict2param(name, value)
         else:
             raise TypeError("value2xml: unhandled value type '%s'" % type(value).__name__)
 
     ret = pt.Parameter.create(name='root', type='group')
     ret.sigTreeStateChanged.connect(on_tree_state_changed)
 
+    log.warning("value2param: exts=%s %s", type(extensions), extensions)
     for name, value in extensions.iteritems():
+        log.warning("value2param iteration: n=%s, v=%s", name, value)
         param = value2param(name, value)
         ret.addChild(param)
 
