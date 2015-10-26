@@ -653,7 +653,10 @@ class GUIApplication(QtCore.QObject):
         act_write    = self.actions['select_write_mode']
 
         if isinstance(win, gui_util.DeviceSubWindow):
-            device       = win.device
+            try:
+                device = win.device
+            except RuntimeError:
+                device = None # c++ subwin might've been deleted
             display_mode = win.display_mode
             write_mode   = win.write_mode
 
