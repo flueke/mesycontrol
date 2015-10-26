@@ -430,7 +430,7 @@ class MSCF16(DeviceBase):
 
         def done(f_list):
             try:
-                do_set = any(lambda f: int(f.result()) == CHANNEL_MODE_COMMON for f in f_list.result())
+                do_set = any(int(f.result()) == CHANNEL_MODE_COMMON for f in f_list.result())
 
                 if do_set:
                     self.log.warning("%s: Detected common channel mode. Setting individual mode.",
