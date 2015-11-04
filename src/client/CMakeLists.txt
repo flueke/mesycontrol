@@ -18,6 +18,7 @@ set(QRC_OUT     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/resources.py")
 set(PROTO_PY_OUT "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/mesycontrol_pb2.py")
 
 set(GUI_MANIFEST "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol_gui.exe.manifest")
+set(GUI_BATCH_STARTER "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol_gui.bat")
 
 set(PYTHON_SOURCES
     "${SETUP_PY_IN}"
@@ -128,6 +129,7 @@ add_custom_target(mesycontrol_clients ALL DEPENDS ${STAMP} ${QRC_IN})
 if (WIN32)
     install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/python-install/" DESTINATION bin)
     install(FILES ${GUI_MANIFEST} DESTINATION bin)
+    install(FILES ${GUI_BATCH_STARTER} DESTINATION .)
 else (WIN32)
     install(DIRECTORY ${CMAKE_BINARY_DIR}/python-install/bin/
 	    DESTINATION bin USE_SOURCE_PERMISSIONS)
