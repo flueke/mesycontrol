@@ -1535,6 +1535,9 @@ Initialize using the current hardware values or the device defaults?
         if (event.type() == QtCore.QEvent.Close
                 and isinstance(watched_object, QtGui.QMdiSubWindow)):
 
+            if self._current_subwindow is watched_object:
+                self._current_subwindow = None
+
             gui_util.store_subwindow_state(watched_object, self.context.make_qsettings())
 
             if (hasattr(watched_object, 'device')

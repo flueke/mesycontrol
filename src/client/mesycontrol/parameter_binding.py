@@ -7,7 +7,6 @@ from qt import QtGui
 
 import collections
 import logging
-import traceback
 import weakref
 
 import basic_model as bm
@@ -199,7 +198,6 @@ class AbstractParameterBinding(object):
                 pass
             except Exception as e:
                 log.warning("target=%s, update callback raised %s: %s", self.target, type(e), e)
-                traceback.print_exc()
 
     def _on_device_hw_set(self, device, old_hw, new_hw):
         if old_hw is not None:
@@ -515,9 +513,6 @@ class TargetlessParameterBinding(AbstractParameterBinding):
 
     def set_display_mode(self, mode):
         log.debug("TargetlessParameterBinding: set_display_mode %s", util.RW_MODE_NAMES[mode])
-        #if mode == util.CONFIG:
-        #    import traceback
-        #    traceback.print_stack()
         super(TargetlessParameterBinding, self).set_display_mode(mode)
 
     def set_write_mode(self, mode):
