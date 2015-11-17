@@ -255,10 +255,8 @@ class DeviceWidgetBase(QtGui.QWidget):
 
         self.notes_widget = gui_util.DeviceNotesWidget(specialized_device)
 
-        self.hide_notes_button = QtGui.QPushButton(util.make_icon(":/collapse-up.png"), str(),
-                clicked=self._toggle_hide_notes)
-        self.hide_notes_button.setToolTip("Hide Device notes")
-        self.hide_notes_button.setStatusTip(self.hide_notes_button.toolTip())
+        self.hide_notes_button = QtGui.QPushButton(clicked=self._toggle_hide_notes)
+        self.set_notes_visible(True)
 
         self.tab_widget = QtGui.QTabWidget()
         self.tab_widget.setCornerWidget(self.hide_notes_button, Qt.TopRightCorner)
@@ -278,12 +276,13 @@ class DeviceWidgetBase(QtGui.QWidget):
     def set_notes_visible(self, visible):
         self.notes_widget.setVisible(visible)
 
-        if self.notes_widget.isVisible():
+        if visible:
             self.hide_notes_button.setIcon(util.make_icon(":/collapse-up.png"))
             self.hide_notes_button.setToolTip("Hide Device notes")
         else:
             self.hide_notes_button.setIcon(util.make_icon(":/collapse-down.png"))
             self.hide_notes_button.setToolTip("Show Device notes")
+
         self.hide_notes_button.setStatusTip(self.hide_notes_button.toolTip())
 
     def get_display_mode(self):
@@ -387,6 +386,8 @@ class DeviceWidgetBase(QtGui.QWidget):
             name = "DeviceWidgets/%s_notes_visible" % self.parent().objectName()
             if settings.contains(name):
                 self.set_notes_visible(settings.value(name).toBool())
+            else:
+                self.set_notes_visible(True)
 
         return super(DeviceWidgetBase, self).event(e)
 
