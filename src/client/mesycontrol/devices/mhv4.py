@@ -481,7 +481,7 @@ class MHV4Widget(DeviceWidgetBase):
         channel_layout.setContentsMargins(4, 4, 4, 4)
 
         for i in range(NUM_CHANNELS):
-            groupbox        = QtGui.QGroupBox("Channel %d" % (i+1), self)
+            groupbox        = QtGui.QGroupBox("Channel %d" % i, self)
             channel_widget  = ChannelWidget(device, i, display_mode, write_mode)
             groupbox_layout = QtGui.QHBoxLayout(groupbox)
             groupbox_layout.setContentsMargins(4, 4, 4, 4)
@@ -522,7 +522,7 @@ class MHV4Widget(DeviceWidgetBase):
 
         for i in range(NUM_CHANNELS):
             csw = ChannelSettingsWidget(self.device, i, self.display_mode, self.write_mode)
-            tabs.addTab(csw, "Channel %d" % (i+1))
+            tabs.addTab(csw, "Channel %d" % i)
             bindings.append(csw.bindings)
             self.settings_widgets.append(weakref.ref(csw))
 
