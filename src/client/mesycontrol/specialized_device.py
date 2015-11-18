@@ -105,6 +105,7 @@ class DeviceBase(QtCore.QObject):
             self.write_mode_changed.emit(self.write_mode)
 
     def __getattr__(self, attr):
+        """Forward attribute access to the app_model.Device instance."""
         return getattr(self.app_device, attr)
 
     read_mode       = pyqtProperty(object, get_read_mode, set_read_mode, notify=read_mode_changed)
