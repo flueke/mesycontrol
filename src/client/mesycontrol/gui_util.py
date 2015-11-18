@@ -561,6 +561,25 @@ class ServerLogView(QtGui.QPlainTextEdit):
     def _on_server_output(self, data):
         self.appendPlainText(data.trimmed())
 
+class NotesTextEdit(QtGui.QPlainTextEdit):
+    def __init__(self, parent=None):
+        super(NotesTextEdit, self).__init__(parent)
+
+    def setReadOnly(self, ro):
+        pal = QtGui.QPalette()
+        if ro:
+            pal.setColor(QtGui.QPalette.Base, QtGui.QColor('lightgrey'))
+        self.setPalette(pal)
+
+        super(NotesTextEdit, self).setReadOnly(ro)
+
+    def mouseDoubleClickEvent(self, event):
+        if self.isReadOnly():
+            self.setReadOnly(False)
+
+        super(NotesTextEdit, self).mouseDoubleClickEvent(event)
+
+
 class DeviceNotesWidget(QtGui.QWidget):
     DISPLAY_ROWS = 3
     ADD_PIXELS_PER_ROW = 5
@@ -574,16 +593,14 @@ class DeviceNotesWidget(QtGui.QWidget):
         device.write_mode_changed.connect(self._on_device_write_mode_changed)
         device.extension_changed.connect(self._on_device_extension_changed)
 
-        self.text_edit = QtGui.QPlainTextEdit()
+        self.text_edit = NotesTextEdit()
         self.text_edit.setReadOnly(True)
+        self.text_edit.modificationChanged.connect(
+                self._on_text_edit_modification_changed)
 
         fm = self.text_edit.fontMetrics()
         rh = fm.lineSpacing() + DeviceNotesWidget.ADD_PIXELS_PER_ROW
         self.text_edit.setFixedHeight(DeviceNotesWidget.DISPLAY_ROWS * rh)
-
-        pal = self.text_edit.palette()
-        pal.setColor(QtGui.QPalette.Base, QtGui.QColor('lightgrey'))
-        self.text_edit.setPalette(pal)
 
         layout = QtGui.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -617,22 +634,30 @@ class DeviceNotesWidget(QtGui.QWidget):
     def _populate(self):
         with util.block_signals(self.text_edit):
             try:
-                self.text_edit.setPlainText(
-                        self.device.get_extension('user_notes'))
+                notes = self.device.get_extension('user_notes')
+                if self.get_plain_text() != notes:
+                    self.text_edit.setPlainText(notes)
             except KeyError:
                 self.text_edit.clear()
+            self.text_edit.document().setModified(False)
+
+    def is_modified(self):
+        return self.text_edit.document().isModified()
+
+    def get_plain_text(self):
+        return self.text_edit.toPlainText()
+
+    def commit(self):
+        if self.is_modified():
+            self.device.set_extension('user_notes', self.text_edit.toPlainText())
             self.text_edit.document().setModified(False)
 
     def _on_edit_button_clicked(self):
         self.text_edit.setReadOnly(not self.text_edit.isReadOnly())
 
-        pal = QtGui.QPalette()
-
         if self.text_edit.isReadOnly():
-            pal.setColor(QtGui.QPalette.Base, QtGui.QColor('lightgrey'))
+            self.commit()
 
-            if self.text_edit.document().isModified():
-                self.device.set_extension('user_notes', self.text_edit.toPlainText())
-                self.text_edit.document().setModified(False)
-
-        self.text_edit.setPalette(pal)
+    def _on_text_edit_modification_changed(self, changed):
+        if changed:
+            self.commit()
