@@ -492,7 +492,8 @@ class GUIApplication(QtCore.QObject):
         self.actions['close_setup'].setEnabled(len(setup))
 
         a = self.actions['add_config']
-        a.setEnabled(is_config(node) and not (is_device(node) and node.ref.has_cfg))
+        a.setEnabled((node is None) or (
+            is_config(node) and not (is_device(node) and node.ref.has_cfg)))
 
         if is_setup(node):
             a.setText("Add MRC")
