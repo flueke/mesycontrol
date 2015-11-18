@@ -47,6 +47,38 @@ class MHV4(DeviceBase):
     def __init__(self, app_device, display_mode, write_mode, parent=None):
         super(MHV4, self).__init__(app_device, display_mode, write_mode, parent)
 
+        params = ('channel%d_polarity_write' % i for i in range(NUM_CHANNELS))
+        self._polarity_write_addresses = [self.profile[pn].address for pn in params]
+
+        self.app_device.hardware_set.connect(self._on_hardware_set)
+        self._on_hardware_set(app_device, None, app_device.hw)
+
+    def _on_hardware_set(self, app_device, old, new):
+        super(MHV4, self)._on_hardware_set(app_device, old, new)
+
+        self._polarity_write_values = [None for i in range(NUM_CHANNELS)]
+
+        if new is not None:
+            for chan, addr in enumerate(self._polarity_write_addresses):
+                if new.has_cached_parameter(addr):
+                    self._polarity_write_values[chan] = new.get_cached_parameter(addr)
+
+    def _on_hw_parameter_changed(self, address, value):
+        super(MHV4, self)._on_hw_parameter_changed(address, value)
+
+        if self.write_mode & util.HARDWARE and address in self._polarity_write_addresses:
+            index = self.profile[address].index
+
+            #if self._polarity_write_values[index] is None:
+            #    # First read from the hardware. Record the value but do not
+            #    # update the target voltage.
+            #    self._polarity_write_values[index] = value
+            #else:
+            #    # A previous polarity value was known and has changed. Set the
+            #    # corresponding channels target voltage to 0.
+            #    self.set_parameter('channel%d_voltage_write' % index, 0)
+            self.set_parameter('channel%d_voltage_write' % index, 0)
+
 # ==========  GUI ========== 
 class WheelEventFilter(QtCore.QObject):
     """Event filter to filter out QEvent::Wheel events."""
