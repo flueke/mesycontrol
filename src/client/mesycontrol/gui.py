@@ -1535,6 +1535,8 @@ Initialize using the current hardware values or the device defaults?
         if (event.type() == QtCore.QEvent.Close
                 and isinstance(watched_object, QtGui.QMdiSubWindow)):
 
+            self.log.debug("CloseEvent for %s", watched_object)
+
             if self._current_subwindow is watched_object:
                 self._current_subwindow = None
 
@@ -1548,6 +1550,7 @@ Initialize using the current hardware values or the device defaults?
 
         elif (event.type() == QtCore.QEvent.Close
                 and watched_object is self.mainwindow):
+            self.log.debug("CloseEvent for mainwindow")
             if not gui_util.run_close_setup(self.context, self.mainwindow):
                 event.ignore()
                 return True

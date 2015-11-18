@@ -161,6 +161,7 @@ if __name__ == "__main__":
                         "Opening setup file %s failed:\n%s" % (setup_file, e))
 
         ret = app.exec_()
+        logging.debug("app.exec_() returned %d", ret)
 
     del mainwindow
     del garbage_collector

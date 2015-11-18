@@ -71,6 +71,7 @@ class Context(QtCore.QObject):
         return setup
 
     def reset_setup(self):
+        self.log.debug("reset_setup")
         self.app_registry.setup = cm.Setup()
 
     def get_setup_directory_hint(self):
