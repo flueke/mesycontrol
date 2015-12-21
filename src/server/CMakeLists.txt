@@ -18,6 +18,7 @@ set(MESYCONTROL_SERVER_TARGET "mesycontrol_server")
 set(MESYCONTROL_SERVER_SRCS
     logging.cc
     main.cc
+    mrc_comm.cc
     mrc1_connection.cc
     mrc1_reply_parser.cc
     mrc1_request_queue.cc

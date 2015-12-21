@@ -9,6 +9,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/utility.hpp>
 #include <string>
+#include "mrc_comm.h"
 #include "handler_types.h"
 #include "mrc1_reply_parser.h"
 #include "logging.h"
