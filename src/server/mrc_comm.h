@@ -7,9 +7,12 @@
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/function.hpp>
 #include <boost/noncopyable.hpp>
+#include <string>
 
 namespace mesycontrol
 {
+
+namespace asio = boost::asio;
 
 class MRCComm:
   public boost::enable_shared_from_this<MRCComm>,
@@ -25,6 +28,8 @@ class MRCComm:
     virtual ~MRCComm() {}
 
   protected:
+    typedef boost::function<void (boost::system::error_code, std::size_t)> AsioReadHandler;
+
     MRCComm(boost::asio::io_service &io,
         const boost::posix_time::time_duration &write_timeout = boost::posix_time::milliseconds(100),
         const boost::posix_time::time_duration &read_timeout  = boost::posix_time::milliseconds(100))
@@ -35,12 +40,8 @@ class MRCComm:
       , m_timer(io)
     {}
 
-    virtual void start_write_one(const std::string::const_iterator &it,
-        boost::function<void (boost::system::error_code, std::size_t)> write_handler) = 0;
-
-    virtual void start_read_one(char &dest,
-        boost::function<void (boost::system::error_code, std::size_t)> read_handler) = 0;
-
+    virtual void start_write_one(const std::string::const_iterator &it, WriteHandler write_handler) = 0;
+    virtual void start_read_one(char &dest, AsioReadHandler read_handler) = 0;
     virtual void cancel_io() = 0;
 
   private:
@@ -75,9 +76,20 @@ class MRCSerialComm: public MRCComm
     {}
 
   protected:
-    virtual void start_write_one(const std::string::const_iterator &it, WriteHandler write_handler);
-    virtual void start_read_one(char &dest, ReadHandler read_handler);
-    virtual void cancel_io();
+    virtual void start_write_one(const std::string::const_iterator &it, WriteHandler write_handler)
+    {
+      asio::async_write(m_port, asio::buffer(&(*it), sizeof(*it)), write_handler);
+    }
+
+    virtual void start_read_one(char &dest, AsioReadHandler read_handler)
+    {
+      asio::async_read(m_port, asio::buffer(&dest, sizeof(dest)), read_handler);
+    }
+
+    virtual void cancel_io()
+    {
+      m_port.cancel();
+    }
 
   private:
     asio::serial_port &m_port;
@@ -92,14 +104,12 @@ class MRCTCPComm: public MRCComm
     {}
 
   protected:
-    virtual void start_write_one(const std::string::const_iterator &it,
-        boost::function<void (boost::system::error_code, std::size_t)> write_handler)
+    virtual void start_write_one(const std::string::const_iterator &it, WriteHandler write_handler)
     {
       asio::async_write(m_socket, asio::buffer(&(*it), sizeof(*it)), write_handler);
     }
 
-    virtual void start_read_one(char &dest,
-        boost::function<void (boost::system::error_code, std::size_t)> read_handler)
+    virtual void start_read_one(char &dest, AsioReadHandler read_handler)
     {
       asio::async_read(m_socket, asio::buffer(&dest, sizeof(dest)), read_handler);
     }

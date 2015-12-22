@@ -9,10 +9,10 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/utility.hpp>
 #include <string>
-#include "mrc_comm.h"
 #include "handler_types.h"
-#include "mrc1_reply_parser.h"
 #include "logging.h"
+#include "mrc1_reply_parser.h"
+#include "mrc_comm.h"
 
 namespace mesycontrol
 {
@@ -50,6 +50,7 @@ class MRC1Connection:
      * in progress. Otherwise true is returned and the command will be handled. */
     bool write_command(const MessagePtr &command,
         ResponseHandler response_handler);
+
     bool command_in_progress() const { return m_current_command; }
 
     boost::posix_time::time_duration get_io_timeout() const { return m_io_timeout; }
@@ -88,6 +89,9 @@ class MRC1Connection:
         const std::string &data, 
         ReadWriteCallback completion_handler);
 
+    void start_read(MRCComm::ReadHandler read_handler);
+
+#if 0
     void start_read(
         boost::asio::streambuf &read_buffer,
         ReadWriteCallback completion_handler);
@@ -95,6 +99,7 @@ class MRC1Connection:
     void start_read_line(
         boost::asio::streambuf &read_buffer,
         ReadWriteCallback completion_handler);
+#endif
 
     /** Start implementation. Open files here / resolve hostnames, etc.
      * Call the given completion_handler once startup is complete. */
@@ -106,6 +111,7 @@ class MRC1Connection:
     /** Cancel pending async IO requests. */
     virtual void cancel_io() = 0;
 
+#if 0
     virtual void start_write_impl(
         const std::string &data,
         ReadWriteCallback completion_handler) = 0;
@@ -117,6 +123,7 @@ class MRC1Connection:
     virtual void start_read_line_impl(
         boost::asio::streambuf &read_buffer,
         ReadWriteCallback completion_handler) = 0;
+#endif
 
     virtual void handle_init(
         const boost::system::error_code &ec);
@@ -124,9 +131,15 @@ class MRC1Connection:
     static const std::string response_line_terminator;
     static const char command_terminator;
 
+    void set_comm(boost::shared_ptr<MRCComm> comm)
+    { m_comm = comm; }
+
+    boost::shared_ptr<MRCComm> get_comm() const
+    { return m_comm; }
+
   private:
     void handle_write_command(const boost::system::error_code &ec, std::size_t bytes);
-    void handle_read_line(const boost::system::error_code &ec, std::size_t bytes);
+    //void handle_read_line(const boost::system::error_code &ec, std::size_t bytes);
     void handle_start(const boost::system::error_code &ec);
     void handle_io_timeout(const boost::system::error_code &ec);
     void handle_reconnect_timeout(const boost::system::error_code &ec);
@@ -138,6 +151,8 @@ class MRC1Connection:
         const boost::system::error_code &reason = boost::system::error_code(),
         const std::string &version = std::string(),
         bool has_read_multi = false);
+
+    void handle_command_response_read(const boost::system::error_code &ec, const std::string &data);
 
     friend class MRC1Initializer;
 
@@ -155,6 +170,7 @@ class MRC1Connection:
     bool m_silenced;
     bool m_auto_reconnect;
     std::vector<StatusChangeCallback> m_status_change_callbacks;
+    boost::shared_ptr<MRCComm> m_comm;
 
   protected:
     log::Logger m_log;
@@ -172,6 +188,7 @@ class MRC1SerialConnection: public MRC1Connection
     virtual void start_impl(ErrorCodeCallback completion_handler);
     virtual void stop_impl();
     virtual void cancel_io();
+#if 0
     virtual void start_write_impl(
         const std::string &data,
         ReadWriteCallback completion_handler);
@@ -183,6 +200,7 @@ class MRC1SerialConnection: public MRC1Connection
     virtual void start_read_line_impl(
         boost::asio::streambuf &read_buffer,
         ReadWriteCallback completion_handler);
+#endif
 
     virtual void handle_init(
         const boost::system::error_code &ec);
@@ -210,6 +228,7 @@ class MRC1TCPConnection: public MRC1Connection
     virtual void start_impl(ErrorCodeCallback completion_handler);
     virtual void stop_impl();
     virtual void cancel_io();
+#if 0
     virtual void start_write_impl(
         const std::string &data,
         ReadWriteCallback completion_handler);
@@ -221,6 +240,7 @@ class MRC1TCPConnection: public MRC1Connection
     virtual void start_read_line_impl(
         boost::asio::streambuf &read_buffer,
         ReadWriteCallback completion_handler);
+#endif
 
   private:
     std::string m_host;

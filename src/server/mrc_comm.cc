@@ -94,35 +94,4 @@ void MRCComm::finish_read(const boost::system::error_code &ec)
   m_buf.clear();
 }
 
-void MRCSerialComm::start_write_one(const std::string::const_iterator &it, WriteHandler write_handler)
-{
-  asio::async_write(m_port, asio::buffer(&(*it), sizeof(*it)), write_handler);
-}
-
-void MRCSerialComm::start_read_one(char &dest,
-    boost::function<void (boost::system::error_code, std::size_t)> read_handler)
-{
-  asio::async_read(m_port, asio::buffer(&dest, sizeof(dest)), read_handler);
-}
-
-void MRCSerialComm::cancel_io()
-{
-  m_port.cancel();
-}
-
-void MRCTCPComm::start_write_one(const std::string::const_iterator &it, WriteHandler write_handler)
-{
-  asio::async_write(m_socket, asio::buffer(&(*it), sizeof(*it)), write_handler);
-}
-
-void MRCTCPComm::start_read_one(char &dest, ReadHandler read_handler)
-{
-  asio::async_read(m_socket, asio::buffer(&dest, sizeof(dest)), read_handler);
-}
-
-void MRCTCPComm::cancel_io()
-{
-  m_socket.cancel();
-}
-
 } // ns mesycontrol
