@@ -51,7 +51,7 @@ class MRC1Connection:
     bool write_command(const MessagePtr &command,
         ResponseHandler response_handler);
 
-    bool command_in_progress() const { return m_current_command; }
+    bool command_in_progress() const { return m_current_command != nullptr; }
 
     boost::posix_time::time_duration get_io_timeout() const { return m_io_timeout; }
     void set_io_timeout(const boost::posix_time::time_duration &timeout) { m_io_timeout = timeout; }
@@ -76,10 +76,10 @@ class MRC1Connection:
     virtual ~MRC1Connection() {};
 
   protected:
-    typedef boost::function<void (const boost::system::error_code &, std::size_t)>
+    typedef boost::function<void (const boost::system::error_code, std::size_t)>
       ReadWriteCallback;
 
-    typedef boost::function<void (const boost::system::error_code &)>
+    typedef boost::function<void (const boost::system::error_code)>
       ErrorCodeCallback;
 
     /** Start an async write of the given data, using the given completion handler.
@@ -125,8 +125,7 @@ class MRC1Connection:
         ReadWriteCallback completion_handler) = 0;
 #endif
 
-    virtual void handle_init(
-        const boost::system::error_code &ec);
+    virtual void handle_init(const boost::system::error_code ec);
 
     static const std::string response_line_terminator;
     static const char command_terminator;

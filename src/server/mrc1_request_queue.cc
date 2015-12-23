@@ -1,4 +1,5 @@
 #include <boost/bind.hpp>
+#include <chrono>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/log/trivial.hpp>
 #include "mrc1_request_queue.h"
@@ -8,7 +9,7 @@ namespace mesycontrol
 {
 
 const boost::asio::steady_timer::duration
-  MRC1RequestQueue::default_retry_timeout(boost::chrono::seconds(1));
+  MRC1RequestQueue::default_retry_timeout(std::chrono::seconds(1));
 
 MRC1RequestQueue::MRC1RequestQueue(const boost::shared_ptr<MRC1Connection> &mrc1_connection):
   m_mrc1_connection(mrc1_connection),

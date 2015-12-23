@@ -33,6 +33,8 @@ set(MESYCONTROL_SERVER_SRCS
 option(BOOST_ASIO_ENABLE_HANDLER_TRACKING "enable boost::asio handler tracking")
 option(BOOST_ASIO_ENABLE_BUFFER_DEBUGGING "enable boost::asio buffer debugging")
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+
 if(NOT WIN32)
     set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
     find_library(PROTOBUF_STATIC protobuf NAMES libprotobuf.a)
@@ -52,8 +54,6 @@ target_link_libraries(${MESYCONTROL_SERVER_TARGET}
     ${Boost_LIBRARIES}
     ${CMAKE_THREAD_LIBS_INIT}
     ${PROTOBUF_LIBRARY})
-
-#set(CMAKE_CXX_FLAGS   "${CMAKE_CXX_FLAGS} -std=c++0x")
 
 if(WIN32)
     # Statically link against the GCC and C++ libraries to avoid

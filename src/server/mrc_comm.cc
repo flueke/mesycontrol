@@ -27,10 +27,17 @@ void MRCComm::read(ReadHandler handler)
   start_read();
 }
 
-void MRCComm::handle_timeout(const boost::system::error_code &ec)
+void MRCComm::handle_timeout(boost::system::error_code ec)
 {
+  BOOST_LOG_SEV(m_log, log::lvl::debug)
+    << "MRCComm::handle_timeout: ec=" << ec.message();
+
   if (ec != asio::error::operation_aborted &&
       m_timer.expires_at() <= asio::deadline_timer::traits_type::now()) {
+
+    BOOST_LOG_SEV(m_log, log::lvl::warning)
+      << "MRCComm::handle_timeout: canceling IO operation";
+
     cancel_io();
   }
 }
@@ -46,7 +53,7 @@ void MRCComm::start_write(const std::string::const_iterator &it)
   }
 }
 
-void MRCComm::handle_write(std::string::const_iterator it, const boost::system::error_code &ec, std::size_t sz)
+void MRCComm::handle_write(std::string::const_iterator it, boost::system::error_code ec, std::size_t sz)
 {
   if (!ec) {
     m_timer.cancel();
@@ -56,7 +63,7 @@ void MRCComm::handle_write(std::string::const_iterator it, const boost::system::
   }
 }
 
-void MRCComm::finish_write(std::string::const_iterator it, const boost::system::error_code &ec)
+void MRCComm::finish_write(std::string::const_iterator it, boost::system::error_code ec)
 {
   m_timer.cancel();
   m_io.post(boost::bind(m_write_handler, ec, it - m_buf.begin()));

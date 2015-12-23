@@ -8,6 +8,7 @@
 #include <boost/function.hpp>
 #include <boost/noncopyable.hpp>
 #include <string>
+#include "logging.h"
 
 namespace mesycontrol
 {
@@ -40,16 +41,18 @@ class MRCComm:
       , m_timer(io)
     {}
 
-    virtual void start_write_one(const std::string::const_iterator &it, WriteHandler write_handler) = 0;
+    virtual void start_write_one(const std::string::const_iterator it, WriteHandler write_handler) = 0;
     virtual void start_read_one(char &dest, AsioReadHandler read_handler) = 0;
     virtual void cancel_io() = 0;
 
+    log::Logger m_log;
+
   private:
-    void handle_timeout(const boost::system::error_code &ec);
+    void handle_timeout(boost::system::error_code ec);
 
     void start_write(const std::string::const_iterator &it);
-    void handle_write(std::string::const_iterator it, const boost::system::error_code &ec, std::size_t sz);
-    void finish_write(std::string::const_iterator it, const boost::system::error_code &ec);
+    void handle_write(std::string::const_iterator it, boost::system::error_code ec, std::size_t sz);
+    void finish_write(std::string::const_iterator it, boost::system::error_code ec);
 
     void start_read();
     void handle_read(const boost::system::error_code &ec, std::size_t sz);
@@ -71,12 +74,15 @@ class MRCSerialComm: public MRCComm
 {
   public:
     MRCSerialComm(asio::serial_port &port)
-      : MRCComm(port.get_io_service())
+      : MRCComm(port.get_io_service()
+          , boost::posix_time::milliseconds(10)
+          , boost::posix_time::milliseconds(10)
+          )
       , m_port(port)
     {}
 
   protected:
-    virtual void start_write_one(const std::string::const_iterator &it, WriteHandler write_handler)
+    virtual void start_write_one(const std::string::const_iterator it, WriteHandler write_handler)
     {
       asio::async_write(m_port, asio::buffer(&(*it), sizeof(*it)), write_handler);
     }
@@ -104,7 +110,7 @@ class MRCTCPComm: public MRCComm
     {}
 
   protected:
-    virtual void start_write_one(const std::string::const_iterator &it, WriteHandler write_handler)
+    virtual void start_write_one(const std::string::const_iterator it, WriteHandler write_handler)
     {
       asio::async_write(m_socket, asio::buffer(&(*it), sizeof(*it)), write_handler);
     }

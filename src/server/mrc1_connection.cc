@@ -1,3 +1,7 @@
+#include "mrc1_connection.h"
+#include "util.h"
+#include "protocol.h"
+
 #include <boost/algorithm/string.hpp>
 #include <boost/assign/list_of.hpp>
 #include <boost/bind.hpp>
@@ -7,8 +11,6 @@
 #include <boost/log/trivial.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/ref.hpp>
-#include "mrc1_connection.h"
-#include "protocol.h"
 
 namespace asio = boost::asio;
 namespace errc = boost::system::errc;
@@ -66,7 +68,7 @@ class MRC1Initializer:
           boost::bind(&MRC1Initializer::handle_write, shared_from_this(), _1, _2));
     }
 
-    void handle_write(const boost::system::error_code &ec, std::size_t)
+    void handle_write(const boost::system::error_code ec, std::size_t)
     {
       if (!ec) {
         //m_mrc1->start_read(m_read_buffer,
@@ -88,7 +90,7 @@ class MRC1Initializer:
       }
     }
 
-    void handle_read(const boost::system::error_code &ec, std::string data)
+    void handle_read(const boost::system::error_code ec, std::string data)
     {
       /* operation_canceled means the read timeout expired. This happens if
        * prompt and echo where already disabled. */
@@ -217,7 +219,7 @@ void MRC1Connection::reconnect_if_enabled()
   }
 }
 
-void MRC1Connection::handle_init(const boost::system::error_code &ec)
+void MRC1Connection::handle_init(const boost::system::error_code ec)
 {
   if (!ec) {
     set_status(proto::MRCStatus::RUNNING);
@@ -299,27 +301,40 @@ void MRC1Connection::handle_command_response_read(const boost::system::error_cod
     
     BOOST_LOG_SEV(m_log, log::lvl::trace) << "received line '" << data << "'";
 
-    // FIXME: data might contain more than one line. split the data somewhere
-    // or rewrite the reply parsing code
-    //
+    // FIXME: data might contain the mrc-1> prompt at the very end
+
     std::vector<std::string> lines;
+
     boost::split(lines, data, boost::is_any_of("\r\n"), boost::token_compress_on);
 
-    for (std::vector<std::string>::iterator it=lines.begin(); it!=lines.end(); ++it) {
-      boost::trim(*it);
-    }
+    BOOST_LOG_SEV(m_log, log::lvl::trace) << "got " << lines.size() << " lines after split";
 
+    std::for_each(std::begin(lines), std::end(lines), [](std::string &line) { boost::trim(line); });
+
+    lines.erase(std::remove_if(std::begin(lines), std::end(lines),
+          [this](const std::string &str) { return str.empty(); }),
+        std::end(lines));
+
+    BOOST_LOG_SEV(m_log, log::lvl::trace) << "got " << lines.size() << " lines after trim and erase empty";
+
+#if 0
     for (std::vector<std::string>::const_iterator it=lines.begin();
         it!=lines.end(); ++it) {
-      BOOST_LOG_SEV(m_log, log::lvl::debug) << "split line:" << *it;
+      std::string line_escaped(*it);
+      boost::find_format_all(line_escaped, boost::token_finder(!boost::is_print()), character_escaper());
+      BOOST_LOG_SEV(m_log, log::lvl::debug)
+        << "trimmed  line (escaped): '" << line_escaped
+        << "', empty(line_escaped)=" << line_escaped.empty()
+        << ", empty(*it)=" << it->empty();
     }
+#endif
 
     for (std::vector<std::string>::const_iterator it=lines.begin();
         it!=lines.end(); ++it) {
 
       std::string line(*it);
 
-      BOOST_LOG_SEV(m_log, log::lvl::debug) << "reply parser got" << line;
+      BOOST_LOG_SEV(m_log, log::lvl::debug) << "reply parser got " << line;
 
       if (!m_reply_parser.parse_line(line)) {
         BOOST_LOG_SEV(m_log, log::lvl::trace) << "Reply parser needs more input";
@@ -338,6 +353,7 @@ void MRC1Connection::handle_command_response_read(const boost::system::error_cod
 
         m_current_command.reset();
         m_current_response_handler = 0;
+        break;
       }
     }
   } else {
