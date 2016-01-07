@@ -7,6 +7,7 @@
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/function.hpp>
 #include <boost/noncopyable.hpp>
+#include <boost/regex.hpp>
 #include <string>
 #include "logging.h"
 
@@ -14,6 +15,18 @@ namespace mesycontrol
 {
 
 namespace asio = boost::asio;
+namespace pt   = boost::posix_time;
+
+static const std::string prompt_pattern = "^mrc-1>";
+static const boost::regex prompt_regex("^mrc-1>");
+
+static const pt::time_duration default_read_timeout  = pt::milliseconds(100);
+static const pt::time_duration default_write_timeout = pt::milliseconds(100);
+
+static const pt::time_duration default_serial_read_timeout  = pt::milliseconds(50);
+static const pt::time_duration default_serial_write_timeout = pt::milliseconds(10);
+
+static const pt::time_duration default_read_until_prompt_timeout = pt::milliseconds(500);
 
 class MRCComm:
   public boost::enable_shared_from_this<MRCComm>,
@@ -25,24 +38,31 @@ class MRCComm:
 
     void write(const std::string &data, WriteHandler handler);
     void read(ReadHandler handler);
+    void read_until_prompt(ReadHandler handler);
 
     virtual ~MRCComm() {}
 
   protected:
     typedef boost::function<void (boost::system::error_code, std::size_t)> AsioReadHandler;
 
-    MRCComm(boost::asio::io_service &io,
-        const boost::posix_time::time_duration &write_timeout = boost::posix_time::milliseconds(100),
-        const boost::posix_time::time_duration &read_timeout  = boost::posix_time::milliseconds(100))
+    MRCComm(asio::io_service &io,
+        const pt::time_duration &read_timeout  = default_read_timeout,
+        const pt::time_duration &write_timeout = default_write_timeout)
       : m_io(io)
-      , m_write_timeout(write_timeout)
       , m_read_timeout(read_timeout)
+      , m_write_timeout(write_timeout)
       , m_busy(false)
       , m_timer(io)
     {}
 
-    virtual void start_write_one(const std::string::const_iterator it, WriteHandler write_handler) = 0;
+    virtual void start_write_one(const std::string::const_iterator it,
+        WriteHandler write_handler) = 0;
+
     virtual void start_read_one(char &dest, AsioReadHandler read_handler) = 0;
+
+    virtual void start_read_until_prompt(asio::streambuf &read_buffer,
+        AsioReadHandler read_handler) = 0;
+
     virtual void cancel_io() = 0;
 
     log::Logger m_log;
@@ -58,16 +78,20 @@ class MRCComm:
     void handle_read(const boost::system::error_code &ec, std::size_t sz);
     void finish_read(const boost::system::error_code &ec);
 
+    void finish_read_until_prompt(const boost::system::error_code &ec, std::size_t sz);
+    void handle_read_until_prompt_timeout(boost::system::error_code ec);
 
-    boost::asio::io_service &m_io;
-    boost::posix_time::time_duration m_write_timeout;
-    boost::posix_time::time_duration m_read_timeout;
+
+    asio::io_service &m_io;
+    pt::time_duration m_read_timeout;
+    pt::time_duration m_write_timeout;
     bool m_busy;
-    boost::asio::deadline_timer m_timer;
-    std::string m_buf;
+    asio::deadline_timer m_timer;
+    std::string m_str_buf;
     char m_char_buf;
-    WriteHandler m_write_handler;
+    asio::streambuf m_asio_buf;
     ReadHandler  m_read_handler;
+    WriteHandler m_write_handler;
 };
 
 class MRCSerialComm: public MRCComm
@@ -75,8 +99,8 @@ class MRCSerialComm: public MRCComm
   public:
     MRCSerialComm(asio::serial_port &port)
       : MRCComm(port.get_io_service()
-          , boost::posix_time::milliseconds(10)
-          , boost::posix_time::milliseconds(10)
+          , default_serial_read_timeout
+          , default_serial_write_timeout
           )
       , m_port(port)
     {}
@@ -90,6 +114,12 @@ class MRCSerialComm: public MRCComm
     virtual void start_read_one(char &dest, AsioReadHandler read_handler)
     {
       asio::async_read(m_port, asio::buffer(&dest, sizeof(dest)), read_handler);
+    }
+
+    virtual void start_read_until_prompt(asio::streambuf &read_buffer,
+        AsioReadHandler read_handler)
+    {
+      asio::async_read_until(m_port, read_buffer, prompt_regex, read_handler);
     }
 
     virtual void cancel_io()
@@ -118,6 +148,12 @@ class MRCTCPComm: public MRCComm
     virtual void start_read_one(char &dest, AsioReadHandler read_handler)
     {
       asio::async_read(m_socket, asio::buffer(&dest, sizeof(dest)), read_handler);
+    }
+
+    virtual void start_read_until_prompt(asio::streambuf &read_buffer,
+        AsioReadHandler read_handler)
+    {
+      asio::async_read_until(m_socket, read_buffer, prompt_regex, read_handler);
     }
 
     virtual void cancel_io()

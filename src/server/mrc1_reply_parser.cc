@@ -121,7 +121,7 @@ bool MRC1ReplyParser::parse_read_or_set(const std::string &reply_line)
         m_request->request_read().mirror());
   } else if (m_request->type() == proto::Message::REQ_SET) {
     m_response = MessageFactory::make_set_response(bus, dev, par, val,
-        m_request->request_read().mirror());
+        m_request->request_set().mirror());
   } else {
     return false;
   }

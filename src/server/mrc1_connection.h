@@ -125,7 +125,7 @@ class MRC1Connection:
         ReadWriteCallback completion_handler) = 0;
 #endif
 
-    virtual void handle_init(const boost::system::error_code ec);
+    virtual void handle_init(const boost::system::error_code &ec);
 
     static const std::string response_line_terminator;
     static const char command_terminator;
@@ -202,7 +202,7 @@ class MRC1SerialConnection: public MRC1Connection
 #endif
 
     virtual void handle_init(
-        const boost::system::error_code &ec);
+        const boost::system::error_code &ec) override;
 
   private:
     unsigned int get_baud_rate();

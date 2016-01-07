@@ -54,7 +54,7 @@ class MRC1Initializer:
     void start()
     {
       m_init_data.push_back("\r");   // get rid of any partial data in the MRC buffer
-      m_init_data.push_back("p0\r"); // disable mrc prompt
+      m_init_data.push_back("p1\r"); // enable mrc prompt
       m_init_data.push_back("x0\r"); // disable mrc echo
       m_init_data.push_back("\r");   // send invalid request which results in error output
 
@@ -121,7 +121,8 @@ class MRC1Initializer:
           is.ignore(1);
       }
 
-      if (last_line == "ERROR!") {
+      //if (last_line == "ERROR!") {
+      if (regex_match(last_line, prompt_regex)) {
         // init success
         m_completion_handler(boost::system::error_code());
       } else {
@@ -219,8 +220,11 @@ void MRC1Connection::reconnect_if_enabled()
   }
 }
 
-void MRC1Connection::handle_init(const boost::system::error_code ec)
+void MRC1Connection::handle_init(const boost::system::error_code &ec)
 {
+  BOOST_LOG_SEV(m_log, log::lvl::info)
+    << "MRC1Connection::handle_init: ec=" << ec.message();
+
   if (!ec) {
     set_status(proto::MRCStatus::RUNNING);
     BOOST_LOG_SEV(m_log, log::lvl::info) << "MRC connection ready";
@@ -274,7 +278,7 @@ void MRC1Connection::handle_write_command(const boost::system::error_code &ec, s
     //start_read_line(m_read_buffer,
     //  boost::bind(&MRC1Connection::handle_read_line, shared_from_this(), _1, _2));
 
-    m_comm->read(boost::bind(&MRC1Connection::handle_command_response_read, shared_from_this(), _1, _2));
+    m_comm->read_until_prompt(boost::bind(&MRC1Connection::handle_command_response_read, shared_from_this(), _1, _2));
 
   } else {
     BOOST_LOG_SEV(m_log, log::lvl::error) << "write failed: " << ec.message();
@@ -615,6 +619,9 @@ void MRC1SerialConnection::set_next_baud_rate()
 {
   m_current_baud_rate_idx += 1;
   m_current_baud_rate_idx %= default_baud_rates.size();
+
+  BOOST_LOG_SEV(m_log, log::lvl::info)
+    << "MRC1SerialConnection: next baud rate setting is " << get_baud_rate();
 }
 
 MRC1TCPConnection::MRC1TCPConnection(boost::asio::io_service &io_service,
