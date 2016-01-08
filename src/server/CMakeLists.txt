@@ -62,11 +62,19 @@ if(WIN32)
     # Link against the DLLs needed by boost::asio
     set(WINDOWS_LIBS ws2_32 wsock32)
     target_link_libraries(${MESYCONTROL_SERVER_TARGET} ${WINDOWS_LIBS})
+
+    # Find libwinpthread-1.dll (required when building with Qt's gcc)
+    find_library(WINPTHREAD_1 winpthread-1 NAMES libwinpthread-1.dll)
+    MESSAGE(STATUS "Found libwinpthread-1 at ${WINPTHREAD_1}")
 else(WIN32)
     target_link_libraries(${MESYCONTROL_SERVER_TARGET} rt)
 endif(WIN32)
 
 install(TARGETS ${MESYCONTROL_SERVER_TARGET} RUNTIME DESTINATION bin)
+
+if(WIN32)
+  install(FILES ${WINPTHREAD_1} DESTINATION bin)
+endif(WIN32)
 
 add_subdirectory(test)
 
