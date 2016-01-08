@@ -48,6 +48,9 @@ public:
     virtual unsigned min_tokens() const { return 0; }
     virtual unsigned max_tokens() const { return 0; }
 
+    /// Allow using non-adjacent tokens.
+    virtual bool adjacent_tokens_only() const { return false; }
+
     /// Accumulating from different sources is silly.
     virtual bool is_composing() const { return false; }
 
