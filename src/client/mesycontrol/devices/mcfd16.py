@@ -1144,7 +1144,8 @@ class BitPatternWidget(QtGui.QWidget):
 
     value_changed = pyqtSignal(int)
 
-    def __init__(self, label, n_bits=16, msb_first=True, parent=None):
+    def __init__(self, label, n_bits=16, msb_first=True, editable_number=False,
+            parent=None):
         super(BitPatternWidget, self).__init__(parent)
         layout = QtGui.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -1157,8 +1158,20 @@ class BitPatternWidget(QtGui.QWidget):
             self.checkboxes.append(cb)
             layout.addWidget(cb)
 
-        self.result_label = make_dynamic_label(initial_value="0", longest_value=str(2**n_bits-1))
-        layout.addWidget(self.result_label)
+        self.editable_number = editable_number
+        self.number_widget   = None
+
+        max_value = 2**n_bits-1
+
+        if self.editable_number:
+            self.number_widget = util.DelayedSpinBox()
+            self.number_widget.setMinimum(0)
+            self.number_widget.setMaximum(max_value)
+            self.number_widget.valueChanged.connect(self.set_value)
+        else:
+            self.number_widget = make_dynamic_label(initial_value="0", longest_value=str(max_value))
+
+        layout.addWidget(self.number_widget)
 
         if msb_first:
             self.checkboxes = list(reversed(self.checkboxes))
@@ -1168,7 +1181,11 @@ class BitPatternWidget(QtGui.QWidget):
         self._helper.value_changed.connect(self.value_changed)
 
     def _on_helper_value_changed(self, value):
-        self.result_label.setText(str(value))
+        if self.editable_number:
+            with util.block_signals(self.number_widget) as w:
+                w.setValue(value)
+        else:
+            self.result_label.setText(str(value))
 
     def get_value(self):
         return self._helper.value
@@ -1436,7 +1453,7 @@ class TriggerSetupWidget(QtGui.QWidget):
             target=combo))
 
         # Trigger Pattern 0
-        self.trigger_pattern0 = BitPatternWidget("TP0:")
+        self.trigger_pattern0 = BitPatternWidget("TP0:", editable_number=True)
         self.trigger_pattern0.setToolTip("trigger_pattern0_low, trigger_pattern0_high")
         self.trigger_pattern0.setStatusTip(self.trigger_pattern0.toolTip())
         self.trigger_pattern0.title_label.setFixedSize(sz)
@@ -1452,7 +1469,7 @@ class TriggerSetupWidget(QtGui.QWidget):
             target=self.trigger_pattern0))
 
         # Trigger Pattern 1
-        self.trigger_pattern1 = BitPatternWidget("TP1:")
+        self.trigger_pattern1 = BitPatternWidget("TP1:", editable_number=True)
         self.trigger_pattern1.setToolTip("trigger_pattern1_low, trigger_pattern1_high")
         self.trigger_pattern1.setStatusTip(self.trigger_pattern1.toolTip())
         self.trigger_pattern1.title_label.setFixedSize(sz)
