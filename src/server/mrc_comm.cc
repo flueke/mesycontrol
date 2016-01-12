@@ -75,9 +75,6 @@ void MRCComm::handle_read_until_prompt_timeout(boost::system::error_code ec)
 
 void MRCComm::handle_timeout(boost::system::error_code ec)
 {
-  //BOOST_LOG_SEV(m_log, log::lvl::debug)
-  //  << "MRCComm::handle_timeout: ec=" << ec.message();
-
   if (ec != asio::error::operation_aborted &&
       m_timer.expires_at() <= asio::deadline_timer::traits_type::now()) {
 
@@ -121,9 +118,6 @@ void MRCComm::finish_write(std::string::const_iterator it, boost::system::error_
 
 void MRCComm::start_read()
 {
-  //BOOST_LOG_SEV(m_log, log::lvl::trace)
-  //  << "MRCComm::start_read: setting read timeout to " << m_read_timeout;
-
   m_timer.expires_from_now(m_read_timeout);
   m_timer.async_wait(boost::bind(&MRCComm::handle_timeout, shared_from_this(), _1));
   start_read_one(m_char_buf, boost::bind(&MRCComm::handle_read, shared_from_this(), _1, _2));
