@@ -779,6 +779,11 @@ class GUIApplication(QtCore.QObject):
             if isinstance(prev_node.ref, am.AppObject):
                 disconnect_signals(prev_node.ref, app_signals)
 
+            mrc = get_mrc(prev_node)
+
+            if mrc is not None and mrc.has_hw:
+                disconnect_signals(mrc.hw, mrc_hw_signals)
+
         if node is not None:
             if (is_mrc(node) or is_device(node)) and node.ref.has_hw:
                 connect_signals(node.ref.hw, hw_signals)
@@ -794,6 +799,11 @@ class GUIApplication(QtCore.QObject):
 
             if isinstance(node.ref, am.AppObject):
                 connect_signals(node.ref, app_signals)
+
+            mrc = get_mrc(node)
+
+            if mrc is not None and mrc.has_hw:
+                connect_signals(mrc.hw, mrc_hw_signals)
 
         if is_device(node) and not self._show_device_windows(
                 node.ref, is_device_cfg(node), is_device_hw(node)):
