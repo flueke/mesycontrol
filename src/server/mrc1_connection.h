@@ -91,16 +91,6 @@ class MRC1Connection:
 
     void start_read(MRCComm::ReadHandler read_handler);
 
-#if 0
-    void start_read(
-        boost::asio::streambuf &read_buffer,
-        ReadWriteCallback completion_handler);
-
-    void start_read_line(
-        boost::asio::streambuf &read_buffer,
-        ReadWriteCallback completion_handler);
-#endif
-
     /** Start implementation. Open files here / resolve hostnames, etc.
      * Call the given completion_handler once startup is complete. */
     virtual void start_impl(ErrorCodeCallback completion_handler) = 0;
@@ -110,20 +100,6 @@ class MRC1Connection:
 
     /** Cancel pending async IO requests. */
     virtual void cancel_io() = 0;
-
-#if 0
-    virtual void start_write_impl(
-        const std::string &data,
-        ReadWriteCallback completion_handler) = 0;
-
-    virtual void start_read_impl(
-        boost::asio::streambuf &read_buffer,
-        ReadWriteCallback completion_handler) = 0;
-
-    virtual void start_read_line_impl(
-        boost::asio::streambuf &read_buffer,
-        ReadWriteCallback completion_handler) = 0;
-#endif
 
     virtual void handle_init(const boost::system::error_code &ec);
 
@@ -138,7 +114,6 @@ class MRC1Connection:
 
   private:
     void handle_write_command(const boost::system::error_code &ec, std::size_t bytes);
-    //void handle_read_line(const boost::system::error_code &ec, std::size_t bytes);
     void handle_start(const boost::system::error_code &ec);
     void handle_io_timeout(const boost::system::error_code &ec);
     void handle_reconnect_timeout(const boost::system::error_code &ec);
@@ -187,19 +162,6 @@ class MRC1SerialConnection: public MRC1Connection
     virtual void start_impl(ErrorCodeCallback completion_handler);
     virtual void stop_impl();
     virtual void cancel_io();
-#if 0
-    virtual void start_write_impl(
-        const std::string &data,
-        ReadWriteCallback completion_handler);
-
-    virtual void start_read_impl(
-        boost::asio::streambuf &read_buffer,
-        ReadWriteCallback completion_handler);
-
-    virtual void start_read_line_impl(
-        boost::asio::streambuf &read_buffer,
-        ReadWriteCallback completion_handler);
-#endif
 
     virtual void handle_init(
         const boost::system::error_code &ec) override;
@@ -227,19 +189,6 @@ class MRC1TCPConnection: public MRC1Connection
     virtual void start_impl(ErrorCodeCallback completion_handler);
     virtual void stop_impl();
     virtual void cancel_io();
-#if 0
-    virtual void start_write_impl(
-        const std::string &data,
-        ReadWriteCallback completion_handler);
-
-    virtual void start_read_impl(
-        boost::asio::streambuf &read_buffer,
-        ReadWriteCallback completion_handler);
-
-    virtual void start_read_line_impl(
-        boost::asio::streambuf &read_buffer,
-        ReadWriteCallback completion_handler);
-#endif
 
   private:
     std::string m_host;

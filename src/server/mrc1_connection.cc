@@ -71,9 +71,6 @@ class MRC1Initializer:
     void handle_write(const boost::system::error_code ec, std::size_t)
     {
       if (!ec) {
-        //m_mrc1->start_read(m_read_buffer,
-        //    boost::bind(&MRC1Initializer::handle_read, shared_from_this(), _1, _2));
-        //
         m_mrc1->start_read(
             boost::bind(&MRC1Initializer::handle_read, shared_from_this(), _1, _2));
 
@@ -274,17 +271,17 @@ void MRC1Connection::handle_write_command(const boost::system::error_code &ec, s
   if (!is_running()) return;
 
   if (!ec) {
-    //m_timeout_timer.cancel();
-    //start_read_line(m_read_buffer,
-    //  boost::bind(&MRC1Connection::handle_read_line, shared_from_this(), _1, _2));
-
-    m_comm->read_until_prompt(boost::bind(&MRC1Connection::handle_command_response_read, shared_from_this(), _1, _2));
+    m_comm->read_until_prompt(
+        boost::bind(&MRC1Connection::handle_command_response_read,
+          shared_from_this(), _1, _2));
 
   } else {
     BOOST_LOG_SEV(m_log, log::lvl::error) << "write failed: " << ec.message();
 
     MessagePtr response = MessageFactory::make_error_response(
-        ec == errc::operation_canceled ? proto::ResponseError::COM_TIMEOUT : proto::ResponseError::COM_ERROR);
+        ec == errc::operation_canceled
+        ? proto::ResponseError::COM_TIMEOUT
+        : proto::ResponseError::COM_ERROR);
     response->mutable_mrc_status()->set_info(ec.message());
 
     m_io_service.post(boost::bind(m_current_response_handler, m_current_command, response));
@@ -306,6 +303,7 @@ void MRC1Connection::handle_command_response_read(const boost::system::error_cod
     BOOST_LOG_SEV(m_log, log::lvl::trace) << "received line '" << data << "'";
 
     // FIXME: data might contain the mrc-1> prompt at the very end
+    // huh?
 
     std::vector<std::string> lines;
 
@@ -341,12 +339,9 @@ void MRC1Connection::handle_command_response_read(const boost::system::error_cod
       BOOST_LOG_SEV(m_log, log::lvl::debug) << "reply parser got " << line;
 
       if (!m_reply_parser.parse_line(line)) {
+        /* More input needed. */
         BOOST_LOG_SEV(m_log, log::lvl::trace) << "Reply parser needs more input";
         continue;
-        /* More input needed. */
-        //start_read_line(m_read_buffer,
-        //    boost::bind(&MRC1Connection::handle_read_line, shared_from_this(), _1, _2));
-        //m_comm->read(boost::bind(&MRC1Connection::handle_command_response_read, shared_from_this(), _1, _2));
       } else {
         BOOST_LOG_SEV(m_log, log::lvl::debug) << "reply parsing done, result="
           << proto::Message::Type_Name(m_reply_parser.get_response_message()->type());
@@ -375,63 +370,11 @@ void MRC1Connection::handle_command_response_read(const boost::system::error_cod
   }
 }
 
-#if 0
-void MRC1Connection::handle_read_line(const boost::system::error_code &ec, std::size_t)
-{
-  if (!is_running())
-    return;
-
-  if (!ec) {
-    m_timeout_timer.cancel();
-
-    std::string reply_line;
-    std::istream is(&m_read_buffer);
-    std::getline(is, reply_line);
-    is.ignore(1); // consume the trailing \r
-
-    BOOST_LOG_SEV(m_log, log::lvl::trace) << "received line '" << reply_line << "'";
-
-    if (!m_reply_parser.parse_line(reply_line)) {
-      BOOST_LOG_SEV(m_log, log::lvl::trace) << "Reply parser needs more input";
-      /* More input needed. */
-      start_read(
-      start_read_line(m_read_buffer,
-          boost::bind(&MRC1Connection::handle_read_line, shared_from_this(), _1, _2));
-    } else {
-      BOOST_LOG_SEV(m_log, log::lvl::debug) << "reply parsing done, result="
-        << proto::Message::Type_Name(m_reply_parser.get_response_message()->type());
-
-      /* Parsing complete. Call the response handler. */
-      m_io_service.post(boost::bind(m_current_response_handler, m_current_command,
-            m_reply_parser.get_response_message()));
-
-      m_current_command.reset();
-      m_current_response_handler = 0;
-    }
-  } else {
-    BOOST_LOG_SEV(m_log, log::lvl::error) << "read failed: " << ec.message();
-
-    MessagePtr response = MessageFactory::make_error_response(
-        ec == errc::operation_canceled ? proto::ResponseError::COM_TIMEOUT : proto::ResponseError::COM_ERROR);
-    response->mutable_mrc_status()->set_info(ec.message());
-
-    m_io_service.post(boost::bind(m_current_response_handler, m_current_command, response));
-    m_current_command.reset();
-    m_current_response_handler = 0;
-    stop(ec);
-    reconnect_if_enabled();
-  }
-}
-#endif
-
 void MRC1Connection::start_write(
     const std::string &data, 
     ReadWriteCallback completion_handler)
 {
   if (is_running() || is_initializing()) {
-    //m_timeout_timer.expires_from_now(get_io_timeout());
-    //m_timeout_timer.async_wait(boost::bind(&MRC1Connection::handle_io_timeout, shared_from_this(), _1));
-    //start_write_impl(data, completion_handler);
     m_comm->write(data, completion_handler);
   }
 }
@@ -440,30 +383,6 @@ void MRC1Connection::start_read(MRCComm::ReadHandler read_handler)
 {
   m_comm->read(read_handler);
 }
-
-#if 0
-void MRC1Connection::start_read(
-    boost::asio::streambuf &read_buffer,
-    ReadWriteCallback completion_handler)
-{
-  if (is_running() || is_initializing()) {
-    m_timeout_timer.expires_from_now(get_io_timeout());
-    m_timeout_timer.async_wait(boost::bind(&MRC1Connection::handle_io_timeout, shared_from_this(), _1));
-    start_read_impl(read_buffer, completion_handler);
-  }
-}
-
-void MRC1Connection::start_read_line(
-    boost::asio::streambuf &read_buffer,
-    ReadWriteCallback completion_handler)
-{
-  if (is_running() || is_initializing()) {
-    m_timeout_timer.expires_from_now(get_io_timeout());
-    m_timeout_timer.async_wait(boost::bind(&MRC1Connection::handle_io_timeout, shared_from_this(), _1));
-    start_read_line_impl(read_buffer, completion_handler);
-  }
-}
-#endif
 
 void MRC1Connection::handle_io_timeout(const boost::system::error_code &ec)
 {
@@ -574,31 +493,6 @@ void MRC1SerialConnection::cancel_io()
   m_port.cancel(ignored_ec);
 }
 
-#if 0
-void MRC1SerialConnection::start_write_impl(
-    const std::string &data,
-    ReadWriteCallback completion_handler)
-{
-  //asio::async_write(m_port, asio::buffer(data), completion_handler);
-  //m_comm.write(data, completion_handler);
-}
-
-void MRC1SerialConnection::start_read_impl(
-    boost::asio::streambuf &read_buffer,
-    ReadWriteCallback completion_handler)
-{
-  asio::async_read(m_port, read_buffer, completion_handler);
-}
-
-void MRC1SerialConnection::start_read_line_impl(
-    boost::asio::streambuf &read_buffer,
-    ReadWriteCallback completion_handler)
-{
-  asio::async_read_until(m_port, read_buffer, response_line_terminator,
-      completion_handler);
-}
-#endif
-
 void MRC1SerialConnection::handle_init(
     const boost::system::error_code &ec)
 {
@@ -681,29 +575,5 @@ void MRC1TCPConnection::cancel_io()
   boost::system::error_code ignored_ec;
   m_socket.cancel(ignored_ec);
 }
-
-#if 0
-void MRC1TCPConnection::start_write_impl(
-    const std::string &data,
-    ReadWriteCallback completion_handler)
-{
-  asio::async_write(m_socket, asio::buffer(data), completion_handler);
-}
-
-void MRC1TCPConnection::start_read_impl(
-    boost::asio::streambuf &read_buffer,
-    ReadWriteCallback completion_handler)
-{
-  asio::async_read(m_socket, read_buffer, completion_handler);
-}
-
-void MRC1TCPConnection::start_read_line_impl(
-    boost::asio::streambuf &read_buffer,
-    ReadWriteCallback completion_handler)
-{
-  asio::async_read_until(m_socket, read_buffer, response_line_terminator,
-      completion_handler);
-}
-#endif
 
 } // namespace mesycontrol
