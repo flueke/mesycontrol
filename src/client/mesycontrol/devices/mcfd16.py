@@ -1256,7 +1256,7 @@ class TriggerSetupWidget(QtGui.QWidget):
         layout.setVerticalSpacing(5)
         layout.setContentsMargins(4, 4, 4, 4)
 
-        trigger_labels  = ['OR all', 'Mult', 'PA', 'Mon0', 'Mon1', 'OR1', 'OR0', 'Veto', 'GG']
+        trigger_labels  = ['OR all', 'Mult', 'PA', 'Mon0', 'Mon1', 'OR0', 'OR1', 'Veto', 'GG']
         trigger_names   = ['T0', 'T1', 'T2']
         self.trigger_checkboxes = [[] for i in range(len(trigger_names))]
 
@@ -1435,22 +1435,6 @@ class TriggerSetupWidget(QtGui.QWidget):
             display_mode=display_mode, write_mode=write_mode,
             target=combo))
 
-        # Trigger Pattern 1
-        self.trigger_pattern1 = BitPatternWidget("TP1:")
-        self.trigger_pattern1.setToolTip("trigger_pattern1_low, trigger_pattern1_high")
-        self.trigger_pattern1.setStatusTip(self.trigger_pattern1.toolTip())
-        self.trigger_pattern1.title_label.setFixedSize(sz)
-        row += 1
-        layout.addWidget(self.trigger_pattern1, row, col)
-
-        self.bindings.append(MultiByteIndexedSignalSlotBinding(
-            device=device,
-            getter='get_trigger_pattern',
-            setter='set_trigger_pattern',
-            signal='trigger_pattern_changed',
-            index=1,
-            target=self.trigger_pattern1))
-
         # Trigger Pattern 0
         self.trigger_pattern0 = BitPatternWidget("TP0:")
         self.trigger_pattern0.setToolTip("trigger_pattern0_low, trigger_pattern0_high")
@@ -1466,6 +1450,22 @@ class TriggerSetupWidget(QtGui.QWidget):
             signal='trigger_pattern_changed',
             index=0,
             target=self.trigger_pattern0))
+
+        # Trigger Pattern 1
+        self.trigger_pattern1 = BitPatternWidget("TP1:")
+        self.trigger_pattern1.setToolTip("trigger_pattern1_low, trigger_pattern1_high")
+        self.trigger_pattern1.setStatusTip(self.trigger_pattern1.toolTip())
+        self.trigger_pattern1.title_label.setFixedSize(sz)
+        row += 1
+        layout.addWidget(self.trigger_pattern1, row, col)
+
+        self.bindings.append(MultiByteIndexedSignalSlotBinding(
+            device=device,
+            getter='get_trigger_pattern',
+            setter='set_trigger_pattern',
+            signal='trigger_pattern_changed',
+            index=1,
+            target=self.trigger_pattern1))
 
         # Veto
         row += 1
