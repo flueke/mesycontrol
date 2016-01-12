@@ -17,7 +17,7 @@ from qt import QtCore
 from qt import QtGui
 
 from basic_model import IDCConflict
-from gui_util import is_setup, is_registry, is_mrc, is_bus, is_device, is_device_cfg, is_device_hw
+from gui_util import is_setup, is_registry, is_mrc, is_bus, is_device, is_device_cfg, is_device_hw, get_mrc
 from gui_util import is_config, is_hardware
 from model_util import add_mrc_connection
 from util import make_icon
@@ -561,14 +561,16 @@ class GUIApplication(QtCore.QObject):
             a.setStatusTip(a.toolTip())
 
         # Write access
+        mrc = get_mrc(node)
+
         a = self.actions['toggle_write_access']
 
-        a.setEnabled(is_mrc(node)
+        a.setEnabled(mrc is not None
+                and mrc.has_hw
                 and (is_hardware(node) or self.linked_mode)
-                and node.ref.has_hw
-                and node.ref.hw.is_connected())
+                and mrc.hw.is_connected())
 
-        a.setChecked(a.isEnabled() and node.ref.hw.write_access)
+        a.setChecked(a.isEnabled() and mrc.hw.write_access)
 
         if a.isChecked():
             a.setToolTip("Release write access")
@@ -579,19 +581,21 @@ class GUIApplication(QtCore.QObject):
         a.setStatusTip(a.toolTip())
 
         # Silent mode
+        enabled = (mrc is not None
+                and mrc.has_hw
+                and (is_hardware(node) or self.linked_mode)
+                and mrc.hw.is_connected()
+                and mrc.hw.write_access)
+
+        checked = (mrc is not None
+                and mrc.has_hw
+                and mrc.hw.silenced)
+
         a = self.actions['toggle_silent_mode']
 
-        a.setEnabled(is_mrc(node)
-                and (is_hardware(node) or self.linked_mode)
-                and node.ref.has_hw
-                and node.ref.hw.is_connected()
-                and node.ref.hw.write_access)
+        a.setEnabled(enabled)
+        a.setChecked(checked)
 
-        a.setChecked(is_mrc(node)
-                and node.ref.has_hw
-                and node.ref.hw.silenced)
-
-        #a.setChecked(a.isEnabled() and node.ref.hw.silenced)
         a.setIcon(a.icons[a.isChecked()])
 
         if a.isChecked():
@@ -904,8 +908,7 @@ class GUIApplication(QtCore.QObject):
             f.add_done_callback(self._update_actions_cb)
 
     def _toggle_write_access(self):
-        node = self._selected_tree_node
-        mrc  = node.ref.hw
+        mrc = get_mrc(self._selected_tree_node).hw
 
         if not mrc.is_connected():
             return
@@ -937,8 +940,7 @@ class GUIApplication(QtCore.QObject):
             f.add_done_callback(self._update_actions_cb)
 
     def _toggle_silent_mode(self):
-        node = self._selected_tree_node
-        mrc  = node.ref.hw
+        mrc = get_mrc(self._selected_tree_node).hw
 
         if not mrc.is_connected():
             return
