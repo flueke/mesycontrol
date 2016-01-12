@@ -317,13 +317,15 @@ class MCFD16(DeviceBase):
 
         if re.match(r'trigger_pattern\d_.+', pp.name):
             def done(f):
-                self.trigger_pattern_changed.emit(pp.index, f.result())
+                if f.exception() is None:
+                    self.trigger_pattern_changed.emit(pp.index, f.result())
 
             self.get_trigger_pattern(pp.index).add_done_callback(done)
 
         elif re.match(r'pair_pattern\d+_.+', pp.name):
             def done(f):
-                self.pair_pattern_changed.emit(pp.index, f.result())
+                if f.exception() is None:
+                    self.pair_pattern_changed.emit(pp.index, f.result())
 
             self.get_pair_pattern(pp.index).add_done_callback(done)
 
