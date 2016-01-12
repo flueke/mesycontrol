@@ -933,12 +933,12 @@ class GUIApplication(QtCore.QObject):
             if not mrc.can_acquire_write_access():
                 answer = QtGui.QMessageBox.question(
                         self.mainwindow,
-                        "Force write access",
-                        "Write access is currently taken by another client.\nForcibly take write access?",
-                        QtGui.QMessageBox.Yes | QtGui.QMessageBox.Cancel,
-                        QtGui.QMessageBox.Cancel)
+                        "Acquire write access",
+                        "Write access is currently taken by another client.\nForcibly acquire write access?",
+                        QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                        QtGui.QMessageBox.No)
 
-                if answer == QtGui.QMessageBox.Cancel:
+                if answer != QtGui.QMessageBox.Yes:
                     self._update_actions()
                     return
 
