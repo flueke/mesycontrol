@@ -511,6 +511,18 @@ def is_device_cfg(node):
 def is_device_hw(node):
     return is_device(node) and is_hardware(node)
 
+def get_mrc(node):
+    if is_mrc(node):
+        return node.ref
+
+    if is_bus(node):
+        return node.parent.ref
+
+    if is_device(node):
+        return node.ref.mrc
+
+    return None
+
 def store_subwindow_state(subwin, settings):
     name = str(subwin.objectName())
 
