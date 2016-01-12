@@ -679,7 +679,7 @@ class DiscriminatorPage(QtGui.QGroupBox):
         def make_delay_combo():
             ret = QtGui.QComboBox()
             for i in range(device.profile['delay_common'].range[1]+1):
-                ret.addItem("Tap %d" % i, i)
+                ret.addItem("Tap %d" % (i+1), i)
 
             return ret
 
