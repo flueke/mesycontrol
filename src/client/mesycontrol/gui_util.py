@@ -515,7 +515,7 @@ def get_mrc(node):
     if is_mrc(node):
         return node.ref
 
-    if is_bus(node):
+    if is_bus(node) and node.parent is not None:
         return node.parent.ref
 
     if is_device(node):
