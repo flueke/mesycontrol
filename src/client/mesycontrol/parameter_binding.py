@@ -524,6 +524,30 @@ class TargetlessParameterBinding(AbstractParameterBinding):
                 result_future, util.RW_MODE_NAMES[self.display_mode])
         pass
 
+class SpinBoxEditingObserver(QtCore.QObject):
+    def __init__(self, the_binding, parent=None):
+        super(SpinBoxEditingObserver, self).__init__(parent)
+        self.binding = the_binding
+        self.binding.target.installEventFilter(self)
+        self.editing = False
+        self.last_result_future = None
+
+    def eventFilter(self, obj, event):
+        if obj is self.binding.target:
+            if event.type() == QtCore.QEvent.FocusIn:
+                log.debug("SpinBoxEditingObserver: editing=True")
+                self.editing = True
+            elif event.type() == QtCore.QEvent.FocusOut:
+                log.debug("SpinBoxEditingObserver: editing=False")
+                self.editing = False
+                if self.last_result_future is not None:
+                    log.debug("SpinBoxEditingObserver: updating using last result")
+                    self.binding._update(self.last_result_future)
+                    self.last_result_future = None
+
+        return super(SpinBoxEditingObserver, self).eventFilter(obj, event)
+
+
 class SpinBoxParameterBinding(DefaultParameterBinding):
     def __init__(self, **kwargs):
         super(SpinBoxParameterBinding, self).__init__(**kwargs)
@@ -538,13 +562,19 @@ class SpinBoxParameterBinding(DefaultParameterBinding):
         else:
             self.target.valueChanged.connect(self._write_value)
 
+        self.editing_observer = SpinBoxEditingObserver(self)
+
     def _update(self, result_future):
-        log.debug("SpinBoxParameterBinding: addr=%d, result_future=%s", self.address, result_future)
+        if self.editing_observer.editing:
+            log.debug("SpinBoxParameterBinding: _update: early return as editing in progress")
+            self.editing_observer.last_result_future = result_future
+            return
+
         super(SpinBoxParameterBinding, self)._update(result_future)
 
         try:
+            result = int(result_future.result())
             with util.block_signals(self.target):
-                result = int(result_future.result())
                 self.target.setValue(result)
                 log.debug("SpinBoxParameterBinding: _update: addr=%d, result=%d", self.address, result)
         except Exception:
@@ -566,8 +596,16 @@ class DoubleSpinBoxParameterBinding(DefaultParameterBinding):
         else:
             self.target.valueChanged.connect(self._value_changed)
 
+        self.editing_observer = SpinBoxEditingObserver(self)
+
     def _update(self, result_future):
+        if self.editing_observer.editing:
+            log.debug("DoubleSpinBoxParameterBinding: _update: early return as editing in progress")
+            self.editing_observer.last_result_future = result_future
+            return
+
         super(DoubleSpinBoxParameterBinding, self)._update(result_future)
+
         try:
             value = self.unit.unit_value(int(result_future.result()))
             with util.block_signals(self.target):
