@@ -35,6 +35,12 @@ option(BOOST_ASIO_ENABLE_BUFFER_DEBUGGING "enable boost::asio buffer debugging")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 
+if (WIN32)
+  # Boost uses -march=i686. To avoid linker warnings about duplicate sections
+  # having different sizes this flag needs to be used by CMake aswell.
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=i686")
+endif(WIN32)
+
 if(NOT WIN32)
     set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
     find_library(PROTOBUF_STATIC protobuf NAMES libprotobuf.a)
