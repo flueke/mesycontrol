@@ -73,11 +73,16 @@ class AbstractParameterBinding(object):
                     self.profile.name, self.profile.address))))
             return
 
+        if self.device is None:
+            self._update_wrapper(future.Future().set_exception(
+                ParameterUnavailable("No device to read from")))
+            return
+
         dev = self.device.cfg if self.display_mode == util.CONFIG else self.device.hw
 
         if dev is None:
             self._update_wrapper(future.Future().set_exception(
-                ParameterUnavailable("No device to read from")))
+                ParameterUnavailable("Neither hardware nor config present")))
             return
 
         if dev is self.device.hw and dev.address_conflict:
