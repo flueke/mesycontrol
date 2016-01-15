@@ -199,6 +199,9 @@ cg_helper = util.ChannelGroupHelper(NUM_CHANNELS, NUM_GROUPS)
 
 Version = collections.namedtuple('Version', 'major minor')
 
+# Minimum required firmware version. Older versions are too buggy to be usable.
+MIN_CPU_FIRMWARE_VERSION = Version(2, 18)
+
 def decode_fpga_version(val):
     s = '{:04x}'.format(val)
     major = int(s[:2])
@@ -208,8 +211,7 @@ def decode_fpga_version(val):
 def decode_cpu_firmware_version(val):
     return Version(*divmod(int(val), 256))
 
-
-# ==========  Device ========== 
+# ==========  Device ==========
 class MCFD16(DeviceBase):
 
     trigger_pattern_changed = pyqtSignal(int, int)  # trigger index, pattern value
@@ -462,6 +464,8 @@ class MCFD16Widget(DeviceWidgetBase):
                 MCFD16SetupWidget(device, display_mode, write_mode, self),
                 "Trigger / Coincidence Setup")
 
+        self.display_mode_changed.connect(self._on_display_mode_changed)
+
     def get_parameter_bindings(self):
         tb  = self.tab_widget
         gen = (tb.widget(i).get_parameter_bindings() for i in range(tb.count()))
@@ -476,6 +480,49 @@ class MCFD16Widget(DeviceWidgetBase):
             self.device.ensure_individual_channel_mode()
 
         super(MCFD16Widget, self).showEvent(event)
+
+        self.ensure_firmware_ok()
+
+    def _on_device_hardware_set(self, device, old, new):
+        super(MCFD16Widget, self)._on_device_hardware_set(device, old, new)
+
+        if new is not None:
+            self.ensure_firmware_ok()
+
+    def _on_hardware_connected(self):
+        super(MCFD16Widget, self)._on_hardware_connected()
+        self.ensure_firmware_ok()
+
+    def _on_display_mode_changed(self, mode):
+        if mode == util.HARDWARE:
+            self.ensure_firmware_ok()
+
+    def ensure_firmware_ok(self):
+        def on_cpu_firmware_done(f):
+            try:
+                version = f.result()
+            except pb.ParameterUnavailable:
+                return
+
+            if (version < MIN_CPU_FIRMWARE_VERSION
+                    and self.tab_widget.isEnabled()
+                    and self.isVisible()):
+
+                self.tab_widget.setEnabled(False)
+                QMB = QtGui.QMessageBox
+                mb  = QMB(QMB.Critical,
+                        "Outdated CPU Firmware",
+                        """
+MCFD-16 requires at least cpu firmware version %d.%d.
+The current version is %d.%d. Disabling the GUI.
+                        """ % (MIN_CPU_FIRMWARE_VERSION.major, MIN_CPU_FIRMWARE_VERSION.minor,
+                            version.major, version.minor),
+                        buttons=QMB.Close,
+                        parent=self)
+                mb.exec_()
+
+        self.device.get_cpu_firmware_version().add_done_callback(on_cpu_firmware_done)
+
 
 def make_dynamic_label(initial_value="", longest_value=None, fixed_width=True, fixed_height=False,
         alignment=Qt.AlignRight | Qt.AlignVCenter):
