@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
-import re
+import collections
 import itertools
+import re
 import weakref
 
 from .. qt import pyqtProperty
@@ -196,6 +197,18 @@ class DiscriminatorMode(object):
 
 cg_helper = util.ChannelGroupHelper(NUM_CHANNELS, NUM_GROUPS)
 
+Version = collections.namedtuple('Version', 'major minor')
+
+def decode_fpga_version(val):
+    s = '{:04x}'.format(val)
+    major = int(s[:2])
+    minor = int(s[2:])
+    return Version(major, minor)
+
+def decode_cpu_firmware_version(val):
+    return Version(*divmod(int(val), 256))
+
+
 # ==========  Device ========== 
 class MCFD16(DeviceBase):
 
@@ -211,6 +224,27 @@ class MCFD16(DeviceBase):
         self.parameter_changed.connect(self._on_parameter_changed)
 
         self._on_hardware_set(app_device, None, self.hw)
+
+    def _get_version_parameter(self, param_name, decode_fun):
+        if not self.has_hw:
+            return future.Future().set_exception(
+                    pb.ParameterUnavailable("hardware not present"))
+
+        ret = future.Future()
+
+        @set_result_on(ret)
+        def get_param_done(f):
+            return decode_fun(int(f.result()))
+
+        self.get_hw_parameter(param_name).add_done_callback(get_param_done)
+
+        return ret
+
+    def get_fpga_firmware_version(self):
+        return self._get_version_parameter('fpga_firmware_version', decode_fpga_version)
+
+    def get_cpu_firmware_version(self):
+        return self._get_version_parameter('cpu_firmware_version', decode_cpu_firmware_version)
 
     def get_delay_chip_ns(self):
         return self.get_extension('delay_chip_ns')
@@ -1073,6 +1107,42 @@ class MCFD16ControlsWidget(QtGui.QWidget):
         mode_layout.addWidget(self.rb_mode_single, 0, 0)
         mode_layout.addWidget(self.rb_mode_common, 0, 1)
 
+        # Version display
+        version_box = QtGui.QGroupBox("Version", self)
+        version_layout = QtGui.QFormLayout(version_box)
+        version_layout.setContentsMargins(2, 2, 2, 2)
+
+        self.version_labels = dict()
+
+        for k, l in (
+                ("fpga_firmware_version", "FPGA"),
+                ("cpu_firmware_version", "CPU")):
+
+            self.version_labels[k] = label = QtGui.QLabel()
+            label.setStyleSheet(dynamic_label_style)
+            version_layout.addRow(l+":", label)
+
+        self.bindings.append(pb.factory.make_binding(
+            device=device,
+            profile=device.profile['fpga_firmware_version'],
+            display_mode=util.HARDWARE,
+            fixed_modes=True,
+            ).add_update_callback(
+                self._version_label_cb,
+                label=self.version_labels['fpga_firmware_version'],
+                getter=self.device.get_fpga_firmware_version))
+
+        self.bindings.append(pb.factory.make_binding(
+            device=device,
+            profile=device.profile['cpu_firmware_version'],
+            display_mode=util.HARDWARE,
+            fixed_modes=True,
+            ).add_update_callback(
+                self._version_label_cb,
+                label=self.version_labels['cpu_firmware_version'],
+                getter=self.device.get_cpu_firmware_version))
+
+        # Add layouts
         layout = QtGui.QHBoxLayout(self)
         layout.setContentsMargins(*(4 for i in range(4)))
         layout.setSpacing(4)
@@ -1093,6 +1163,7 @@ class MCFD16ControlsWidget(QtGui.QWidget):
         vbox.setSpacing(8)
         vbox.addWidget(self.width_deadtime_page)
         vbox.addWidget(mode_box)
+        vbox.addWidget(version_box)
         vbox.addStretch(1)
         layout.addItem(vbox)
 
@@ -1108,6 +1179,20 @@ class MCFD16ControlsWidget(QtGui.QWidget):
         self.preamp_page.bindings = list()
         self.discriminator_page.bindings = list()
         self.width_deadtime_page.bindings = list()
+
+    def _version_label_cb(self, read_mem_future, label, getter):
+        def done(getter_future):
+            try:
+                version = getter_future.result()
+                label.setText("%d.%d" % (version.major, version.minor))
+                label.setToolTip(str())
+            except Exception as e:
+                label.setText("N/A")
+                label.setToolTip(str(e))
+
+            label.setStatusTip(label.toolTip())
+
+        getter().add_done_callback(done)
                 
 class BitPatternHelper(QtCore.QObject):
     value_changed = pyqtSignal(int)
