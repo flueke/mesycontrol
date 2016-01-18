@@ -24,10 +24,12 @@ from util import make_icon
 
 import app_model as am
 import config_gui
+import config_util
 import device_tableview
 import future
 import gui_tutorial
 import gui_util
+import hardware_util
 import resources
 import util
 
@@ -249,13 +251,6 @@ class GUIApplication(QtCore.QObject):
         action.hw_toolbar = True
         self.actions['connect_disconnect'] = action
 
-        # Refresh / Scanbus
-        # FIXME: what does this do? split into scanbus and refresh?!?!?!
-        #action = QtGui.QAction(make_icon(":/refresh.png"), "&Refresh", self,
-        #        triggered=self._refresh)
-        #action.hw_toolbar = True
-        #self.actions['refresh'] = action
-
         # Write access
         action = QtGui.QAction(make_icon(":/write-access.png"), "Toggle write access", self,
                 checkable=True, triggered=self._toggle_write_access)
@@ -278,6 +273,12 @@ class GUIApplication(QtCore.QObject):
                 checkable=True, triggered=self._toggle_rc)
         action.hw_toolbar = True
         self.actions['toggle_rc'] = action
+
+        # Refresh device memory
+        action = QtGui.QAction(make_icon(":/refresh.png"), "&Refresh memory", self,
+                triggered=self._refresh)
+        action.hw_toolbar = True
+        self.actions['refresh'] = action
 
         # Add connection
         action = QtGui.QAction(make_icon(":/add-mrc.png"), "Add MRC connection", self,
@@ -559,6 +560,11 @@ class GUIApplication(QtCore.QObject):
             a.setToolTip("Disable RC" if a.isChecked() else "Enable RC")
             a.setText(a.toolTip())
             a.setStatusTip(a.toolTip())
+
+        # Refresh device memory
+        a = self.actions['refresh']
+        a.setEnabled(is_device_hw(node)
+                and node.ref.hw.is_connected())
 
         # Write access
         mrc = get_mrc(node)
@@ -908,7 +914,24 @@ class GUIApplication(QtCore.QObject):
                 a.setIcon(a.icons['connect'])
 
     def _refresh(self):
-        raise NotImplementedError()
+        node = self._selected_tree_node
+        if is_device_hw(node):
+            gen     = hardware_util.refresh_device_memory(node.ref)
+            runner  = config_util.GeneratorRunner(gen)
+            dialog  = QtGui.QProgressDialog(self.mainwindow)
+            dialog.setWindowTitle("Refreshing device memory")
+            dialog.canceled.connect(runner.close)
+
+            f = runner.start()
+            fo = future.FutureObserver(f)
+            fo.progress_changed.connect(dialog.setValue)
+            fo.progress_range_changed.connect(dialog.setRange)
+            fo.done.connect(dialog.close)
+            dialog.exec_()
+
+            if f.done() and f.exception() is not None:
+                log.error("Refresh: %s", f.exception())
+                QtGui.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
 
     def _toggle_rc(self):
         node = self._selected_tree_node
@@ -1538,7 +1561,7 @@ Initialize using the current hardware values or the device defaults?
             add_action(self.actions['open_device_widget'])
             add_action(self.actions['open_device_table'])
             add_action(self.actions['toggle_rc'])
-            #add_action(self.actions['refresh'])
+            add_action(self.actions['refresh'])
             #add_action(self.actions['show_device_extensions'])
 
         if not menu.isEmpty():
