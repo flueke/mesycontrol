@@ -7,6 +7,8 @@ import itertools
 import re
 import weakref
 
+from functools import partial
+
 from .. qt import pyqtProperty
 from .. qt import pyqtSignal
 from .. qt import Qt
@@ -1279,6 +1281,10 @@ class BitPatternWidget(QtGui.QWidget):
     def __init__(self, label, n_bits=16, msb_first=True, editable_number=False,
             parent=None):
         super(BitPatternWidget, self).__init__(parent)
+
+        if n_bits == 0:
+            raise ValueError("n_bits must be > 0")
+
         layout = QtGui.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self.title_label = QtGui.QLabel(label)
@@ -1300,6 +1306,10 @@ class BitPatternWidget(QtGui.QWidget):
             self.number_widget.setMinimum(0)
             self.number_widget.setMaximum(max_value)
             self.number_widget.valueChanged.connect(self.set_value)
+            self.number_widget.setFixedHeight(self.title_label.sizeHint().height())
+            f = self.number_widget.font()
+            f.setPointSize(f.pointSize()-1)
+            self.number_widget.setFont(f)
         else:
             self.number_widget = make_dynamic_label(initial_value="0", longest_value=str(max_value))
 
@@ -1700,6 +1710,8 @@ class PairCoincidenceSetupWidget(QtGui.QWidget):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(PairCoincidenceSetupWidget, self).__init__(parent)
 
+        self.log = util.make_logging_source_adapter(__name__, self)
+
         self.device = device
         self.bindings = list()
 
@@ -1708,7 +1720,7 @@ class PairCoincidenceSetupWidget(QtGui.QWidget):
         layout.setContentsMargins(4, 4, 4, 4)
 
         self.pattern_helpers = list()
-        self.pattern_labels  = list()
+        self.pattern_spins   = list()
 
         row_offset = 0
 
@@ -1731,36 +1743,51 @@ class PairCoincidenceSetupWidget(QtGui.QWidget):
             l.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
             layout.addWidget(l, row, col+1)
 
-        label_size = QtGui.QLabel("65535").sizeHint()
-
-        # Vertical labels
+        # Vertical labels and spinboxes
         col = layout.columnCount()
         for row in range(15):
             l = QtGui.QLabel("%d" % (row+1))
             l.setAlignment(Qt.AlignRight)
             layout.addWidget(l, row+row_offset, col)
 
-            l_pattern = QtGui.QLabel("0")
-            l_pattern.setStyleSheet(dynamic_label_style)
-            l_pattern.setAlignment(Qt.AlignRight)
-            l_pattern.setFixedSize(label_size)
-            self.pattern_labels.append(l_pattern)
-            layout.addWidget(l_pattern, row+row_offset, col+1)
+            s = util.DelayedSpinBox()
+            s.setMinimum(0)
+            s.setMaximum((2**(row+1))-1)
 
-        for i, items in enumerate(zip(self.pattern_helpers, self.pattern_labels)):
-            helper, label = items
+            s.setFixedHeight(l.sizeHint().height())
+
+            f = s.font()
+            f.setPointSize(f.pointSize()-1)
+            s.setFont(f)
+
+            self.pattern_spins.append(s)
+            layout.addWidget(s, row+row_offset, col+1)
+
+        for i, items in enumerate(zip(self.pattern_helpers, self.pattern_spins)):
+
+            helper, spin = items
+
             self.bindings.append(MultiByteIndexedSignalSlotBinding(
                 device=device,
                 getter='get_pair_pattern',
                 setter='set_pair_pattern',
                 signal='pair_pattern_changed',
                 index=i+1,
-                target=helper,
-                label=label))
+                target=helper))
+
+            spin.delayed_valueChanged.connect(helper.set_value)
+
+            helper.value_changed.connect(partial(
+                self._on_pattern_helper_value_changed, i))
 
             for cb in helper.checkboxes:
                 cb.setToolTip("pair_pattern%d_low, pair_pattern%d_high" % (i+1, i+1))
                 cb.setStatusTip(cb.toolTip())
+
+    def _on_pattern_helper_value_changed(self, index, value):
+        spin = self.pattern_spins[index]
+        with util.block_signals(spin):
+            spin.setValue(value)
 
     def get_parameter_bindings(self):
         return self.bindings
