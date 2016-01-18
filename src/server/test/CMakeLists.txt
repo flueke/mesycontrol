@@ -1,3 +1,5 @@
+find_package(Boost 1.54 COMPONENTS unit_test_framework)
+
 if (Boost_UNIT_TEST_FRAMEWORK_FOUND)
   set(TEST_TARGET "test_runner")
   set(TEST_SRCS

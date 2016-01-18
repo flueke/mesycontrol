@@ -7,7 +7,6 @@ if (WIN32) # Use static boost libraries for windows builds.
 endif(WIN32)
 
 find_package(Boost 1.54 REQUIRED COMPONENTS chrono program_options system date_time log_setup log regex thread)
-#find_package(Boost 1.54 COMPONENTS unit_test_framework)
 find_package(Threads REQUIRED)
 find_package(Protobuf REQUIRED)
 
@@ -82,6 +81,6 @@ if(WIN32)
   install(FILES ${WINPTHREAD_1} DESTINATION bin)
 endif(WIN32)
 
-add_subdirectory(test)
+#add_subdirectory(test)
 
 # vim:tw=0
