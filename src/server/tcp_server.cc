@@ -41,7 +41,7 @@ void TCPServer::stop()
   if (m_acceptor.is_open()) {
     BOOST_LOG_SEV(m_log, log::lvl::info) << "Closing " << m_acceptor.local_endpoint();
     m_acceptor.close();
-    m_connection_manager.stop_all();
+    m_connection_manager.stop_all(false);
   }
 }
 

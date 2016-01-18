@@ -78,8 +78,8 @@ void MRCComm::handle_timeout(boost::system::error_code ec)
   if (ec != asio::error::operation_aborted &&
       m_timer.expires_at() <= asio::deadline_timer::traits_type::now()) {
 
-    BOOST_LOG_SEV(m_log, log::lvl::warning)
-      << "MRCComm::handle_timeout: canceling IO operation due to timeout";
+    //BOOST_LOG_SEV(m_log, log::lvl::warning)
+    //  << "MRCComm::handle_timeout: canceling IO operation due to timeout";
 
     cancel_io();
     m_busy = false;
