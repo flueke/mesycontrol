@@ -30,7 +30,8 @@ class MessageFactory
         bool mirror=false);
 
     static MessagePtr make_bool_response(bool bool_value);
-    static MessagePtr make_error_response(const proto::ResponseError::ErrorType &error);
+    static MessagePtr make_error_response(const proto::ResponseError::ErrorType &error,
+        const std::string &info = std::string());
 
     static MessagePtr make_write_access_notification(bool has_write_access, bool can_acquire);
 
