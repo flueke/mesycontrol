@@ -117,9 +117,25 @@ bool MRC1ReplyParser::parse_read_or_set(const std::string &reply_line)
   boost::int32_t val = boost::lexical_cast<boost::int32_t>(matches[4]);
 
   if (m_request->type() == proto::Message::REQ_READ) {
+    if (m_request->request_read().bus() != bus
+        || m_request->request_read().dev() != dev
+        || m_request->request_read().par() != par) {
+      m_response = MessageFactory::make_error_response(proto::ResponseError::PARSE_ERROR,
+          "Wrong READ response parameters (bus, dev or par do not match");
+      return true;
+    }
+
     m_response = MessageFactory::make_read_response(bus, dev, par, val,
         m_request->request_read().mirror());
   } else if (m_request->type() == proto::Message::REQ_SET) {
+    if (m_request->request_set().bus() != bus
+        || m_request->request_set().dev() != dev
+        || m_request->request_set().par() != par) {
+      m_response = MessageFactory::make_error_response(proto::ResponseError::PARSE_ERROR,
+          "Wrong SET response parameters (bus, dev or par do not match");
+      return true;
+    }
+
     m_response = MessageFactory::make_set_response(bus, dev, par, val,
         m_request->request_set().mirror());
   } else {

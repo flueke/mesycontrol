@@ -98,10 +98,13 @@ MessagePtr MessageFactory::make_bool_response(bool bool_value)
   return ret;
 }
 
-MessagePtr MessageFactory::make_error_response(const proto::ResponseError::ErrorType &error)
+MessagePtr MessageFactory::make_error_response(
+    const proto::ResponseError::ErrorType &error,
+    const std::string &info)
 {
   MessagePtr ret(make_message(proto::Message::RESP_ERROR));
   ret->mutable_response_error()->set_type(error);
+  ret->mutable_response_error()->set_info(info);
   return ret;
 }
 
