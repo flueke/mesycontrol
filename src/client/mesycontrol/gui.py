@@ -851,7 +851,6 @@ class GUIApplication(QtCore.QObject):
                     registry=self.app_registry,
                     device_registry=self.context.device_registry,
                     mrc=node.parent.ref,
-                    bus=node.bus_number,
                     parent_widget=self.mainwindow)
 
         if is_device(node):
@@ -860,7 +859,6 @@ class GUIApplication(QtCore.QObject):
                 registry=self.app_registry,
                 device_registry=self.context.device_registry,
                 mrc=node.ref.mrc,
-                bus=node.ref.bus,
                 address=node.ref.address,
                 parent_widget=self.mainwindow)
 
