@@ -164,7 +164,10 @@ class AddDeviceDialog(QtGui.QDialog):
     Result = collections.namedtuple("Result", "bus address idc name")
 
     def __init__(self, bus=None, available_addresses=bm.ALL_DEVICE_ADDRESSES,
-            known_idcs=list(), allow_custom_idcs=True, title="Add Device", parent=None):
+            known_idcs=list(), allow_custom_idcs=True, title="Add Device",
+            selected_bus=None, selected_address=None, selected_idc=None,
+            assigned_name=None,
+            parent=None):
         """
         Dialog constructor.
 
@@ -181,6 +184,12 @@ class AddDeviceDialog(QtGui.QDialog):
 
         If `known_idcs' is empty and `allow_custom_idcs' is False this method
         will raise an exception.
+
+        If `selected_bus` and `selected_address` is not None the corresponding
+        item will be preselected in the GUI.
+
+        If `selected_idc` is not None the device type will be set using the given IDC
+        and will not be modifyable.
         """
 
         if len(known_idcs) == 0 and not allow_custom_idcs:
@@ -192,6 +201,8 @@ class AddDeviceDialog(QtGui.QDialog):
             raise RuntimeError("No addresses available")
 
         super(AddDeviceDialog, self).__init__(parent)
+
+        self.log = util.make_logging_source_adapter(__name__, self)
 
         self.setWindowTitle(title)
         self._result = None
@@ -216,12 +227,25 @@ class AddDeviceDialog(QtGui.QDialog):
         for idc, name in sorted(known_idcs, key=lambda x: x[1]):
             self.idc_combo.addItem("%s (%d)" % (name, idc), idc)
 
+        if self.idc_combo.findData(idc) < 0:
+            self.idc_combo.addItem(str(idc), idc)
+
+        if selected_idc is not None:
+            self.log.debug("selected_idc=%d, idx=%d",
+                    selected_idc, self.idc_combo.findData(selected_idc))
+
+            self.idc_combo.setCurrentIndex(
+                    self.idc_combo.findData(selected_idc))
+            self.idc_combo.setEnabled(False)
+
         if bus is not None:
             self.bus_combo.setCurrentIndex(bus)
-            self.bus_combo.setEnabled(False)
             self.address_combo_stack.setCurrentIndex(bus)
 
         self.name_input = QtGui.QLineEdit()
+
+        if assigned_name is not None:
+            self.name_input.setText(assigned_name)
 
         self.button_box = QtGui.QDialogButtonBox(
                 QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
@@ -241,6 +265,16 @@ class AddDeviceDialog(QtGui.QDialog):
 
             self.idc_combo.currentIndexChanged.connect(combo_index_changed)
             self.idc_combo.lineEdit().textEdited.connect(combo_le_text_edited)
+
+        if selected_bus is not None:
+            assert selected_bus in bm.BUS_RANGE
+            self.bus_combo.setCurrentIndex(selected_bus)
+            self.address_combo_stack.setCurrentIndex(selected_bus)
+
+            if selected_address is not None:
+                assert selected_address in bm.DEV_RANGE
+                combo = self.address_combo_stack.currentWidget()
+                combo.setCurrentIndex(combo.findText("%X" % selected_address))
 
         def accept():
             bus = self.bus_combo.currentIndex()
