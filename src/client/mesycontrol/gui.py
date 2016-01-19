@@ -500,14 +500,12 @@ class GUIApplication(QtCore.QObject):
         self.actions['close_setup'].setEnabled(len(setup))
 
         a = self.actions['add_config']
-        a.setEnabled((node is None) or (
-            is_config(node) and not (is_device(node) and node.ref.has_cfg)))
+        a.setEnabled(node is None or is_config(node))
 
         if is_setup(node):
-            a.setText("Add MRC")
-
-        if is_mrc(node) or is_bus(node) or is_device(node):
-            a.setText("Add Device")
+            a.setText("Add MRC config")
+        else:
+            a.setText("Add Device config")
 
         a = self.actions['remove_config']
         a.setEnabled((is_mrc(node) or is_device(node)) and node.ref.has_cfg
@@ -862,12 +860,11 @@ class GUIApplication(QtCore.QObject):
                     parent_widget=self.mainwindow)
 
         if is_device(node):
-            assert not node.ref.has_cfg
             gui_util.run_add_device_config_dialog(
                 registry=self.app_registry,
                 device_registry=self.context.device_registry,
                 mrc=node.ref.mrc,
-                address=node.ref.address,
+                address=None if node.ref.has_cfg else node.ref.address,
                 parent_widget=self.mainwindow)
 
 
@@ -1556,6 +1553,7 @@ Initialize using the current hardware values or the device defaults?
 
         if is_registry(node):
             add_action(self.actions['add_mrc_connection'])
+            #add_action(self.actions['refresh'])
 
         if is_mrc(node):
             add_action(self.actions['connect_disconnect'])
@@ -1576,7 +1574,7 @@ Initialize using the current hardware values or the device defaults?
             add_action(self.actions['open_device_widget'])
             add_action(self.actions['open_device_table'])
             add_action(self.actions['toggle_rc'])
-            add_action(self.actions['refresh'])
+            #add_action(self.actions['refresh'])
             #add_action(self.actions['show_device_extensions'])
 
         if not menu.isEmpty():
