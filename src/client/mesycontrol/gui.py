@@ -219,6 +219,7 @@ class GUIApplication(QtCore.QObject):
         action.cfg_toolbar = True
         self.actions['remove_config'] = action
 
+        # Rename
         action = QtGui.QAction("Rename", self,
                 triggered=self._rename_config)
         self.actions['rename_config'] = action
@@ -233,9 +234,15 @@ class GUIApplication(QtCore.QObject):
                 "Save device config to file", self, triggered=self._save_device_config)
         self.actions['save_device_config'] = action
 
+        # Edit MRC config / MRC Properties
         action = QtGui.QAction(QtGui.QIcon.fromTheme("document-properties"),
                 "Properties", self, triggered=self._edit_mrc_config)
         self.actions['edit_mrc_config'] = action
+
+        # Edit device config / device properties
+        action = QtGui.QAction(QtGui.QIcon.fromTheme("document-properties"),
+                "Properties", self, triggered=self._edit_device_config)
+        self.actions['edit_device_config'] = action
 
         # ===== Hardware ===== #
 
@@ -851,6 +858,7 @@ class GUIApplication(QtCore.QObject):
                     registry=self.app_registry,
                     device_registry=self.context.device_registry,
                     mrc=node.parent.ref,
+                    bus=node.bus_number,
                     parent_widget=self.mainwindow)
 
         if is_device(node):
@@ -1207,6 +1215,13 @@ Initialize using the current hardware values or the device defaults?
         gui_util.run_edit_mrc_config(mrc=self._selected_tree_node.ref,
                 registry=self.app_registry, parent_widget=self.mainwindow)
 
+    def _edit_device_config(self):
+        gui_util.run_edit_device_config(
+                device=self._selected_tree_node.ref,
+                registry=self.app_registry,
+                device_registry=self.context.device_registry,
+                parent_widget=self.mainwindow)
+
     def quit(self):
         """Non-blocking method to quit the application. Needs a running event
         loop."""
@@ -1526,6 +1541,8 @@ Initialize using the current hardware values or the device defaults?
             if self.actions['add_config'].isEnabled():
                 add_action(self.actions['add_config'])
             #add_action(self.actions['show_device_extensions'])
+            menu.addSeparator()
+            add_action(self.actions['edit_device_config'])
 
         if not menu.isEmpty():
             menu.exec_(view.mapToGlobal(pos))

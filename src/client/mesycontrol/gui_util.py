@@ -316,7 +316,8 @@ def run_add_device_config_dialog(device_registry, registry, mrc, bus=None, addre
 
         def accepted():
             bus, address, idc, name = dialog.result()
-            device_config = cm.make_device_config(bus, address, idc, name, device_registry.get_device_profile(idc))
+            device_config = cm.make_device_config(bus, address, idc, name,
+                    device_registry.get_device_profile(idc))
             if not mrc.has_cfg:
                 registry.cfg.add_mrc(cm.MRC(mrc.url))
             mrc.cfg.add_device(device_config)
@@ -326,6 +327,41 @@ def run_add_device_config_dialog(device_registry, registry, mrc, bus=None, addre
     except RuntimeError as e:
         log.exception("add device config")
         QtGui.QMessageBox.critical(parent_widget, "Error", str(e))
+
+def run_edit_device_config(device_registry, registry, device, parent_widget=None):
+    assert device.cfg is not None
+    mrc = device.mrc
+
+    aa = [(b, d) for b in bm.BUS_RANGE for d in bm.DEV_RANGE
+            if not mrc.cfg.get_device(b, d) or (b == device.bus and d == device.address)]
+
+    dialog = AddDeviceDialog(
+            selected_bus        = device.bus,
+            selected_address    = device.address,
+            selected_idc        = device.cfg.idc,
+            assigned_name       = device.cfg.name,
+            available_addresses = aa,
+            known_idcs          = device_registry.get_device_names(),
+            title               = "Edit device config",
+            parent = parent_widget)
+    dialog.setModal(True)
+
+    def accepted():
+        bus, address, idc, name = dialog.result()
+        device_config = cm.make_device_config(bus, address, idc, name,
+                device_registry.get_device_profile(idc))
+
+        for k, v in device.cfg.extensions.iteritems():
+            device_config.set_extension(k, v)
+
+        for k, v in device.cfg.get_cached_memory_ref().iteritems():
+            device_config.set_parameter(k, v)
+
+        mrc.cfg.remove_device(device.cfg)
+        mrc.cfg.add_device(device_config)
+
+    dialog.accepted.connect(accepted)
+    dialog.show()
 
 def run_load_device_config(device, context, parent_widget):
     directory_hint = context.get_config_directory_hint()
