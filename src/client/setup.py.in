@@ -55,7 +55,8 @@ build_options = dict(
       zip_includes = [ (pjoin(CBD, 'mesycontrol/mc_version.py'), 'mesycontrol/mc_version.py') ],
 
       init_script = pjoin(CSD, 'cxfreeze_init.py'),
-      path = sys.path + [CSD]
+      path = sys.path + [CSD],
+      icon = pjoin(CSD, 'mesycontrol/resources/window-icon-3.ico')
       )
 
 base_gui = 'Win32GUI' if sys.platform=='win32' else None
