@@ -1305,7 +1305,7 @@ class BitPatternWidget(QtGui.QWidget):
             self.number_widget = util.DelayedSpinBox()
             self.number_widget.setMinimum(0)
             self.number_widget.setMaximum(max_value)
-            self.number_widget.valueChanged.connect(self.set_value)
+            self.number_widget.delayed_valueChanged.connect(self.set_value)
             self.number_widget.setFixedHeight(self.title_label.sizeHint().height())
             f = self.number_widget.font()
             f.setPointSize(f.pointSize()-1)
