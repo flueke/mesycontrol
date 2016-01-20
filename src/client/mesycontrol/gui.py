@@ -568,8 +568,7 @@ class GUIApplication(QtCore.QObject):
 
         # Refresh device memory
         a = self.actions['refresh']
-        a.setEnabled(is_device_hw(node)
-                and node.ref.hw.is_connected())
+        a.setEnabled(is_hardware(node))
 
         # Write access
         mrc = get_mrc(node)
@@ -918,23 +917,41 @@ class GUIApplication(QtCore.QObject):
 
     def _refresh(self):
         node = self._selected_tree_node
-        if is_device_hw(node):
-            gen     = hardware_util.refresh_device_memory(node.ref)
-            runner  = config_util.GeneratorRunner(gen)
-            dialog  = QtGui.QProgressDialog(self.mainwindow)
-            dialog.setWindowTitle("Refreshing device memory")
-            dialog.canceled.connect(runner.close)
 
-            f = runner.start()
-            fo = future.FutureObserver(f)
-            fo.progress_changed.connect(dialog.setValue)
-            fo.progress_range_changed.connect(dialog.setRange)
-            fo.done.connect(dialog.close)
-            dialog.exec_()
+        assert is_hardware(node)
 
-            if f.done() and f.exception() is not None:
-                log.error("Refresh: %s", f.exception())
-                QtGui.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
+        devices = None
+
+        if is_registry(node):
+            devices = [d for mrc in node.ref for d in mrc if d.has_hw]
+
+        elif is_mrc(node):
+            devices = [d for d in node.ref if d.has_hw]
+
+        elif is_bus(node):
+            devices = [d for d in node.parent.ref.get_devices(bus=node.bus_number) if d.has_hw]
+
+        elif is_device(node):
+            devices = [node.ref]
+
+        if not len(devices):
+            self.logview.append("Refresh: no devices present")
+            return
+
+        gen     = hardware_util.refresh_device_memory(devices)
+        runner  = config_util.GeneratorRunner(gen)
+        dialog  = config_gui.SubProgressDialog(title="Refreshing device memory")
+        dialog.canceled.connect(runner.close)
+        runner.progress_changed.connect(dialog.set_progress)
+
+        f  = runner.start()
+        fo = future.FutureObserver(f)
+        fo.done.connect(dialog.close)
+        dialog.exec_()
+
+        if f.done() and f.exception() is not None:
+            log.error("Refresh: %s", f.exception())
+            QtGui.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
 
     def _toggle_rc(self):
         node = self._selected_tree_node
@@ -1553,11 +1570,11 @@ Initialize using the current hardware values or the device defaults?
 
         if is_registry(node):
             add_action(self.actions['add_mrc_connection'])
-            #add_action(self.actions['refresh'])
+            add_action(self.actions['refresh'])
 
         if is_mrc(node):
             add_action(self.actions['connect_disconnect'])
-            #add_action(self.actions['refresh'])
+            add_action(self.actions['refresh'])
             menu.addSeparator()
 
             mrc = node.ref
@@ -1567,14 +1584,13 @@ Initialize using the current hardware values or the device defaults?
             add_action(self.actions['remove_mrc_connection'])
 
         if is_bus(node):
-            pass
-            #add_action(self.actions['refresh'])
+            add_action(self.actions['refresh'])
 
         if is_device(node):
             add_action(self.actions['open_device_widget'])
             add_action(self.actions['open_device_table'])
             add_action(self.actions['toggle_rc'])
-            #add_action(self.actions['refresh'])
+            add_action(self.actions['refresh'])
             #add_action(self.actions['show_device_extensions'])
 
         if not menu.isEmpty():
