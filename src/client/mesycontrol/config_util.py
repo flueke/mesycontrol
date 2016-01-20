@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
+from qt import pyqtSignal
 from qt import pyqtSlot
 from qt import Qt
 from qt import QtCore
@@ -21,6 +22,9 @@ import sys
 log = logging.getLogger(__name__)
 
 class GeneratorRunner(QtCore.QObject):
+
+    progress_changed = pyqtSignal(object)
+
     def __init__(self, generator=None, parent=None):
         super(GeneratorRunner, self).__init__(parent)
 
@@ -130,11 +134,13 @@ class GeneratorRunner(QtCore.QObject):
 
     def _progress_update(self, progress):
         """Handles the case where the generator yields a ProgressUpdate. The
-        default is to update the results progress.
+        default is to update the result futures progress.
         """
         self.result.set_progress_range(0, progress.total)
         self.result.set_progress(progress.current)
         self.result.set_progress_text(progress.text)
+
+        self.progress_changed.emit(progress)
 
     def _object_yielded(self, obj):
         """Called if the generator yields any object other than Future or
