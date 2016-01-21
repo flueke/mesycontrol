@@ -56,6 +56,8 @@ class AbstractParameterBinding(object):
         self.fixed_modes    = fixed_modes
         self._update_callbacks = list()
 
+        self._last_update_wrapper_future = None
+
         self.device.hardware_set.connect(self._on_device_hw_set)
         self.device.config_set.connect(self._on_device_cfg_set)
 
@@ -311,6 +313,12 @@ class AbstractParameterBinding(object):
     def _update_wrapper(self, result_future):
         log.debug("_update_wrapper: target=%s, raddr=%d, waddr=%d, result_future=%s",
                 self.target, self.read_address, self.write_address, result_future)
+
+        if self._last_update_wrapper_future is result_future:
+            log.warning("_update_wrapper: called at least twice with the following future: %s",
+                    result_future)
+
+        self._last_update_wrapper_future = result_future
 
         if not result_future.exception():
             log.debug("_update_wrapper: result=%s", result_future.result())
