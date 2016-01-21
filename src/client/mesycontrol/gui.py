@@ -23,6 +23,7 @@ from model_util import add_mrc_connection
 from util import make_icon
 
 import app_model as am
+import async_util
 import config_gui
 import config_util
 import device_tableview
@@ -939,7 +940,8 @@ class GUIApplication(QtCore.QObject):
             return
 
         gen     = hardware_util.refresh_device_memory(devices)
-        runner  = config_util.GeneratorRunner(gen)
+        runner  = async_util.DefaultGeneratorRunner(gen, self.mainwindow)
+
         dialog  = config_gui.SubProgressDialog(title="Refreshing device memory")
         dialog.canceled.connect(runner.close)
         runner.progress_changed.connect(dialog.set_progress)
