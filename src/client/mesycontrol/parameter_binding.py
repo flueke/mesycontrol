@@ -7,6 +7,7 @@ from qt import QtGui
 
 import collections
 import logging
+import traceback
 import weakref
 
 import basic_model as bm
@@ -54,7 +55,6 @@ class AbstractParameterBinding(object):
         self.target         = target
         self.fixed_modes    = fixed_modes
         self._update_callbacks = list()
-        self._update_method_callbacks = list()
 
         self.device.hardware_set.connect(self._on_device_hw_set)
         self.device.config_set.connect(self._on_device_cfg_set)
@@ -183,7 +183,16 @@ class AbstractParameterBinding(object):
         if hasattr(method_or_func, 'im_self'):
             obj  = method_or_func.im_self
             meth = method_or_func.im_func.__name__
-            self._update_callbacks.append((weakref.ref(obj), meth, args, kwargs))
+
+            def weakref_finalized(ref):
+                idx = next((i for i, tup in enumerate(self._update_callbacks) if tup[0] is ref), None)
+
+                log.debug("weakref_finalized: ref=%s, idx=%s", ref, idx)
+
+                if idx is not None:
+                    del self._update_callbacks[idx]
+
+            self._update_callbacks.append((weakref.ref(obj, weakref_finalized), meth, args, kwargs))
         else:
             self._update_callbacks.append((method_or_func, args, kwargs))
 
@@ -194,15 +203,20 @@ class AbstractParameterBinding(object):
             try:
                 if len(tup) == 3:
                     func, args, kwargs = tup
+                    log.debug("_exec_callbacks: func=%s, args=%s, kwargs=%s",
+                            func, args, kwargs)
                     func(result_future, *args, **kwargs)
                 else:
                     obj_ref, meth, args, kwargs = tup
+                    log.debug("_exec_callbacks: obj_ref=%s, meth=%s, result_future=%s, args=%s, kwargs=%s",
+                            obj_ref, meth, result_future, args, kwargs)
                     getattr(obj_ref(), meth)(result_future, *args, **kwargs)
 
             except util.Disconnected:
                 pass
             except Exception as e:
                 log.warning("target=%s, update callback raised %s: %s", self.target, type(e), e)
+                log.warning("traceback=%s", traceback.format_exc(e))
 
     def _on_device_hw_set(self, device, old_hw, new_hw):
         if old_hw is not None:
