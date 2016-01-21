@@ -112,6 +112,8 @@ class Controller(object):
         ret = bm.ResultFuture()
 
         def on_response_received(f):
+            #self.log.warning("read_parameter: ret(%s)._callbacks=%s",
+            #        ret, ret._callbacks)
             try:
                 ret.set_result(bm.ReadResult(bus, device, address, f.result().response.response_read.val))
             except Exception as e:
@@ -126,6 +128,9 @@ class Controller(object):
 
         request_future = self.connection.queue_request(m).add_done_callback(
                 on_response_received)
+
+        #self.log.warning("read_parameter: request_future(%s)._callbacks=%s",
+        #        request_future, request_future._callbacks)
 
         def cancel_request(f):
             if f.cancelled():
