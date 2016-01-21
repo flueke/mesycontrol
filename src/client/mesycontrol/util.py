@@ -445,6 +445,7 @@ def wait_for_signal(signal, expected_args=None, timeout_ms=0, emitting_callable=
 
 @contextlib.contextmanager
 def block_signals(o):
+    was_blocked = False
     try:
         was_blocked = o.signalsBlocked()
         o.blockSignals(True)
