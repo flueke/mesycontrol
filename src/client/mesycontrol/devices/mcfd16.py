@@ -46,7 +46,10 @@ CFD_FRACTIONS           = { 0: '20%', 1: '40%' }
 TRIGGER_NAMES           = { 0: 'front', 1: 'rear1', 2: 'rear2' }
 
 # test pulser frequencies
-TEST_PULSER_FREQS       = { 0: 'off', 1: '2.5 MHz', 2: '1.22 kHz' }
+# FIXME: Workaround for a RC bug: writing 2 to the test pulser address (118)
+# returns a value of 3. The quick fix: do only allow writing 0 or 1.
+TEST_PULSER_FREQS       = { 0: 'off', 1: '2.5 MHz' }
+#TEST_PULSER_FREQS       = { 0: 'off', 1: '2.5 MHz', 2: '1.22 kHz' }
 
 # rate measurement time base values [s]
 TIME_BASE_SECS          = { 0: 1/8.0, 3: 1/4.0, 7: 1/2.0, 15: 1.0 }
