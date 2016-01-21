@@ -53,10 +53,18 @@ class AbstractParameterBinding(object):
         self._display_mode  = display_mode
         self._write_mode    = write_mode if write_mode is not None else display_mode
         self.target         = target
+
+        if isinstance(target, QtCore.QObject):
+            def on_destroyed(obj):
+                #log.info("target object %s has been destroyed; setting self.target=None", obj)
+                self.target = None
+            target.destroyed.connect(on_destroyed)
+
         self.fixed_modes    = fixed_modes
         self._update_callbacks = list()
 
         self._last_update_wrapper_future = None
+        self._last_update_wrapper_stack  = None
 
         self.device.hardware_set.connect(self._on_device_hw_set)
         self.device.config_set.connect(self._on_device_cfg_set)
@@ -189,7 +197,7 @@ class AbstractParameterBinding(object):
             def weakref_finalized(ref):
                 idx = next((i for i, tup in enumerate(self._update_callbacks) if tup[0] is ref), None)
 
-                log.debug("weakref_finalized: ref=%s, idx=%s", ref, idx)
+                #log.debug("weakref_finalized: ref=%s, idx=%s", ref, idx)
 
                 if idx is not None:
                     del self._update_callbacks[idx]
@@ -317,14 +325,23 @@ class AbstractParameterBinding(object):
         if self._last_update_wrapper_future is result_future:
             log.warning("_update_wrapper: called at least twice with the following future: %s",
                     result_future)
+            try:
+                log.warning("_update_wrapper: result=%s", result_future.result())
+            except Exception as e:
+                log.warning("_update_wrapper: result exception=%s", e)
+
+            log.warning("_update_wrapper: this stack=%s", ''.join(traceback.format_stack()))
+            #log.warning("_update_wrapper: last stack=%s", self._last_update_wrapper_stack)
 
         self._last_update_wrapper_future = result_future
+        #self._last_update_wrapper_stack  = ''.join(traceback.format_stack())
 
         if not result_future.exception():
             log.debug("_update_wrapper: result=%s", result_future.result())
 
         try:
-            self._update(result_future)
+            if self.target is not None:
+                self._update(result_future)
         except Exception as e:
             log.debug("_update raised %s", e)
 
