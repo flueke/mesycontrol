@@ -51,6 +51,15 @@ TEST_PULSER_FREQS       = { 0: 'off', 1: '2.5 MHz', 2: '1.22 kHz' }
 # rate measurement time base values [s]
 TIME_BASE_SECS          = { 0: 1/8.0, 3: 1/4.0, 7: 1/2.0, 15: 1.0 }
 
+# rate monitor channel values
+RATE_MONITOR_CHANNEL    = dict(
+        (i, "Channel %d" % i) for i in range(16))
+
+RATE_MONITOR_CHANNEL.update(
+        dict((i, "Trigger %d" % (i-16)) for i in range(16, 19)))
+
+RATE_MONITOR_CHANNEL[19] = 'Total'
+
 # limits of the SIP-7 delay chips [ns]
 DELAY_CHIP_LIMITS_NS    = (5, 100)
 
@@ -1120,6 +1129,70 @@ class WidthAndDeadtimePage(QtGui.QGroupBox):
     def _apply_common_deadtime(self):
         return self.device.apply_common_deadtime()
 
+class RateMeasurementWidget(QtGui.QWidget):
+    def __init__(self, device, display_mode, write_mode, parent=None):
+        super(RateMeasurementWidget, self).__init__(parent)
+
+        self.device   = device
+        self.bindings = list()
+
+        time_base_combo = QtGui.QComboBox()
+        for k in sorted(TIME_BASE_SECS.keys()):
+            time_base_combo.addItem("%.2f s" % TIME_BASE_SECS[k], k)
+
+        self.bindings.append(pb.factory.make_binding(
+            device=device,
+            profile=device.profile['time_base'],
+            display_mode=display_mode,
+            target=time_base_combo))
+
+        rate_monitor_combo = QtGui.QComboBox()
+        for k in sorted(RATE_MONITOR_CHANNEL.keys()):
+            rate_monitor_combo.addItem("%s" % RATE_MONITOR_CHANNEL[k], k)
+
+        self.bindings.append(pb.factory.make_binding(
+            device=device,
+            profile=device.profile['rate_monitor_channel'],
+            display_mode=display_mode,
+            target=rate_monitor_combo))
+
+        self.bindings.append(pb.TargetlessParameterBinding(
+            device=device,
+            profile=device.profile['measurement_ready'],
+            display_mode=util.HARDWARE,
+            ).add_update_callback(self._measurement_ready_changed))
+
+        self.rate_label = make_dynamic_label("N/A")
+
+        layout = QtGui.QFormLayout(self)
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.addRow("Rate Monitor", rate_monitor_combo)
+        layout.addRow("Time Base", time_base_combo)
+        layout.addRow("Measured Rate", self.rate_label)
+
+    def _measurement_ready_changed(self, f_measurement):
+        print "_measurement_ready_changed: mr=%d, f=%s" % (
+                int(f_measurement), f_measurement)
+
+        f_low  = self.device.read_hw_parameter('frequency_low_byte')
+        f_high = self.device.read_hw_parameter('frequency_high_byte')
+
+        def freq_done(_):
+            low_byte  = int(f_low)
+            high_byte = int(f_high)
+
+            freq = ((int(high_byte) << 8) | int(low_byte))
+
+            print "_measurement_ready_changed: mr=%d, l=%d, h=%d, freq=%d" % (
+                    int(f_measurement), low_byte, high_byte, freq)
+
+            if freq == 2**16-1:
+                return
+
+            self.rate_label.setText(str(freq))
+
+        future.all_done(f_low, f_high).add_done_callback(freq_done)
+
 class MCFD16ControlsWidget(QtGui.QWidget):
     """Main MCFD16 controls: polarity, gain, delay, fraction, threshold, width, dead time."""
     def __init__(self, device, display_mode, write_mode, parent=None):
@@ -1156,6 +1229,23 @@ class MCFD16ControlsWidget(QtGui.QWidget):
         mode_layout.addWidget(self.rb_mode_single, 0, 0)
         mode_layout.addWidget(self.rb_mode_common, 0, 1)
 
+        # Test pulser
+        pulser_box = QtGui.QGroupBox("Test Pulser", self)
+        pulser_layout = QtGui.QFormLayout(pulser_box)
+        pulser_layout.setContentsMargins(2, 2, 2, 2)
+
+        pulser_combo = QtGui.QComboBox()
+        for k in sorted(TEST_PULSER_FREQS.keys()):
+            pulser_combo.addItem("%s" % TEST_PULSER_FREQS[k], k)
+
+        pulser_layout.addRow("Frequency", pulser_combo)
+
+        self.bindings.append(pb.factory.make_binding(
+            device=device,
+            profile=device.profile['test_pulser'],
+            display_mode=display_mode,
+            target=pulser_combo))
+
         # Version display
         version_box = QtGui.QGroupBox("Version", self)
         version_layout = QtGui.QFormLayout(version_box)
@@ -1191,6 +1281,12 @@ class MCFD16ControlsWidget(QtGui.QWidget):
                 label=self.version_labels['cpu_firmware_version'],
                 getter=self.device.get_cpu_firmware_version))
 
+        # Rate measurement
+        self.rate_widget = RateMeasurementWidget(device, display_mode, write_mode, self)
+        rate_box = QtGui.QGroupBox("Rate Measurement", self)
+        rate_layout = QtGui.QHBoxLayout(rate_box)
+        rate_layout.addWidget(self.rate_widget)
+
         # Add layouts
         layout = QtGui.QHBoxLayout(self)
         layout.setContentsMargins(*(4 for i in range(4)))
@@ -1212,6 +1308,8 @@ class MCFD16ControlsWidget(QtGui.QWidget):
         vbox.setSpacing(8)
         vbox.addWidget(self.width_deadtime_page)
         vbox.addWidget(mode_box)
+        vbox.addWidget(pulser_box)
+        vbox.addWidget(rate_box)
         vbox.addWidget(version_box)
         vbox.addStretch(1)
         layout.addItem(vbox)
@@ -1221,7 +1319,8 @@ class MCFD16ControlsWidget(QtGui.QWidget):
                 self.bindings,
                 self.preamp_page.bindings,
                 self.discriminator_page.bindings,
-                self.width_deadtime_page.bindings)
+                self.width_deadtime_page.bindings,
+                self.rate_widget.bindings)
 
     def clear_parameter_bindings(self):
         self.bindings = list()
