@@ -554,7 +554,7 @@ class TargetlessParameterBinding(AbstractParameterBinding):
 class SpinBoxEditingObserver(QtCore.QObject):
     def __init__(self, the_binding, parent=None):
         super(SpinBoxEditingObserver, self).__init__(parent)
-        self.binding = the_binding
+        self.binding = weakref.proxy(the_binding)
         self.binding.target.installEventFilter(self)
         self.editing = False
         self.last_result_future = None
@@ -573,7 +573,6 @@ class SpinBoxEditingObserver(QtCore.QObject):
                     self.last_result_future = None
 
         return super(SpinBoxEditingObserver, self).eventFilter(obj, event)
-
 
 class SpinBoxParameterBinding(DefaultParameterBinding):
     def __init__(self, **kwargs):
