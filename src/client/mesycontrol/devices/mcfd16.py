@@ -1136,6 +1136,7 @@ class RateMeasurementWidget(QtGui.QWidget):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(RateMeasurementWidget, self).__init__(parent)
 
+        self.log      = util.make_logging_source_adapter(__name__, self)
         self.device   = device
         self.bindings = list()
 
@@ -1159,11 +1160,12 @@ class RateMeasurementWidget(QtGui.QWidget):
             display_mode=display_mode,
             target=rate_monitor_combo))
 
-        self.bindings.append(pb.TargetlessParameterBinding(
-            device=device,
-            profile=device.profile['measurement_ready'],
-            display_mode=util.HARDWARE,
-            ).add_update_callback(self._measurement_ready_changed))
+        # FIXME: disabled for now until I fully understand rate measurement
+        #self.bindings.append(pb.TargetlessParameterBinding(
+        #    device=device,
+        #    profile=device.profile['measurement_ready'],
+        #    display_mode=util.HARDWARE,
+        #    ).add_update_callback(self._measurement_ready_changed))
 
         self.rate_label = make_dynamic_label("N/A")
 
@@ -1173,9 +1175,18 @@ class RateMeasurementWidget(QtGui.QWidget):
         layout.addRow("Time Base", time_base_combo)
         layout.addRow("Measured Rate", self.rate_label)
 
+        # FIXME: re-enable once rate measurement works
+        self.setEnabled(False)
+
     def _measurement_ready_changed(self, f_measurement):
-        print "_measurement_ready_changed: mr=%d, f=%s" % (
-                int(f_measurement), f_measurement)
+        try:
+            self.log.debug("_measurement_ready_changed: f=%s, mr=%s",
+                    f_measurement,
+                    str(int(f_measurement)
+                        if f_measurement.exception() is None
+                        else f_measurement.exception()))
+        except Exception:
+            pass
 
         f_low  = self.device.read_hw_parameter('frequency_low_byte')
         f_high = self.device.read_hw_parameter('frequency_high_byte')
@@ -1186,7 +1197,7 @@ class RateMeasurementWidget(QtGui.QWidget):
 
             freq = ((int(high_byte) << 8) | int(low_byte))
 
-            print "_measurement_ready_changed: mr=%d, l=%d, h=%d, freq=%d" % (
+            self.log.debug("_measurement_ready_changed: mr=%d, l=%d, h=%d, freq=%d",
                     int(f_measurement), low_byte, high_byte, freq)
 
             if freq == 2**16-1:
