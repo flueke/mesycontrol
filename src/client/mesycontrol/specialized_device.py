@@ -257,7 +257,7 @@ class DeviceWidgetBase(QtGui.QWidget):
         self.notes_widget = gui_util.DeviceNotesWidget(specialized_device)
 
         self.hide_notes_button = QtGui.QPushButton(clicked=self._toggle_hide_notes)
-        self.set_notes_visible(True)
+        self.set_notes_visible(False)
 
         self.tab_widget = QtGui.QTabWidget()
         self.tab_widget.setCornerWidget(self.hide_notes_button, Qt.TopRightCorner)
@@ -388,7 +388,7 @@ class DeviceWidgetBase(QtGui.QWidget):
             if settings.contains(name):
                 self.set_notes_visible(settings.value(name).toBool())
             else:
-                self.set_notes_visible(True)
+                self.set_notes_visible(False)
 
         return super(DeviceWidgetBase, self).event(e)
 
