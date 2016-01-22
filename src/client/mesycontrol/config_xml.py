@@ -172,7 +172,7 @@ def _device_config_from_node(config_node):
 
 def _build_mrc_tree(mrc_config, idc_to_parameter_names, tb):
 
-    attrs = ['url', 'name']
+    attrs = ['url', 'name', 'autoconnect']
 
     tb.start('mrc_config', {})
     _add_attribute_tags(tb, mrc_config, attrs)
@@ -183,13 +183,24 @@ def _build_mrc_tree(mrc_config, idc_to_parameter_names, tb):
     tb.end('mrc_config')
 
 def _mrc_config_from_node(mrc_node):
-    attrs = ['url', 'name']
+    attrs = ['url', 'name', 'autoconnect']
     ret = cm.MRC()
 
     for attr in attrs:
         n = mrc_node.find(attr)
         if n is not None:
-            setattr(ret, attr, n.text)
+            try:
+                prop_t = getattr(cm.MRC, attr).type
+            except AttributeError:
+                prop_t = None
+
+
+            if prop_t is bool:
+                prop_v = n.text.lower() in ['true', 'y', 'yes', 'on', '1']
+            else:
+                prop_v = n.text
+
+            setattr(ret, attr, prop_v)
 
     for device_node in mrc_node.findall('device_config'):
         ret.add_device(_device_config_from_node(device_node))
@@ -197,7 +208,13 @@ def _mrc_config_from_node(mrc_node):
     return ret
 
 def _setup_from_node(setup_node):
+    attrs = ['autoconnect']
     ret = cm.Setup()
+
+    for attr in attrs:
+        n = setup_node.find(attr)
+        if n is not None:
+            setattr(ret, attr, n.text)
 
     for mrc_node in setup_node.findall('mrc_config'):
         ret.add_mrc(_mrc_config_from_node(mrc_node))
@@ -205,17 +222,22 @@ def _setup_from_node(setup_node):
     return ret
 
 def _build_setup_tree(setup, idc_to_parameter_names, tb):
+    attrs = ['autoconnect']
+
     tb.start('setup', {})
+    _add_attribute_tags(tb, setup, attrs)
 
     for mrc in setup.get_mrcs():
         _build_mrc_tree(mrc, idc_to_parameter_names, tb)
 
     tb.end('setup')
 
-def _add_tag(tb, tag, text=None, attrs = {}):
+def _add_tag(tb, tag, value=None, attrs = {}):
     tb.start(tag, attrs)
-    if text is not None:
-        tb.data(unicode(text))
+
+    if value is not None:
+        tb.data(unicode(value))
+
     tb.end(tag)
 
 def _xml_tree_to_string(tree):

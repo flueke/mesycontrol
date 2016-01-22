@@ -217,8 +217,9 @@ def run_add_mrc_config_dialog(registry, parent_widget=None):
     dialog.setModal(True)
 
     def accepted():
-        url, connect = dialog.result()
+        url, connect, autoconnect = dialog.result()
         mrc = cm.MRC(url)
+        mrc.autoconnect = autoconnect
         registry.cfg.add_mrc(mrc)
 
         if connect:
@@ -244,7 +245,7 @@ def run_add_mrc_connection_dialog(registry, parent_widget=None):
 
     def accepted():
         try:
-            url, connect = dialog.result()
+            url, connect, autoconnect = dialog.result()
             add_mrc_connection(registry.hw, url, connect)
         except Exception as e:
             log.exception("run_add_mrc_connection_dialog")
@@ -263,13 +264,20 @@ def run_edit_mrc_config(mrc, registry, parent_widget=None):
             serial_ports_usb=serial_ports_usb,
             serial_ports_serial=serial_ports_serial,
             urls_in_use=urls_in_use,
-            url=mrc.url, do_connect_default=False, parent=parent_widget,
+            url=mrc.url,
+            do_connect_default=mrc.cfg.autoconnect,
+            autoconnect_default=mrc.cfg.autoconnect,
+            parent=parent_widget,
             title="Edit MRC config")
     dialog.setModal(True)
 
     def accepted(mrc=mrc):
         try:
-            url, connect = dialog.result()
+            url, connect, autoconnect = dialog.result()
+
+            if url == mrc.cfg.url and mrc.cfg.autoconnect == autoconnect:
+                return
+
             device_configs = [d for d in mrc.cfg]
 
             for d in device_configs:
@@ -280,6 +288,7 @@ def run_edit_mrc_config(mrc, registry, parent_widget=None):
 
             new_mrc = cm.MRC(url)
             new_mrc.name = name
+            new_mrc.autoconnect = autoconnect
 
             for d in device_configs:
                 new_mrc.add_device(d)

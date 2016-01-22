@@ -16,12 +16,13 @@ class EatReturnCombo(QtGui.QComboBox):
             e.accept() # accept the event so it won't be propagated
 
 class AddMRCDialog(QtGui.QDialog):
-    Result = collections.namedtuple("Result", "url connect")
+    Result = collections.namedtuple("Result", "url connect autoconnect")
     SERIAL_USB, SERIAL_SERIAL, TCP, MC = range(4)
 
     def __init__(self, serial_ports_usb, serial_ports_serial,
             urls_in_use=list(), url=None,
-            do_connect_default=False, title="Add MRC", parent=None):
+            do_connect_default=True, autoconnect_default=True,
+            title="Add MRC", parent=None):
         super(AddMRCDialog, self).__init__(parent)
         self.urls_in_use = urls_in_use
         util.loadUi(":/ui/connect_dialog.ui", self)
@@ -37,6 +38,7 @@ class AddMRCDialog(QtGui.QDialog):
         self.le_tcp_host.setText('localhost')
         self.le_mesycontrol_host.setText('localhost')
         self.cb_connect.setChecked(do_connect_default)
+        self.cb_autoconnect.setChecked(autoconnect_default)
 
         for port in serial_ports_usb:
             self.combo_serial_port_usb.addItem(port)
@@ -154,7 +156,8 @@ class AddMRCDialog(QtGui.QDialog):
     def accept(self):
         url  = self._get_current_url()
         connect = self.cb_connect.isChecked()
-        self._result = AddMRCDialog.Result(url, connect)
+        autoconnect = self.cb_autoconnect.isChecked()
+        self._result = AddMRCDialog.Result(url, connect, autoconnect)
         super(AddMRCDialog, self).accept()
 
     def result(self):
