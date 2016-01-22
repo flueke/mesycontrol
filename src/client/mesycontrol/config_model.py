@@ -27,13 +27,15 @@ def _set_modified(self, b):
         self.modified_changed.emit(self.modified)
 
 class Setup(bm.MRCRegistry):
-    modified_changed = pyqtSignal(bool)
-    filename_changed = pyqtSignal(str)
+    modified_changed        = pyqtSignal(bool)
+    filename_changed        = pyqtSignal(str)
+    autoconnect_changed     = pyqtSignal(bool)
 
     def __init__(self, parent=None):
         super(Setup, self).__init__(parent)
         self._modified = False
         self._filename = str()
+        self._autoconnect = True
 
     set_modified = _set_modified
 
@@ -72,21 +74,35 @@ class Setup(bm.MRCRegistry):
         if is_modified:
             self.modified = True
 
-    def __str__(self):
-        return "cm.Setup(id=%s, filename=%s, modified=%s" % (
-                hex(id(self)), self.filename, self.modified)
+    @modifies
+    def set_autoconnect(self, b):
+        b = bool(b)
+        if self._autoconnect != b:
+            self._autoconnect = b
+            self.autoconnect_changed.emit(self.autoconnect)
+            return True
 
-    modified = pyqtProperty(bool, is_modified, set_modified, notify=modified_changed)
-    filename = pyqtProperty(str, get_filename, set_filename, notify=filename_changed)
+    def get_autoconnect(self):
+        return self._autoconnect
+
+    def __str__(self):
+        return "cm.Setup(id=%s, filename=%s, modified=%s, autoconnect=%s" % (
+                hex(id(self)), self.filename, self.modified, self.autoconnect)
+
+    modified    = pyqtProperty(bool, is_modified, set_modified, notify=modified_changed)
+    filename    = pyqtProperty(str, get_filename, set_filename, notify=filename_changed)
+    autoconnect = pyqtProperty(bool, get_autoconnect, set_autoconnect, notify=autoconnect_changed)
 
 class MRC(bm.MRC):
     modified_changed    = pyqtSignal(bool)
     name_changed        = pyqtSignal(unicode)
+    autoconnect_changed = pyqtSignal(bool)
 
     def __init__(self, url=None, parent=None):
         super(MRC, self).__init__(url, parent)
         self._modified = False
         self._name = str()
+        self._autoconnect = True
 
     set_modified = _set_modified
 
@@ -125,14 +141,25 @@ class MRC(bm.MRC):
         if is_modified:
             self.modified = True
 
+    @modifies
+    def set_autoconnect(self, b):
+        b = bool(b)
+        if self._autoconnect != b:
+            self._autoconnect = b
+            self.autoconnect_changed.emit(self.autoconnect)
+            return True
+
+    def get_autoconnect(self):
+        return self._autoconnect
+
     def __str__(self):
-        return "cm.MRC(id=%s, url=%s, modified=%s)" % (
-                hex(id(self)), self.url, self.modified)
+        return "cm.MRC(id=%s, url=%s, modified=%s, autoconnect=%s)" % (
+                hex(id(self)), self.url, self.modified, self.autoconnect)
 
     set_url     = modifies(bm.MRC.set_url)
-
     modified    = pyqtProperty(bool, is_modified, set_modified, notify=modified_changed)
     name        = pyqtProperty(unicode, get_name, set_name, notify=name_changed)
+    autoconnect = pyqtProperty(bool, get_autoconnect, set_autoconnect, notify=autoconnect_changed)
 
 class Device(bm.Device):
     modified_changed    = pyqtSignal(bool)

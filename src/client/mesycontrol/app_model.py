@@ -10,6 +10,7 @@ from qt import pyqtProperty
 from qt import pyqtSignal
 
 from basic_model import IDCConflict
+from model_util import add_mrc_connection
 import basic_model as bm
 import config_model as cm
 import future
@@ -720,6 +721,17 @@ class Director(object):
 
             for mrc in new_cfg_reg.mrcs:
                 self._cfg_mrc_added(mrc)
+
+            gen = (mrc for mrc in new_cfg_reg.mrcs
+                    if new_cfg_reg.autoconnect and mrc.autoconnect)
+
+            for cfg_mrc in gen:
+                self.log.info("auto connecting %s", cfg_mrc)
+                hw_mrc = self.registry.hw.get_mrc(cfg_mrc.url)
+                if not hw_mrc:
+                    add_mrc_connection(self.registry.hw, cfg_mrc.url, True)
+                elif hw_mrc.is_disconnected():
+                    hw_mrc.connect()
 
     def _cfg_mrc_added(self, mrc):
         self.log.debug("_cfg_mrc_added: %s", mrc)
