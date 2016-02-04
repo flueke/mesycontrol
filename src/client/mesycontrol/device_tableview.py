@@ -45,6 +45,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
 
         self._device    = None
         self.device     = device
+        self._editing_ignore_paramter_ranges = False
 
     def set_device(self, device):
         signals_slots = {
@@ -96,10 +97,21 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
     def get_write_mode(self):
         return self._write_mode
 
+    def set_editing_ignore_parameter_ranges(self, do_ignore):
+        self._editing_ignore_paramter_ranges = bool(do_ignore)
+
+    def get_editing_ignore_parameter_ranges(self):
+        return self._editing_ignore_paramter_ranges
+
     device = pyqtProperty(object, get_device, set_device)
     profile = pyqtProperty(object, get_profile)
     display_mode = pyqtProperty(object, get_display_mode, set_display_mode)
     write_mode   = pyqtProperty(object, get_write_mode, set_write_mode)
+
+    editing_ignore_parameter_ranges = pyqtProperty(
+            bool,
+            get_editing_ignore_parameter_ranges,
+            set_editing_ignore_parameter_ranges)
 
     def _on_device_hardware_set(self, app_device, old_hw, new_hw):
         self.log.debug("_on_device_hardware_set: dev=%s, old=%s, new=%s",
@@ -424,7 +436,8 @@ class DeviceTableItemDelegate(QtGui.QStyledItemDelegate):
                 #pp = device.profile[idx.row()]
                 profile = idx.model().profile
                 pp = profile[idx.row()]
-                if pp.range is not None:
+                if (pp.range is not None
+                        and not idx.model().get_editing_ignore_parameter_ranges()):
                     min_, max_ = pp.range.to_tuple()
             except (KeyError, AttributeError):
                 pass
@@ -762,6 +775,12 @@ class DeviceTableWidget(QtGui.QWidget):
         action.setCheckable(True)
         action.setChecked(sort_model.filter_static)
         action.triggered.connect(sort_model.set_filter_static)
+
+        menu.addSeparator()
+
+        action = menu.addAction("Ignore param ranges on edit")
+        action.setCheckable(True)
+        action.triggered.connect(model.set_editing_ignore_parameter_ranges)
 
         menu.addSeparator()
 
