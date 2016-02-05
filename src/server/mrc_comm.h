@@ -24,7 +24,7 @@ static const pt::time_duration default_read_timeout  = pt::milliseconds(100);
 static const pt::time_duration default_write_timeout = pt::milliseconds(100);
 
 static const pt::time_duration default_serial_read_timeout  = pt::milliseconds(50);
-static const pt::time_duration default_serial_write_timeout = pt::milliseconds(500);
+static const pt::time_duration default_serial_write_timeout = pt::milliseconds(100);
 
 static const pt::time_duration default_read_until_prompt_timeout = pt::milliseconds(500);
 
