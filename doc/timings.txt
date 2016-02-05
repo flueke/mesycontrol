@@ -28,10 +28,10 @@ Debian Stretch      4.6s         2.3s       2.5s
 
 Time per param (t[s]/83)
 -----------------------------------------------------------------------------
-Windows 7       MRCC@96: 7.8s/83 = 0.094
-                MRC-1  : 6.5s/83 = 0.078
+Windows 7       MRCC@96: 7.8s/83 = 0.094s
+                MRC-1  : 6.5s/83 = 0.078s
 
-Debian Stretch  MRCC@96: 4.3s/83 = 0.052
-                MRC-1  : 2.5s/83 = 0.030
+Debian Stretch  MRCC@96: 4.3s/83 = 0.052s
+                MRC-1  : 2.5s/83 = 0.030s
 
 # vim: tw=0
