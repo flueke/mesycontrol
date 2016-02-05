@@ -1,0 +1,20 @@
+=============================================================================
+  mesycontrol timing
+=============================================================================
+
+* Refreshing a MHV-4:
+  - connect
+  - select mhv4
+  - click refresh mem
+
+
+Results with default_serial_write_timeout = 50ms
+-----------------------------------------------------------------------------
+                    MRCC@96      MRCC@115   MRC-1
+Windows 7           7.8s         5.9s       6.5s
+                    7.5s         5.5s       6.5s
+
+Debian Stretch      4.3s         2.2s       2.4s
+                    4.6s         1.8s       2.5s
+
+# vim: tw=0
