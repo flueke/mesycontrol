@@ -5,7 +5,7 @@
 * Refreshing a MHV-4:
   - connect
   - select mhv4
-  - click refresh mem
+  - click refresh mem (83 params)
 
 
 Results with default_serial_write_timeout = 50ms
@@ -25,5 +25,13 @@ Windows 7           8.4s         6.0s       6.5s
 
 Debian Stretch      4.6s         2.3s       2.5s 
                     4.6s         2.0s       2.8s 
+
+Time per param (t[s]/83)
+-----------------------------------------------------------------------------
+Windows 7       MRCC@96: 7.8s/83 = 0.094
+                MRC-1  : 6.5s/83 = 0.078
+
+Debian Stretch  MRCC@96: 4.3s/83 = 0.052
+                MRC-1  : 2.5s/83 = 0.030
 
 # vim: tw=0
