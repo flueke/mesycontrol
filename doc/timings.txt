@@ -17,4 +17,13 @@ Windows 7           7.8s         5.9s       6.5s
 Debian Stretch      4.3s         2.2s       2.4s
                     4.6s         1.8s       2.5s
 
+Results with default_serial_write_timeout = 500ms
+-----------------------------------------------------------------------------
+                    MRCC@96      MRCC@115   MRC-1
+Windows 7           8.4s         6.0s       6.5s
+                    8.2s         6.1s       6.5s
+
+Debian Stretch      4.6s         2.3s       2.5s 
+                    4.6s         2.0s       2.8s 
+
 # vim: tw=0
