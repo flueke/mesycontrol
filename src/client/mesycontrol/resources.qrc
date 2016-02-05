@@ -36,9 +36,7 @@
     <file alias="stop.png">resources/process-stop.png</file>
     <file alias="unlinked.png">resources/link-intact-2x.png</file>
     <file alias="warning.png">resources/warning-2x.png</file>
-    <file alias="window-icon-2.png">resources/window-icon-2.png</file>
-    <file alias="window-icon-3.png">resources/window-icon-3.png</file>
-    <file alias="window-icon.png">resources/window-icon-3.png</file>
+    <file alias="window-icon.png">resources/32x32.png</file>
     <file alias="write-access.png">resources/media-record-2x.png</file>
     <file alias="device-notes.png">resources/document-2x.png</file>
     <file alias="edit.png">resources/accessories-text-editor.png</file>
