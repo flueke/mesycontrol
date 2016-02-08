@@ -52,8 +52,8 @@ installation will most likely result in errors about missing libraries.
 The installation itself is simple: unpack the tar.bz2 archive and execute the
 *mesycontrol_gui* binary to get started::
 
-  $ tar xf mesycontrol-0.5.tar.bz2
-  $ ./mesycontrol-0.5/bin/mesycontrol_gui
+  $ tar xf mesycontrol-1.0.tar.bz2
+  $ ./mesycontrol-1.0/bin/mesycontrol_gui
 
 .. note::
 
@@ -91,12 +91,10 @@ OpenSUSE, Fedora
 
 Windows
 ^^^^^^^
-*mesycontrol* does not require any additional dependencies on Windows. Extract
-the Zip file and run the file *bin\\mesycontrol_gui.exe*.
-
-.. *mesycontrol* does not require any additional dependencies on Windows. Running
-.. the supplied installer and following the wizard should correctly install the
-.. software and create a start menu entry for the GUI application.
+*mesycontrol* does not require any additional dependencies on Windows. Simply
+run the supplied installer and start the program via the start menu link. If
+you prefer not running an installer download the zipped version of the package
+instead, unpack the archive and run the file *bin\\mesycontrol_gui.exe*.
 
 Architecture Overview
 ---------------------
