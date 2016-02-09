@@ -71,7 +71,7 @@
     <file>ui/mscf16_settings.ui</file>
     <file>ui/subprogress_widget.ui</file>
 
-    <file alias="gpl.txt">resources/gpl.txt</file>
+    <file alias="gpl-notice.txt">resources/gpl-notice.txt</file>
     <file alias="quickstart.html">resources/quickstart.html</file>
 </qresource>
 </RCC>
