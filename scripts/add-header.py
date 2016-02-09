@@ -15,18 +15,22 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     header_lines = [l for l in args.input]
+    old_header_seen    = False
     new_header_written = False
+    header_starts = ['#', '__author__', '__email__']
 
     for line in fileinput.input(args.source_files, inplace=True):
         if fileinput.isfirstline():
+            old_header_seen    = False
             new_header_written = False
 
-        if (line.startswith('#!')
-                or line.startswith('# -*- coding')
-                or line.startswith('# Author')):
-            continue
+        if not old_header_seen:
+            if any((line.startswith(s) for s in header_starts)):
+                continue
+            else:
+                old_header_seen = True
 
-        if not new_header_written:
+        if old_header_seen and not new_header_written:
             for header_line in header_lines:
                 print header_line,
             new_header_written = True
