@@ -17,16 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-#
+ 
 __author__ = 'Florian Lüke'
 __email__  = 'florianlueke@gmx.net'
-
-__author__ = 'Florian Lüke'
-__email__  = 'florianlueke@gmx.net'
-
-# TODO: liste der komischen dinge:
-# - rc_bit und scanbus output unterscheiden sich wenn am frontpanel werte veraendert wurden. ??? unklar ???
-# - discriminator_mode wechsel: LE -> CFD: fast_veto wird aktiviert, CFD -> LE: fast_veto wird deaktiviert
 
 idc = 26
 

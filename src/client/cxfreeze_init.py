@@ -21,8 +21,12 @@
 __author__ = 'Florian Lüke'
 __email__  = 'florianlueke@gmx.net'
 
-__author__ = 'Florian Lüke'
-__email__  = 'florianlueke@gmx.net'
+import encodings
+import os
+import sys
+import warnings
+import zipimport
+
 #------------------------------------------------------------------------------
 # ConsoleSetLibPath.py
 #   Initialization script for cx_Freeze which manipulates the path so that the
@@ -32,12 +36,6 @@ __email__  = 'florianlueke@gmx.net'
 # target directory are found. This requires a restart of the executable because
 # the environment variable LD_LIBRARY_PATH is only checked at startup.
 #------------------------------------------------------------------------------
-
-import encodings
-import os
-import sys
-import warnings
-import zipimport
 
 paths = os.environ.get("LD_LIBRARY_PATH", "").split(os.pathsep)
 if DIR_NAME not in paths:
