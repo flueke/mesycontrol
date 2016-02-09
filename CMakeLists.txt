@@ -7,7 +7,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 # Add the local cmake directory and the current source directory to the module
 # path. The latter is needed for CMake/CPack to find and use NSIS.template.in.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
-#list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Pull information from git:
 # GIT_SHA1 contains the complete git hash
@@ -23,7 +22,8 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 add_subdirectory(src)
 add_subdirectory(doc)
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ DESTINATION share/scripts USE_SOURCE_PERMISSIONS)
+#install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ DESTINATION share/scripts USE_SOURCE_PERMISSIONS)
+install(FILES "${CMAKE_SOURCE_DIR}/LICENSE.TXT" DESTINATION .)
 
 # CPack configuration used for 'make package'
 if (WIN32)
@@ -38,7 +38,7 @@ set(CPACK_PACKAGE_VENDOR "mesytec")
 set(CPACK_PACKAGE_EXECUTABLES "mesycontrol_gui;mesycontrol")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "mesycontrol")
 set(CPACK_OUTPUT_FILE_PREFIX "packages")
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/src/client/mesycontrol/resources/gpl.txt")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/src/client/mesycontrol/resources/gpl-notice.txt")
 set(CPACK_STRIP_FILES TRUE)
 
 if (WIN32)
@@ -50,9 +50,10 @@ if (WIN32)
     set(CPACK_NSIS_CONTACT "info@mesytec.com")
     set(CPACK_NSIS_MENU_LINKS
         "share/doc/mesycontrol.pdf" "Documentation")
-    #set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES")
+    set(CPACK_SOURCE_GENERATOR "ZIP")
 else(WIN32)
     set(CPACK_GENERATOR "TBZ2" "STGZ")
+    set(CPACK_SOURCE_GENERATOR "TBZ2")
 endif(WIN32)
 
 include(CPack)
