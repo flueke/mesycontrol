@@ -102,7 +102,7 @@ class MainWindow(QtGui.QMainWindow):
         license.setText("")
 
         try:
-            f = QtCore.QFile(":/gpl.txt")
+            f = QtCore.QFile(":/gpl-notice.txt")
             if not f.open(QtCore.QIODevice.ReadOnly | QtCore.QIODevice.Text):
                 return
             license.setText(QtCore.QString(f.readAll()))
