@@ -7,8 +7,12 @@
 
 import argparse
 import fileinput
+import logging
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    log = logging.getLogger()
+
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input', required=True, type=argparse.FileType('rb'))
     parser.add_argument('source_files', nargs=argparse.REMAINDER)
@@ -25,9 +29,11 @@ if __name__ == "__main__":
             new_header_written = False
 
         if not old_header_seen:
-            if any((line.startswith(s) for s in header_starts)):
+            if (not len(line.strip())
+                    or any((line.strip().startswith(s) for s in header_starts))):
                 continue
             else:
+                log.debug("Last line of old header: %s", line)
                 old_header_seen = True
 
         if old_header_seen and not new_header_written:
