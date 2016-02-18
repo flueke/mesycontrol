@@ -25,6 +25,18 @@ idc = 21
 
 NUM_CHANNELS = 4
 
+OUTPUT_RANGES  = {
+        0: '4 V',
+        1: '8 V'
+        }
+
+OUTPUT_SOURCES = {
+        0: 'neutrons',
+        1: 'gammas',
+        2: 'reject',
+        3: 'all (n+g)'
+        }
+
 profile_dict = {
         'name': 'MPD-4',
         'idc': idc,

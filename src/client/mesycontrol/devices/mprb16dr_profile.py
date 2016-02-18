@@ -24,7 +24,7 @@ __email__  = 'florianlueke@gmx.net'
 voltage_10  = { 'label': 'V',       'name': 'volt',             'factor': 10.0 }
 nanoamps    = { 'label': 'nA',      'name': 'nanoamps' } # TODO: factor & offset
 
-idc = 25
+idc = 28
 
 NUM_CHANNELS = 16
 
@@ -40,7 +40,7 @@ PREAMP_RANGES = {
         }
 
 profile_dict = {
-        'name': 'MPRB-16',
+        'name': 'MPRB-16-DR',
         'idc': idc,
         'parameters':
 

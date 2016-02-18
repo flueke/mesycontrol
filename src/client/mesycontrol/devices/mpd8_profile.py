@@ -25,6 +25,13 @@ idc = 24
 
 NUM_CHANNELS = 8
 
+OUTPUT_SOURCES = {
+        0: 'neutrons',
+        1: 'gammas',
+        2: 'reject',
+        3: 'all (n+g)'
+        }
+
 profile_dict = {
         'name': 'MPD-8',
         'idc': idc,
@@ -44,7 +51,7 @@ profile_dict = {
             { 'address': 34, 'name': 'output_source_a', 'range': (0, 3), 'default': 3 },
 
             # 0=neutrons, 1=reject
-            { 'address': 35, 'name': 'output_source_b', 'range': (0, 1), 'default': 0 },
+            { 'address': 35, 'name': 'output_source_b', 'range': (0, 3), 'default': 3 },
 
             # 100=no correction
             { 'address': 48, 'name': 'qwin0', 'index': 0, 'range': (0, 200) },

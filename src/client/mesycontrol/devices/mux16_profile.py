@@ -23,6 +23,11 @@ __email__  = 'florianlueke@gmx.net'
 
 idc = 23
 
+POLARITY = {
+        0: 'positive',
+        1: 'negative'
+        }
+
 profile_dict = {
         'name': 'MUX-16',
         'idc': idc,
@@ -33,11 +38,11 @@ profile_dict = {
             # 0=positive, 1=negative
             { 'address': 1, 'name': 'polarity', 'range': (0, 1) },
 
-            # ???
+            # range
             { 'address': 2, 'name': 'range', 'range': (0, 7) },
 
             # 4095 is about 80% of full range
-            { 'address': 2, 'threshold': 'range', 'range': (0, 4095) },
+            { 'address': 3, 'threshold': 'range', 'range': (0, 4095) },
             ],
 
         'extensions': [
