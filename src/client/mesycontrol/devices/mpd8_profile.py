@@ -36,9 +36,9 @@ profile_dict = {
         'name': 'MPD-8',
         'idc': idc,
         'parameters':
-        [ { 'address': i, 'name': 'ndis%d' % i, 'index': i, 'range': (0, 255) } for i in range(NUM_CHANNELS) ]
+        [ { 'address': i, 'name': 'ndis%d' % i, 'index': i, 'range': (0, 200), 'default': 100 } for i in range(NUM_CHANNELS) ]
         +
-        [ { 'address': i+8,  'name': 'walk%d' % i, 'index': i, 'range': (0, 200) } for i in range(NUM_CHANNELS) ]
+        [ { 'address': i+8,  'name': 'walk%d' % i, 'index': i, 'range': (0, 200), 'default': 100 } for i in range(NUM_CHANNELS) ]
         +
         [
             { 'address': 16, 'name': 'threshold_common', 'range': (0, 255) },
@@ -53,9 +53,10 @@ profile_dict = {
             # 0=neutrons, 1=reject
             { 'address': 35, 'name': 'output_source_b', 'range': (0, 3), 'default': 3 },
 
-            # 100=no correction
-            { 'address': 48, 'name': 'qwin0', 'index': 0, 'range': (0, 200) },
-            ],
+            ]
+        +
+        # 100=no correction
+        [ { 'address': i+48, 'name': 'qwin%d' % i, 'index': i, 'range': (0, 200), 'default': 100 } for i in range(NUM_CHANNELS) ],
 
         'extensions': [
             ],
