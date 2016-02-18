@@ -19,7 +19,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 __author__ = 'Florian Lüke'
-__email__  = 'florianlueke@gmx.net'
+__email__  = 'f.lueke@mesytec.com'
 
 import mpd4_profile
 

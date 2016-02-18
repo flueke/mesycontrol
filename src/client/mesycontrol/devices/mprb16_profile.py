@@ -19,7 +19,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 __author__ = 'Florian Lüke'
-__email__  = 'florianlueke@gmx.net'
+__email__  = 'f.lueke@mesytec.com'
 
 voltage_10  = { 'label': 'V',       'name': 'volt',             'factor': 10.0 }
 nanoamps    = { 'label': 'nA',      'name': 'nanoamps', 'offset': 2048 } # TODO: factor
