@@ -42,7 +42,7 @@ profile_dict = {
             { 'address': 2, 'name': 'range', 'range': (0, 7) },
 
             # 4095 is about 80% of full range
-            { 'address': 3, 'threshold': 'range', 'range': (0, 4095) },
+            { 'address': 3, 'name': 'threshold', 'range': (0, 4095) },
             ],
 
         'extensions': [

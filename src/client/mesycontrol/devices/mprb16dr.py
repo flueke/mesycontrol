@@ -21,14 +21,7 @@
 __author__ = 'Florian Lüke'
 __email__  = 'florianlueke@gmx.net'
 
-__all__ = [
-    'mcfd16',
-    'mhv4' ,
-    'mpd4',
-    'mpd8',
-    'mprb16',
-    'mprb16dr',
-    'mscf16',
-    'mux16',
-    'stm16',
-    ]
+import mprb16dr_profile
+
+idc = mprb16dr_profile.idc
+profile_dict = mprb16dr_profile.profile_dict
