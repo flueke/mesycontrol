@@ -48,11 +48,10 @@ profile_dict = {
             for i in range(NUM_CHANNELS) ]
         +
         [
-            { 'address': 16, 'name': 'sum_current', 'range': (0, 6000), 'units': [nanoamps], 'read_only': True },
+            { 'address': 16, 'name': 'sum_current', 'range': (0, 6000), 'units': [nanoamps], 'read_only': True, 'poll': True },
             # 17 is pre-voltage (factory use only)
-
-            { 'address': 18, 'name': 'temperature', 'read_only': True }, # TODO: units
-            { 'address': 21, 'name': 'error_code', 'read_only': True },
+            { 'address': 18, 'name': 'temperature', 'read_only': True, 'poll': True }, # TODO: units
+            { 'address': 21, 'name': 'error_code', 'read_only': True, 'poll': True },
             { 'address': 22, 'name': 'temp_slope', 'range': (0, 255), 'default': 128 },
             { 'address': 23, 'name': 'temp_offset', 'range': (0, 255), 'default': 128 },
             { 'address': 24, 'name': 'ramp_up_down', 'range': (0, 1) },
