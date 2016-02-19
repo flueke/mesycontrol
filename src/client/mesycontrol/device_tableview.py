@@ -250,15 +250,16 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 and hw is not None
                 and hw.is_connected()
                 and not hw.address_conflict
-                and pp is not None 
-                and not pp.read_only
+                and ((pp is not None and not pp.read_only)
+                    or pp is None)
                 and hw.has_cached_parameter(row)):
             flags |= Qt.ItemIsEditable
 
         if (col == COL_CFG_VALUE
-                and pp is not None
-                and not pp.read_only
-                and not pp.do_not_store):
+                and (pp is not None
+                    and not pp.read_only
+                    and not pp.do_not_store)
+                or (pp is None)):
             flags |= Qt.ItemIsEditable
 
         return flags
