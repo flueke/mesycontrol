@@ -43,6 +43,7 @@ import zipimport
 
 FILE_NAME = sys.executable
 DIR_NAME = os.path.dirname(FILE_NAME)
+INITSCRIPT_ZIP_FILE_NAME = os.path.dirname(os.__file__)
 
 paths = os.environ.get("LD_LIBRARY_PATH", "").split(os.pathsep)
 if DIR_NAME not in paths:
