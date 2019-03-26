@@ -1096,7 +1096,6 @@ class TimingPage(QtGui.QGroupBox):
                 hw_info = HardwareInfo()
 
             en = hw_info.has_upper_thresholds()
-            self.log.debug("_hardware_info_cb invoked, has_upper_thresholds=%d", en)
             self.upper_threshold_common.setEnabled(en)
             self.upper_threshold_common_button.setEnabled(en)
             for widget in self.upper_threshold_inputs:
