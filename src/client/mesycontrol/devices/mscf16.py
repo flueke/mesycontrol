@@ -75,6 +75,7 @@ class HardwareInfo(object):
     LN_TYPE         = 1 << 0
     HW_GE_V4        = 1 << 1
     INTEGRATING     = 1 << 2
+    WINDIS        = 1 << 3
     SUMDIS          = 1 << 6
 
     def __init__(self, hw_info=None):
@@ -94,6 +95,9 @@ class HardwareInfo(object):
 
     def has_sumdis(self):
         return self.is_valid() and self.info & HardwareInfo.SUMDIS
+
+    def has_upper_thresholds(self):
+        return self.is_valid() and self.info & HardwareInfo.WINDIS
 
     def __and__(self, other):
         return self.info & other
@@ -377,6 +381,11 @@ class MSCF16(DeviceBase):
         return self._apply_common_to_single(
                 'threshold_common', 'threshold_channel%d', NUM_CHANNELS)
 
+    # ===== upper threshold =====
+    def apply_upper_common_threshold(self):
+        return self._apply_common_to_single(
+                'upper_threshold_common', 'upper_threshold_channel%d', NUM_CHANNELS)
+
     # ===== copy function =====
     def perform_copy_function(self, copy_function):
         """Performs one of the MSCF copy functions as defined in CopyFunction.
@@ -480,7 +489,7 @@ class MSCF16(DeviceBase):
 
         return ret
 
-# ==========  GUI ========== 
+# ==========  GUI ==========
 dynamic_label_style = "QLabel { background-color: lightgrey; }"
 
 class MSCF16Widget(DeviceWidgetBase):
@@ -902,8 +911,11 @@ class TimingPage(QtGui.QGroupBox):
 
         self.threshold_inputs = list()
         self.threshold_labels = list()
+        self.upper_threshold_inputs = list()
+        self.upper_threshold_labels = list()
         self.bindings         = list()
 
+        # lower thresholds
         self.threshold_common = make_spinbox(limits=device.profile['threshold_common'].range.to_tuple())
         self.threshold_common = util.DelayedSpinBox()
 
@@ -917,45 +929,76 @@ class TimingPage(QtGui.QGroupBox):
         threshold_common_layout, self.threshold_common_button = util.make_apply_common_button_layout(
                 self.threshold_common, "Apply to channels", self._apply_common_threshold)
 
+        # upper thresholds
+        self.upper_threshold_common = make_spinbox(limits=device.profile['upper_threshold_common'].range.to_tuple())
+        self.upper_threshold_common = util.DelayedSpinBox()
+
+        self.bindings.append(pb.factory.make_binding(
+            device=device,
+            profile=device.profile['upper_threshold_common'],
+            display_mode=display_mode,
+            write_mode=write_mode,
+            target=self.upper_threshold_common))
+
+        upper_threshold_common_layout, self.upper_threshold_common_button = util.make_apply_common_button_layout(
+                self.upper_threshold_common, "Apply to channels", self._apply_upper_common_threshold)
+
+        # populate the grid layout: left side is for the lower, right side for the upper thresholds
         layout = QtGui.QGridLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
+
         layout.addWidget(QtGui.QLabel("Common"), 0, 0, 1, 1, Qt.AlignRight)
         layout.addLayout(threshold_common_layout, 0, 1)
 
+        layout.addWidget(QtGui.QLabel("Common"), 0, 3, 1, 1, Qt.AlignRight)
+        layout.addLayout(upper_threshold_common_layout, 0, 4)
+
         layout.addWidget(make_title_label("Chan"),   1, 0, 1, 1, Qt.AlignRight)
-        layout.addWidget(make_title_label("Threshold"), 1, 1)
+        layout.addWidget(make_title_label("Lower Threshold"), 1, 1)
 
-        for chan in range(NUM_CHANNELS):
-            offset  = 2
-            descr_label     = QtGui.QLabel("%d" % chan)
-            spin_threshold  = util.DelayedSpinBox()
-            label_threshold = QtGui.QLabel()
-            label_threshold.setStyleSheet(dynamic_label_style)
+        layout.addWidget(make_title_label("Chan"),   1, 3, 1, 1, Qt.AlignRight)
+        layout.addWidget(make_title_label("Upper Threshold"), 1, 4)
 
-            layout.addWidget(descr_label,       chan+offset, 0, 1, 1, Qt.AlignRight)
-            layout.addWidget(spin_threshold,    chan+offset, 1)
-            layout.addWidget(label_threshold,   chan+offset, 2)
+        info_dicts = (dict(prefix='', coloff=0), dict(prefix='upper_', coloff=3))
 
-            self.threshold_inputs.append(spin_threshold)
-            self.threshold_labels.append(label_threshold)
+        for info in info_dicts:
+            is_upper = True if info['prefix'] == 'upper_' else False
+            coffset = info['coloff']
 
-            self.bindings.append(pb.factory.make_binding(
-                device=device,
-                profile=device.profile['threshold_channel%d' % chan],
-                display_mode=display_mode,
-                write_mode=write_mode,
-                target=spin_threshold))
+            for chan in range(NUM_CHANNELS):
+                offset  = 2
+                descr_label     = QtGui.QLabel("%d" % chan)
+                spin_threshold  = util.DelayedSpinBox()
+                label_threshold = QtGui.QLabel()
+                label_threshold.setStyleSheet(dynamic_label_style)
 
-            self.bindings.append(pb.factory.make_binding(
-                device=device,
-                profile=device.profile['threshold_channel%d' % chan],
-                display_mode=display_mode,
-                write_mode=write_mode,
-                target=label_threshold,
-                unit_name='percent'))
+                layout.addWidget(descr_label,       chan+offset, 0+coffset, 1, 1, Qt.AlignRight)
+                layout.addWidget(spin_threshold,    chan+offset, 1+coffset)
+                layout.addWidget(label_threshold,   chan+offset, 2+coffset)
 
+                if not is_upper:
+                    self.threshold_inputs.append(spin_threshold)
+                    self.threshold_labels.append(label_threshold)
+                else:
+                    self.upper_threshold_inputs.append(spin_threshold)
+                    self.upper_threshold_labels.append(label_threshold)
 
-        layout.addWidget(hline(), layout.rowCount(), 0, 1, 3)
+                self.bindings.append(pb.factory.make_binding(
+                    device=device,
+                    profile=device.profile['%sthreshold_channel%d' % (info['prefix'], chan)],
+                    display_mode=display_mode,
+                    write_mode=write_mode,
+                    target=spin_threshold))
+
+                self.bindings.append(pb.factory.make_binding(
+                    device=device,
+                    profile=device.profile['%sthreshold_channel%d' % (info['prefix'], chan)],
+                    display_mode=display_mode,
+                    write_mode=write_mode,
+                    target=label_threshold,
+                    unit_name='percent'))
+
+        layout.addWidget(hline(), layout.rowCount(), 0, 1, 6)
 
         self.spin_threshold_offset = util.DelayedSpinBox()
         self.label_threshold_offset = QtGui.QLabel()
@@ -1002,9 +1045,21 @@ class TimingPage(QtGui.QGroupBox):
         layout.addWidget(QtGui.QLabel("TF int. time"),  row, 0)
         layout.addWidget(self.spin_tf_int_time,         row, 1)
 
+        self.bindings.append(pb.factory.make_binding(
+            device=device,
+            profile=device.profile['hardware_info'],
+            display_mode=util.HARDWARE,
+            fixed_modes=True,
+            ).add_update_callback(
+                self._hardware_info_cb))
+
     @future_progress_dialog()
     def _apply_common_threshold(self):
         return self.device.apply_common_threshold()
+
+    @future_progress_dialog()
+    def _apply_upper_common_threshold(self):
+        return self.device.apply_upper_common_threshold()
 
     def _ecl_delay_enable_cb(self, param_future):
         def done(f):
@@ -1031,6 +1086,22 @@ class TimingPage(QtGui.QGroupBox):
     def _threshold_offset_cb(self, f):
         value = int(f.result()) - 100
         self.label_threshold_offset.setText("%d" % value)
+
+    def _hardware_info_cb(self, read_mem_future):
+        def done(getter_future):
+            try:
+                hw_info = getter_future.result()
+            except Exception:
+                hw_info = HardwareInfo()
+
+            en = hw_info.has_upper_thresholds()
+            self.upper_threshold_common.setEnabled(en)
+            self.upper_threshold_common_button.setEnabled(en)
+            for widget in self.upper_threshold_inputs:
+                widget.setEnabled(en)
+
+        self.device.get_hardware_info().add_done_callback(done)
+
 
     def handle_hardware_connected_changed(self, connected):
         if self.device.read_mode & util.HARDWARE:
@@ -1072,7 +1143,8 @@ class HardwareInfoWidget(QtGui.QWidget):
                 HardwareInfo.LN_TYPE:       ReadOnlyCheckBox("LN type", toolTip="Low Noise Type"),
                 HardwareInfo.INTEGRATING:   ReadOnlyCheckBox("Integrating", toolTip="Charge integrating"),
                 HardwareInfo.HW_GE_V4:      ReadOnlyCheckBox("HW >= 4", toolTip="Hardware version >= 4"),
-                HardwareInfo.SUMDIS:        ReadOnlyCheckBox("SumDis", toolTip="Sum Discriminator")
+                HardwareInfo.SUMDIS:        ReadOnlyCheckBox("SumDis", toolTip="Sum Discriminator"),
+                HardwareInfo.WINDIS:        ReadOnlyCheckBox("WinDis", toolTip="Window Discriminator"),
                 }
 
         for cb in self.checkboxes.itervalues():
@@ -1088,6 +1160,7 @@ class HardwareInfoWidget(QtGui.QWidget):
         layout.addWidget(self.checkboxes[HardwareInfo.LN_TYPE], 0, 1)
         layout.addWidget(self.checkboxes[HardwareInfo.INTEGRATING], 1, 0)
         layout.addWidget(self.checkboxes[HardwareInfo.SUMDIS], 1, 1)
+        layout.addWidget(self.checkboxes[HardwareInfo.WINDIS], 2, 0)
 
     def set_hardware_info(self, hw_info):
         for bit, checkbox in self.checkboxes.iteritems():
@@ -1289,7 +1362,7 @@ class MiscPage(QtGui.QWidget):
         more_box = QtGui.QGroupBox("More")
         more_layout = QtGui.QFormLayout(more_box)
         more_layout.setContentsMargins(2, 2, 2, 2)
-        more_layout.addRow("Sumdis Threshold", self.spin_sumdis_threshold)
+        more_layout.addRow("SumDis Threshold", self.spin_sumdis_threshold)
 
         layout.addWidget(trigger_box)
         layout.addWidget(monitor_box)

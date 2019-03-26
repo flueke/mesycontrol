@@ -22,6 +22,7 @@ __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
 threshold_percent = { 'label': '%', 'name': 'percent', 'factor': 256/30.0 }
+upper_threshold_percent = { 'label': '%', 'name': 'percent', 'factor': 256/10.0 }
 
 # Note: The major part of the fpga version equals the hardware version.
 # Note2: The fpga version is only readable if the software version is >= 5.3.
@@ -60,7 +61,7 @@ profile_dict = {
             { 'address': 3, 'name': 'gain_group3', 'index': 3, 'range': (0, 15)},
             { 'address': 4, 'name': 'gain_common', 'range': (0, 15)},
 
-            # Threshold
+            # Lower Thresholds
             { 'address':  5, 'name': 'threshold_channel0' , 'index': 0,  'range': (0, 255), 'units': [threshold_percent] },
             { 'address':  6, 'name': 'threshold_channel1' , 'index': 1,  'range': (0, 255), 'units': [threshold_percent] },
             { 'address':  7, 'name': 'threshold_channel2' , 'index': 2,  'range': (0, 255), 'units': [threshold_percent] },
@@ -78,6 +79,26 @@ profile_dict = {
             { 'address': 19, 'name': 'threshold_channel14', 'index': 14, 'range': (0, 255), 'units': [threshold_percent] },
             { 'address': 20, 'name': 'threshold_channel15', 'index': 15, 'range': (0, 255), 'units': [threshold_percent] },
             { 'address': 21, 'name': 'threshold_common'   ,              'range': (0, 255), 'units': [threshold_percent] },
+
+            # Upper Thresholds (since 19/03, Firmware Version FIXME)
+            # Only available if the WD (Window Discriminator) bit is set in the hardware_info register.
+            { 'address': 110, 'name': 'upper_threshold_channel0' , 'index': 0,  'range': (0, 255), 'units': [upper_threshold_percent] },
+            { 'address': 111, 'name': 'upper_threshold_channel1' , 'index': 1,  'range': (0, 255), 'units': [upper_threshold_percent] },
+            { 'address': 112, 'name': 'upper_threshold_channel2' , 'index': 2,  'range': (0, 255), 'units': [upper_threshold_percent] },
+            { 'address': 113, 'name': 'upper_threshold_channel3' , 'index': 3,  'range': (0, 255), 'units': [upper_threshold_percent] },
+            { 'address': 114, 'name': 'upper_threshold_channel4' , 'index': 4,  'range': (0, 255), 'units': [upper_threshold_percent] },
+            { 'address': 115, 'name': 'upper_threshold_channel5' , 'index': 5,  'range': (0, 255), 'units': [upper_threshold_percent] },
+            { 'address': 116, 'name': 'upper_threshold_channel6' , 'index': 6,  'range': (0, 255), 'units': [upper_threshold_percent] },
+            { 'address': 117, 'name': 'upper_threshold_channel7' , 'index': 7,  'range': (0, 255), 'units': [upper_threshold_percent] },
+            { 'address': 118, 'name': 'upper_threshold_channel8' , 'index': 8,  'range': (0, 255), 'units': [upper_threshold_percent] },
+            { 'address': 119, 'name': 'upper_threshold_channel9',  'index': 9,  'range': (0, 255), 'units': [upper_threshold_percent] },
+            { 'address': 120, 'name': 'upper_threshold_channel10', 'index': 10, 'range': (0, 255), 'units': [upper_threshold_percent] },
+            { 'address': 121, 'name': 'upper_threshold_channel11', 'index': 11, 'range': (0, 255), 'units': [upper_threshold_percent] },
+            { 'address': 122, 'name': 'upper_threshold_channel12', 'index': 12, 'range': (0, 255), 'units': [upper_threshold_percent] },
+            { 'address': 123, 'name': 'upper_threshold_channel13', 'index': 13, 'range': (0, 255), 'units': [upper_threshold_percent] },
+            { 'address': 124, 'name': 'upper_threshold_channel14', 'index': 14, 'range': (0, 255), 'units': [upper_threshold_percent] },
+            { 'address': 125, 'name': 'upper_threshold_channel15', 'index': 15, 'range': (0, 255), 'units': [upper_threshold_percent] },
+            { 'address': 126, 'name': 'upper_threshold_common'   ,              'range': (0, 255), 'units': [upper_threshold_percent] },
 
             # PZ value
             { 'address': 22, 'name': 'pz_value_channel0' , 'index': 0,  'range': (0, 255) },
@@ -150,7 +171,11 @@ profile_dict = {
             { 'address':100, 'name': 'auto_pz', 'poll': True, 'do_not_store': True },
 
             # Hardware info register:
-            # 8 bits: [- | SumDis | - | - | - | Integrating | >= V4 | LN type ]
+            # 8 bits: [- | SumDis | - | - | WD | Integrating | >= V4 | LN type ]
+            #         [7 | 6      | 5 | 4 | 3  | 2           | 1     | 0       ]
+            # WD (Window Discriminator) is new in version FIXME: 5.5 or so. If
+            # the bit is set the upper_threshold_* values are available.
+
             { 'address': 253, 'name': 'hardware_info',          'read_only': True }, # sw version >= 5.3
 
             # 256 * major + minor
