@@ -77,7 +77,7 @@ class MRC1Initializer:
         m_init_data.pop_front();
       } else {
         BOOST_LOG_SEV(m_log, log::lvl::info) << "init data write error. message:   " << ec.message();
-        BOOST_LOG_SEV(m_log, log::lvl::info) << "init data write error. condition: " << ec.default_error_condition();
+        BOOST_LOG_SEV(m_log, log::lvl::info) << "init data write error. condition: " << ec.default_error_condition().message();
 
         /* Translate operation_canceled from the timeout handler to a timed_out error. */
         if (ec == errc::operation_canceled)
@@ -102,7 +102,7 @@ class MRC1Initializer:
           check_result(); // done
       } else {
         BOOST_LOG_SEV(m_log, log::lvl::info) << "init data read error. message:   " << ec.message();
-        BOOST_LOG_SEV(m_log, log::lvl::info) << "init data read error. condition: " << ec.default_error_condition();
+        BOOST_LOG_SEV(m_log, log::lvl::info) << "init data read error. condition: " << ec.default_error_condition().message();
         m_completion_handler(ec);
       }
     }
@@ -127,7 +127,7 @@ class MRC1Initializer:
         boost::find_format_all(last_line_escaped, boost::token_finder(!boost::is_print()), character_escaper());
         BOOST_LOG_SEV(m_log, log::lvl::error) << "init failed, last mrc output: " << last_line_escaped;
         // signal failure using a boost system error_code
-        m_completion_handler(boost::system::error_code(errc::io_error, boost::system::system_category())); 
+        m_completion_handler(boost::system::error_code(errc::io_error, boost::system::system_category()));
       }
     }
 

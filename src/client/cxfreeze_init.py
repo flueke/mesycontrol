@@ -37,6 +37,10 @@ import zipimport
 # the environment variable LD_LIBRARY_PATH is only checked at startup.
 #------------------------------------------------------------------------------
 
+FILE_NAME = sys.executable
+DIR_NAME = os.path.dirname(FILE_NAME)
+INITSCRIPT_ZIP_FILE_NAME = os.path.dirname(os.__file__)
+
 paths = os.environ.get("LD_LIBRARY_PATH", "").split(os.pathsep)
 if DIR_NAME not in paths:
     paths.insert(0, DIR_NAME)
@@ -51,11 +55,8 @@ os.environ["TK_LIBRARY"] = os.path.join(DIR_NAME, "tk")
 
 m = __import__("__main__")
 importer = zipimport.zipimporter(INITSCRIPT_ZIP_FILE_NAME)
-if INITSCRIPT_ZIP_FILE_NAME != SHARED_ZIP_FILE_NAME:
-    moduleName = m.__name__
-else:
-    name, ext = os.path.splitext(os.path.basename(os.path.normcase(FILE_NAME)))
-    moduleName = "%s__main__" % name
+name, ext = os.path.splitext(os.path.basename(os.path.normcase(FILE_NAME)))
+moduleName = "%s__main__" % name
 code = importer.get_code(moduleName)
 exec code in m.__dict__
 
