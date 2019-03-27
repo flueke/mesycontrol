@@ -914,6 +914,7 @@ class TimingPage(QtGui.QGroupBox):
         self.upper_threshold_inputs = list()
         self.upper_threshold_labels = list()
         self.bindings         = list()
+        self.log    = util.make_logging_source_adapter(__name__, self)
 
         # lower thresholds
         self.threshold_common = make_spinbox(limits=device.profile['threshold_common'].range.to_tuple())
@@ -1095,6 +1096,7 @@ class TimingPage(QtGui.QGroupBox):
                 hw_info = HardwareInfo()
 
             en = hw_info.has_upper_thresholds()
+            self.log.debug("_hardware_info_cb invoked, has_upper_thresholds=%d", en)
             self.upper_threshold_common.setEnabled(en)
             self.upper_threshold_common_button.setEnabled(en)
             for widget in self.upper_threshold_inputs:
@@ -1106,6 +1108,7 @@ class TimingPage(QtGui.QGroupBox):
     def handle_hardware_connected_changed(self, connected):
         if self.device.read_mode & util.HARDWARE:
             self.threshold_common_button.setEnabled(connected)
+            self.upper_threshold_common_button.setEnabled(connected)
 
 class ChannelModeBinding(pb.AbstractParameterBinding):
     def __init__(self, **kwargs):
