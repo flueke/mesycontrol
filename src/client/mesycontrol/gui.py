@@ -420,7 +420,7 @@ class GUIApplication(QtCore.QObject):
 
         # Quit
         action = QtGui.QAction("&Quit", self, triggered=self.mainwindow.close)
-        action.setShortcut(QtGui.QKeySequence.Quit)
+        action.setShortcut("Ctrl+Q")
         action.setShortcutContext(Qt.ApplicationShortcut)
         self.actions['quit'] = action
 

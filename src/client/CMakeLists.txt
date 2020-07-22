@@ -97,6 +97,8 @@ set(PYTHON_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/ui/mhv4_channel_settings.ui"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/ui/mhv4_channel.ui"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/ui/mhv4_global_settings.ui"
+    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/ui/mhv4_v20_channel.ui"
+    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/ui/mhv4_v20_settings.ui"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/ui/mscf16_settings.ui"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/ui/subprogress_widget.ui"
 )
