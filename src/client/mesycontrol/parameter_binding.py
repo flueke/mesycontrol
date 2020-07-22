@@ -252,7 +252,7 @@ class AbstractParameterBinding(object):
             old_hw.parameter_changed.disconnect(self._on_hw_parameter_changed)
             old_hw.disconnected.disconnect(self.populate)
             old_hw.connected.disconnect(self.populate)
-            
+
         if new_hw is not None:
             new_hw.parameter_changed.connect(self._on_hw_parameter_changed)
             new_hw.disconnected.connect(self.populate)

@@ -123,7 +123,7 @@ add_custom_command(
 
 add_custom_command(
     OUTPUT ${QRC_OUT}
-    COMMAND ${PYRCC} ${QRC_IN} -o ${QRC_OUT} 
+    COMMAND ${PYRCC} ${QRC_IN} -o ${QRC_OUT}
     DEPENDS ${QRC_IN})
 
 add_custom_command(

@@ -61,7 +61,7 @@ MAX_VOLTAGE_V  = 800.0
 
 Polarity = mhv4_profile.Polarity
 
-# ==========  Device ========== 
+# ==========  Device ==========
 class MHV4(DeviceBase):
     def __init__(self, app_device, display_mode, write_mode, parent=None):
         super(MHV4, self).__init__(app_device, display_mode, write_mode, parent)
@@ -76,7 +76,7 @@ class MHV4(DeviceBase):
             index = self.profile[address].index
             self.set_parameter('channel%d_voltage_write' % index, 0)
 
-# ==========  GUI ========== 
+# ==========  GUI ==========
 class WheelEventFilter(QtCore.QObject):
     """Event filter to filter out QEvent::Wheel events."""
     def __init__(self, parent=None):
@@ -159,7 +159,7 @@ class ChannelWidget(QtGui.QWidget):
             write_mode=write_mode,
             target=self.slider_target_voltage,
             unit_name='volt', update_on='slider_released'))
-        
+
         # Polarity
         self.bindings.append(PolarityLabelBinding(
             device=device, profile=pb.ReadWriteProfile(
@@ -180,7 +180,7 @@ class ChannelWidget(QtGui.QWidget):
                 device.profile['channel%d_enable_read' % channel],
                 device.profile['channel%d_enable_write' % channel]),
             target=self.pb_channelstate, display_mode=display_mode, write_mode=write_mode))
-            
+
         # Voltage
         self.bindings.append(pb.factory.make_binding(
             device=device, profile=device.profile['channel%d_voltage_read' % channel],
@@ -519,7 +519,7 @@ class MHV4Widget(DeviceWidgetBase):
 
             self.channels.append(weakref.ref(channel_widget))
 
-        layout = QtGui.QVBoxLayout() 
+        layout = QtGui.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(channel_layout)
 
