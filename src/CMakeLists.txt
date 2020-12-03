@@ -7,7 +7,15 @@ set(PROTOBUF_IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
-add_subdirectory(server)
-add_subdirectory(client)
+option(MESYCONTROL_BUILD_SERVER "Build the mesycontrol server binary" ON)
+option(MESYCONTROL_BUILD_GUI "Build the mesycontrol GUI client" ON)
+
+if (MESYCONTROL_BUILD_SERVER)
+	add_subdirectory(server)
+endif()
+
+if (MESYCONTROL_BUILD_CLIENT)
+	add_subdirectory(client)
+endif()
 
 # vim:tw=0
