@@ -68,6 +68,8 @@
     <file>ui/mhv4_channel_settings.ui</file>
     <file>ui/mhv4_channel.ui</file>
     <file>ui/mhv4_global_settings.ui</file>
+    <file>ui/mhv4_v20_channel.ui</file>
+    <file>ui/mhv4_v20_settings.ui</file>
     <file>ui/mscf16_settings.ui</file>
     <file>ui/subprogress_widget.ui</file>
 

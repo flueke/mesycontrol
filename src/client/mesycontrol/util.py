@@ -560,7 +560,7 @@ class OrderedSet(collections.MutableSet):
             curr[2] = end[1] = self.map[key] = [key, curr, end]
 
     def discard(self, key):
-        if key in self.map:        
+        if key in self.map:
             key, prev, next = self.map.pop(key)
             prev[2] = next
             next[1] = prev

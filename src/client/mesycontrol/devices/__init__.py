@@ -24,6 +24,7 @@ __email__  = 'f.lueke@mesytec.com'
 __all__ = [
     'mcfd16',
     'mhv4' ,
+    'mhv4_v20' ,
     'mpd4',
     'mpd8',
     'mprb16',

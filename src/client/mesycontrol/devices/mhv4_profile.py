@@ -44,7 +44,7 @@ profile_dict = {
         'name': 'MHV-4',
         'idc': idc,
         'parameters': [
-            # Enable. Mark channel enable setting as critical. 
+            # Enable. Mark channel enable setting as critical.
             { 'address': 4,   'name': 'channel0_enable_write', 'index': 0, 'critical': True, 'default': 0 },
             { 'address': 5,   'name': 'channel1_enable_write', 'index': 1, 'critical': True, 'default': 0 },
             { 'address': 6,   'name': 'channel2_enable_write', 'index': 2, 'critical': True, 'default': 0 },

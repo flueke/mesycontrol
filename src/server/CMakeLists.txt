@@ -75,6 +75,10 @@ else(WIN32)
     target_link_libraries(${MESYCONTROL_SERVER_TARGET} rt)
 endif(WIN32)
 
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "armv7l")
+    target_link_libraries(${MESYCONTROL_SERVER_TARGET} atomic)
+endif()
+
 install(TARGETS ${MESYCONTROL_SERVER_TARGET} RUNTIME DESTINATION bin)
 
 if(WIN32)
