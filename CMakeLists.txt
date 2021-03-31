@@ -27,6 +27,21 @@ add_subdirectory(doc)
 #install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ DESTINATION share/scripts USE_SOURCE_PERMISSIONS)
 install(FILES "${CMAKE_SOURCE_DIR}/LICENSE.TXT" DESTINATION .)
 
+
+if ("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
+    set(PACKAGE_ARCH_STRING "x64")
+else()
+    set(PACKAGE_ARCH_STRING "x32")
+endif()
+
+# Note: To produce stand-alone packages additional files need to be deployed to
+# the target system: shared objects, Qt plugins, Qt configuration, shell
+# scripts, etc.
+#
+# These files are handled using an external deploy directory which is added via
+# the install() command.
+#option(MESYCONTROL_INSTALL_DEPLOY_FILES "Install additional library files from a special deploy directory." OFF)
+
 # CPack configuration used for 'make package'
 if (WIN32)
   set(CPACK_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${GIT_VERSION}")
@@ -53,9 +68,20 @@ if (WIN32)
     set(CPACK_NSIS_MENU_LINKS
         "share/doc/mesycontrol.pdf" "Documentation")
     set(CPACK_SOURCE_GENERATOR "ZIP")
-else(WIN32)
-    set(CPACK_GENERATOR "TBZ2" "STGZ")
-    set(CPACK_SOURCE_GENERATOR "TBZ2")
+else()
+    # This was intended for the Qt4 deploy files but these are now handled in the generated setup.py distutils script.
+    #if (MESYCONTROL_INSTALL_DEPLOY_FILES)
+
+    #    set(DEPLOY_SOURCE_DIR "$ENV{HOME}/src/mesycontrol-deploy/linux-${PACKAGE_ARCH_STRING}/")
+    #    message("DEPLOY_SOURCE_DIR=${DEPLOY_SOURCE_DIR}")
+
+    #    if (EXISTS $DEPLOY_SOURCE_DIR)
+    #        # Install additional deployment files: shared objects, qt plugins, etc.
+    #        install(DIRECTORY ${DEPLOY_SOURCE_DIR} DESTINATION .  USE_SOURCE_PERMISSIONS)
+    #    endif()
+    #endif()
+    set(CPACK_GENERATOR "TBZ2")
+    #set(CPACK_SOURCE_GENERATOR "TBZ2")
 endif(WIN32)
 
 include(CPack)

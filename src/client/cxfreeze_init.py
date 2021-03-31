@@ -37,9 +37,12 @@ import zipimport
 # the environment variable LD_LIBRARY_PATH is only checked at startup.
 #------------------------------------------------------------------------------
 
+# Note (flueke):
+# DIR_NAME refers to the subdirectory created by  cx_freeze, e.g.
+# 'mesycontrol-1.0.6.1-2-gc73acbe'
+
 FILE_NAME = sys.executable
 DIR_NAME = os.path.dirname(FILE_NAME)
-INITSCRIPT_ZIP_FILE_NAME = os.path.dirname(os.__file__)
 
 paths = os.environ.get("LD_LIBRARY_PATH", "").split(os.pathsep)
 if DIR_NAME not in paths:
@@ -52,6 +55,8 @@ sys.path = sys.path[:4]
 
 os.environ["TCL_LIBRARY"] = os.path.join(DIR_NAME, "tcl")
 os.environ["TK_LIBRARY"] = os.path.join(DIR_NAME, "tk")
+
+INITSCRIPT_ZIP_FILE_NAME = os.path.dirname(os.__file__)
 
 m = __import__("__main__")
 importer = zipimport.zipimporter(INITSCRIPT_ZIP_FILE_NAME)

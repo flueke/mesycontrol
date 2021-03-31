@@ -26,10 +26,32 @@ for mod in maybe_includes:
 
 include_files = list()
 maybe_include_files = [
-    '/usr/lib/liblapack.so.3',
+    # x86_64
+    '/lib/x86_64-linux-gnu/libpng12.so.0',
     '/usr/lib/libblas.so.3',
+    '/usr/lib/liblapack.so.3',
+    '/usr/lib/x86_64-linux-gnu/libaudio.so.2',
     '/usr/lib/x86_64-linux-gnu/libgfortran.so.3',
+    '/usr/lib/x86_64-linux-gnu/libQtAssistantClient.so.4', 
+    '/usr/lib/x86_64-linux-gnu/libQtCLucene.so.4', 
+    '/usr/lib/x86_64-linux-gnu/libQtCore.so.4', 
+    '/usr/lib/x86_64-linux-gnu/libQtDBus.so.4', 
+    '/usr/lib/x86_64-linux-gnu/libQtDeclarative.so.4', 
+    '/usr/lib/x86_64-linux-gnu/libQtDesignerComponents.so.4', 
+    '/usr/lib/x86_64-linux-gnu/libQtDesigner.so.4', 
+    '/usr/lib/x86_64-linux-gnu/libQtGui.so.4', 
+    '/usr/lib/x86_64-linux-gnu/libQtHelp.so.4', 
+    '/usr/lib/x86_64-linux-gnu/libQtNetwork.so.4', 
+    '/usr/lib/x86_64-linux-gnu/libQtScript.so.4', 
+    '/usr/lib/x86_64-linux-gnu/libQtScriptTools.so.4', 
+    '/usr/lib/x86_64-linux-gnu/libQtSql.so.4', 
+    '/usr/lib/x86_64-linux-gnu/libQtSvg.so.4', 
+    '/usr/lib/x86_64-linux-gnu/libQtTest.so.4', 
+    '/usr/lib/x86_64-linux-gnu/libQtWebKit.so.4', 
+    '/usr/lib/x86_64-linux-gnu/libQtXmlPatterns.so.4', 
+    '/usr/lib/x86_64-linux-gnu/libQtXml.so.4', 
 
+    # x86
     '/usr/lib/liblapack.so.3gf',
     '/usr/lib/libblas/libblas.so.3gf',
     '/usr/lib/i386-linux-gnu/libgfortran.so.3',
