@@ -29,11 +29,11 @@ import os
 import mesycontrol.app_model as am
 import mesycontrol.basic_model as bm
 import mesycontrol.config_model as cm
-import mesycontrol.config_xml
-import mesycontrol.device_registry
-import mesycontrol.future
-import mesycontrol.model_util
-import mesycontrol.util
+import mesycontrol.config_xml as config_xml
+import mesycontrol.device_registry as device_registry
+import mesycontrol.future as future
+import mesycontrol.model_util as model_util
+from mesycontrol import util
 
 class Context(QtCore.QObject):
     def __init__(self, main_file, auto_load_device_modules=True, parent=None):

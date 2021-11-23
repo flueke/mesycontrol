@@ -30,7 +30,7 @@ from functools import wraps
 import traceback
 import sys
 
-import mesycontrol.util
+import mesycontrol.util as util
 
 class IncompleteFuture(RuntimeError):
     pass

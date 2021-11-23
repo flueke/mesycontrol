@@ -22,17 +22,18 @@ __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
 from functools import partial
-from qt import Property
-from qt import Signal
-from qt import Qt
-from qt import QtCore
-from qt import QtGui
+from mesycontrol.qt import Property
+from mesycontrol.qt import Signal
+from mesycontrol.qt import Qt
+from mesycontrol.qt import QtCore
+from mesycontrol.qt import QtGui
+from mesycontrol.qt import QtWidgets
 
-import config_tree_model as ctm
-import hardware_tree_model as htm
-import util
+import mesycontrol.config_tree_model as ctm
+import mesycontrol.hardware_tree_model as htm
+import mesycontrol.util as util
 
-class ConfigTreeView(QtGui.QTreeView):
+class ConfigTreeView(QtWidgets.QTreeView):
     def __init__(self, parent=None):
         super(ConfigTreeView, self).__init__(parent)
         self.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -40,10 +41,10 @@ class ConfigTreeView(QtGui.QTreeView):
         self.setTextElideMode(Qt.ElideNone)
         self.setRootIsDecorated(False)
         self.setExpandsOnDoubleClick(False)
-        self.setEditTriggers(QtGui.QAbstractItemView.EditKeyPressed)
+        self.setEditTriggers(QtWidgets.QAbstractItemView.EditKeyPressed)
         self.setMouseTracking(True)
 
-class HardwareTreeView(QtGui.QTreeView):
+class HardwareTreeView(QtWidgets.QTreeView):
     def __init__(self, parent=None):
         super(HardwareTreeView, self).__init__(parent)
         self.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -51,7 +52,7 @@ class HardwareTreeView(QtGui.QTreeView):
         self.setTextElideMode(Qt.ElideNone)
         self.setRootIsDecorated(False)
         self.setExpandsOnDoubleClick(False)
-        self.setEditTriggers(QtGui.QAbstractItemView.EditKeyPressed | QtGui.QAbstractItemView.DoubleClicked)
+        self.setEditTriggers(QtWidgets.QAbstractItemView.EditKeyPressed | QtWidgets.QAbstractItemView.DoubleClicked)
         self.setMouseTracking(True)
 
 def find_insertion_index(items, test_fun):
@@ -273,7 +274,7 @@ class MCTreeDirector(object):
         if hw_node is not None:
             self.hw_model.remove_node(hw_node)
 
-class MCTreeView(QtGui.QWidget):
+class MCTreeView(QtWidgets.QWidget):
     hw_context_menu_requested   = Signal(object, object, object, object) #: node, idx, position, view
     cfg_context_menu_requested  = Signal(object, object, object, object) #: node, idx, position, view
 
@@ -330,14 +331,14 @@ class MCTreeView(QtGui.QWidget):
         self.hw_toolbar         = util.SimpleToolBar(Qt.Horizontal)
         self.hw_toolbar.layout().setContentsMargins(0, 0, 0, 0)
 
-        cfg_widget = QtGui.QWidget()
-        cfg_layout = QtGui.QVBoxLayout(cfg_widget)
+        cfg_widget = QtWidgets.QWidget()
+        cfg_layout = QtWidgets.QVBoxLayout(cfg_widget)
         cfg_layout.setContentsMargins(0, 0, 0, 0)
         cfg_layout.addWidget(self.cfg_toolbar)
         cfg_layout.addWidget(self.cfg_view)
 
-        hw_widget = QtGui.QWidget()
-        hw_layout = QtGui.QVBoxLayout(hw_widget)
+        hw_widget = QtWidgets.QWidget()
+        hw_layout = QtWidgets.QVBoxLayout(hw_widget)
         hw_layout.setContentsMargins(0, 0, 0, 0)
         hw_layout.addWidget(self.hw_toolbar)
         hw_layout.addWidget(self.hw_view)
@@ -359,7 +360,7 @@ class MCTreeView(QtGui.QWidget):
         splitter.handle(1).doubleClicked.connect(on_handle_double_clicked)
         splitter.handle(2).doubleClicked.connect(on_handle_double_clicked)
 
-        layout = QtGui.QGridLayout(self)
+        layout = QtWidgets.QGridLayout(self)
         layout.addWidget(splitter, 0, 0)
 
         self._ignore_next_selection = False
@@ -524,7 +525,7 @@ class MCTreeView(QtGui.QWidget):
         self.node_selected.emit(idx.internalPointer())
         self._ignore_next_selection = False
 
-class DoubleClickSplitterHandle(QtGui.QSplitterHandle):
+class DoubleClickSplitterHandle(QtWidgets.QSplitterHandle):
     """Double click support for QSplitterHandle.
     Emits the doubleClicked signal if a double click occured on the handle and
     the mouse button is released within 200ms (if the mouse button is not
@@ -550,7 +551,7 @@ class DoubleClickSplitterHandle(QtGui.QSplitterHandle):
     def sizeHint(self):
         return QtCore.QSize(2, 4)
 
-class DoubleClickSplitter(QtGui.QSplitter):
+class DoubleClickSplitter(QtWidgets.QSplitter):
     """QSplitter using DoubleClickSplitterHandles."""
     def __init__(self, orientation=Qt.Horizontal, parent=None):
         super(DoubleClickSplitter, self).__init__(orientation, parent)
@@ -558,7 +559,7 @@ class DoubleClickSplitter(QtGui.QSplitter):
     def createHandle(self):
         return DoubleClickSplitterHandle(self.orientation(), self)
 
-class MCTreeItemDelegate(QtGui.QStyledItemDelegate):
+class MCTreeItemDelegate(QtWidgets.QStyledItemDelegate):
     def __init__(self, tree_director, parent=None):
         super(MCTreeItemDelegate, self).__init__(parent)
         self.director = tree_director
@@ -600,7 +601,7 @@ class MCTreeItemDelegate(QtGui.QStyledItemDelegate):
         if not self._is_device_rc(idx):
             return super(MCTreeItemDelegate, self).createEditor(parent, options, idx)
 
-        combo = QtGui.QComboBox(parent)
+        combo = QtWidgets.QComboBox(parent)
         combo = AutoPopupComboBox(parent)
         combo.addItem("RC on",  True)
         combo.addItem("RC off", False)
@@ -609,7 +610,7 @@ class MCTreeItemDelegate(QtGui.QStyledItemDelegate):
         # an item.
         def on_combo_activated(index):
             self.commitData.emit(combo)
-            self.closeEditor.emit(combo, QtGui.QAbstractItemDelegate.NoHint)
+            self.closeEditor.emit(combo, QtWidgets.QAbstractItemDelegate.NoHint)
 
         combo.activated.connect(on_combo_activated)
 
@@ -632,7 +633,7 @@ class MCTreeItemDelegate(QtGui.QStyledItemDelegate):
         combo_data = editor.itemData(combo_idx).toBool()
         model.setData(idx, combo_data)
 
-class AutoPopupComboBox(QtGui.QComboBox):
+class AutoPopupComboBox(QtWidgets.QComboBox):
     """QComboBox subclass which automatically shows its popup on receiving a
     non-spontaneous showEvent."""
 

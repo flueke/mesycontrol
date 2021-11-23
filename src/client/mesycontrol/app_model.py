@@ -32,9 +32,9 @@ from mesycontrol.basic_model import IDCConflict
 from mesycontrol.model_util import add_mrc_connection
 import mesycontrol.basic_model as bm
 import mesycontrol.config_model as cm
-import mesycontrol.future
-import mesycontrol.model_util
-import mesycontrol.util
+import mesycontrol.future as future
+import mesycontrol.model_util as model_util
+import mesycontrol.util as util
 
 """Mesycontrol application model.
 These objects merge the hardware and the config models together.

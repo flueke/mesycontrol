@@ -21,17 +21,18 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import QtCore
-from qt import QtGui
+from mesycontrol.qt import QtCore
+from mesycontrol.qt import QtGui
+from mesycontrol.qt import QtWidgets
 import logging
 import sys
 import time
 import traceback
 
-import util
+import mesycontrol.util
 
-class LogView(QtGui.QTextEdit):
-    def __init__(self, max_lines=10000, line_wrap=QtGui.QTextEdit.WidgetWidth, parent=None):
+class LogView(QtWidgets.QTextEdit):
+    def __init__(self, max_lines=10000, line_wrap=QtWidgets.QTextEdit.WidgetWidth, parent=None):
         super(LogView, self).__init__(parent)
         self.setReadOnly(True)
         self.document().setMaximumBlockCount(max_lines)
@@ -103,7 +104,7 @@ if __name__ == "__main__":
     def on_button_clicked():
         logging.getLogger("testlogger").debug("Hello World!")
 
-    button = QtGui.QPushButton("Log!", clicked=on_button_clicked)
+    button = QtWidgets.QPushButton("Log!", clicked=on_button_clicked)
     button.show()
 
     sys.exit(qapp.exec_())

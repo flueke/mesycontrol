@@ -30,7 +30,7 @@ import copy
 import weakref
 
 from mesycontrol import future
-import mesycontrol.util
+import mesycontrol.util as util
 
 
 BUS_RANGE   = range(2)     # Valid bus numbers

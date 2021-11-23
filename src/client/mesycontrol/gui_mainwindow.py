@@ -21,48 +21,53 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import Slot
-from qt import Qt
-from qt import QtCore
-from qt import QtGui
+from mesycontrol.qt import Slot
+from mesycontrol.qt import Qt
+from mesycontrol.qt import QtCore
+from mesycontrol.qt import QtGui
+from mesycontrol.qt import QtWidgets
 import platform
 
-from mc_treeview import MCTreeView
-from util import make_icon
-import gui_util
-import log_view
-import util
+from mesycontrol.mc_treeview import MCTreeView
+from mesycontrol.util import make_icon
+import mesycontrol.gui_util as gui_util
+import mesycontrol.log_view as log_view
+import mesycontrol.util as util
 
-class MCMdiArea(QtGui.QMdiArea):
+class MCMdiArea(QtWidgets.QMdiArea):
     def __init__(self, parent=None):
         super(MCMdiArea, self).__init__(parent)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
-class MainWindow(QtGui.QMainWindow):
+class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, context, parent=None):
         super(MainWindow, self).__init__(parent)
         self.log = util.make_logging_source_adapter(__name__, self)
         self.context = context
         util.loadUi(":/ui/mainwin.ui", self)
+        # XXX: This was directly loaded from the ui file with pyqt
+        self.mdiArea = MCMdiArea(self)
+        # XXX: This was automatically created from the ui file with pyqt
+        self.toolbar = QtWidgets.QToolBar()
         self.setWindowIcon(make_icon(":/window-icon.png"))
 
         # Treeview
         self.treeview = MCTreeView(app_registry=context.app_registry,
                 device_registry=context.device_registry)
 
-        dw_tree = QtGui.QDockWidget("Device tree", self)
+        dw_tree = QtWidgets.QDockWidget("Device tree", self)
         dw_tree.setObjectName("dw_treeview")
         dw_tree.setWidget(self.treeview)
-        dw_tree.setFeatures(QtGui.QDockWidget.DockWidgetMovable | QtGui.QDockWidget.DockWidgetFloatable)
+        dw_tree.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable | QtWidgets.QDockWidget.DockWidgetFloatable)
         self.addDockWidget(Qt.BottomDockWidgetArea, dw_tree)
 
         # Log view
         self.logview = log_view.LogView(parent=self)
-        dw_logview = QtGui.QDockWidget("Application Log", self)
+        dw_logview = QtWidgets.QDockWidget("Application Log", self)
         dw_logview.setObjectName("dw_logview")
         dw_logview.setWidget(self.logview)
-        dw_logview.setFeatures(QtGui.QDockWidget.DockWidgetMovable | QtGui.QDockWidget.DockWidgetFloatable)
+        dw_logview.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable | QtWidgets.QDockWidget.DockWidgetFloatable)
         self.addDockWidget(Qt.BottomDockWidgetArea, dw_logview)
 
         # Note: do not call restore_settings() here. It needs to be called
@@ -112,10 +117,10 @@ class MainWindow(QtGui.QMainWindow):
         except ImportError:
             version = "devel version"
 
-        d = QtGui.QDialog(self)
+        d = QtWidgets.QDialog(self)
         d.setWindowTitle("About mesycontrol")
 
-        license = QtGui.QTextBrowser(parent=d)
+        license = QtWidgets.QTextBrowser(parent=d)
         license.setWindowFlags(Qt.Window)
         license.setWindowTitle("mesycontrol license")
         license.setText("")
@@ -128,36 +133,36 @@ class MainWindow(QtGui.QMainWindow):
         finally:
             f.close()
 
-        l = QtGui.QVBoxLayout(d)
+        l = QtWidgets.QVBoxLayout(d)
 
-        logo = QtGui.QLabel()
+        logo = QtWidgets.QLabel()
         logo.setPixmap(QtGui.QPixmap(":/mesytec-logo.png"
             ).scaledToWidth(300, Qt.SmoothTransformation))
         l.addWidget(logo)
 
         t = "mesycontrol - %s" % version
-        label = QtGui.QLabel(t)
+        label = QtWidgets.QLabel(t)
         font  = label.font()
         font.setPointSize(15)
         font.setBold(True)
         label.setFont(font)
         l.addWidget(label)
 
-        l.addWidget(QtGui.QLabel("Remote control for mesytec devices."))
-        l.addWidget(QtGui.QLabel(QtCore.QString.fromUtf8("© 2014-2015 mesytec GmbH & Co. KG")))
+        l.addWidget(QtWidgets.QLabel("Remote control for mesytec devices."))
+        l.addWidget(QtWidgets.QLabel(QtCore.QString.fromUtf8("© 2014-2015 mesytec GmbH & Co. KG")))
 
         t = '<a href="mailto:info@mesytec.com">info@mesytec.com</a> - <a href="http://www.mesytec.com">www.mesytec.com</a>'
-        label = QtGui.QLabel(t)
+        label = QtWidgets.QLabel(t)
         label.setOpenExternalLinks(True)
         l.addWidget(label)
 
         t = 'Running on Python %s using PyQt %s with Qt %s.' % (
                 platform.python_version(), QtCore.PYQT_VERSION_STR, QtCore.QT_VERSION_STR)
-        l.addWidget(QtGui.QLabel(t))
+        l.addWidget(QtWidgets.QLabel(t))
 
         l.addSpacing(20)
 
-        bl = QtGui.QHBoxLayout()
+        bl = QtWidgets.QHBoxLayout()
 
         def license_button_clicked():
             sz = license.size()
@@ -166,10 +171,10 @@ class MainWindow(QtGui.QMainWindow):
             license.show()
             license.raise_()
 
-        b = QtGui.QPushButton("&License", clicked=license_button_clicked)
+        b = QtWidgets.QPushButton("&License", clicked=license_button_clicked)
         bl.addWidget(b)
 
-        b = QtGui.QPushButton("&Close", clicked=d.close)
+        b = QtWidgets.QPushButton("&Close", clicked=d.close)
         b.setAutoDefault(True)
         b.setDefault(True)
         bl.addWidget(b)
@@ -181,14 +186,14 @@ class MainWindow(QtGui.QMainWindow):
 
             w = item.widget()
 
-            if isinstance(w, QtGui.QLabel):
+            if isinstance(w, QtWidgets.QLabel):
                 w.setTextInteractionFlags(Qt.TextBrowserInteraction)
 
         d.exec_()
 
     @Slot()
     def on_actionAbout_Qt_triggered(self):
-        QtGui.QApplication.instance().aboutQt()
+        QtWidgets.QApplication.instance().aboutQt()
 
     def closeEvent(self, event):
         self.store_settings()

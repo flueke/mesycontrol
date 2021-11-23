@@ -42,16 +42,16 @@ from mesycontrol.model_util import add_mrc_connection
 from mesycontrol.util import make_icon
 
 import mesycontrol.app_model as am
-import mesycontrol.async_util
-import mesycontrol.config_gui
-import mesycontrol.config_util
-import mesycontrol.device_tableview
-import mesycontrol.future
-import mesycontrol.gui_tutorial
-import mesycontrol.gui_util
-import mesycontrol.hardware_util
-import mesycontrol.resources
-import mesycontrol.util
+import mesycontrol.async_util as async_util
+import mesycontrol.config_gui as config_gui
+import mesycontrol.config_util as config_util
+import mesycontrol.device_tableview as device_tableview
+import mesycontrol.future as future
+import mesycontrol.gui_tutorial as gui_tutorial
+import mesycontrol.gui_util as gui_util
+import mesycontrol.hardware_util as hardware_util
+import mesycontrol.resources as resources
+import mesycontrol.util as util
 
 log = logging.getLogger(__name__)
 

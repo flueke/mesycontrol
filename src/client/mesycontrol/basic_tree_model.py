@@ -23,7 +23,7 @@ __email__  = 'f.lueke@mesytec.com'
 
 from mesycontrol.qt import QtCore
 from mesycontrol.qt import Qt
-import mesycontrol.util
+import mesycontrol.util as util
 
 QModelIndex = QtCore.QModelIndex
 

@@ -604,7 +604,7 @@ def loadUi(filename, baseinstance=None):
     if not f.open(QtCore.QIODevice.ReadOnly | QtCore.QIODevice.Text):
         raise RuntimeError(str(f.errorString()))
     #return uic.loadUi(f, baseinstance)
-    return QuiLoader().load(f, baseinstance)
+    return QUiLoader().load(f, baseinstance)
 
 class ChannelGroupHelper(object):
     def __init__(self, num_channels, num_groups):
@@ -672,7 +672,7 @@ class FixedWidthVerticalToolBar(QtWidgets.QWidget):
     exists."""
     def __init__(self, parent=None):
         super(FixedWidthVerticalToolBar, self).__init__(parent)
-        self.setLayout(QtGui.QVBoxLayout())
+        self.setLayout(QtWidgets.QVBoxLayout())
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().addStretch(1)
 
@@ -691,9 +691,9 @@ class SimpleToolBar(QtWidgets.QWidget):
         super(SimpleToolBar, self).__init__(parent)
         self.orientation = orientation
         if orientation == Qt.Horizontal:
-            self.setLayout(QtGui.QHBoxLayout())
+            self.setLayout(QtWidgets.QHBoxLayout())
         else:
-            self.setLayout(QtGui.QVBoxLayout())
+            self.setLayout(QtWidgets.QVBoxLayout())
 
         self.layout().setSpacing(2)
         self.layout().setContentsMargins(0, 0, 0, 0)
@@ -725,7 +725,7 @@ def make_apply_common_button_layout(input_spinbox, tooltip, on_clicked):
     button.setMaximumWidth(16)
     button.setToolTip(tooltip)
 
-    layout = QtGui.QHBoxLayout()
+    layout = QtWidgets.QHBoxLayout()
     layout.addWidget(input_spinbox)
     layout.addWidget(button)
     layout.setContentsMargins(0, 0, 0, 0)

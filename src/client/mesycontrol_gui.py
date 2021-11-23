@@ -48,6 +48,7 @@ from mesycontrol import util
 from mesycontrol.qt import Qt
 from mesycontrol.qt import QtCore
 from mesycontrol.qt import QtGui
+from mesycontrol.qt import QtWidgets
 
 if __name__ == "__main__":
     if not is_windows:
@@ -81,7 +82,7 @@ if __name__ == "__main__":
                 "PyQt4.uic"):
             logging.getLogger(ln).setLevel(logging.INFO)
 
-        fn = QtGui.QDesktopServices.storageLocation(QtGui.QDesktopServices.DocumentsLocation)
+        fn = QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.DocumentsLocation)
         fn = os.path.join(str(fn), "mesycontrol.log")
 
         try:
@@ -120,7 +121,7 @@ if __name__ == "__main__":
                 logging.info("Received signal %s. Forcing quit...",
                         signal.signum_to_name.get(signum, "%d" % signum))
 
-                QtGui.QApplication.quit()
+                QtWidgets.QApplication.quit()
 
     sigint_handler = SignalHandler()
     signal.signal(signal.SIGINT, sigint_handler)
@@ -132,8 +133,8 @@ if __name__ == "__main__":
 
     # Qt setup
     QtCore.QLocale.setDefault(QtCore.QLocale.c())
-    app = QtGui.QApplication(sys.argv)
-    app.setStyle(QtGui.QStyleFactory.create("Windows"))
+    app = QtWidgets.QApplication(sys.argv)
+    app.setStyle(QtWidgets.QStyleFactory.create("Windows"))
     app.setAttribute(Qt.AA_DontShowIconsInMenus, False)
 
     # Let the interpreter run every 500 ms to be able to react to signals
@@ -161,8 +162,8 @@ if __name__ == "__main__":
 
     if opts is not None and opts.setup is not None:
         setup_file = opts.setup
-    elif settings.value('Options/open_last_setup_at_start', True).toBool():
-        setup_file = str(settings.value('Files/last_setup_file', str()).toString())
+    elif bool(settings.value('Options/open_last_setup_at_start', True)):
+        setup_file = str(settings.value('Files/last_setup_file', str()))
 
     with app_context.use(context):
         mainwindow      = gui_mainwindow.MainWindow(context)
@@ -176,7 +177,7 @@ if __name__ == "__main__":
                 context.open_setup(setup_file)
             except Exception as e:
                 settings.remove('Files/last_setup_file')
-                QtGui.QMessageBox.critical(mainwindow, "Error",
+                QtWidgets.QMessageBox.critical(mainwindow, "Error",
                         "Opening setup file %s failed:\n%s" % (setup_file, e))
 
         ret = app.exec_()
