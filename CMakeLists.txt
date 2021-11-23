@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(mesycontrol)
 
+set(MESYCONTROL_MAIN_PROJECT OFF)
+if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+    set(MESYCONTROL_MAIN_PROJECT ON)
+endif()
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Create binaries in the root of the build directory
@@ -22,7 +27,12 @@ git_describe(GIT_VERSION "--always")
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 add_subdirectory(src)
-add_subdirectory(doc)
+
+option(MESYCONTROL_BUILD_DOCS "Build documentation (if sphinx was found)" ${MESYCONTROL_MAIN_PROJECT})
+
+if (MESYCONTROL_BUILD_DOCS)
+    add_subdirectory(doc)
+endif()
 
 #install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ DESTINATION share/scripts USE_SOURCE_PERMISSIONS)
 install(FILES "${CMAKE_SOURCE_DIR}/LICENSE.TXT" DESTINATION .)
