@@ -21,7 +21,7 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import QtCore
+from mesycontrol.qt import QtCore
 import functools
 
 class DuplicateParameter(RuntimeError):

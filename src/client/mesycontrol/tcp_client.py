@@ -21,37 +21,37 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import pyqtProperty
-from qt import pyqtSignal
-from qt import QtCore
-from qt import QtNetwork
+from mesycontrol.qt import Property
+from mesycontrol.qt import Signal
+from mesycontrol.qt import QtCore
+from mesycontrol.qt import QtNetwork
 import collections
 import struct
 
-from future import Future
+from mesycontrol.future import Future
 from google.protobuf import message as proto_message
-import proto
-import util
+import mesycontrol.proto
+import mesycontrol.util
 
 RequestResult = collections.namedtuple("RequestResult", "request response")
 
 class MCTCPClient(QtCore.QObject):
     """Mesycontrol TCP client"""
 
-    connected               = pyqtSignal()
-    disconnected            = pyqtSignal()
-    connecting              = pyqtSignal(str, int)
-    socket_error            = pyqtSignal(object)   #: instance of SocketError
+    connected               = Signal()
+    disconnected            = Signal()
+    connecting              = Signal(str, int)
+    socket_error            = Signal(object)   #: instance of SocketError
 
-    request_queued          = pyqtSignal(object, object) #: request, Future
-    request_sent            = pyqtSignal(object, object) #: request, Future
-    message_received        = pyqtSignal(object)         #: Message
-    response_received       = pyqtSignal(object, object, object) #: request, response, Future
-    notification_received   = pyqtSignal(object) #: Message
-    error_received          = pyqtSignal(object) #: Message
+    request_queued          = Signal(object, object) #: request, Future
+    request_sent            = Signal(object, object) #: request, Future
+    message_received        = Signal(object)         #: Message
+    response_received       = Signal(object, object, object) #: request, response, Future
+    notification_received   = Signal(object) #: Message
+    error_received          = Signal(object) #: Message
 
-    queue_empty             = pyqtSignal()
-    queue_size_changed      = pyqtSignal(int)
+    queue_empty             = Signal()
+    queue_size_changed      = Signal(int)
 
     def __init__(self, parent=None):
         super(MCTCPClient, self).__init__(parent)
@@ -302,6 +302,6 @@ class MCTCPClient(QtCore.QObject):
     def get_port(self):
         return self._socket.peerPort()
 
-    host = pyqtProperty(str, get_host)
-    port = pyqtProperty(int, get_port)
+    host = Property(str, get_host)
+    port = Property(int, get_port)
 

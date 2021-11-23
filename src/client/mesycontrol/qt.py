@@ -21,11 +21,9 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from PyQt4 import QtCore
-from PyQt4 import QtGui
-from PyQt4 import QtNetwork
-from PyQt4.QtCore import pyqtProperty
-from PyQt4.QtCore import pyqtSignal
-from PyQt4.QtCore import pyqtSlot
-from PyQt4.Qt import Qt
-from PyQt4 import uic
+from PySide2 import QtCore
+from PySide2 import QtGui
+from PySide2 import QtWidgets
+from PySide2 import QtNetwork
+from PySide2.QtCore import Qt, Property, Signal, Slot
+from PySide2.QtUiTools import QUiLoader

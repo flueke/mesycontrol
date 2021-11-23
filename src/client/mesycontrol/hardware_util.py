@@ -24,8 +24,8 @@ __email__  = 'f.lueke@mesytec.com'
 from functools import partial
 import itertools
 
-from config_util import run_callables_generator
-from config_util import ProgressUpdate
+from mesycontrol.config_util import run_callables_generator
+from mesycontrol.config_util import ProgressUpdate
 
 def refresh_device_memory(devices):
     """Refreshes the memory of the given devices using device.hw.read_parameter().

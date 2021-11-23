@@ -21,16 +21,16 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import QtCore
-from qt import QtGui
-from qt import pyqtProperty
-from qt import pyqtSignal
+from mesycontrol.qt import QtCore
+from mesycontrol.qt import QtGui
+from mesycontrol.qt import Property
+from mesycontrol.qt import Signal
 
 from functools import wraps
 import traceback
 import sys
 
-import util
+import mesycontrol.util
 
 class IncompleteFuture(RuntimeError):
     pass
@@ -257,11 +257,11 @@ def progress_forwarder(source, dest):
 class FutureObserver(QtCore.QObject):
     """Qt wrapper around a Future object using Qt signals to notify about state
     changes."""
-    done                    = pyqtSignal()
-    cancelled               = pyqtSignal()
-    progress_range_changed  = pyqtSignal(int, int)
-    progress_changed        = pyqtSignal(int)
-    progress_text_changed   = pyqtSignal(str)
+    done                    = Signal()
+    cancelled               = Signal()
+    progress_range_changed  = Signal(int, int)
+    progress_changed        = Signal(int)
+    progress_text_changed   = Signal(str)
 
     def __init__(self, the_future=None, parent=None):
         super(FutureObserver, self).__init__(parent)
@@ -311,7 +311,7 @@ class FutureObserver(QtCore.QObject):
             self._progress_text = f.progress_text()
             self.progress_text_changed.emit(self._progress_text)
 
-    future = pyqtProperty(object, get_future, set_future)
+    future = Property(object, get_future, set_future)
 
 def set_result_on(result_future):
     def deco(f):
@@ -372,7 +372,7 @@ if __name__ == "__main__":
         return 42
 
     my_func()
-    print ret.result()
+    print(ret.result())
 
     # ==================
 
@@ -384,9 +384,9 @@ if __name__ == "__main__":
 
     my_func()
     try:
-        print ret.result()
+        print(ret.result())
     except Exception as e:
-        print type(e), e
+        print(type(e), e)
 
     # ==================
     ret = Future()
@@ -397,9 +397,9 @@ if __name__ == "__main__":
 
     my_func()
     try:
-        print ret.result()
+        print(ret.result())
     except Exception as e:
-        print type(e), e
+        print(type(e), e)
 
     # ==================
     ret = Future()
@@ -410,6 +410,6 @@ if __name__ == "__main__":
 
     my_func()
     try:
-        print ret.result()
+        print(ret.result())
     except Exception as e:
-        print type(e), e
+        print(type(e), e)

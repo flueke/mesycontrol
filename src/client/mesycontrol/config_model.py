@@ -22,10 +22,10 @@ __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
 from functools import wraps
-from qt import pyqtProperty
-from qt import pyqtSignal
+from mesycontrol.qt import Property
+from mesycontrol.qt import Signal
 
-import basic_model as bm
+import mesycontrol.basic_model as bm
 
 def modifies(f):
     """Method decorator which executes `wrapped_object.set_modified(True)'
@@ -46,9 +46,9 @@ def _set_modified(self, b):
         self.modified_changed.emit(self.modified)
 
 class Setup(bm.MRCRegistry):
-    modified_changed        = pyqtSignal(bool)
-    filename_changed        = pyqtSignal(str)
-    autoconnect_changed     = pyqtSignal(bool)
+    modified_changed        = Signal(bool)
+    filename_changed        = Signal(str)
+    autoconnect_changed     = Signal(bool)
 
     def __init__(self, parent=None):
         super(Setup, self).__init__(parent)
@@ -108,14 +108,14 @@ class Setup(bm.MRCRegistry):
         return "cm.Setup(id=%s, filename=%s, modified=%s, autoconnect=%s" % (
                 hex(id(self)), self.filename, self.modified, self.autoconnect)
 
-    modified    = pyqtProperty(bool, is_modified, set_modified, notify=modified_changed)
-    filename    = pyqtProperty(str, get_filename, set_filename, notify=filename_changed)
-    autoconnect = pyqtProperty(bool, get_autoconnect, set_autoconnect, notify=autoconnect_changed)
+    modified    = Property(bool, is_modified, set_modified, notify=modified_changed)
+    filename    = Property(str, get_filename, set_filename, notify=filename_changed)
+    autoconnect = Property(bool, get_autoconnect, set_autoconnect, notify=autoconnect_changed)
 
 class MRC(bm.MRC):
-    modified_changed    = pyqtSignal(bool)
-    name_changed        = pyqtSignal(unicode)
-    autoconnect_changed = pyqtSignal(bool)
+    modified_changed    = Signal(bool)
+    name_changed        = Signal(str)
+    autoconnect_changed = Signal(bool)
 
     def __init__(self, url=None, parent=None):
         super(MRC, self).__init__(url, parent)
@@ -138,7 +138,7 @@ class MRC(bm.MRC):
 
     @modifies
     def set_name(self, name):
-        name = unicode(name) if name is not None else unicode()
+        name = str(name) if name is not None else str()
         if self.name != name:
             self._name = name
             self.name_changed.emit(self.name)
@@ -176,13 +176,13 @@ class MRC(bm.MRC):
                 hex(id(self)), self.url, self.modified, self.autoconnect)
 
     set_url     = modifies(bm.MRC.set_url)
-    modified    = pyqtProperty(bool, is_modified, set_modified, notify=modified_changed)
-    name        = pyqtProperty(unicode, get_name, set_name, notify=name_changed)
-    autoconnect = pyqtProperty(bool, get_autoconnect, set_autoconnect, notify=autoconnect_changed)
+    modified    = Property(bool, is_modified, set_modified, notify=modified_changed)
+    name        = Property(str, get_name, set_name, notify=name_changed)
+    autoconnect = Property(bool, get_autoconnect, set_autoconnect, notify=autoconnect_changed)
 
 class Device(bm.Device):
-    modified_changed    = pyqtSignal(bool)
-    name_changed        = pyqtSignal(str)
+    modified_changed    = Signal(bool)
+    name_changed        = Signal(str)
 
     def __init__(self, bus=None, address=None, idc=None, parent=None):
         super(Device, self).__init__(bus, address, idc, parent)
@@ -202,7 +202,7 @@ class Device(bm.Device):
 
     @modifies
     def set_name(self, name):
-        name = unicode(name) if name is not None else unicode()
+        name = str(name) if name is not None else str()
         if self.name != name:
             self._name = name
             self.name_changed.emit(self.name)
@@ -242,10 +242,10 @@ class Device(bm.Device):
         return "cm.Device(id=%s, b=%d, a=%d, idc=%d, mrc=%s)" % (
                 hex(id(self)), self.bus, self.address, self.idc, self.mrc)
 
-    modified    = pyqtProperty(bool, is_modified, set_modified, notify=modified_changed)
-    name        = pyqtProperty(unicode, get_name, set_name, notify=name_changed)
+    modified    = Property(bool, is_modified, set_modified, notify=modified_changed)
+    name        = Property(str, get_name, set_name, notify=name_changed)
 
-def make_device_config(bus, address, idc, name=unicode(), device_profile=None):
+def make_device_config(bus, address, idc, name=str(), device_profile=None):
     if device_profile is not None and device_profile.idc != idc:
         raise ValueError("idc does not match device profile idc")
 

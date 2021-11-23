@@ -21,14 +21,14 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import QtCore
+from mesycontrol.qt import QtCore
 import weakref
 
-import basic_model as bm
-import future
-import hardware_model as hm
-import proto
-import util
+import mesycontrol.basic_model as bm
+import mesycontrol.future
+import mesycontrol.hardware_model as hm
+import mesycontrol.proto
+import mesycontrol.util
 
 class ErrorResponse(RuntimeError):
     pass

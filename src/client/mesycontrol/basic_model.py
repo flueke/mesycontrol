@@ -21,21 +21,21 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import pyqtProperty
-from qt import pyqtSignal
-from qt import QtCore
+from mesycontrol.qt import Property
+from mesycontrol.qt import Signal
+from mesycontrol.qt import QtCore
 
 import collections
 import copy
 import weakref
 
-import future
-import util
+from mesycontrol import future
+import mesycontrol.util
 
 
-BUS_RANGE   = xrange(2)     # Valid bus numbers
-DEV_RANGE   = xrange(16)    # Valid device addresses
-PARAM_RANGE = xrange(256)   # Valid parameter addresses
+BUS_RANGE   = range(2)     # Valid bus numbers
+DEV_RANGE   = range(16)    # Valid device addresses
+PARAM_RANGE = range(256)   # Valid parameter addresses
 SET_VALUE_MIN = 0           # minimum settable parameter value
 SET_VALUE_MAX = 65535       # maximum settable parameter value
 # Note: read values are in range (-32767, 32768) as the MRC displays larger
@@ -53,9 +53,9 @@ class IDCConflict(RuntimeError):
 class MRCRegistry(QtCore.QObject):
     """Manages MRC instances"""
 
-    mrc_added   = pyqtSignal(object)
-    mrc_about_to_be_removed = pyqtSignal(object)
-    mrc_removed = pyqtSignal(object)
+    mrc_added   = Signal(object)
+    mrc_about_to_be_removed = Signal(object)
+    mrc_removed = Signal(object)
 
     def __init__(self, parent=None):
         super(MRCRegistry, self).__init__(parent)
@@ -99,13 +99,13 @@ class MRCRegistry(QtCore.QObject):
     def __iter__(self):
         return iter(self._mrcs)
 
-    mrcs = pyqtProperty(list, lambda self: self.get_mrcs())
+    mrcs = Property(list, lambda self: self.get_mrcs())
 
 class MRC(QtCore.QObject):
-    url_changed     = pyqtSignal(str)
-    device_added    = pyqtSignal(object)
-    device_about_to_be_removed = pyqtSignal(object)
-    device_removed  = pyqtSignal(object)
+    url_changed     = Signal(str)
+    device_added    = Signal(object)
+    device_about_to_be_removed = Signal(object)
+    device_removed  = Signal(object)
 
     def __init__(self, url, parent=None):
         super(MRC, self).__init__(parent)
@@ -171,7 +171,7 @@ class MRC(QtCore.QObject):
     def __iter__(self):
         return iter(self._devices)
 
-    url = pyqtProperty(str,
+    url = Property(str,
             fget=lambda self: self.get_url(),
             fset=lambda self, v: self.set_url(v),
             notify=url_changed)
@@ -201,17 +201,17 @@ class ResultFuture(future.Future):
         return int(self.result())
 
 class Device(QtCore.QObject):
-    bus_changed         = pyqtSignal(int)
-    address_changed     = pyqtSignal(int)
-    idc_changed         = pyqtSignal(int)
-    mrc_changed         = pyqtSignal(object)
-    parameter_changed   = pyqtSignal(int, object)   #: address, value
-    memory_about_to_be_cleared = pyqtSignal(object) #: memory
-    memory_cleared = pyqtSignal()
+    bus_changed         = Signal(int)
+    address_changed     = Signal(int)
+    idc_changed         = Signal(int)
+    mrc_changed         = Signal(object)
+    parameter_changed   = Signal(int, object)   #: address, value
+    memory_about_to_be_cleared = Signal(object) #: memory
+    memory_cleared = Signal()
 
-    extension_added     = pyqtSignal(str, object)
-    extension_changed   = pyqtSignal(str, object)
-    extension_removed   = pyqtSignal(str, object)
+    extension_added     = Signal(str, object)
+    extension_changed   = Signal(str, object)
+    extension_removed   = Signal(str, object)
 
     def __init__(self, bus=None, address=None, idc=None, parent=None):
         super(Device, self).__init__(parent)
@@ -440,25 +440,25 @@ class Device(QtCore.QObject):
         return True
 
     # Using lambdas here to allow overriding property accessors.
-    bus     = pyqtProperty(int,
+    bus     = Property(int,
             fget=lambda self: self.get_bus(),
             fset=lambda self, v: self.set_bus(v),
             notify=bus_changed)
 
-    address = pyqtProperty(int,
+    address = Property(int,
             fget=lambda self: self.get_address(),
             fset=lambda self, v: self.set_address(v),
             notify=address_changed)
 
-    idc     = pyqtProperty(int,
+    idc     = Property(int,
             fget=lambda self: self.get_idc(),
             fset=lambda self, v: self.set_idc(v),
             notify=idc_changed)
 
-    mrc     = pyqtProperty(object,
+    mrc     = Property(object,
             fget=lambda self: self.get_mrc(),
             fset=lambda self, v: self.set_mrc(v),
             notify=mrc_changed)
 
-    extensions = pyqtProperty(dict,
+    extensions = Property(dict,
             fget=lambda self: self.get_extensions())

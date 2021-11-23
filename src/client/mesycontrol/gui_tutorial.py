@@ -21,9 +21,10 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import pyqtSignal
-from qt import QtCore
-from qt import QtGui
+from mesycontrol.qt import Signal
+from mesycontrol.qt import QtCore
+from mesycontrol.qt import QtGui
+from mesycontrol.qt import QtWidgets
 import weakref
 
 class UIFlasher(QtCore.QObject):
@@ -73,8 +74,8 @@ class UIFlasher(QtCore.QObject):
         if self._current_flashcount <= 0:
             self.stop()
 
-class TutorialTextBrowser(QtGui.QTextBrowser):
-    href_hover = pyqtSignal(str)
+class TutorialTextBrowser(QtWidgets.QTextBrowser):
+    href_hover = Signal(str)
 
     def __init__(self, parent=None, **kwargs):
         super(TutorialTextBrowser, self).__init__(parent=parent, **kwargs)
@@ -90,7 +91,7 @@ class TutorialTextBrowser(QtGui.QTextBrowser):
 
         super(TutorialTextBrowser, self).mouseMoveEvent(event)
 
-class TutorialWidget(QtGui.QWidget):
+class TutorialWidget(QtWidgets.QWidget):
     def __init__(self, gui_app, parent=None):
         super(TutorialWidget, self).__init__(parent)
         self.gui_app = gui_app

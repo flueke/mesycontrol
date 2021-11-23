@@ -25,7 +25,7 @@ from functools import partial
 import collections
 import itertools
 
-from .. qt import pyqtSignal
+from .. qt import Signal
 from .. qt import Qt
 from .. qt import QtCore
 from .. qt import QtGui
@@ -189,8 +189,8 @@ def decode_hardware_info(val):
 
 # ==========  Device ========== 
 class MSCF16(DeviceBase):
-    gain_jumper_changed     = pyqtSignal(int, float) # group, value
-    auto_pz_channel_changed = pyqtSignal(int)
+    gain_jumper_changed     = Signal(int, float) # group, value
+    auto_pz_channel_changed = Signal(int)
 
     def __init__(self, app_device, read_mode, write_mode, parent=None):
         super(MSCF16, self).__init__(app_device, read_mode, write_mode, parent)

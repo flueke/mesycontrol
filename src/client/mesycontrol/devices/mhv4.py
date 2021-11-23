@@ -21,7 +21,7 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from .. qt import pyqtSlot
+from .. qt import Slot
 from .. qt import Qt
 from .. qt import QtCore
 from .. qt import QtGui
@@ -315,7 +315,7 @@ class ChannelWidget(QtGui.QWidget):
 
             self.label_temperature.setText(QtCore.QString.fromUtf8(text))
 
-    @pyqtSlot(int)
+    @Slot(int)
     def on_slider_target_voltage_valueChanged(self, value):
         slider = self.slider_target_voltage
         slider.setToolTip("%d V" % value)

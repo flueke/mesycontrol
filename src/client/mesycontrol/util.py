@@ -23,11 +23,12 @@ __email__  = 'f.lueke@mesytec.com'
 
 from pyqtgraph.SignalProxy import SignalProxy
 
-from qt import QtCore
-from qt import QtGui
-from qt import pyqtSignal
-from qt import Qt
-from qt import uic
+from mesycontrol.qt import QtCore
+from mesycontrol.qt import QtGui
+from mesycontrol.qt import QtWidgets
+from mesycontrol.qt import Signal
+from mesycontrol.qt import Qt
+from mesycontrol.qt import QUiLoader
 
 QObject = QtCore.QObject
 QTimer  = QtCore.QTimer
@@ -334,7 +335,7 @@ class HasExceptionFilter(object):
         return log_record.exc_info is not None
 
 class QtLoggingBridge(QObject):
-    log_record = pyqtSignal(object)
+    log_record = Signal(object)
 
     def __init__(self, parent=None):
         super(QtLoggingBridge, self).__init__(parent)
@@ -343,7 +344,7 @@ class QtLoggingBridge(QObject):
         self.log_record.emit(record)
 
 #class QtLogEmitter(QObject):
-#    log_record = pyqtSignal(object)
+#    log_record = Signal(object)
 #
 #    def __init__(self, parent=None):
 #        super(QtLogEmitter, self).__init__(parent)
@@ -499,13 +500,13 @@ class ExceptionHookRegistry(object):
 def make_title_label(title):
     title_font = QtGui.QFont()
     title_font.setBold(True)
-    label = QtGui.QLabel(title)
+    label = QtWidgets.QLabel(title)
     label.setFont(title_font)
     label.setAlignment(Qt.AlignCenter)
     return label
 
 def hline(parent=None):
-    ret = QtGui.QFrame(parent)
+    ret = QtWidgets.QFrame(parent)
     ret.setFrameShape(QtGui.QFrame.HLine)
     ret.setFrameShadow(QtGui.QFrame.Sunken)
     return ret
@@ -518,7 +519,7 @@ def vline(parent=None):
 
 def make_spinbox(min_value=None, max_value=None, value=None, limits=None,
         prefix=None, suffix=None, single_step=None, parent=None):
-    ret = QtGui.QSpinBox(parent)
+    ret = QtWidgets.QSpinBox(parent)
     if min_value is not None:
         ret.setMinimum(min_value)
     if max_value is not None:
@@ -602,7 +603,8 @@ def loadUi(filename, baseinstance=None):
     f = QtCore.QFile(filename)
     if not f.open(QtCore.QIODevice.ReadOnly | QtCore.QIODevice.Text):
         raise RuntimeError(str(f.errorString()))
-    return uic.loadUi(f, baseinstance)
+    #return uic.loadUi(f, baseinstance)
+    return QuiLoader().load(f, baseinstance)
 
 class ChannelGroupHelper(object):
     def __init__(self, num_channels, num_groups):
@@ -613,14 +615,14 @@ class ChannelGroupHelper(object):
         return self.num_channels / self.num_groups
 
     def group_channel_range(self, group_num):
-        return xrange(group_num * self.channels_per_group(),
+        return range(group_num * self.channels_per_group(),
                 (group_num + 1) * self.channels_per_group())
 
     def channel_to_group(self, channel_num):
         return int(math.floor(channel_num / self.channels_per_group()))
 
-class DelayedSpinBox(QtGui.QSpinBox):
-    delayed_valueChanged = pyqtSignal(object)
+class DelayedSpinBox(QtWidgets.QSpinBox):
+    delayed_valueChanged = Signal(object)
 
     def __init__(self, delay=0.5, parent=None):
         super(DelayedSpinBox, self).__init__(parent)
@@ -633,8 +635,8 @@ class DelayedSpinBox(QtGui.QSpinBox):
         self.proxy = SignalProxy(signal=self.valueChanged,
                 slot=delayed_slt, delay=delay)
 
-class DelayedDoubleSpinBox(QtGui.QDoubleSpinBox):
-    delayed_valueChanged = pyqtSignal(object)
+class DelayedDoubleSpinBox(QtWidgets.QDoubleSpinBox):
+    delayed_valueChanged = Signal(object)
 
     # Swapped order of arguments because of uic passing parent as first
     # argument if used in a .ui file...
@@ -664,7 +666,7 @@ class DelayedDoubleSpinBox(QtGui.QDoubleSpinBox):
         self.log.debug("%s setValue(%s)", self, value)
         super(DelayedDoubleSpinBox, self).setValue(value)
 
-class FixedWidthVerticalToolBar(QtGui.QWidget):
+class FixedWidthVerticalToolBar(QtWidgets.QWidget):
     """Like a vertical QToolBar but having a fixed width. I did not manage to
     get a QToolBar to have a fixed width. That's the only reason this class
     exists."""
@@ -684,7 +686,7 @@ class FixedWidthVerticalToolBar(QtGui.QWidget):
         self.layout().addStretch(1)
         self.setFixedWidth(self.sizeHint().width())
 
-class SimpleToolBar(QtGui.QWidget):
+class SimpleToolBar(QtWidgets.QWidget):
     def __init__(self, orientation=Qt.Horizontal, parent=None):
         super(SimpleToolBar, self).__init__(parent)
         self.orientation = orientation
@@ -737,7 +739,7 @@ def make_icon(source):
 def make_standard_icon(icon, option=None, widget=None):
     return QtGui.QApplication.instance().style().standardIcon(icon, option, widget)
 
-class ReadOnlyCheckBox(QtGui.QCheckBox):
+class ReadOnlyCheckBox(QtWidgets.QCheckBox):
     # Note: keyPressEvent and keyReleaseEvent do not need to be overriden
     # because FocusPolicy is set to NoFocus
 

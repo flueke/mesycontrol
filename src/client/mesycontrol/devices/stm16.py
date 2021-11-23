@@ -21,8 +21,8 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from .. qt import pyqtSignal
-from .. qt import pyqtSlot
+from .. qt import Signal
+from .. qt import Slot
 from .. qt import Qt
 from .. qt import QtGui
 
@@ -48,7 +48,7 @@ GAIN_ADJUST_LIMITS  = (1, 100)  # limits of the hardware gain jumpers
 cg_helper = util.ChannelGroupHelper(NUM_CHANNELS, NUM_GROUPS)
 
 class STM16(DeviceBase):
-    gain_adjust_changed = pyqtSignal(int)
+    gain_adjust_changed = Signal(int)
 
     def __init__(self, app_device, read_mode, write_mode, parent=None):
         super(STM16, self).__init__(app_device, read_mode, write_mode, parent)
@@ -138,7 +138,7 @@ class GainPage(QtGui.QGroupBox):
 
         layout.addWidget(self.hw_gain_input, offset, 1)
 
-    @pyqtSlot(int)
+    @Slot(int)
     def _on_hw_gain_input_value_changed(self, value):
         self.log.debug("_on_hw_gain_input_value_changed: %s", value)
         self.device.set_gain_adjust(value)

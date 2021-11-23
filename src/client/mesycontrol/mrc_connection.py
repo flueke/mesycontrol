@@ -21,16 +21,16 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import QtCore
-from qt import pyqtSignal
+from mesycontrol.qt import QtCore
+from mesycontrol.qt import Signal
 import errno
 
-from future import Future
-from future import progress_forwarder
-from tcp_client import MCTCPClient
-import proto
-import server_process
-import util
+from mesycontrol.future import Future
+from mesycontrol.future import progress_forwarder
+from mesycontrol.tcp_client import MCTCPClient
+import mesycontrol.proto
+import mesycontrol.server_process
+import mesycontrol.util
 
 class IsConnecting(Exception):
     pass
@@ -39,22 +39,22 @@ class IsConnected(Exception):
     pass
 
 class AbstractConnection(QtCore.QObject):
-    connected               = pyqtSignal()          #: connected and ready to send requests
-    disconnected            = pyqtSignal()          #: disconnected; not ready to handle requests
-    connecting              = pyqtSignal(object)    #: Establishing the connection. The argument is a
+    connected               = Signal()          #: connected and ready to send requests
+    disconnected            = Signal()          #: disconnected; not ready to handle requests
+    connecting              = Signal(object)    #: Establishing the connection. The argument is a
                                                     #: Future instance which fullfills once the connection
                                                     #: is established or an error occurs.
-    connection_error        = pyqtSignal(object)    #: error object
+    connection_error        = Signal(object)    #: error object
 
-    request_queued          = pyqtSignal(object, object) #: request, Future
-    request_sent            = pyqtSignal(object, object) #: request, Future
-    message_received        = pyqtSignal(object)         #: Message
-    response_received       = pyqtSignal(object, object, object) #: request, response, Future
-    notification_received   = pyqtSignal(object) #: Message
-    error_message_received  = pyqtSignal(object) #: Message
+    request_queued          = Signal(object, object) #: request, Future
+    request_sent            = Signal(object, object) #: request, Future
+    message_received        = Signal(object)         #: Message
+    response_received       = Signal(object, object, object) #: request, response, Future
+    notification_received   = Signal(object) #: Message
+    error_message_received  = Signal(object) #: Message
 
-    queue_empty             = pyqtSignal()
-    queue_size_changed      = pyqtSignal(int)
+    queue_empty             = Signal()
+    queue_size_changed      = Signal(int)
 
     def __init__(self, parent=None):
         super(AbstractConnection, self).__init__(parent)
@@ -308,7 +308,7 @@ class LocalMRCConnection(AbstractConnection):
                 fs  = os.stat(ser)
                 o   = pwd.getpwuid(fs.st_uid)[0]
                 g   = grp.getgrgid(fs.st_gid)[0]
-                p   = oct(fs.st_mode & 0777)
+                p   = oct(fs.st_mode & 0o0777)
                 txt = "No write permission on %s (owner=%s,group=%s,perms=%s)!" % (
                         ser, o, g, p)
                 self._connecting_future.set_progress_text(txt)

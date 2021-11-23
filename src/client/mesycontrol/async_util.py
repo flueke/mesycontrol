@@ -21,7 +21,7 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from config_util import GeneratorRunner
+from mesycontrol.config_util import GeneratorRunner
 
 class DefaultGeneratorRunner(GeneratorRunner):
     def __init__(self, generator=None, parent_widget=None, parent=None):

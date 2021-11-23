@@ -21,14 +21,15 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import pyqtProperty
-from qt import pyqtSignal
+from mesycontrol.qt import Property
+from mesycontrol.qt import Signal
 
-import basic_model as bm
-import future
+import mesycontrol.basic_model as bm
+import mesycontrol.future
+import mesycontrol.proto
+import mesycontrol.util
+
 import os
-import proto
-import util
 
 DEFAULT_CONNECT_TIMEOUT_MS = 10000
 
@@ -37,16 +38,16 @@ class AddressConflict(RuntimeError):
         return "Address conflict"
 
 class MRC(bm.MRC):
-    connected                   = pyqtSignal()
-    connecting                  = pyqtSignal(object)    #: future object
-    disconnected                = pyqtSignal()
-    connection_error            = pyqtSignal(object)    #: error object
+    connected                   = Signal()
+    connecting                  = Signal(object)    #: future object
+    disconnected                = Signal()
+    connection_error            = Signal(object)    #: error object
 
-    address_conflict_changed    = pyqtSignal(bool)
+    address_conflict_changed    = Signal(bool)
 
-    status_changed              = pyqtSignal(object)     #: proto.MRCStatus
-    write_access_changed        = pyqtSignal(bool, bool) #: has_write_access, can_acquire
-    silenced_changed            = pyqtSignal(bool)       #: is_silenced
+    status_changed              = Signal(object)     #: proto.MRCStatus
+    write_access_changed        = Signal(bool, bool) #: has_write_access, can_acquire
+    silenced_changed            = Signal(bool)       #: is_silenced
 
     def __init__(self, url, parent=None):
         super(MRC, self).__init__(url, parent)
@@ -233,19 +234,19 @@ class MRC(bm.MRC):
         return "hm.MRC(id=%s, url=%s, connected=%s)" % (
                 hex(id(self)), self.url, self.is_connected())
 
-    connection      = pyqtProperty(object, get_connection)
-    controller      = pyqtProperty(object, get_controller, set_controller)
-    write_access    = pyqtProperty(bool, has_write_access, set_write_access)
-    silenced        = pyqtProperty(bool, is_silenced)
+    connection      = Property(object, get_connection)
+    controller      = Property(object, get_controller, set_controller)
+    write_access    = Property(bool, has_write_access, set_write_access)
+    silenced        = Property(bool, is_silenced)
 
 class Device(bm.Device):
-    connected                   = pyqtSignal()
-    connecting                  = pyqtSignal(object)
-    disconnected                = pyqtSignal()
-    connection_error            = pyqtSignal(object)    #: error object
+    connected                   = Signal()
+    connecting                  = Signal(object)
+    disconnected                = Signal()
+    connection_error            = Signal(object)    #: error object
 
-    address_conflict_changed    = pyqtSignal(bool)
-    rc_changed                  = pyqtSignal(bool)
+    address_conflict_changed    = Signal(bool)
+    rc_changed                  = Signal(bool)
 
     def __init__(self, bus, address, idc, parent=None):
         super(Device, self).__init__(bus, address, idc, parent)
@@ -333,9 +334,9 @@ class Device(bm.Device):
         return "hm.Device(id=%s, b=%d, a=%d, idc=%d, mrc=%s)" % (
                 hex(id(self)), self.bus, self.address, self.idc, self.mrc)
 
-    controller = pyqtProperty(object, get_controller)
+    controller = Property(object, get_controller)
 
-    address_conflict = pyqtProperty(bool, has_address_conflict, set_address_conflict,
+    address_conflict = Property(bool, has_address_conflict, set_address_conflict,
             notify=address_conflict_changed)
 
-    rc = pyqtProperty(bool, get_rc, update_rc, notify=rc_changed)
+    rc = Property(bool, get_rc, update_rc, notify=rc_changed)

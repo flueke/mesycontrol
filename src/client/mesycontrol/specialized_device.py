@@ -21,8 +21,8 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import pyqtProperty
-from qt import pyqtSignal
+from qt import Property
+from qt import Signal
 from qt import QtCore
 from qt import QtGui
 from qt import Qt
@@ -35,31 +35,31 @@ class DeviceBase(QtCore.QObject):
     """Acts as a decorator for an app_model.Device. Should be subclassed to
     create device specific classes, e.g. class MHV4(DeviceBase)."""
 
-    mrc_changed             = pyqtSignal(object)
+    mrc_changed             = Signal(object)
 
-    hardware_set            = pyqtSignal(object, object, object) #: self, old, new
-    config_set              = pyqtSignal(object, object, object) #: self, old, new
+    hardware_set            = Signal(object, object, object) #: self, old, new
+    config_set              = Signal(object, object, object) #: self, old, new
 
-    idc_conflict_changed    = pyqtSignal(bool)
-    idc_changed             = pyqtSignal(int)
-    hw_idc_changed          = pyqtSignal(int)
-    cfg_idc_changed         = pyqtSignal(int)
+    idc_conflict_changed    = Signal(bool)
+    idc_changed             = Signal(int)
+    hw_idc_changed          = Signal(int)
+    cfg_idc_changed         = Signal(int)
 
-    module_changed          = pyqtSignal(object)
-    hw_module_changed       = pyqtSignal(object)
-    cfg_module_changed      = pyqtSignal(object)
+    module_changed          = Signal(object)
+    hw_module_changed       = Signal(object)
+    cfg_module_changed      = Signal(object)
 
-    profile_changed         = pyqtSignal(object)
-    hw_profile_changed      = pyqtSignal(object)
-    cfg_profile_changed     = pyqtSignal(object)
+    profile_changed         = Signal(object)
+    hw_profile_changed      = Signal(object)
+    cfg_profile_changed     = Signal(object)
 
-    config_applied_changed  = pyqtSignal(object)
+    config_applied_changed  = Signal(object)
 
-    read_mode_changed       = pyqtSignal(object)
-    write_mode_changed      = pyqtSignal(object)
+    read_mode_changed       = Signal(object)
+    write_mode_changed      = Signal(object)
 
-    parameter_changed       = pyqtSignal(int, object)
-    extension_changed       = pyqtSignal(str, object)
+    parameter_changed       = Signal(int, object)
+    extension_changed       = Signal(str, object)
 
     def __init__(self, app_device, read_mode, write_mode, parent=None):
         """
@@ -127,9 +127,9 @@ class DeviceBase(QtCore.QObject):
         """Forward attribute access to the app_model.Device instance."""
         return getattr(self.app_device, attr)
 
-    read_mode       = pyqtProperty(object, get_read_mode, set_read_mode, notify=read_mode_changed)
-    write_mode      = pyqtProperty(object, get_write_mode, set_write_mode, notify=write_mode_changed)
-    idc_conflict    = pyqtProperty(bool, lambda s: s.has_idc_conflict(), notify=idc_conflict_changed)
+    read_mode       = Property(object, get_read_mode, set_read_mode, notify=read_mode_changed)
+    write_mode      = Property(object, get_write_mode, set_write_mode, notify=write_mode_changed)
+    idc_conflict    = Property(bool, lambda s: s.has_idc_conflict(), notify=idc_conflict_changed)
 
     # ===== mode dependent =====
     def get_parameter(self, address_or_name):
@@ -254,9 +254,9 @@ class DeviceBase(QtCore.QObject):
 
 class DeviceWidgetBase(QtGui.QWidget):
     """Base class for device specific widgets."""
-    display_mode_changed = pyqtSignal(int)
-    write_mode_changed   = pyqtSignal(int)
-    hardware_connected_changed = pyqtSignal(bool)
+    display_mode_changed = Signal(int)
+    write_mode_changed   = Signal(int)
+    hardware_connected_changed = Signal(bool)
 
     def __init__(self, specialized_device, display_mode, write_mode, parent=None):
         """Construct a device specific widget.
@@ -339,13 +339,13 @@ class DeviceWidgetBase(QtGui.QWidget):
         if write_mode != util.COMBINED:
             self.display_mode = self.write_mode
 
-    display_mode = pyqtProperty(
+    display_mode = Property(
             object,
             fget=lambda s: s.get_display_mode(),
             fset=lambda s,v: s.set_display_mode(v),
             notify=display_mode_changed)
 
-    write_mode   = pyqtProperty(
+    write_mode   = Property(
             object,
             fget=lambda s: s.get_write_mode(),
             fset=lambda s, v: s.set_write_mode(v),

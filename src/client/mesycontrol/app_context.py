@@ -21,19 +21,19 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import QtCore
-from qt import QtGui
+from mesycontrol.qt import QtCore
+from mesycontrol.qt import QtGui
 import contextlib
 import os
 
-import app_model as am
-import basic_model as bm
-import config_model as cm
-import config_xml
-import device_registry
-import future
-import model_util
-import util
+import mesycontrol.app_model as am
+import mesycontrol.basic_model as bm
+import mesycontrol.config_model as cm
+import mesycontrol.config_xml
+import mesycontrol.device_registry
+import mesycontrol.future
+import mesycontrol.model_util
+import mesycontrol.util
 
 class Context(QtCore.QObject):
     def __init__(self, main_file, auto_load_device_modules=True, parent=None):

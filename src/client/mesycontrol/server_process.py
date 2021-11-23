@@ -21,15 +21,15 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import QtCore
-from qt import pyqtSignal
+from mesycontrol.qt import QtCore
+from mesycontrol.qt import Signal
 from functools import partial
 import collections
 import weakref
 import sys
 
-import util
-from future import Future
+from mesycontrol import util
+from mesycontrol.future import Future
 
 QProcess = QtCore.QProcess
 
@@ -85,11 +85,11 @@ def get_exit_code_string(exit_code):
 # base port for the address is found or we run out of ports.
 
 class ServerProcess(QtCore.QObject):
-    started  = pyqtSignal()
-    stopped  = pyqtSignal()
-    error    = pyqtSignal(QProcess.ProcessError, str, int, str)
-    finished = pyqtSignal(QProcess.ExitStatus, int, str) #: exit_status, exit_code, exit_code_string
-    output   = pyqtSignal(str)
+    started  = Signal()
+    stopped  = Signal()
+    error    = Signal(QProcess.ProcessError, str, int, str)
+    finished = Signal(QProcess.ExitStatus, int, str) #: exit_status, exit_code, exit_code_string
+    output   = Signal(str)
 
     exit_codes = {
             0:   "exit_success",
@@ -346,7 +346,7 @@ if __name__ == "__main__":
     sp4 = ServerProcess(serial_port='/dev/ttyUSB0', listen_address="1.2.3.4")
 
     def sp_start_done(f):
-        print "start() done:", f.result()
+        print("start() done:", f.result())
 
     sp1.start().add_done_callback(sp_start_done)
     sp2.start().add_done_callback(sp_start_done)

@@ -24,17 +24,17 @@ __email__  = 'f.lueke@mesytec.com'
 from functools import partial
 import weakref
 
-from qt import QtCore
-from qt import pyqtProperty
-from qt import pyqtSignal
+from mesycontrol.qt import QtCore
+from mesycontrol.qt import Property
+from mesycontrol.qt import Signal
 
-from basic_model import IDCConflict
-from model_util import add_mrc_connection
-import basic_model as bm
-import config_model as cm
-import future
-import model_util
-import util
+from mesycontrol.basic_model import IDCConflict
+from mesycontrol.model_util import add_mrc_connection
+import mesycontrol.basic_model as bm
+import mesycontrol.config_model as cm
+import mesycontrol.future
+import mesycontrol.model_util
+import mesycontrol.util
 
 """Mesycontrol application model.
 These objects merge the hardware and the config models together.
@@ -43,8 +43,8 @@ MRC objects are identified by URL, Device objects by (bus, address).
 """
 
 class AppObject(QtCore.QObject):
-    hardware_set = pyqtSignal(object, object, object) #: self, old, new
-    config_set   = pyqtSignal(object, object, object) #: self, old, new
+    hardware_set = Signal(object, object, object) #: self, old, new
+    config_set   = Signal(object, object, object) #: self, old, new
 
     def __init__(self, hardware=None, config=None, parent=None):
         super(AppObject, self).__init__(parent)
@@ -73,16 +73,16 @@ class AppObject(QtCore.QObject):
             self._cfg = cfg
             self.config_set.emit(self, old, self.cfg)
 
-    hw  = pyqtProperty(object, get_hardware, set_hardware, notify=hardware_set)
-    cfg = pyqtProperty(object, get_config, set_config, notify=config_set)
+    hw  = Property(object, get_hardware, set_hardware, notify=hardware_set)
+    cfg = Property(object, get_config, set_config, notify=config_set)
 
     has_hw  = property(lambda self: self.hw is not None)
     has_cfg = property(lambda self: self.cfg is not None)
 
 class MRCRegistry(AppObject):
-    mrc_added   = pyqtSignal(object)
-    mrc_about_to_be_removed = pyqtSignal(object)
-    mrc_removed = pyqtSignal(object)
+    mrc_added   = Signal(object)
+    mrc_about_to_be_removed = Signal(object)
+    mrc_removed = Signal(object)
 
     def __init__(self, hw_reg, cfg_reg, parent=None):
         super(MRCRegistry, self).__init__(hardware=hw_reg, config=cfg_reg, parent=parent)
@@ -129,16 +129,16 @@ class MRCRegistry(AppObject):
         return "am.MRCRegistry(id=%s, hw=%s, cfg=%s)" % (
                 hex(id(self)), self.hw, self.cfg)
 
-    setup = pyqtProperty(object,
+    setup = Property(object,
             fget=lambda s: s.cfg,
             fset=lambda s, v: s.set_config(v))
-    mrcs  = pyqtProperty(list, get_mrcs)
+    mrcs  = Property(list, get_mrcs)
 
 class MRC(AppObject):
-    device_added    = pyqtSignal(object)
-    device_about_to_be_removed = pyqtSignal(object)
-    device_removed  = pyqtSignal(object)
-    mrc_registry_changed = pyqtSignal(object)
+    device_added    = Signal(object)
+    device_about_to_be_removed = Signal(object)
+    device_removed  = Signal(object)
+    mrc_registry_changed = Signal(object)
 
     def __init__(self, url, mrc_registry=None, hw_mrc=None, cfg_mrc=None, parent=None):
         super(MRC, self).__init__(hardware=hw_mrc, config=cfg_mrc, parent=parent)
@@ -215,33 +215,33 @@ class MRC(AppObject):
         return "am.MRC(id=%s, url=%s, hw=%s, cfg=%s)" % (
                 hex(id(self)), self.url, self.hw, self.cfg)
 
-    url     = pyqtProperty(str, get_url)
-    devices = pyqtProperty(list, get_devices)
-    mrc_registry = pyqtProperty(object, get_mrc_registry, set_mrc_registry, notify=mrc_registry_changed)
+    url     = Property(str, get_url)
+    devices = Property(list, get_devices)
+    mrc_registry = Property(object, get_mrc_registry, set_mrc_registry, notify=mrc_registry_changed)
 
 class Device(AppObject):
-    mrc_changed             = pyqtSignal(object)
+    mrc_changed             = Signal(object)
 
-    idc_conflict_changed    = pyqtSignal(bool)
-    idc_changed             = pyqtSignal(int)
-    hw_idc_changed          = pyqtSignal(int)
-    cfg_idc_changed         = pyqtSignal(int)
+    idc_conflict_changed    = Signal(bool)
+    idc_changed             = Signal(int)
+    hw_idc_changed          = Signal(int)
+    cfg_idc_changed         = Signal(int)
 
-    module_changed          = pyqtSignal(object)
-    hw_module_changed       = pyqtSignal(object)
-    cfg_module_changed      = pyqtSignal(object)
+    module_changed          = Signal(object)
+    hw_module_changed       = Signal(object)
+    cfg_module_changed      = Signal(object)
 
-    profile_changed         = pyqtSignal(object)
-    hw_profile_changed      = pyqtSignal(object)
-    cfg_profile_changed     = pyqtSignal(object)
+    profile_changed         = Signal(object)
+    hw_profile_changed      = Signal(object)
+    cfg_profile_changed     = Signal(object)
 
-    config_applied_changed  = pyqtSignal(object) # True, False or None with None meaning "unknown"
+    config_applied_changed  = Signal(object) # True, False or None with None meaning "unknown"
 
-    hw_parameter_changed    = pyqtSignal(int, object)
-    cfg_parameter_changed   = pyqtSignal(int, object)
+    hw_parameter_changed    = Signal(int, object)
+    cfg_parameter_changed   = Signal(int, object)
 
-    hw_extension_changed    = pyqtSignal(str, object)
-    cfg_extension_changed   = pyqtSignal(str, object)
+    hw_extension_changed    = Signal(str, object)
+    cfg_extension_changed   = Signal(str, object)
 
     def __init__(self, bus, address, mrc=None, hw_device=None, cfg_device=None,
             hw_module=None, cfg_module=None, parent=None):
@@ -605,23 +605,23 @@ class Device(AppObject):
         self.hw.remove_polling_subscriber(subscriber)
         self.log.debug("Removed poll subscriber %s", subscriber)
 
-    mrc             = pyqtProperty(object, get_mrc, set_mrc, notify=mrc_changed)
+    mrc             = Property(object, get_mrc, set_mrc, notify=mrc_changed)
 
-    idc_conflict    = pyqtProperty(bool, has_idc_conflict, notify=idc_conflict_changed)
-    idc             = pyqtProperty(int, get_idc, notify=idc_changed)
-    hw_idc          = pyqtProperty(int, get_hw_idc, notify=hw_idc_changed)
-    cfg_idc         = pyqtProperty(int, get_cfg_idc, notify=cfg_idc_changed)
+    idc_conflict    = Property(bool, has_idc_conflict, notify=idc_conflict_changed)
+    idc             = Property(int, get_idc, notify=idc_changed)
+    hw_idc          = Property(int, get_hw_idc, notify=hw_idc_changed)
+    cfg_idc         = Property(int, get_cfg_idc, notify=cfg_idc_changed)
 
-    module          = pyqtProperty(object, get_module, set_module, notify=module_changed)
-    hw_module       = pyqtProperty(object, get_hw_module, set_hw_module, notify=hw_module_changed)
-    cfg_module      = pyqtProperty(object, get_cfg_module, set_cfg_module, notify=cfg_module_changed)
+    module          = Property(object, get_module, set_module, notify=module_changed)
+    hw_module       = Property(object, get_hw_module, set_hw_module, notify=hw_module_changed)
+    cfg_module      = Property(object, get_cfg_module, set_cfg_module, notify=cfg_module_changed)
 
-    profile         = pyqtProperty(object, get_profile, notify=profile_changed)
-    hw_profile      = pyqtProperty(object, get_hw_profile, notify=hw_profile_changed)
-    cfg_profile     = pyqtProperty(object, get_cfg_profile, notify=cfg_profile_changed)
+    profile         = Property(object, get_profile, notify=profile_changed)
+    hw_profile      = Property(object, get_hw_profile, notify=hw_profile_changed)
+    cfg_profile     = Property(object, get_cfg_profile, notify=cfg_profile_changed)
 
-    config_applied  = pyqtProperty(bool, is_config_applied, notify=config_applied_changed)
-    address_conflict = pyqtProperty(bool, has_address_conflict)
+    config_applied  = Property(bool, is_config_applied, notify=config_applied_changed)
+    address_conflict = Property(bool, has_address_conflict)
 
 class Director(object):
     """Manages the app_model tree.

@@ -23,7 +23,7 @@ __email__  = 'f.lueke@mesytec.com'
 
 from PyQt4 import QtCore
 from PyQt4 import QtGui
-from PyQt4.QtCore import pyqtSlot
+from PyQt4.QtCore import Slot
 from mesycontrol import config
 from mesycontrol import util
 
@@ -52,7 +52,7 @@ class ConnectDialog(QtGui.QDialog):
         self.stacked_widget.currentChanged.connect(self._validate_inputs)
         self._validate_inputs()
 
-    @pyqtSlot()
+    @Slot()
     def _validate_inputs(self):
         page_widget = self.stacked_widget.currentWidget()
         is_ok       = True
@@ -62,7 +62,7 @@ class ConnectDialog(QtGui.QDialog):
 
         self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(is_ok)
 
-    @pyqtSlot()
+    @Slot()
     def accept(self):
         self.connection_config      = config.MRCConnectionConfig()
 

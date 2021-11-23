@@ -33,7 +33,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>25</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_file">
@@ -126,14 +126,6 @@
    </property>
    <property name="statusTip">
     <string>Close the current setup and disconnect from the hardware</string>
-   </property>
-  </action>
-  <action name="actionMein_toller_menupunkt">
-   <property name="text">
-    <string>mein toller menupunkt</string>
-   </property>
-   <property name="statusTip">
-    <string>tralalal</string>
    </property>
   </action>
   <action name="actionAbout">

@@ -21,27 +21,28 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import Qt
-from qt import QtCore
-from qt import QtGui
+from mesycontrol.qt import Qt
+from mesycontrol.qt import QtCore
+from mesycontrol.qt import QtGui
+from mesycontrol.qt import QtWidgets
 
 import logging
 import os
 
-from model_util import add_mrc_connection
-from ui.dialogs import AddDeviceDialog
-from ui.dialogs import AddMRCDialog
+from mesycontrol.model_util import add_mrc_connection
+from mesycontrol.ui.dialogs import AddDeviceDialog
+from mesycontrol.ui.dialogs import AddMRCDialog
 
-import basic_model as bm
-import config_model as cm
-import config_tree_model as ctm
-import config_xml
-import hardware_tree_model as htm
-import util
+import mesycontrol.basic_model as bm
+import mesycontrol.config_model as cm
+import mesycontrol.config_tree_model as ctm
+import mesycontrol.config_xml
+import mesycontrol.hardware_tree_model as htm
+import mesycontrol.util
 
 log = logging.getLogger(__name__)
 
-class DeviceSubWindow(QtGui.QMdiSubWindow):
+class DeviceSubWindow(QtWidgets.QMdiSubWindow):
     def __init__(self, widget, window_name_prefix, parent=None, **kwargs):
         super(DeviceSubWindow, self).__init__(parent)
         self.log = util.make_logging_source_adapter(__name__, self)
@@ -268,7 +269,7 @@ def run_add_mrc_connection_dialog(registry, parent_widget=None):
             add_mrc_connection(registry.hw, url, connect)
         except Exception as e:
             log.exception("run_add_mrc_connection_dialog")
-            QtGui.QMessageBox.critical(parent_widget, "Error", str(e))
+            QtWidgets.QMessageBox.critical(parent_widget, "Error", str(e))
 
     dialog.accepted.connect(accepted)
     dialog.show()
@@ -323,7 +324,7 @@ def run_edit_mrc_config(mrc, registry, parent_widget=None):
 
         except Exception as e:
             log.exception("run_edit_mrc_config")
-            QtGui.QMessageBox.critical(parent_widget, "Error", str(e))
+            QtWidgets.QMessageBox.critical(parent_widget, "Error", str(e))
 
     dialog.accepted.connect(accepted)
     dialog.show()
@@ -354,7 +355,7 @@ def run_add_device_config_dialog(device_registry, registry, mrc, bus=None, addre
         dialog.show()
     except RuntimeError as e:
         log.exception("add device config")
-        QtGui.QMessageBox.critical(parent_widget, "Error", str(e))
+        QtWidgets.QMessageBox.critical(parent_widget, "Error", str(e))
 
 def run_edit_device_config(device_registry, registry, device, parent_widget=None):
     assert device.cfg is not None
@@ -394,7 +395,7 @@ def run_edit_device_config(device_registry, registry, device, parent_widget=None
 def run_load_device_config(device, context, parent_widget):
     directory_hint = context.get_config_directory_hint()
 
-    filename = str(QtGui.QFileDialog.getOpenFileName(parent_widget, "Load Device config",
+    filename = str(QtWidgets.QFileDialog.getOpenFileName(parent_widget, "Load Device config",
         directory=directory_hint, filter="XML files (*.xml);;"))
 
     if not len(filename):
@@ -419,14 +420,14 @@ def run_load_device_config(device, context, parent_widget):
         return True
     except Exception as e:
         log.exception("load device config")
-        QtGui.QMessageBox.critical(parent_widget, "Error",
+        QtWidgets.QMessageBox.critical(parent_widget, "Error",
                 "Loading device config from %s failed:\n%s" % (filename, e))
         return False
 
 def run_save_device_config(device, context, parent_widget):
     directory_hint = context.get_config_directory_hint()
 
-    filename = str(QtGui.QFileDialog.getSaveFileName(parent_widget, "Save Device config as",
+    filename = str(QtWidgets.QFileDialog.getSaveFileName(parent_widget, "Save Device config as",
         directory=directory_hint, filter="XML files (*.xml);;"))
 
     if not len(filename):
@@ -444,7 +445,7 @@ def run_save_device_config(device, context, parent_widget):
         return True
     except Exception as e:
         log.exception("save device config")
-        QtGui.QMessageBox.critical(parent_widget, "Error",
+        QtWidgets.QMessageBox.critical(parent_widget, "Error",
                 "Saving device config to %s failed:\n%s" % (filename, e))
         return False
 
@@ -463,7 +464,7 @@ def run_save_setup(context, parent_widget):
         return True
     except Exception as e:
         log.exception("save setup")
-        QtGui.QMessageBox.critical(parent_widget, "Error", "Saving setup %s failed:\n%s" % (setup.filename, e))
+        QtWidgets.QMessageBox.critical(parent_widget, "Error", "Saving setup %s failed:\n%s" % (setup.filename, e))
         return False
 
 def run_save_setup_as_dialog(context, parent_widget):
@@ -474,7 +475,7 @@ def run_save_setup_as_dialog(context, parent_widget):
     else:
         directory_hint = context.get_setup_directory_hint()
 
-    filename = str(QtGui.QFileDialog.getSaveFileName(parent_widget, "Save setup as",
+    filename = str(QtWidgets.QFileDialog.getSaveFileName(parent_widget, "Save setup as",
             directory=directory_hint, filter="XML files (*.xml);; *"))
 
     if not len(filename):
@@ -496,27 +497,27 @@ def run_save_setup_as_dialog(context, parent_widget):
         return True
     except Exception as e:
         log.exception("save setup as")
-        QtGui.QMessageBox.critical(parent_widget, "Error", "Saving setup %s failed:\n%s" % (setup.filename, e))
+        QtWidgets.QMessageBox.critical(parent_widget, "Error", "Saving setup %s failed:\n%s" % (setup.filename, e))
         return False
     
 def run_open_setup_dialog(context, parent_widget):
     if context.setup.modified and len(context.setup):
-        answer = QtGui.QMessageBox.question(parent_widget,
+        answer = QtWidgets.QMessageBox.question(parent_widget,
                 "Setup modified",
                 "The current setup is modified. Do you want to save it?",
-                QtGui.QMessageBox.Yes | QtGui.QMessageBox.No | QtGui.QMessageBox.Cancel,
-                QtGui.QMessageBox.Yes)
+                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No | QtWidgets.QMessageBox.Cancel,
+                QtWidgets.QMessageBox.Yes)
 
-        if answer == QtGui.QMessageBox.Cancel:
+        if answer == QtWidgets.QMessageBox.Cancel:
             return
 
-        if answer == QtGui.QMessageBox.Yes:
+        if answer == QtWidgets.QMessageBox.Yes:
             if not run_save_setup_as_dialog(context, parent_widget):
                 return False
 
     directory_hint = context.get_setup_directory_hint()
 
-    filename = str(QtGui.QFileDialog.getOpenFileName(
+    filename = str(QtWidgets.QFileDialog.getOpenFileName(
         parent_widget, "Open setup file",
         directory=directory_hint, filter="XML files (*.xml);; *"))
 
@@ -527,21 +528,21 @@ def run_open_setup_dialog(context, parent_widget):
         context.open_setup(filename)
     except Exception as e:
         log.exception("open setup")
-        QtGui.QMessageBox.critical(parent_widget, "Error", "Opening setup file %s failed:\n%s" % (filename, e))
+        QtWidgets.QMessageBox.critical(parent_widget, "Error", "Opening setup file %s failed:\n%s" % (filename, e))
         return False
 
 def run_close_setup(context, parent_widget):
     if context.setup.modified and len(context.setup):
-        answer = QtGui.QMessageBox.question(parent_widget,
+        answer = QtWidgets.QMessageBox.question(parent_widget,
                 "Setup modified",
                 "The current setup is modified. Do you want to save it?",
-                QtGui.QMessageBox.Yes | QtGui.QMessageBox.No | QtGui.QMessageBox.Cancel,
-                QtGui.QMessageBox.Yes)
+                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No | QtWidgets.QMessageBox.Cancel,
+                QtWidgets.QMessageBox.Yes)
 
-        if answer == QtGui.QMessageBox.Cancel:
+        if answer == QtWidgets.QMessageBox.Cancel:
             return False
 
-        if answer == QtGui.QMessageBox.Yes:
+        if answer == QtWidgets.QMessageBox.Yes:
             run_save_setup_as_dialog(context, parent_widget)
 
     context.reset_setup()
@@ -622,8 +623,8 @@ def restore_subwindow_state(subwin, settings):
         settings.endGroup()
 
 # ===== Server log dview ===== #
-class ServerLogView(QtGui.QPlainTextEdit):
-    def __init__(self, server_process, max_lines=10000, line_wrap=QtGui.QPlainTextEdit.WidgetWidth, parent=None):
+class ServerLogView(QtWidgets.QPlainTextEdit):
+    def __init__(self, server_process, max_lines=10000, line_wrap=QtWidgets.QPlainTextEdit.WidgetWidth, parent=None):
         super(ServerLogView, self).__init__(parent)
         self.setReadOnly(True)
         self.setMaximumBlockCount(max_lines)
@@ -637,7 +638,7 @@ class ServerLogView(QtGui.QPlainTextEdit):
     def _on_server_output(self, data):
         self.appendPlainText(data.trimmed())
 
-class NotesTextEdit(QtGui.QPlainTextEdit):
+class NotesTextEdit(QtWidgets.QPlainTextEdit):
     def __init__(self, parent=None):
         super(NotesTextEdit, self).__init__(parent)
 
@@ -656,7 +657,7 @@ class NotesTextEdit(QtGui.QPlainTextEdit):
         super(NotesTextEdit, self).mouseDoubleClickEvent(event)
 
 
-class DeviceNotesWidget(QtGui.QWidget):
+class DeviceNotesWidget(QtWidgets.QWidget):
     DISPLAY_ROWS = 3
     ADD_PIXELS_PER_ROW = 5
 
@@ -678,17 +679,17 @@ class DeviceNotesWidget(QtGui.QWidget):
         rh = fm.lineSpacing() + DeviceNotesWidget.ADD_PIXELS_PER_ROW
         self.text_edit.setFixedHeight(DeviceNotesWidget.DISPLAY_ROWS * rh)
 
-        layout = QtGui.QHBoxLayout(self)
+        layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self.text_edit)
 
-        self.edit_button = QtGui.QPushButton(util.make_icon(":/edit.png"), str(),
+        self.edit_button = QtWidgets.QPushButton(util.make_icon(":/edit.png"), str(),
                 clicked=self._on_edit_button_clicked)
         self.edit_button.setToolTip("Edit Device Notes")
         self.edit_button.setStatusTip(self.edit_button.toolTip())
 
-        button_layout = QtGui.QVBoxLayout()
+        button_layout = QtWidgets.QVBoxLayout()
         button_layout.setContentsMargins(0, 0, 0, 0)
         button_layout.addWidget(self.edit_button, 0, Qt.AlignHCenter)
         button_layout.addStretch(1)

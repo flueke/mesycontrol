@@ -51,13 +51,13 @@ __email__  = 'f.lueke@mesytec.com'
 
 # TODO: implement ability to add device profiles to device configs (later)
 
-from qt import QtCore
+from mesycontrol.qt import QtCore
 
 from xml.dom import minidom
 from xml.etree.ElementTree import TreeBuilder
 from xml.etree import ElementTree as ET
 
-import config_model as cm
+import mesycontrol.config_model as cm
 
 version = 1
 

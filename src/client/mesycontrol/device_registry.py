@@ -23,9 +23,9 @@ __email__  = 'f.lueke@mesytec.com'
 
 import importlib
 
-import device_profile
-import devices
-import util
+import mesycontrol.device_profile
+import mesycontrol.devices
+import mesycontrol.util
 
 class VirtualDeviceModule(object):
     def __init__(self, idc):

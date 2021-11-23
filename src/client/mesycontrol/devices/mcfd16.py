@@ -28,8 +28,8 @@ import weakref
 
 from functools import partial
 
-from .. qt import pyqtProperty
-from .. qt import pyqtSignal
+from .. qt import Property
+from .. qt import Signal
 from .. qt import Qt
 from .. qt import QtCore
 from .. qt import QtGui
@@ -247,9 +247,9 @@ def decode_cpu_firmware_version(val):
 # ==========  Device ==========
 class MCFD16(DeviceBase):
 
-    trigger_pattern_changed = pyqtSignal(int, int)  # trigger index, pattern value
-    pair_pattern_changed    = pyqtSignal(int, int)  # pattern index, pattern value
-    delay_chip_ns_changed   = pyqtSignal(int)
+    trigger_pattern_changed = Signal(int, int)  # trigger index, pattern value
+    pair_pattern_changed    = Signal(int, int)  # pattern index, pattern value
+    delay_chip_ns_changed   = Signal(int)
 
     def __init__(self, app_device, read_mode, write_mode, parent=None):
         super(MCFD16, self).__init__(app_device, read_mode, write_mode, parent)
@@ -582,7 +582,7 @@ def make_dynamic_label(initial_value="", longest_value=None, fixed_width=True, f
     return ret
 
 class ChannelMaskWidget(QtGui.QGroupBox):
-    value_changed = pyqtSignal(int)
+    value_changed = Signal(int)
 
     def __init__(self, parent=None):
         super(ChannelMaskWidget, self).__init__("Channel Mask", parent)
@@ -628,7 +628,7 @@ class ChannelMaskWidget(QtGui.QGroupBox):
     def _on_value_changed(self, value):
         self.result_label.setText(str(value))
 
-    value = pyqtProperty(int, get_value, set_value, notify=value_changed)
+    value = Property(int, get_value, set_value, notify=value_changed)
 
 class BitPatternBinding(pb.AbstractParameterBinding):
     def __init__(self, **kwargs):
@@ -1376,7 +1376,7 @@ class MCFD16ControlsWidget(QtGui.QWidget):
         getter().add_done_callback(done)
                 
 class BitPatternHelper(QtCore.QObject):
-    value_changed = pyqtSignal(int)
+    value_changed = Signal(int)
 
     def __init__(self, checkboxes, parent=None):
         super(BitPatternHelper, self).__init__(parent)
@@ -1400,7 +1400,7 @@ class BitPatternHelper(QtCore.QObject):
                 cb.setChecked(value & (1 << i))
         self.value_changed.emit(self.value)
 
-    value = pyqtProperty(int, get_value, set_value, notify=value_changed)
+    value = Property(int, get_value, set_value, notify=value_changed)
 
 class BitPatternWidget(QtGui.QWidget):
     """Horizontal layout containing a title label, n_bits checkboxes and a
@@ -1408,7 +1408,7 @@ class BitPatternWidget(QtGui.QWidget):
     If msb_first is True the leftmost checkbox will toggle the highest valued
     bit, otherwise the lowest valued."""
 
-    value_changed = pyqtSignal(int)
+    value_changed = Signal(int)
 
     def __init__(self, label, n_bits=16, msb_first=True, editable_number=False,
             parent=None):
@@ -1467,7 +1467,7 @@ class BitPatternWidget(QtGui.QWidget):
     def set_value(self, value):
         self._helper.value = value
 
-    value = pyqtProperty(int, get_value, set_value, notify=value_changed)
+    value = Property(int, get_value, set_value, notify=value_changed)
 
 class CoincidenceTimeSpinBoxBinding(pb.DefaultParameterBinding):
     # This needs special handling as the normal range is (3, 136) but

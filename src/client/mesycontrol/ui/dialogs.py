@@ -22,19 +22,20 @@ __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
 import collections
-from .. qt import Qt
-from .. qt import QtCore
-from .. qt import QtGui
-from .. import basic_model as bm
-from .. import util
+from mesycontrol.qt import Qt
+from mesycontrol.qt import QtCore
+from mesycontrol.qt import QtGui
+from mesycontrol.qt import QtWidgets
+from mesycontrol import basic_model as bm
+from mesycontrol import util
 
-class EatReturnCombo(QtGui.QComboBox):
+class EatReturnCombo(QtWidgets.QComboBox):
     def keyPressEvent(self, e):
         super(EatReturnCombo, self).keyPressEvent(e)
         if e.key() in (Qt.Key_Enter, Qt.Key_Return):
             e.accept() # accept the event so it won't be propagated
 
-class AddMRCDialog(QtGui.QDialog):
+class AddMRCDialog(QtWidgets.QDialog):
     Result = collections.namedtuple("Result", "url connect autoconnect")
     SERIAL_USB, SERIAL_SERIAL, TCP, MC = range(4)
 
@@ -47,7 +48,7 @@ class AddMRCDialog(QtGui.QDialog):
         util.loadUi(":/ui/connect_dialog.ui", self)
 
         self.setWindowTitle(title)
-        self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(False)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(False)
 
         for combo in (self.combo_serial_port_usb, self.combo_serial_port_serial):
             combo.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp('.+'), None))
@@ -65,14 +66,14 @@ class AddMRCDialog(QtGui.QDialog):
         for port in serial_ports_serial:
             self.combo_serial_port_serial.addItem(port)
 
-        for le in self.findChildren(QtGui.QLineEdit):
+        for le in self.findChildren(QtWidgets.QLineEdit):
             le.textChanged.connect(self._validate_inputs)
 
-        for combo in self.findChildren(QtGui.QComboBox):
+        for combo in self.findChildren(QtWidgets.QComboBox):
             combo.currentIndexChanged.connect(self._validate_inputs)
             combo.editTextChanged.connect(self._validate_inputs)
 
-        for spin in self.findChildren(QtGui.QSpinBox):
+        for spin in self.findChildren(QtWidgets.QSpinBox):
             spin.valueChanged.connect(self._validate_inputs)
 
         self.stacked_widget.currentChanged.connect(self._validate_inputs)
@@ -85,9 +86,9 @@ class AddMRCDialog(QtGui.QDialog):
 
     def _validate_inputs(self):
         page_widget = self.stacked_widget.currentWidget()
-        is_ok = all(le.hasAcceptableInput() for le in page_widget.findChildren(QtGui.QLineEdit))
+        is_ok = all(le.hasAcceptableInput() for le in page_widget.findChildren(QtWidgets.QLineEdit))
         is_ok = is_ok and not self._is_url_in_use(self._get_current_url())
-        self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(is_ok)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(is_ok)
 
     def _is_url_in_use(self, url):
         return len(self.urls_in_use) and any(util.mrc_urls_match(url, u) for u in self.urls_in_use)
@@ -182,7 +183,7 @@ class AddMRCDialog(QtGui.QDialog):
     def result(self):
         return self._result
 
-class AddDeviceDialog(QtGui.QDialog):
+class AddDeviceDialog(QtWidgets.QDialog):
     Result = collections.namedtuple("Result", "bus address idc name")
 
     def __init__(self, bus=None, available_addresses=bm.ALL_DEVICE_ADDRESSES,
@@ -230,15 +231,15 @@ class AddDeviceDialog(QtGui.QDialog):
         self._result = None
         self.allow_custom_idcs = allow_custom_idcs
 
-        self.bus_combo = QtGui.QComboBox()
+        self.bus_combo = QtWidgets.QComboBox()
         self.bus_combo.addItems([str(i) for i in bm.BUS_RANGE])
 
-        self.address_combos = [QtGui.QComboBox() for i in bm.BUS_RANGE]
+        self.address_combos = [QtWidgets.QComboBox() for i in bm.BUS_RANGE]
 
         for b, a in sorted(available_addresses):
             self.address_combos[b].addItem("%X" % a, a)
 
-        self.address_combo_stack = QtGui.QStackedWidget()
+        self.address_combo_stack = QtWidgets.QStackedWidget()
         
         for combo in self.address_combos:
             self.address_combo_stack.addWidget(combo)
@@ -264,19 +265,19 @@ class AddDeviceDialog(QtGui.QDialog):
             self.bus_combo.setCurrentIndex(bus)
             self.address_combo_stack.setCurrentIndex(bus)
 
-        self.name_input = QtGui.QLineEdit()
+        self.name_input = QtWidgets.QLineEdit()
 
         if assigned_name is not None:
             self.name_input.setText(assigned_name)
 
-        self.button_box = QtGui.QDialogButtonBox(
-                QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
+        self.button_box = QtWidgets.QDialogButtonBox(
+                QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
 
         if allow_custom_idcs:
             self.idc_combo.setEditable(True)
-            self.idc_combo.setValidator(QtGui.QIntValidator(1, 99))
+            self.idc_combo.setValidator(QtWidgets.QIntValidator(1, 99))
 
-            ok_button = self.button_box.button(QtGui.QDialogButtonBox.Ok)
+            ok_button = self.button_box.button(QtWidgets.QDialogButtonBox.Ok)
             ok_button.setEnabled(len(known_idcs))
 
             def combo_index_changed():
@@ -320,7 +321,7 @@ class AddDeviceDialog(QtGui.QDialog):
         self.button_box.accepted.connect(accept)
         self.button_box.rejected.connect(self.reject)
 
-        layout = QtGui.QFormLayout(self)
+        layout = QtWidgets.QFormLayout(self)
         layout.addRow("Bus", self.bus_combo)
         layout.addRow("Address", self.address_combo_stack)
         layout.addRow("IDC", self.idc_combo)
@@ -334,7 +335,7 @@ if __name__ == "__main__":
     from functools import partial
     import sys
 
-    a = QtGui.QApplication(sys.argv)
+    a = QtWidgets.QApplication(sys.argv)
 
     dialogs = list()
     d = AddDeviceDialog()
@@ -356,7 +357,7 @@ if __name__ == "__main__":
     dialogs.append(d)
 
     def print_result(d):
-        print d.result()
+        print(d.result())
 
     for d in dialogs:
         d.accepted.connect(partial(print_result, d))

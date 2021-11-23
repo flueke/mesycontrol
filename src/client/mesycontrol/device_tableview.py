@@ -21,20 +21,21 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import pyqtProperty
-from qt import pyqtSignal
-from qt import Qt
-from qt import QtCore
-from qt import QtGui
+from mesycontrol.qt import Property
+from mesycontrol.qt import Signal
+from mesycontrol.qt import Qt
+from mesycontrol.qt import QtCore
+from mesycontrol.qt import QtGui
+from mesycontrol.qt import QtWidgets
 
 QModelIndex = QtCore.QModelIndex
 
 import collections
 
-from basic_model import IDCConflict
-import future
-import basic_model as bm
-import util
+from mesycontrol.basic_model import IDCConflict
+from mesycontrol import util
+import mesycontrol.future
+import mesycontrol.basic_model as bm
 
 # TODO: handle the case where there's no device config present yet -> create one
 # TODO: handle failed sets. maybe display red background for a few seconds
@@ -126,12 +127,12 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
     def get_editing_ignore_parameter_ranges(self):
         return self._editing_ignore_paramter_ranges
 
-    device = pyqtProperty(object, get_device, set_device)
-    profile = pyqtProperty(object, get_profile)
-    display_mode = pyqtProperty(object, get_display_mode, set_display_mode)
-    write_mode   = pyqtProperty(object, get_write_mode, set_write_mode)
+    device = Property(object, get_device, set_device)
+    profile = Property(object, get_profile)
+    display_mode = Property(object, get_display_mode, set_display_mode)
+    write_mode   = Property(object, get_write_mode, set_write_mode)
 
-    editing_ignore_parameter_ranges = pyqtProperty(
+    editing_ignore_parameter_ranges = Property(
             bool,
             get_editing_ignore_parameter_ranges,
             set_editing_ignore_parameter_ranges)
@@ -441,7 +442,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                     row, value, self.device)
             return False
 
-class DeviceTableItemDelegate(QtGui.QStyledItemDelegate):
+class DeviceTableItemDelegate(QtWidgets.QStyledItemDelegate):
     def __init__(self, parent=None):
         super(DeviceTableItemDelegate, self).__init__(parent)
 
@@ -451,7 +452,7 @@ class DeviceTableItemDelegate(QtGui.QStyledItemDelegate):
         idx = proxy_idx.model().mapToSource(proxy_idx)
 
         if (idx.column() in (COL_HW_VALUE, COL_CFG_VALUE)
-                and isinstance(editor, QtGui.QSpinBox)):
+                and isinstance(editor, QtWidgets.QSpinBox)):
 
             min_, max_ = bm.SET_VALUE_MIN, bm.SET_VALUE_MAX
 
@@ -471,7 +472,7 @@ class DeviceTableItemDelegate(QtGui.QStyledItemDelegate):
 
         return editor
 
-class DeviceTableSortFilterProxyModel(QtGui.QSortFilterProxyModel):
+class DeviceTableSortFilterProxyModel(QtCore.QSortFilterProxyModel):
     """QSortFilterProxyModel subclass to be used with the DeviceTableView.
     Filtering capabilities:
       * known addresses
@@ -536,14 +537,14 @@ class DeviceTableSortFilterProxyModel(QtGui.QSortFilterProxyModel):
 
         return super(DeviceTableSortFilterProxyModel, self).filterAcceptsRow(src_row, src_parent)
 
-    filter_unknown  = pyqtProperty(bool, get_filter_unknown, set_filter_unknown)
-    filter_readonly = pyqtProperty(bool, get_filter_readonly, set_filter_readonly)
-    filter_volatile = pyqtProperty(bool, get_filter_volatile, set_filter_volatile)
-    filter_static   = pyqtProperty(bool, get_filter_static, set_filter_static)
+    filter_unknown  = Property(bool, get_filter_unknown, set_filter_unknown)
+    filter_readonly = Property(bool, get_filter_readonly, set_filter_readonly)
+    filter_volatile = Property(bool, get_filter_volatile, set_filter_volatile)
+    filter_static   = Property(bool, get_filter_static, set_filter_static)
 
-class DeviceTableView(QtGui.QTableView):
-    display_mode_changed = pyqtSignal(int)
-    write_mode_changed   = pyqtSignal(int)
+class DeviceTableView(QtWidgets.QTableView):
+    display_mode_changed = Signal(int)
+    write_mode_changed   = Signal(int)
 
     def __init__(self, model, parent=None):
         super(DeviceTableView, self).__init__(parent)
@@ -564,7 +565,7 @@ class DeviceTableView(QtGui.QTableView):
         self.setItemDelegate(DeviceTableItemDelegate())
         self.setMouseTracking(True)
         self.setWordWrap(False)
-        self.setSelectionMode(QtGui.QAbstractItemView.ContiguousSelection)
+        self.setSelectionMode(QtWidgets.QAbstractItemView.ContiguousSelection)
         self.resizeColumnsToContents()
         self.resizeRowsToContents()
 
@@ -758,9 +759,9 @@ class DeviceTableView(QtGui.QTableView):
 
 # TODO: change Hide to Show to make it easier to understand which params are shown...
 
-class DeviceTableWidget(QtGui.QWidget):
-    display_mode_changed = pyqtSignal(int)
-    write_mode_changed   = pyqtSignal(int)
+class DeviceTableWidget(QtWidgets.QWidget):
+    display_mode_changed = Signal(int)
+    write_mode_changed   = Signal(int)
 
     def __init__(self, device, display_mode=util.COMBINED, write_mode=util.COMBINED,
             parent=None):

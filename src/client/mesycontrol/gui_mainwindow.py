@@ -21,7 +21,7 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import pyqtSlot
+from qt import Slot
 from qt import Qt
 from qt import QtCore
 from qt import QtGui
@@ -104,7 +104,7 @@ class MainWindow(QtGui.QMainWindow):
         self.treeview.splitter.restoreState(
                 settings.value("MCTreeView/state").toByteArray())
 
-    @pyqtSlot()
+    @Slot()
     def on_actionAbout_triggered(self):
         try:
             from . import mc_version
@@ -186,7 +186,7 @@ class MainWindow(QtGui.QMainWindow):
 
         d.exec_()
 
-    @pyqtSlot()
+    @Slot()
     def on_actionAbout_Qt_triggered(self):
         QtGui.QApplication.instance().aboutQt()
 

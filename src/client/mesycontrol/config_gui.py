@@ -21,14 +21,14 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import QtGui
-from qt import pyqtSignal
+from mesycontrol.qt import QtWidgets
+from mesycontrol.qt import Signal
 
-import config_util
-import hardware_controller
-import util
+from mesycontrol import config_util
+import mesycontrol.hardware_controller
+import mesycontrol.util
 
-QMB = QtGui.QMessageBox
+QMB = QtWidgets.QMessageBox
 
 def std_button_to_cfg_action(button):
     d = {
@@ -45,8 +45,8 @@ def std_button_to_cfg_action(button):
 
     raise ValueError("unknown button %d" % button)
 
-class SubProgressDialog(QtGui.QDialog):
-    canceled = pyqtSignal()
+class SubProgressDialog(QtWidgets.QDialog):
+    canceled = Signal()
 
     def __init__(self, title=str(), parent=None):
         super(SubProgressDialog, self).__init__(parent)
@@ -83,7 +83,7 @@ class SubProgressDialog(QtGui.QDialog):
         self.canceled.emit()
 
 class ApplySetupRunner(config_util.GeneratorRunner):
-    progress_changed = pyqtSignal(object)
+    progress_changed = Signal(object)
 
     def __init__(self, app_registry, device_registry, parent_widget, parent=None):
         super(ApplySetupRunner, self).__init__(parent=parent)
@@ -194,7 +194,7 @@ class ApplyDeviceConfigRunner(config_util.GeneratorRunner):
             return (std_button_to_cfg_action(answer), False)
 
 class ApplyDeviceConfigsRunner(config_util.GeneratorRunner):
-    progress_changed = pyqtSignal(object)
+    progress_changed = Signal(object)
 
     def __init__(self, devices, parent_widget, parent=None):
         super(ApplyDeviceConfigsRunner, self).__init__(parent=parent)
@@ -285,7 +285,7 @@ class ApplyDeviceConfigsRunner(config_util.GeneratorRunner):
         self.progress_changed.emit(progress)
 
 class FillDeviceConfigsRunner(config_util.GeneratorRunner):
-    progress_changed = pyqtSignal(object)
+    progress_changed = Signal(object)
 
     def __init__(self, devices, parent_widget, parent=None):
         super(FillDeviceConfigsRunner, self).__init__(parent=parent)
@@ -359,7 +359,7 @@ class FillDeviceConfigsRunner(config_util.GeneratorRunner):
         self.progress_changed.emit(progress)
 
 class ReadConfigParametersRunner(config_util.GeneratorRunner):
-    progress_changed = pyqtSignal(object)
+    progress_changed = Signal(object)
 
     def __init__(self, devices, parent_widget, parent=None):
         super(ReadConfigParametersRunner, self).__init__(parent=parent)

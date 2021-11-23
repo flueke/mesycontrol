@@ -21,28 +21,29 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import pyqtSignal
-from qt import pyqtSlot
-from qt import Qt
-from qt import QtCore
+from mesycontrol.qt import Signal
+from mesycontrol.qt import Slot
+from mesycontrol.qt import Qt
+from mesycontrol.qt import QtCore
 
 from functools import partial
 
-from basic_model import IDCConflict
-import basic_model as bm
-import future
-import hardware_controller
+from mesycontrol.basic_model import IDCConflict
+import mesycontrol.basic_model as bm
+import mesycontrol.future
+import mesycontrol.hardware_controller
+import mesycontrol.model_util
+import mesycontrol.util
+
 import itertools
 import logging
-import model_util
-import util
 import sys
 
 log = logging.getLogger(__name__)
 
 class GeneratorRunner(QtCore.QObject):
 
-    progress_changed = pyqtSignal(object)
+    progress_changed = Signal(object)
 
     def __init__(self, generator=None, parent=None):
         super(GeneratorRunner, self).__init__(parent)
@@ -86,7 +87,7 @@ class GeneratorRunner(QtCore.QObject):
 
         self.generator.close()
 
-    @pyqtSlot()
+    @Slot()
     def _next(self):
         while True:
             try:
@@ -178,7 +179,7 @@ class GeneratorRunner(QtCore.QObject):
         default action is to reraise the exception with the original
         traceback."""
 
-        raise e, None, sys.exc_info()[2]
+        raise(e, None, sys.exc_info()[2])
 
 class ProgressUpdate(object):
     def __init__(self, current, total, text=str()):

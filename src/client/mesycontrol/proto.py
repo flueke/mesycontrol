@@ -22,7 +22,7 @@ __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
 from google.protobuf.text_format import MessageToString
-from mesycontrol_pb2 import *
+from mesycontrol.mesycontrol_pb2 import *
 
 def is_request(msg):
     return msg.Type.Name(msg.type).startswith('REQ_')

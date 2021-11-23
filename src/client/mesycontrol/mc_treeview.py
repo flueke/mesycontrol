@@ -22,8 +22,8 @@ __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
 from functools import partial
-from qt import pyqtProperty
-from qt import pyqtSignal
+from qt import Property
+from qt import Signal
 from qt import Qt
 from qt import QtCore
 from qt import QtGui
@@ -274,13 +274,13 @@ class MCTreeDirector(object):
             self.hw_model.remove_node(hw_node)
 
 class MCTreeView(QtGui.QWidget):
-    hw_context_menu_requested   = pyqtSignal(object, object, object, object) #: node, idx, position, view
-    cfg_context_menu_requested  = pyqtSignal(object, object, object, object) #: node, idx, position, view
+    hw_context_menu_requested   = Signal(object, object, object, object) #: node, idx, position, view
+    cfg_context_menu_requested  = Signal(object, object, object, object) #: node, idx, position, view
 
-    node_activated      = pyqtSignal(object) # config or hardware node
-    node_selected       = pyqtSignal(object) # config or hardware node
+    node_activated      = Signal(object) # config or hardware node
+    node_selected       = Signal(object) # config or hardware node
 
-    linked_mode_changed = pyqtSignal(bool)
+    linked_mode_changed = Signal(bool)
 
     def __init__(self, app_registry, device_registry, linked_mode_on=False, parent=None):
         super(MCTreeView, self).__init__(parent)
@@ -372,7 +372,7 @@ class MCTreeView(QtGui.QWidget):
     def get_linked_mode(self):
         return self._director.linked_mode
 
-    linked_mode = pyqtProperty(bool, get_linked_mode, set_linked_mode, notify=linked_mode_changed)
+    linked_mode = Property(bool, get_linked_mode, set_linked_mode, notify=linked_mode_changed)
 
     def select_node(self, node):
         return (self.select_config_node(node)
@@ -531,7 +531,7 @@ class DoubleClickSplitterHandle(QtGui.QSplitterHandle):
     released the user is most likely dragging the handle).
     """
 
-    doubleClicked = pyqtSignal()
+    doubleClicked = Signal()
 
     def __init__(self, orientation, parent):
         super(DoubleClickSplitterHandle, self).__init__(orientation, parent)

@@ -21,9 +21,9 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import QtCore
-from qt import Qt
-import util
+from mesycontrol.qt import QtCore
+from mesycontrol.qt import Qt
+import mesycontrol.util
 
 QModelIndex = QtCore.QModelIndex
 

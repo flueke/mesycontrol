@@ -31,27 +31,27 @@ import weakref
 import pyqtgraph.console
 pg = pyqtgraph
 
-from qt import Qt
-from qt import QtCore
-from qt import QtGui
+from mesycontrol.qt import Qt
+from mesycontrol.qt import QtCore
+from mesycontrol.qt import QtGui
 
-from basic_model import IDCConflict
-from gui_util import is_setup, is_registry, is_mrc, is_bus, is_device, is_device_cfg, is_device_hw, get_mrc
-from gui_util import is_config, is_hardware
-from model_util import add_mrc_connection
-from util import make_icon
+from mesycontrol.basic_model import IDCConflict
+from mesycontrol.gui_util import is_setup, is_registry, is_mrc, is_bus, is_device, is_device_cfg, is_device_hw, get_mrc
+from mesycontrol.gui_util import is_config, is_hardware
+from mesycontrol.model_util import add_mrc_connection
+from mesycontrol.util import make_icon
 
-import app_model as am
-import async_util
-import config_gui
-import config_util
-import device_tableview
-import future
-import gui_tutorial
-import gui_util
-import hardware_util
-import resources
-import util
+import mesycontrol.app_model as am
+import mesycontrol.async_util
+import mesycontrol.config_gui
+import mesycontrol.config_util
+import mesycontrol.device_tableview
+import mesycontrol.future
+import mesycontrol.gui_tutorial
+import mesycontrol.gui_util
+import mesycontrol.hardware_util
+import mesycontrol.resources
+import mesycontrol.util
 
 log = logging.getLogger(__name__)
 
@@ -1661,7 +1661,7 @@ Initialize using the current hardware values or the device defaults?
         device = app_device.cfg if from_config_side else app_device.hw
         profile = app_device.cfg_profile if from_config_side else app_device.hw_profile
         extensions = device.get_extensions()
-        print "extensions:", extensions
+        print("extensions:", extensions)
         extensions_param = extensions_to_ptree(extensions, profile)
         extensions_param.sigTreeStateChanged.connect(on_tree_state_changed)
         tree.setParameters(extensions_param, showTop=False)
@@ -1685,15 +1685,15 @@ Initialize using the current hardware values or the device defaults?
         subwin.show()
 
 def on_tree_state_changed(emitting_param, changes):
-    print "on_tree_state_changed"
-    print "changes:", changes
+    print("on_tree_state_changed")
+    print("changes:", changes)
 
     for param, change, value in changes:
-        print param
-        print change
-        print value
-        print emitting_param.childPath(param)
-        print "=" * 15
+        print(param)
+        print(change)
+        print(value)
+        print(emitting_param.childPath(param))
+        print("=" * 15)
 
 def extensions_to_ptree(extensions, device_profile):
     from pyqtgraph import parametertree as pt
@@ -1723,7 +1723,7 @@ def extensions_to_ptree(extensions, device_profile):
             log.warning("ext_profile from dict")
 
         log.warning("ext_profile=%s", ext_profile)
-        print ext_profile
+        print(ext_profile)
 
         #if 'values' in ext_profile:
         #    log.warning(value)

@@ -21,11 +21,11 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import QtCore
-from qt import QtGui
-from qt import Qt
+from mesycontrol.qt import QtCore
+from mesycontrol.qt import QtGui
+from mesycontrol.qt import Qt
 
-import basic_tree_model as btm
+import mesycontrol.basic_tree_model as btm
 
 column_titles = ('Path', 'RC')
 
