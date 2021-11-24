@@ -23,14 +23,15 @@ __email__  = 'f.lueke@mesytec.com'
 
 from mesycontrol.qt import QtCore
 from mesycontrol.qt import Signal
+from mesycontrol.qt import Slot
 import errno
 
 from mesycontrol.future import Future
 from mesycontrol.future import progress_forwarder
 from mesycontrol.tcp_client import MCTCPClient
-import mesycontrol.proto
-import mesycontrol.server_process
-import mesycontrol.util
+import mesycontrol.proto as proto
+import mesycontrol.server_process as server_process
+import mesycontrol.util as util
 
 class IsConnecting(Exception):
     pass
@@ -93,8 +94,13 @@ class MRCConnection(AbstractConnection):
         self.port   = port
         self.client = MCTCPClient()
 
-        self.client.disconnected.connect(self._on_client_disconnected)
-        self.client.socket_error.connect(self._on_client_socket_error)
+        def on_disconnected():
+            self.on_client_disconnected()
+
+        self.client.disconnected.connect(on_disconnected)
+
+        #self.client.disconnected.connect(self.on_client_disconnected)
+        self.client.socket_error.connect(self.on_client_socket_error)
 
         self.client.request_queued.connect(self.request_queued)
         self.client.request_sent.connect(self.request_sent)
@@ -152,7 +158,8 @@ class MRCConnection(AbstractConnection):
                         msg.mrc_status.info
                         ))
 
-    def _on_client_disconnected(self):
+    @Slot()
+    def on_client_disconnected(self):
         self.log.debug("_on_client_disconnected: connecting_future=%s", self._connecting_future)
         self._is_connected = False
         self._is_connecting = False
@@ -161,7 +168,8 @@ class MRCConnection(AbstractConnection):
             self._connecting_future = None
         self.disconnected.emit()
 
-    def _on_client_socket_error(self, error):
+    @Slot(object)
+    def on_client_socket_error(self, error):
         self.log.debug("_on_client_socket_error: error=%s, connecting_future=%s", error, self._connecting_future)
         self._is_connected = False
         self._is_connecting = False
