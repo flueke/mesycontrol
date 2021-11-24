@@ -113,7 +113,7 @@ class TutorialWidget(QtWidgets.QWidget):
         self.text_browser.setDocument(self.text_doc)
         self.text_browser.href_hover.connect(self._on_href_hover)
 
-        layout = QtGui.QVBoxLayout(self)
+        layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.text_browser)
 

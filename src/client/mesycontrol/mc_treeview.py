@@ -567,10 +567,10 @@ class MCTreeItemDelegate(QtWidgets.QStyledItemDelegate):
     def paint(self, painter, option, index):
         node = index.internalPointer()
 
-        option = QtGui.QStyleOptionViewItem(option)
+        option = QtWidgets.QStyleOptionViewItem(option)
         self.initStyleOption(option, index)
 
-        if (option.state & QtGui.QStyle.State_Selected
+        if (option.state & QtWidgets.QStyle.State_Selected
                 and isinstance(node, (ctm.DeviceNode, htm.DeviceNode))
                 and self.director.linked_mode):
 

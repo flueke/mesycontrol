@@ -21,7 +21,7 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-import mprb16_profile
+import mesycontrol.devices.mprb16_profile as mprb16_profile
 
 idc = mprb16_profile.idc
 profile_dict = mprb16_profile.profile_dict

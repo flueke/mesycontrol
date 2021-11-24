@@ -24,7 +24,7 @@ __email__  = 'f.lueke@mesytec.com'
 from .. qt import Slot
 from .. qt import Qt
 from .. qt import QtCore
-from .. qt import QtGui
+from .. qt import QtWidgets
 
 import itertools
 import weakref
@@ -34,7 +34,7 @@ from .. import util
 from .. specialized_device import DeviceBase
 from .. specialized_device import DeviceWidgetBase
 
-import mhv4_profile
+import mesycontrol.devices.mhv4_profile as mhv4_profile
 
 NUM_CHANNELS = 4
 
@@ -119,7 +119,7 @@ class ChannelEnableButtonBinding(pb.DefaultParameterBinding):
     def _button_clicked(self, checked):
         self._write_value(int(checked))
 
-class ChannelWidget(QtGui.QWidget):
+class ChannelWidget(QtWidgets.QWidget):
     def __init__(self, device, channel, display_mode, write_mode, parent=None):
         super(ChannelWidget, self).__init__(parent)
         util.loadUi(":/ui/mhv4_channel.ui", self)
@@ -131,10 +131,10 @@ class ChannelWidget(QtGui.QWidget):
         sz  = self.label_polarity.minimumSize()
 
         self.polarity_pixmaps = {
-                Polarity.positive: QtGui.QPixmap(":/polarity-positive.png").scaled(
+                Polarity.positive: QtWidgets.QPixmap(":/polarity-positive.png").scaled(
                     sz, Qt.KeepAspectRatio, Qt.SmoothTransformation),
 
-                Polarity.negative: QtGui.QPixmap(":/polarity-negative.png").scaled(
+                Polarity.negative: QtWidgets.QPixmap(":/polarity-negative.png").scaled(
                     sz, Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 }
 
@@ -321,14 +321,14 @@ class ChannelWidget(QtGui.QWidget):
         slider.setToolTip("%d V" % value)
 
         if slider.isVisible():
-            cursor_pos = QtGui.QCursor.pos()
+            cursor_pos = QtWidgets.QCursor.pos()
             global_pos = slider.mapToGlobal(slider.rect().topRight())
             global_pos.setY(cursor_pos.y())
 
-            tooltip_event = QtGui.QHelpEvent(QtCore.QEvent.ToolTip,
+            tooltip_event = QtWidgets.QHelpEvent(QtCore.QEvent.ToolTip,
                     QtCore.QPoint(0, 0), global_pos)
 
-            QtGui.QApplication.sendEvent(slider, tooltip_event)
+            QtWidgets.QApplication.sendEvent(slider, tooltip_event)
 
     def eventFilter(self, watched_object, event):
         if watched_object == self.pb_channelstate:
@@ -348,7 +348,7 @@ class ChannelWidget(QtGui.QWidget):
 
         return False
 
-class ChannelSettingsWidget(QtGui.QWidget):
+class ChannelSettingsWidget(QtWidgets.QWidget):
     def __init__(self, device, channel, display_mode, write_mode, labels_on=True, parent=None):
         super(ChannelSettingsWidget, self).__init__(parent)
 
@@ -361,7 +361,7 @@ class ChannelSettingsWidget(QtGui.QWidget):
         self.write_mode   = write_mode
 
         if not labels_on:
-            for label in self.findChildren(QtGui.QLabel, QtCore.QRegExp("label_\\d+")):
+            for label in self.findChildren(QtWidgets.QLabel, QtCore.QRegExp("label_\\d+")):
                 label.hide()
 
         # Voltage limit
@@ -466,7 +466,7 @@ class ChannelSettingsWidget(QtGui.QWidget):
             text = self.combo_target_tcomp_source.itemData(r.value, Qt.DisplayRole).toString()
             self.le_actual_tcomp_source.setText(text)
 
-class GlobalSettingsWidget(QtGui.QWidget):
+class GlobalSettingsWidget(QtWidgets.QWidget):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(GlobalSettingsWidget, self).__init__(parent)
 
@@ -506,24 +506,24 @@ class MHV4Widget(DeviceWidgetBase):
         self.settings_widgets = list()
 
         # Channel controls
-        channel_layout = QtGui.QHBoxLayout()
+        channel_layout = QtWidgets.QHBoxLayout()
         channel_layout.setContentsMargins(4, 4, 4, 4)
 
         for i in range(NUM_CHANNELS):
-            groupbox        = QtGui.QGroupBox("Channel %d" % i, self)
+            groupbox        = QtWidgets.QGroupBox("Channel %d" % i, self)
             channel_widget  = ChannelWidget(device, i, display_mode, write_mode)
-            groupbox_layout = QtGui.QHBoxLayout(groupbox)
+            groupbox_layout = QtWidgets.QHBoxLayout(groupbox)
             groupbox_layout.setContentsMargins(4, 4, 4, 4)
             groupbox_layout.addWidget(channel_widget)
             channel_layout.addWidget(groupbox)
 
             self.channels.append(weakref.ref(channel_widget))
 
-        layout = QtGui.QVBoxLayout()
+        layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(channel_layout)
 
-        widget = QtGui.QWidget()
+        widget = QtWidgets.QWidget()
         widget.setLayout(layout)
         self.tab_widget.addTab(widget, device.profile.name)
         self.settings_bindings = self._add_settings_tab()
@@ -547,7 +547,7 @@ class MHV4Widget(DeviceWidgetBase):
 
     def _add_settings_tab(self):
         bindings = list()
-        tabs = QtGui.QTabWidget()
+        tabs = QtWidgets.QTabWidget()
 
         for i in range(NUM_CHANNELS):
             csw = ChannelSettingsWidget(self.device, i, self.display_mode, self.write_mode)

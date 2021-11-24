@@ -21,18 +21,19 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import QtCore
-from qt import QtGui
+from mesycontrol.qt import QtCore
+from mesycontrol.qt import QtGui
+from mesycontrol.qt import QtWidgets
 
 import collections
 import logging
 import traceback
 import weakref
 
-import basic_model as bm
-import future
-import proto
-import util
+import mesycontrol.basic_model as bm
+import mesycontrol.future as future
+import mesycontrol.proto as proto
+import mesycontrol.util as util
 
 log = logging.getLogger(__name__)
 
@@ -838,28 +839,28 @@ class Factory(object):
 factory = Factory()
 
 factory.append_classinfo_binding(
-        (util.DelayedSpinBox, QtGui.QSpinBox), SpinBoxParameterBinding)
+        (util.DelayedSpinBox, QtWidgets.QSpinBox), SpinBoxParameterBinding)
 
 factory.append_classinfo_binding(
-        (util.DelayedDoubleSpinBox, QtGui.QDoubleSpinBox), DoubleSpinBoxParameterBinding)
+        (util.DelayedDoubleSpinBox, QtWidgets.QDoubleSpinBox), DoubleSpinBoxParameterBinding)
 
 factory.append_classinfo_binding(
-        QtGui.QLabel, LabelParameterBinding)
+        QtWidgets.QLabel, LabelParameterBinding)
 
 factory.append_classinfo_binding(
-        QtGui.QCheckBox, CheckBoxParameterBinding)
+        QtWidgets.QCheckBox, CheckBoxParameterBinding)
 
 factory.append_classinfo_binding(
-        QtGui.QComboBox, ComboBoxParameterBinding)
+        QtWidgets.QComboBox, ComboBoxParameterBinding)
 
 factory.append_predicate_binding(
         RadioButtonGroupParameterBinding.predicate, RadioButtonGroupParameterBinding)
 
 factory.append_classinfo_binding(
-        QtGui.QLCDNumber, LCDNumberParameterBinding)
+        QtWidgets.QLCDNumber, LCDNumberParameterBinding)
 
 factory.append_classinfo_binding(
-        QtGui.QSlider, SliderParameterBinding)
+        QtWidgets.QSlider, SliderParameterBinding)
 
 factory.append_predicate_binding(
         lambda target: target is None, TargetlessParameterBinding)
@@ -867,13 +868,13 @@ factory.append_predicate_binding(
 if __name__ == "__main__":
     import mock
 
-    app = QtGui.QApplication([])
+    app = QtWidgets.QApplication([])
 
     device = mock.MagicMock()
     profile = mock.MagicMock()
     display_mode = util.CONFIG
     write_mode = util.COMBINED
-    target = QtGui.QSpinBox()
+    target = QtWidgets.QSpinBox()
 
     d = dict(device=device)
 
@@ -889,5 +890,5 @@ if __name__ == "__main__":
 
     app.exec_()
 
-    print device.mock_calls
-    print profile.mock_calls
+    print(device.mock_calls)
+    print(profile.mock_calls)

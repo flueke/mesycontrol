@@ -21,7 +21,7 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-import mpd8_profile
+import mesycontrol.devices.mpd8_profile as mpd8_profile
 
 idc = mpd8_profile.idc
 profile_dict = mpd8_profile.profile_dict

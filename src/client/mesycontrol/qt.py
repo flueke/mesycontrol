@@ -21,6 +21,8 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
+import PySide2
+
 from PySide2 import QtCore
 from PySide2 import QtGui
 from PySide2 import QtWidgets

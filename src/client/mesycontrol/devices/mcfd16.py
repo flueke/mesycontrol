@@ -32,7 +32,7 @@ from .. qt import Property
 from .. qt import Signal
 from .. qt import Qt
 from .. qt import QtCore
-from .. qt import QtGui
+from .. qt import QtWidgets
 import pyqtgraph.widgets.VerticalLabel as vlabel
 
 from .. future import future_progress_dialog
@@ -47,7 +47,7 @@ from .. util import hline
 from .. util import make_spinbox
 from .. util import make_title_label
 
-import mcfd16_profile
+import mesycontrol.devices.mcfd16_profile as mcfd16_profile
 
 NUM_CHANNELS    = 16
 NUM_GROUPS      =  8
@@ -542,7 +542,7 @@ class MCFD16Widget(DeviceWidgetBase):
                     and self.isVisible()):
 
                 self.tab_widget.setEnabled(False)
-                QMB = QtGui.QMessageBox
+                QMB = QtWidgets.QMessageBox
                 mb  = QMB(QMB.Critical,
                         "Outdated CPU Firmware",
                         """
@@ -565,7 +565,7 @@ def make_dynamic_label(initial_value="", longest_value=None, fixed_width=True, f
     fixed_width is True the labels width will be set to the maximum width, if
     fixed_height is True the labels height will be set to the maximum height.
     """
-    ret = QtGui.QLabel()
+    ret = QtWidgets.QLabel()
     ret.setStyleSheet(dynamic_label_style)
     ret.setAlignment(alignment)
 
@@ -581,21 +581,21 @@ def make_dynamic_label(initial_value="", longest_value=None, fixed_width=True, f
 
     return ret
 
-class ChannelMaskWidget(QtGui.QGroupBox):
+class ChannelMaskWidget(QtWidgets.QGroupBox):
     value_changed = Signal(int)
 
     def __init__(self, parent=None):
         super(ChannelMaskWidget, self).__init__("Channel Mask", parent)
 
-        layout = QtGui.QGridLayout(self)
+        layout = QtWidgets.QGridLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
         layout.setSpacing(4)
         self.checkboxes = list()
 
         for i in range(NUM_GROUPS):
-            cb = QtGui.QCheckBox()
+            cb = QtWidgets.QCheckBox()
             r  = cg_helper.group_channel_range(NUM_GROUPS-i-1)
-            l  = QtGui.QLabel("%d\n%d" % (r[1], r[0]))
+            l  = QtWidgets.QLabel("%d\n%d" % (r[1], r[0]))
             f  = l.font()
             f.setPointSize(8)
             l.setFont(f)
@@ -646,7 +646,7 @@ class BitPatternBinding(pb.AbstractParameterBinding):
 
         tt = self._get_tooltip(rf)
 
-        if isinstance(self.target, QtGui.QWidget):
+        if isinstance(self.target, QtWidgets.QWidget):
             self.target.setToolTip(tt)
             self.target.setStatusTip(tt)
         elif isinstance(self.target, BitPatternHelper):
@@ -673,7 +673,7 @@ class TogglePolarityBinding(pb.DefaultParameterBinding):
     def _toggle_polarity(self):
         self._write_value(Polarity.switch(self._polarity))
 
-class PreampPage(QtGui.QGroupBox):
+class PreampPage(QtWidgets.QGroupBox):
     polarity_button_size = QtCore.QSize(20, 20)
 
     def __init__(self, device, display_mode, write_mode, parent=None):
@@ -681,16 +681,16 @@ class PreampPage(QtGui.QGroupBox):
         self.device  = device
 
         self.polarity_icons = {
-                Polarity.positive: QtGui.QIcon(QtGui.QPixmap(":/polarity-positive.png").scaled(
+                Polarity.positive: QtWidgets.QIcon(QtWidgets.QPixmap(":/polarity-positive.png").scaled(
                     PreampPage.polarity_button_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)),
 
-                Polarity.negative: QtGui.QIcon(QtGui.QPixmap(":/polarity-negative.png").scaled(
+                Polarity.negative: QtWidgets.QIcon(QtWidgets.QPixmap(":/polarity-negative.png").scaled(
                     PreampPage.polarity_button_size, Qt.KeepAspectRatio, Qt.SmoothTransformation))
                 }
 
         self.bindings = list()
 
-        self.pol_common = QtGui.QPushButton()
+        self.pol_common = QtWidgets.QPushButton()
         self.pol_common.setMaximumSize(PreampPage.polarity_button_size)
         self.bindings.append(TogglePolarityBinding(
             device=device, profile=device.profile['polarity_common'],
@@ -703,7 +703,7 @@ class PreampPage(QtGui.QGroupBox):
         self.pol_inputs = list()
 
         def make_gain_combo():
-            ret = QtGui.QComboBox()
+            ret = QtWidgets.QComboBox()
             for rc_value, gain in sorted(GAIN_FACTORS.iteritems()):
                 ret.addItem(str(gain), rc_value)
             return ret
@@ -715,11 +715,11 @@ class PreampPage(QtGui.QGroupBox):
         gain_common_layout = util.make_apply_common_button_layout(
                 self.gain_common, "Apply to groups", self._apply_common_gain)[0]
 
-        layout = QtGui.QGridLayout(self)
+        layout = QtWidgets.QGridLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
 
         offset = 0
-        layout.addWidget(QtGui.QLabel("Common"),    offset, 0, 1, 1, Qt.AlignRight)
+        layout.addWidget(QtWidgets.QLabel("Common"),    offset, 0, 1, 1, Qt.AlignRight)
         layout.addLayout(pol_common_layout,         offset, 1, 1, 1, Qt.AlignCenter)
         layout.addLayout(gain_common_layout,        offset, 2)
 
@@ -733,9 +733,9 @@ class PreampPage(QtGui.QGroupBox):
         for i in range(NUM_GROUPS):
             offset      = layout.rowCount()
             group_range = cg_helper.group_channel_range(i)
-            group_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1])) 
+            group_label = QtWidgets.QLabel("%d-%d" % (group_range[0], group_range[-1])) 
 
-            pol_button  = QtGui.QPushButton()
+            pol_button  = QtWidgets.QPushButton()
             pol_button.setMaximumSize(PreampPage.polarity_button_size)
             self.bindings.append(TogglePolarityBinding(
                 device=device, profile=device.profile['polarity_group%d' % i],
@@ -756,7 +756,7 @@ class PreampPage(QtGui.QGroupBox):
 
         layout.addWidget(hline(), layout.rowCount(), 0, 1, layout.columnCount()) # hline separator
 
-        self.cb_bwl = QtGui.QCheckBox("BWL enable")
+        self.cb_bwl = QtWidgets.QCheckBox("BWL enable")
         self.bindings.append(pb.factory.make_binding(
             device=device, profile=device.profile['bwl_enable'],
             target=self.cb_bwl, display_mode=display_mode, write_mode=write_mode))
@@ -773,14 +773,14 @@ class PreampPage(QtGui.QGroupBox):
         return self.device.apply_common_gain()
 
 def make_fraction_combo():
-    ret = QtGui.QComboBox()
+    ret = QtWidgets.QComboBox()
 
     for k in sorted(CFD_FRACTIONS.keys()):
         ret.addItem(CFD_FRACTIONS[k], k)
 
     return ret
 
-class DiscriminatorPage(QtGui.QGroupBox):
+class DiscriminatorPage(QtWidgets.QGroupBox):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(DiscriminatorPage, self).__init__("Discriminator", parent)
         self.device   = device
@@ -793,7 +793,7 @@ class DiscriminatorPage(QtGui.QGroupBox):
         # last row    : delay chip max delay
 
         def make_delay_combo():
-            ret = QtGui.QComboBox()
+            ret = QtWidgets.QComboBox()
             for i in range(device.profile['delay_common'].range[1]+1):
                 ret.addItem("Tap %d" % (i+1), i)
 
@@ -836,9 +836,9 @@ class DiscriminatorPage(QtGui.QGroupBox):
         self.threshold_inputs   = list()
         self.threshold_labels   = list()
 
-        self.rb_mode_cfd = QtGui.QRadioButton("CFD")
-        self.rb_mode_le  = QtGui.QRadioButton("LE")
-        self.rbg_discriminator_mode = QtGui.QButtonGroup()
+        self.rb_mode_cfd = QtWidgets.QRadioButton("CFD")
+        self.rb_mode_le  = QtWidgets.QRadioButton("LE")
+        self.rbg_discriminator_mode = QtWidgets.QButtonGroup()
         self.rbg_discriminator_mode.addButton(self.rb_mode_cfd, DiscriminatorMode.cfd)
         self.rbg_discriminator_mode.addButton(self.rb_mode_le, DiscriminatorMode.le)
 
@@ -847,15 +847,15 @@ class DiscriminatorPage(QtGui.QGroupBox):
             display_mode=display_mode, write_mode=write_mode,
             target=self.rbg_discriminator_mode))
 
-        mode_label  = QtGui.QLabel("Mode:")
-        mode_layout = QtGui.QHBoxLayout()
+        mode_label  = QtWidgets.QLabel("Mode:")
+        mode_layout = QtWidgets.QHBoxLayout()
         mode_layout.setSpacing(4)
         mode_layout.addWidget(mode_label)
         mode_layout.addWidget(self.rb_mode_cfd)
         mode_layout.addWidget(self.rb_mode_le)
         mode_layout.addStretch(1)
 
-        layout = QtGui.QGridLayout(self)
+        layout = QtWidgets.QGridLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
 
         offset = layout.rowCount()
@@ -864,11 +864,11 @@ class DiscriminatorPage(QtGui.QGroupBox):
         layout.addWidget(hline(), layout.rowCount(), 0, 1, 7) # hline separator
 
         offset = layout.rowCount()
-        layout.addWidget(QtGui.QLabel("Common"),        offset, 0, 1, 1, Qt.AlignCenter)
+        layout.addWidget(QtWidgets.QLabel("Common"),        offset, 0, 1, 1, Qt.AlignCenter)
         layout.addLayout(self.delay_common_layout,      offset, 1)
         layout.addWidget(self.delay_label_common,       offset, 2)
         layout.addLayout(self.fraction_common_layout,   offset, 3)
-        layout.addWidget(QtGui.QLabel("Common"),        offset, 4)
+        layout.addWidget(QtWidgets.QLabel("Common"),        offset, 4)
         layout.addLayout(self.threshold_common_layout,  offset, 5)
         layout.addWidget(self.threshold_label_common,   offset, 6)
 
@@ -886,7 +886,7 @@ class DiscriminatorPage(QtGui.QGroupBox):
             offset              = layout.rowCount()
 
             if i % channels_per_group == 0:
-                group_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1])) 
+                group_label = QtWidgets.QLabel("%d-%d" % (group_range[0], group_range[-1])) 
                 delay_input = util.DelayedSpinBox()
                 delay_input.setPrefix("Tap ")
                 delay_input = make_delay_combo()
@@ -925,7 +925,7 @@ class DiscriminatorPage(QtGui.QGroupBox):
             self.threshold_inputs.append(threshold_input)
             self.threshold_labels.append(threshold_label)
 
-            layout.addWidget(QtGui.QLabel("%d" % i),    offset, 4, 1, 1, Qt.AlignRight)
+            layout.addWidget(QtWidgets.QLabel("%d" % i),    offset, 4, 1, 1, Qt.AlignRight)
             layout.addWidget(threshold_input,           offset, 5)
             layout.addWidget(threshold_label,           offset, 6)
 
@@ -936,8 +936,8 @@ class DiscriminatorPage(QtGui.QGroupBox):
                 value = device.get_delay_chip_ns())
         self.delay_chip_input.valueChanged.connect(self._on_delay_chip_input_valueChanged)
 
-        delay_chip_label = QtGui.QLabel("Delay chip")
-        delay_chip_layout = QtGui.QHBoxLayout()
+        delay_chip_label = QtWidgets.QLabel("Delay chip")
+        delay_chip_layout = QtWidgets.QHBoxLayout()
         delay_chip_layout.setSpacing(4)
         delay_chip_layout.addWidget(delay_chip_label)
         delay_chip_layout.addWidget(self.delay_chip_input)
@@ -948,7 +948,7 @@ class DiscriminatorPage(QtGui.QGroupBox):
         layout.addLayout(delay_chip_layout, layout.rowCount(), 0, 1, 7)
 
         # Fast veto
-        self.cb_fast_veto = QtGui.QCheckBox("Fast veto")
+        self.cb_fast_veto = QtWidgets.QCheckBox("Fast veto")
         layout.addWidget(self.cb_fast_veto, layout.rowCount(), 0, 1, 7)
 
         self.bindings.append(pb.factory.make_binding(
@@ -1034,7 +1034,7 @@ class DiscriminatorPage(QtGui.QGroupBox):
     def _apply_common_threshold(self):
         return self.device.apply_common_threshold()
 
-class WidthAndDeadtimePage(QtGui.QGroupBox):
+class WidthAndDeadtimePage(QtWidgets.QGroupBox):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(WidthAndDeadtimePage, self).__init__("Width/Dead time", parent=parent)
 
@@ -1071,11 +1071,11 @@ class WidthAndDeadtimePage(QtGui.QGroupBox):
             target=self.deadtime_common).add_update_callback(
                 self._update_deadtime_label, group='common'))
 
-        layout = QtGui.QGridLayout(self)
+        layout = QtWidgets.QGridLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
 
         offset = 0
-        layout.addWidget(QtGui.QLabel("Common"),        offset, 0, 1, 1, Qt.AlignRight)
+        layout.addWidget(QtWidgets.QLabel("Common"),        offset, 0, 1, 1, Qt.AlignRight)
         layout.addLayout(self.width_common_layout,      offset, 1)
         layout.addWidget(self.width_label_common,       offset, 2)
         layout.addLayout(self.deadtime_common_layout,   offset, 3)
@@ -1094,7 +1094,7 @@ class WidthAndDeadtimePage(QtGui.QGroupBox):
         for i in range(NUM_GROUPS):
             offset      = layout.rowCount()
             group_range = cg_helper.group_channel_range(i)
-            group_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1])) 
+            group_label = QtWidgets.QLabel("%d-%d" % (group_range[0], group_range[-1])) 
 
             width_input = util.DelayedSpinBox()
             width_label = make_dynamic_label(longest_value="%d ns" % width_ns_max)
@@ -1151,7 +1151,7 @@ class WidthAndDeadtimePage(QtGui.QGroupBox):
     def _apply_common_deadtime(self):
         return self.device.apply_common_deadtime()
 
-class RateMeasurementWidget(QtGui.QWidget):
+class RateMeasurementWidget(QtWidgets.QWidget):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(RateMeasurementWidget, self).__init__(parent)
 
@@ -1159,7 +1159,7 @@ class RateMeasurementWidget(QtGui.QWidget):
         self.device   = device
         self.bindings = list()
 
-        time_base_combo = QtGui.QComboBox()
+        time_base_combo = QtWidgets.QComboBox()
         for k in sorted(TIME_BASE_SECS.keys()):
             time_base_combo.addItem("%.2f s" % TIME_BASE_SECS[k], k)
 
@@ -1169,7 +1169,7 @@ class RateMeasurementWidget(QtGui.QWidget):
             display_mode=display_mode,
             target=time_base_combo))
 
-        rate_monitor_combo = QtGui.QComboBox()
+        rate_monitor_combo = QtWidgets.QComboBox()
         for k in sorted(RATE_MONITOR_CHANNEL.keys()):
             rate_monitor_combo.addItem("%s" % RATE_MONITOR_CHANNEL[k], k)
 
@@ -1188,7 +1188,7 @@ class RateMeasurementWidget(QtGui.QWidget):
 
         self.rate_label = make_dynamic_label("N/A")
 
-        layout = QtGui.QFormLayout(self)
+        layout = QtWidgets.QFormLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addRow("Rate Monitor", rate_monitor_combo)
         layout.addRow("Time Base", time_base_combo)
@@ -1226,7 +1226,7 @@ class RateMeasurementWidget(QtGui.QWidget):
 
         future.all_done(f_low, f_high).add_done_callback(freq_done)
 
-class MCFD16ControlsWidget(QtGui.QWidget):
+class MCFD16ControlsWidget(QtWidgets.QWidget):
     """Main MCFD16 controls: polarity, gain, delay, fraction, threshold, width, dead time."""
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(MCFD16ControlsWidget, self).__init__(parent)
@@ -1244,14 +1244,14 @@ class MCFD16ControlsWidget(QtGui.QWidget):
         self.width_deadtime_page    = WidthAndDeadtimePage(device, display_mode, write_mode, self)
 
         # Channel mode
-        mode_box = QtGui.QGroupBox("Channel Mode", self)
-        mode_layout = QtGui.QGridLayout(mode_box)
+        mode_box = QtWidgets.QGroupBox("Channel Mode", self)
+        mode_layout = QtWidgets.QGridLayout(mode_box)
         mode_layout.setContentsMargins(2, 2, 2, 2)
-        self.rb_mode_single = QtGui.QRadioButton("Individual")
-        self.rb_mode_common = QtGui.QRadioButton("Common")
+        self.rb_mode_single = QtWidgets.QRadioButton("Individual")
+        self.rb_mode_common = QtWidgets.QRadioButton("Common")
         self.rb_mode_common.setEnabled(False)
 
-        self.rbg_mode = QtGui.QButtonGroup()
+        self.rbg_mode = QtWidgets.QButtonGroup()
         self.rbg_mode.addButton(self.rb_mode_single, 1)
         self.rbg_mode.addButton(self.rb_mode_common, 0)
         self.bindings.append(pb.factory.make_binding(
@@ -1263,11 +1263,11 @@ class MCFD16ControlsWidget(QtGui.QWidget):
         mode_layout.addWidget(self.rb_mode_common, 0, 1)
 
         # Test pulser
-        pulser_box = QtGui.QGroupBox("Test Pulser", self)
-        pulser_layout = QtGui.QFormLayout(pulser_box)
+        pulser_box = QtWidgets.QGroupBox("Test Pulser", self)
+        pulser_layout = QtWidgets.QFormLayout(pulser_box)
         pulser_layout.setContentsMargins(2, 2, 2, 2)
 
-        pulser_combo = QtGui.QComboBox()
+        pulser_combo = QtWidgets.QComboBox()
         for k in sorted(TEST_PULSER_FREQS.keys()):
             pulser_combo.addItem("%s" % TEST_PULSER_FREQS[k], k)
 
@@ -1280,8 +1280,8 @@ class MCFD16ControlsWidget(QtGui.QWidget):
             target=pulser_combo))
 
         # Version display
-        version_box = QtGui.QGroupBox("Version", self)
-        version_layout = QtGui.QFormLayout(version_box)
+        version_box = QtWidgets.QGroupBox("Version", self)
+        version_layout = QtWidgets.QFormLayout(version_box)
         version_layout.setContentsMargins(2, 2, 2, 2)
 
         self.version_labels = dict()
@@ -1290,7 +1290,7 @@ class MCFD16ControlsWidget(QtGui.QWidget):
                 ("fpga_firmware_version", "FPGA"),
                 ("cpu_firmware_version", "CPU")):
 
-            self.version_labels[k] = label = QtGui.QLabel()
+            self.version_labels[k] = label = QtWidgets.QLabel()
             label.setStyleSheet(dynamic_label_style)
             version_layout.addRow(l+":", label)
 
@@ -1316,28 +1316,28 @@ class MCFD16ControlsWidget(QtGui.QWidget):
 
         # Rate measurement
         self.rate_widget = RateMeasurementWidget(device, display_mode, write_mode, self)
-        rate_box = QtGui.QGroupBox("Rate Measurement", self)
-        rate_layout = QtGui.QHBoxLayout(rate_box)
+        rate_box = QtWidgets.QGroupBox("Rate Measurement", self)
+        rate_layout = QtWidgets.QHBoxLayout(rate_box)
         rate_layout.addWidget(self.rate_widget)
 
         # Add layouts
-        layout = QtGui.QHBoxLayout(self)
+        layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(*(4 for i in range(4)))
         layout.setSpacing(4)
 
-        vbox = QtGui.QVBoxLayout()
+        vbox = QtWidgets.QVBoxLayout()
         vbox.setSpacing(8)
         vbox.addWidget(self.preamp_page)
         vbox.addWidget(self.channel_mask_box)
         vbox.addStretch(1)
         layout.addItem(vbox)
 
-        vbox = QtGui.QVBoxLayout()
+        vbox = QtWidgets.QVBoxLayout()
         vbox.addWidget(self.discriminator_page)
         vbox.addStretch(1)
         layout.addItem(vbox)
 
-        vbox = QtGui.QVBoxLayout()
+        vbox = QtWidgets.QVBoxLayout()
         vbox.setSpacing(8)
         vbox.addWidget(self.width_deadtime_page)
         vbox.addWidget(mode_box)
@@ -1402,7 +1402,7 @@ class BitPatternHelper(QtCore.QObject):
 
     value = Property(int, get_value, set_value, notify=value_changed)
 
-class BitPatternWidget(QtGui.QWidget):
+class BitPatternWidget(QtWidgets.QWidget):
     """Horizontal layout containing a title label, n_bits checkboxes and a
     result label displaying the decimal value of the bit pattern.
     If msb_first is True the leftmost checkbox will toggle the highest valued
@@ -1417,14 +1417,14 @@ class BitPatternWidget(QtGui.QWidget):
         if n_bits == 0:
             raise ValueError("n_bits must be > 0")
 
-        layout = QtGui.QHBoxLayout(self)
+        layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        self.title_label = QtGui.QLabel(label)
+        self.title_label = QtWidgets.QLabel(label)
         layout.addWidget(self.title_label)
 
         self.checkboxes = list()
         for i in range(n_bits):
-            cb = QtGui.QCheckBox()
+            cb = QtWidgets.QCheckBox()
             self.checkboxes.append(cb)
             layout.addWidget(cb)
 
@@ -1534,7 +1534,7 @@ class MultiByteIndexedSignalSlotBinding(object):
     def _write_value(self, value):
         getattr(self.device(), self.setter)(self.index, value)
 
-class TriggerSetupWidget(QtGui.QWidget):
+class TriggerSetupWidget(QtWidgets.QWidget):
     """MCFD16 trigger setup widget"""
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(TriggerSetupWidget, self).__init__(parent)
@@ -1542,7 +1542,7 @@ class TriggerSetupWidget(QtGui.QWidget):
         self.device = device
         self.bindings = list()
 
-        layout = QtGui.QGridLayout(self)
+        layout = QtWidgets.QGridLayout(self)
         layout.setHorizontalSpacing(3)
         layout.setVerticalSpacing(5)
         layout.setContentsMargins(4, 4, 4, 4)
@@ -1553,8 +1553,8 @@ class TriggerSetupWidget(QtGui.QWidget):
 
         row_offset = 0
         col        = 7
-        coinc_layout = QtGui.QHBoxLayout()
-        coinc_layout.addWidget(QtGui.QLabel("Coincidence time:"))
+        coinc_layout = QtWidgets.QHBoxLayout()
+        coinc_layout.addWidget(QtWidgets.QLabel("Coincidence time:"))
         self.spin_coincidence_time = util.DelayedSpinBox()
         coinc_layout.addWidget(self.spin_coincidence_time)
         coincidence_value_max = CONV_TABLE_COINCIDENCE_NS[device.profile['coincidence_time'].range[1]]
@@ -1572,16 +1572,16 @@ class TriggerSetupWidget(QtGui.QWidget):
 
         # Triggers
         for row, label in enumerate(trigger_labels):
-            layout.addWidget(QtGui.QLabel(label), row+1+row_offset, 0)
+            layout.addWidget(QtWidgets.QLabel(label), row+1+row_offset, 0)
 
             for col, trig in enumerate(trigger_names):
-                layout.addWidget(QtGui.QLabel(trig), 0+row_offset, col+1)
+                layout.addWidget(QtWidgets.QLabel(trig), 0+row_offset, col+1)
 
                 if ((label == 'Mon0' and trig == 'T2') or
                         label == 'Mon1' and trig in ('T0', 'T1')):
                     continue
 
-                cb = QtGui.QCheckBox()
+                cb = QtWidgets.QCheckBox()
                 self.trigger_checkboxes[col].append(cb)
                 layout.addWidget(cb, row+1+row_offset, col+1)
 
@@ -1610,11 +1610,11 @@ class TriggerSetupWidget(QtGui.QWidget):
         layout.setRowMinimumHeight(label_row, 24)
 
         # Spacer between T2 and GG
-        layout.addItem(QtGui.QSpacerItem(5, 1),
+        layout.addItem(QtWidgets.QSpacerItem(5, 1),
                 row_offset, 4, layout.rowCount(), 1)
 
         gg_col = 5
-        layout.addWidget(QtGui.QLabel("GG"), row_offset, gg_col)
+        layout.addWidget(QtWidgets.QLabel("GG"), row_offset, gg_col)
         self.gg_checkboxes = list()
 
         # GG sources
@@ -1622,7 +1622,7 @@ class TriggerSetupWidget(QtGui.QWidget):
             if label in ('Mon1', 'GG'):
                 continue
 
-            cb = QtGui.QCheckBox()
+            cb = QtWidgets.QCheckBox()
             layout.addWidget(cb, i+1+row_offset, gg_col, 2 if trigger_labels[i] == 'Mon0' else 1, 1)
             self.gg_checkboxes.append(cb)
 
@@ -1637,13 +1637,13 @@ class TriggerSetupWidget(QtGui.QWidget):
             target=self.gg_source_helper, label=self.gg_source_label))
 
         # Spacer between GG and the right side widgets
-        layout.addItem(QtGui.QSpacerItem(15, 1),
+        layout.addItem(QtWidgets.QSpacerItem(15, 1),
                 0, 6, layout.rowCount(), 1)
 
         # OR all label
         col = 7
         row = 2
-        layout.addWidget(QtGui.QLabel("OR all channels"), row, col)
+        layout.addWidget(QtWidgets.QLabel("OR all channels"), row, col)
 
         # Multiplicity
         self.spin_mult_lo  = util.DelayedSpinBox()
@@ -1659,15 +1659,15 @@ class TriggerSetupWidget(QtGui.QWidget):
             display_mode=display_mode, write_mode=write_mode,
             target=self.spin_mult_hi))
 
-        mult_layout = QtGui.QHBoxLayout()
-        l = QtGui.QLabel("Low:")
+        mult_layout = QtWidgets.QHBoxLayout()
+        l = QtWidgets.QLabel("Low:")
         l.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         mult_layout.addWidget(l)
         mult_layout.addWidget(self.spin_mult_lo)
 
         mult_layout.addSpacing(10)
 
-        l = QtGui.QLabel("High:")
+        l = QtWidgets.QLabel("High:")
         l.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         mult_layout.addWidget(l)
         mult_layout.addWidget(self.spin_mult_hi)
@@ -1677,19 +1677,19 @@ class TriggerSetupWidget(QtGui.QWidget):
 
         # Pair coincidence label
         row += 1
-        layout.addWidget(QtGui.QLabel("Pair coincidence"), row, col)
+        layout.addWidget(QtWidgets.QLabel("Pair coincidence"), row, col)
 
         def make_monitor_combo():
-            combo = QtGui.QComboBox()
+            combo = QtWidgets.QComboBox()
             combo.addItems([("Channel %d" % i) for i in range(NUM_CHANNELS)])
             return combo
 
         # Monitor 0
-        label = QtGui.QLabel("TM0:")
+        label = QtWidgets.QLabel("TM0:")
         sz    = label.sizeHint()
         label.setFixedSize(sz)
         combo = make_monitor_combo()
-        mon_layout = QtGui.QHBoxLayout()
+        mon_layout = QtWidgets.QHBoxLayout()
         mon_layout.setContentsMargins(0, 0, 0, 0)
         mon_layout.addWidget(label)
         mon_layout.addWidget(combo)
@@ -1707,10 +1707,10 @@ class TriggerSetupWidget(QtGui.QWidget):
             target=combo))
 
         # Monitor 1
-        label = QtGui.QLabel("TM1:")
+        label = QtWidgets.QLabel("TM1:")
         label.setFixedSize(sz)
         combo = make_monitor_combo()
-        mon_layout = QtGui.QHBoxLayout()
+        mon_layout = QtWidgets.QHBoxLayout()
         mon_layout.setContentsMargins(0, 0, 0, 0)
         mon_layout.addWidget(label)
         mon_layout.addWidget(combo)
@@ -1760,7 +1760,7 @@ class TriggerSetupWidget(QtGui.QWidget):
 
         # Veto
         row += 1
-        layout.addWidget(QtGui.QLabel("Veto"), row, col)
+        layout.addWidget(QtWidgets.QLabel("Veto"), row, col)
 
         # GG leading edge delay
         self.spin_gg_le_delay  = util.DelayedSpinBox()
@@ -1784,9 +1784,9 @@ class TriggerSetupWidget(QtGui.QWidget):
             target=self.spin_gg_te_delay).add_update_callback(
                 self._update_label_gg_te_delay))
 
-        gg_delay_layout = QtGui.QHBoxLayout()
+        gg_delay_layout = QtWidgets.QHBoxLayout()
 
-        l = QtGui.QLabel("LE delay:")
+        l = QtWidgets.QLabel("LE delay:")
         l.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         gg_delay_layout.addWidget(l)
         gg_delay_layout.addWidget(self.spin_gg_le_delay)
@@ -1794,7 +1794,7 @@ class TriggerSetupWidget(QtGui.QWidget):
 
         gg_delay_layout.addSpacing(10)
 
-        l = QtGui.QLabel("TE delay:")
+        l = QtWidgets.QLabel("TE delay:")
         l.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         gg_delay_layout.addWidget(l)
         gg_delay_layout.addWidget(self.spin_gg_te_delay)
@@ -1805,9 +1805,9 @@ class TriggerSetupWidget(QtGui.QWidget):
 
         # Add expanding spacer items to the last row and column to keep widgets
         # tightly packed in the top-left corner.
-        layout.addItem(QtGui.QSpacerItem(1, 1, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding),
+        layout.addItem(QtWidgets.QSpacerItem(1, 1, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding),
                 layout.rowCount(), 0, 1, layout.columnCount())
-        layout.addItem(QtGui.QSpacerItem(1, 1, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding),
+        layout.addItem(QtWidgets.QSpacerItem(1, 1, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding),
                 0, layout.columnCount(), layout.rowCount(), 1)
 
     def _update_coincidence_label(self, f):
@@ -1831,7 +1831,7 @@ class TriggerSetupWidget(QtGui.QWidget):
     def clear_parameter_bindings(self):
         self.bindings = list()
 
-class PairCoincidenceSetupWidget(QtGui.QWidget):
+class PairCoincidenceSetupWidget(QtWidgets.QWidget):
     """Pair coincidence matrix display."""
 
     # Displays the lower right part of the pair coincidence matrix. Rows 0-14
@@ -1847,7 +1847,7 @@ class PairCoincidenceSetupWidget(QtGui.QWidget):
         self.device = device
         self.bindings = list()
 
-        layout = QtGui.QGridLayout(self)
+        layout = QtWidgets.QGridLayout(self)
         layout.setSpacing(4)
         layout.setContentsMargins(4, 4, 4, 4)
 
@@ -1861,7 +1861,7 @@ class PairCoincidenceSetupWidget(QtGui.QWidget):
             bits = row+1
             cbs  = list()
             for col in range(bits):
-                cb = QtGui.QCheckBox()
+                cb = QtWidgets.QCheckBox()
                 cbs.append(cb)
                 layout.addWidget(cb, row+row_offset, 15-col, 1, 1, Qt.AlignCenter)
 
@@ -1871,14 +1871,14 @@ class PairCoincidenceSetupWidget(QtGui.QWidget):
         # Horizontal labels bottom
         row = layout.rowCount()
         for col in range(15):
-            l = QtGui.QLabel("%d" % (14-col))
+            l = QtWidgets.QLabel("%d" % (14-col))
             l.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
             layout.addWidget(l, row, col+1)
 
         # Vertical labels and spinboxes
         col = layout.columnCount()
         for row in range(15):
-            l = QtGui.QLabel("%d" % (row+1))
+            l = QtWidgets.QLabel("%d" % (row+1))
             l.setAlignment(Qt.AlignRight)
             layout.addWidget(l, row+row_offset, col)
 
@@ -1927,7 +1927,7 @@ class PairCoincidenceSetupWidget(QtGui.QWidget):
     def clear_parameter_bindings(self):
         self.bindings = list()
 
-class MCFD16SetupWidget(QtGui.QWidget):
+class MCFD16SetupWidget(QtWidgets.QWidget):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(MCFD16SetupWidget, self).__init__(parent)
 
@@ -1939,19 +1939,19 @@ class MCFD16SetupWidget(QtGui.QWidget):
 
         gbs = list()
 
-        gb = QtGui.QGroupBox("Trigger setup")
-        gb_layout = QtGui.QHBoxLayout(gb)
+        gb = QtWidgets.QGroupBox("Trigger setup")
+        gb_layout = QtWidgets.QHBoxLayout(gb)
         gb_layout.setContentsMargins(0, 0, 0, 0)
         gb_layout.addWidget(self.trigger_widget)
         gbs.append(gb)
 
-        gb = QtGui.QGroupBox("Pair coincidence")
-        gb_layout = QtGui.QHBoxLayout(gb)
+        gb = QtWidgets.QGroupBox("Pair coincidence")
+        gb_layout = QtWidgets.QHBoxLayout(gb)
         gb_layout.setContentsMargins(0, 0, 0, 0)
         gb_layout.addWidget(self.coincidence_widget)
         gbs.append(gb)
 
-        layout = QtGui.QGridLayout(self)
+        layout = QtWidgets.QGridLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
 
         # First row contains the group boxes
@@ -1960,12 +1960,12 @@ class MCFD16SetupWidget(QtGui.QWidget):
 
         # row spacer
         layout.addItem(
-                QtGui.QSpacerItem(0, 0, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding),
+                QtWidgets.QSpacerItem(0, 0, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding),
                 layout.rowCount(), 0, 1, layout.columnCount())
 
         # column spacer
         layout.addItem(
-                QtGui.QSpacerItem(0, 0, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding),
+                QtWidgets.QSpacerItem(0, 0, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding),
                 0, layout.columnCount(), layout.rowCount(), 1)
 
         # stretch factor for spacer cells

@@ -28,7 +28,7 @@ import itertools
 from .. qt import Signal
 from .. qt import Qt
 from .. qt import QtCore
-from .. qt import QtGui
+from .. qt import QtWidgets
 
 from .. future import future_progress_dialog
 from .. future import set_exception_on
@@ -43,7 +43,7 @@ from .. util import make_spinbox
 from .. util import make_title_label
 from .. util import ReadOnlyCheckBox
 
-import mscf16_profile
+import mesycontrol.devices.mscf16_profile as mscf16_profile
 
 NUM_CHANNELS        = mscf16_profile.NUM_CHANNELS
 NUM_GROUPS          = mscf16_profile.NUM_GROUPS
@@ -503,17 +503,17 @@ class MSCF16Widget(DeviceWidgetBase):
 
         self.pages = [self.gain_page, self.shaping_page, self.timing_page, self.misc_page]
 
-        layout = QtGui.QHBoxLayout()
+        layout = QtWidgets.QHBoxLayout()
         layout.setContentsMargins(*(4 for i in range(4)))
         layout.setSpacing(4)
 
         for page in self.pages:
-            vbox = QtGui.QVBoxLayout()
+            vbox = QtWidgets.QVBoxLayout()
             vbox.addWidget(page)
             vbox.addStretch(1)
             layout.addItem(vbox)
 
-        widget = QtGui.QWidget()
+        widget = QtWidgets.QWidget()
         widget.setLayout(layout)
         self.tab_widget.addTab(widget, device.profile.name)
 
@@ -540,7 +540,7 @@ class MSCF16Widget(DeviceWidgetBase):
 
         super(MSCF16Widget, self).showEvent(event)
 
-class GainPage(QtGui.QGroupBox):
+class GainPage(QtWidgets.QGroupBox):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(GainPage, self).__init__("Gain", parent)
         self.log    = util.make_logging_source_adapter(__name__, self)
@@ -553,9 +553,9 @@ class GainPage(QtGui.QGroupBox):
         self.gain_labels    = list()
         self.bindings       = list()
 
-        layout = QtGui.QGridLayout(self)
+        layout = QtWidgets.QGridLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
-        layout.addWidget(QtGui.QLabel("Common"), 0, 0, 1, 1, Qt.AlignRight)
+        layout.addWidget(QtWidgets.QLabel("Common"), 0, 0, 1, 1, Qt.AlignRight)
 
         self.gain_common = util.DelayedSpinBox()
 
@@ -580,9 +580,9 @@ class GainPage(QtGui.QGroupBox):
 
         for i in range(NUM_GROUPS):
             group_range = cg_helper.group_channel_range(i)
-            descr_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1]))
+            descr_label = QtWidgets.QLabel("%d-%d" % (group_range[0], group_range[-1]))
             gain_spin   = util.DelayedSpinBox()
-            gain_label  = QtGui.QLabel("N/A")
+            gain_label  = QtWidgets.QLabel("N/A")
             gain_label.setStyleSheet(dynamic_label_style)
 
             self.gain_inputs.append(gain_spin)
@@ -641,18 +641,18 @@ class GainPage(QtGui.QGroupBox):
 
         future.all_done(f_gain, f_integrating).add_done_callback(done)
 
-class AutoPZSpin(QtGui.QStackedWidget):
+class AutoPZSpin(QtWidgets.QStackedWidget):
     def __init__(self, parent=None):
         super(AutoPZSpin, self).__init__(parent)
 
         self.spin     = util.DelayedSpinBox()
-        self.progress = QtGui.QProgressBar()
+        self.progress = QtWidgets.QProgressBar()
         self.progress.setTextVisible(False)
         self.progress.setMinimum(0)
         self.progress.setMaximum(0)
         # Ignore the size hint of the progressbar so that only the size of the
         # spinbox is taken into account when calculating the final widget size.
-        self.progress.setSizePolicy(QtGui.QSizePolicy.Ignored, QtGui.QSizePolicy.Ignored)
+        self.progress.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
 
         self.addWidget(self.spin)
         self.addWidget(self.progress)
@@ -663,7 +663,7 @@ class AutoPZSpin(QtGui.QStackedWidget):
     def showProgress(self):
         self.setCurrentIndex(1)
 
-class ShapingPage(QtGui.QGroupBox):
+class ShapingPage(QtWidgets.QGroupBox):
     auto_pz_button_size = QtCore.QSize(24, 24)
 
     def __init__(self, device, display_mode, write_mode, parent=None):
@@ -675,7 +675,7 @@ class ShapingPage(QtGui.QGroupBox):
         self.device.hardware_set.connect(self._on_hardware_set)
         self.device.extension_changed.connect(self._on_device_extension_changed)
 
-        self.stop_icon  = QtGui.QIcon(':/stop.png')
+        self.stop_icon  = QtWidgets.QIcon(':/stop.png')
         self.sht_inputs = list()
         self.sht_labels = list()
         self.pz_inputs  = list()
@@ -713,17 +713,17 @@ class ShapingPage(QtGui.QGroupBox):
         pz_common_layout, self.pz_common_button  = util.make_apply_common_button_layout(
                 self.spin_pz_common, "Apply to channels", self._apply_common_pz)
 
-        self.pb_auto_pz_all  = QtGui.QPushButton("A")
+        self.pb_auto_pz_all  = QtWidgets.QPushButton("A")
         self.pb_auto_pz_all.setToolTip("Start auto PZ for all channels")
         self.pb_auto_pz_all.setStatusTip(self.pb_auto_pz_all.toolTip())
         self.pb_auto_pz_all.setMaximumSize(ShapingPage.auto_pz_button_size)
         self.pb_auto_pz_all.clicked.connect(partial(self.device.set_auto_pz, channel=AUTO_PZ_ALL))
 
-        layout = QtGui.QGridLayout(self)
+        layout = QtWidgets.QGridLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
-        layout.addWidget(QtGui.QLabel("Common"),    0, 0, 1, 1, Qt.AlignRight)
+        layout.addWidget(QtWidgets.QLabel("Common"),    0, 0, 1, 1, Qt.AlignRight)
         layout.addLayout(sht_common_layout,         0, 1)
-        layout.addWidget(QtGui.QLabel("Common"),    0, 3, 1, 1, Qt.AlignRight)
+        layout.addWidget(QtWidgets.QLabel("Common"),    0, 3, 1, 1, Qt.AlignRight)
         layout.addLayout(pz_common_layout,          0, 4)
         layout.addWidget(self.pb_auto_pz_all,       0, 5)
 
@@ -738,9 +738,9 @@ class ShapingPage(QtGui.QGroupBox):
             row   = layout.rowCount()
 
             if chan % NUM_GROUPS == 0:
-                descr_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1]))
+                descr_label = QtWidgets.QLabel("%d-%d" % (group_range[0], group_range[-1]))
                 spin_sht    = util.DelayedSpinBox()
-                label_sht   = QtGui.QLabel("N/A")
+                label_sht   = QtWidgets.QLabel("N/A")
                 label_sht.setStyleSheet(dynamic_label_style)
 
                 layout.addWidget(descr_label,   row, 0, 1, 1, Qt.AlignRight)
@@ -761,7 +761,7 @@ class ShapingPage(QtGui.QGroupBox):
 
                 b.add_update_callback(self._update_sht_label_cb, group=group)
 
-            label_chan  = QtGui.QLabel("%d" % chan)
+            label_chan  = QtWidgets.QLabel("%d" % chan)
             spin_pz     = AutoPZSpin()
             self.pz_inputs.append(spin_pz.spin)
             self.pz_stacks.append(spin_pz)
@@ -775,7 +775,7 @@ class ShapingPage(QtGui.QGroupBox):
 
             self.bindings.append(b)
 
-            button_pz   = QtGui.QPushButton("A")
+            button_pz   = QtWidgets.QPushButton("A")
             button_pz.setToolTip("Start auto PZ for channel %d" % chan)
             button_pz.setStatusTip(button_pz.toolTip())
             button_pz.setMaximumSize(ShapingPage.auto_pz_button_size)
@@ -790,11 +790,11 @@ class ShapingPage(QtGui.QGroupBox):
         layout.addWidget(hline(), layout.rowCount(), 0, 1, 6)
 
         self.spin_shaper_offset  = util.DelayedSpinBox()
-        self.label_shaper_offset = QtGui.QLabel()
+        self.label_shaper_offset = QtWidgets.QLabel()
         self.label_shaper_offset.setStyleSheet(dynamic_label_style)
 
         self.spin_blr_threshold = util.DelayedSpinBox()
-        self.check_blr_enable   = QtGui.QCheckBox()
+        self.check_blr_enable   = QtWidgets.QCheckBox()
 
         self.bindings.append(pb.factory.make_binding(
             device=device,
@@ -819,16 +819,16 @@ class ShapingPage(QtGui.QGroupBox):
             target=self.check_blr_enable))
 
         row = layout.rowCount()
-        layout.addWidget(QtGui.QLabel("Sh. offset"), row, 0)
+        layout.addWidget(QtWidgets.QLabel("Sh. offset"), row, 0)
         layout.addWidget(self.spin_shaper_offset, row, 1)
         layout.addWidget(self.label_shaper_offset, row, 2)
 
         row += 1
-        layout.addWidget(QtGui.QLabel("BLR thresh."), row, 0)
+        layout.addWidget(QtWidgets.QLabel("BLR thresh."), row, 0)
         layout.addWidget(self.spin_blr_threshold, row, 1)
 
         row += 1
-        layout.addWidget(QtGui.QLabel("BLR enable"), row, 0)
+        layout.addWidget(QtWidgets.QLabel("BLR enable"), row, 0)
         layout.addWidget(self.check_blr_enable, row, 1)
 
         self._on_hardware_set(device, None, device.hw)
@@ -878,7 +878,7 @@ class ShapingPage(QtGui.QGroupBox):
             if value == 0 or i != value-1:
                 pz_stack.showSpin()
                 button.setText("A")
-                button.setIcon(QtGui.QIcon())
+                button.setIcon(QtWidgets.QIcon())
                 button.setToolTip("Start auto PZ for channel %d" % i)
             elif i == value-1:
                 pz_stack.showProgress()
@@ -904,7 +904,7 @@ class ShapingPage(QtGui.QGroupBox):
             for i in range(NUM_GROUPS):
                 self._update_sht_label(i)
 
-class TimingPage(QtGui.QGroupBox):
+class TimingPage(QtWidgets.QGroupBox):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(TimingPage, self).__init__("Timing", parent)
         self.device           = device
@@ -945,13 +945,13 @@ class TimingPage(QtGui.QGroupBox):
                 self.upper_threshold_common, "Apply to channels", self._apply_upper_common_threshold)
 
         # populate the grid layout: left side is for the lower, right side for the upper thresholds
-        layout = QtGui.QGridLayout(self)
+        layout = QtWidgets.QGridLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
 
-        layout.addWidget(QtGui.QLabel("Common"), 0, 0, 1, 1, Qt.AlignRight)
+        layout.addWidget(QtWidgets.QLabel("Common"), 0, 0, 1, 1, Qt.AlignRight)
         layout.addLayout(threshold_common_layout, 0, 1)
 
-        layout.addWidget(QtGui.QLabel("Common"), 0, 3, 1, 1, Qt.AlignRight)
+        layout.addWidget(QtWidgets.QLabel("Common"), 0, 3, 1, 1, Qt.AlignRight)
         layout.addLayout(upper_threshold_common_layout, 0, 4)
 
         layout.addWidget(make_title_label("Chan"),   1, 0, 1, 1, Qt.AlignRight)
@@ -968,9 +968,9 @@ class TimingPage(QtGui.QGroupBox):
 
             for chan in range(NUM_CHANNELS):
                 offset  = 2
-                descr_label     = QtGui.QLabel("%d" % chan)
+                descr_label     = QtWidgets.QLabel("%d" % chan)
                 spin_threshold  = util.DelayedSpinBox()
-                label_threshold = QtGui.QLabel()
+                label_threshold = QtWidgets.QLabel()
                 label_threshold.setStyleSheet(dynamic_label_style)
 
                 layout.addWidget(descr_label,       chan+offset, 0+coffset, 1, 1, Qt.AlignRight)
@@ -1002,7 +1002,7 @@ class TimingPage(QtGui.QGroupBox):
         layout.addWidget(hline(), layout.rowCount(), 0, 1, 6)
 
         self.spin_threshold_offset = util.DelayedSpinBox()
-        self.label_threshold_offset = QtGui.QLabel()
+        self.label_threshold_offset = QtWidgets.QLabel()
         self.label_threshold_offset.setStyleSheet(dynamic_label_style)
 
         self.bindings.append(pb.factory.make_binding(
@@ -1013,7 +1013,7 @@ class TimingPage(QtGui.QGroupBox):
             target=self.spin_threshold_offset
             ).add_update_callback(self._threshold_offset_cb))
 
-        self.check_ecl_delay = QtGui.QCheckBox()
+        self.check_ecl_delay = QtWidgets.QCheckBox()
 
         self.bindings.append(pb.factory.make_binding(
             device=device,
@@ -1034,16 +1034,16 @@ class TimingPage(QtGui.QGroupBox):
             ).add_update_callback(self._tf_int_time_cb))
 
         row = layout.rowCount()
-        layout.addWidget(QtGui.QLabel("Thr. offset"),   row, 0)
+        layout.addWidget(QtWidgets.QLabel("Thr. offset"),   row, 0)
         layout.addWidget(self.spin_threshold_offset,    row, 1)
         layout.addWidget(self.label_threshold_offset,   row, 2)
 
         row += 1
-        layout.addWidget(QtGui.QLabel("ECL delay"),     row, 0)
+        layout.addWidget(QtWidgets.QLabel("ECL delay"),     row, 0)
         layout.addWidget(self.check_ecl_delay,          row, 1)
 
         row += 1
-        layout.addWidget(QtGui.QLabel("TF int. time"),  row, 0)
+        layout.addWidget(QtWidgets.QLabel("TF int. time"),  row, 0)
         layout.addWidget(self.spin_tf_int_time,         row, 1)
 
         self.bindings.append(pb.factory.make_binding(
@@ -1137,7 +1137,7 @@ class ChannelModeBinding(pb.AbstractParameterBinding):
         if checked:
             self._write_value(0)
 
-class HardwareInfoWidget(QtGui.QWidget):
+class HardwareInfoWidget(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super(HardwareInfoWidget, self).__init__(parent)
         self.setStyleSheet('QWidget { background-color: lightgrey; }')
@@ -1156,7 +1156,7 @@ class HardwareInfoWidget(QtGui.QWidget):
         self.checkbox_tooltips = dict(
                 (bit, cb.toolTip()) for bit, cb in self.checkboxes.iteritems())
 
-        layout = QtGui.QGridLayout(self)
+        layout = QtWidgets.QGridLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self.checkboxes[HardwareInfo.HW_GE_V4], 0, 0)
@@ -1172,7 +1172,7 @@ class HardwareInfoWidget(QtGui.QWidget):
             checkbox.setToolTip(self.checkbox_tooltips[bit] if hw_info.is_valid()
                     else "Hardware Info register not supported. Requires version >= 5.3")
 
-class MiscPage(QtGui.QWidget):
+class MiscPage(QtWidgets.QWidget):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(MiscPage, self).__init__(parent)
         self.log    = util.make_logging_source_adapter(__name__, self)
@@ -1181,12 +1181,12 @@ class MiscPage(QtGui.QWidget):
 
         self.device.hardware_set.connect(self._on_hardware_set)
 
-        layout = QtGui.QVBoxLayout(self)
+        layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
         # Coincidence/Trigger
-        trigger_box = QtGui.QGroupBox("Coincidence/Trigger")
-        trigger_layout = QtGui.QGridLayout(trigger_box)
+        trigger_box = QtWidgets.QGroupBox("Coincidence/Trigger")
+        trigger_layout = QtWidgets.QGridLayout(trigger_box)
         trigger_layout.setContentsMargins(2, 2, 2, 2)
 
         self.spin_coincidence_time = util.DelayedSpinBox()
@@ -1197,7 +1197,7 @@ class MiscPage(QtGui.QWidget):
             write_mode=write_mode,
             target=self.spin_coincidence_time))
 
-        self.label_coincidence_time = QtGui.QLabel()
+        self.label_coincidence_time = QtWidgets.QLabel()
         self.label_coincidence_time.setStyleSheet(dynamic_label_style)
         self.bindings.append(pb.factory.make_binding(
             device=device,
@@ -1224,23 +1224,23 @@ class MiscPage(QtGui.QWidget):
             target=self.spin_multiplicity_low))
 
         row = 0
-        trigger_layout.addWidget(QtGui.QLabel("Coinc. time"), row, 0)
+        trigger_layout.addWidget(QtWidgets.QLabel("Coinc. time"), row, 0)
         trigger_layout.addWidget(self.spin_coincidence_time,  row, 1)
         trigger_layout.addWidget(self.label_coincidence_time, row, 2)
 
         row += 1
-        trigger_layout.addWidget(QtGui.QLabel("Mult. low"),   row, 0)
+        trigger_layout.addWidget(QtWidgets.QLabel("Mult. low"),   row, 0)
         trigger_layout.addWidget(self.spin_multiplicity_low, row, 1)
 
         row += 1
-        trigger_layout.addWidget(QtGui.QLabel("Mult. high"),   row, 0)
+        trigger_layout.addWidget(QtWidgets.QLabel("Mult. high"),   row, 0)
         trigger_layout.addWidget(self.spin_multiplicity_high, row, 1)
 
         # Monitor
-        monitor_box = QtGui.QGroupBox("Monitor Channel")
-        monitor_layout = QtGui.QGridLayout(monitor_box)
+        monitor_box = QtWidgets.QGroupBox("Monitor Channel")
+        monitor_layout = QtWidgets.QGridLayout(monitor_box)
         monitor_layout.setContentsMargins(2, 2, 2, 2)
-        self.combo_monitor  = QtGui.QComboBox()
+        self.combo_monitor  = QtWidgets.QComboBox()
         self.combo_monitor.addItem("Off")
         self.combo_monitor.addItems(["Channel %d" % i for i in range(NUM_CHANNELS)])
         self.combo_monitor.setMaxVisibleItems(NUM_CHANNELS+1)
@@ -1255,8 +1255,8 @@ class MiscPage(QtGui.QWidget):
         monitor_layout.addWidget(self.combo_monitor, 0, 0)
 
         # Channel mode
-        self.rb_mode_single = QtGui.QRadioButton("Individual")
-        self.rb_mode_common = QtGui.QRadioButton("Common")
+        self.rb_mode_single = QtWidgets.QRadioButton("Individual")
+        self.rb_mode_common = QtWidgets.QRadioButton("Common")
         self.rb_mode_common.setEnabled(False)
 
         self.bindings.append(ChannelModeBinding(
@@ -1266,28 +1266,28 @@ class MiscPage(QtGui.QWidget):
             write_mode=write_mode,
             target=(self.rb_mode_single, self.rb_mode_common)))
 
-        mode_box = QtGui.QGroupBox("Channel Mode")
-        mode_layout = QtGui.QGridLayout(mode_box)
+        mode_box = QtWidgets.QGroupBox("Channel Mode")
+        mode_layout = QtWidgets.QGridLayout(mode_box)
         mode_layout.setContentsMargins(2, 2, 2, 2)
         mode_layout.addWidget(self.rb_mode_single, 0, 0)
         mode_layout.addWidget(self.rb_mode_common, 0, 1)
 
         # Copy Functions
-        copy_box = QtGui.QGroupBox("Copy")
-        copy_layout = QtGui.QVBoxLayout(copy_box)
+        copy_box = QtWidgets.QGroupBox("Copy")
+        copy_layout = QtWidgets.QVBoxLayout(copy_box)
         copy_layout.setContentsMargins(2, 2, 2, 2)
 
-        self.pb_copy_panel2rc           = QtGui.QPushButton("Panel -> RC", clicked=self._copy_panel2rc)
-        self.copy_panel2rc_progress     = QtGui.QProgressBar()
-        self.copy_panel2rc_stack        = QtGui.QStackedWidget()
+        self.pb_copy_panel2rc           = QtWidgets.QPushButton("Panel -> RC", clicked=self._copy_panel2rc)
+        self.copy_panel2rc_progress     = QtWidgets.QProgressBar()
+        self.copy_panel2rc_stack        = QtWidgets.QStackedWidget()
         self.copy_panel2rc_stack.addWidget(self.pb_copy_panel2rc)
         self.copy_panel2rc_stack.addWidget(self.copy_panel2rc_progress)
 
-        self.pb_copy_rc2panel               = QtGui.QPushButton("RC -> Panel", clicked=self._copy_rc2panel)
+        self.pb_copy_rc2panel               = QtWidgets.QPushButton("RC -> Panel", clicked=self._copy_rc2panel)
 
-        self.pb_copy_common2single          = QtGui.QPushButton("Common -> Single", clicked=self._copy_common2single)
-        self.copy_common2single_progress    = QtGui.QProgressBar()
-        self.copy_common2single_stack       = QtGui.QStackedWidget()
+        self.pb_copy_common2single          = QtWidgets.QPushButton("Common -> Single", clicked=self._copy_common2single)
+        self.copy_common2single_progress    = QtWidgets.QProgressBar()
+        self.copy_common2single_stack       = QtWidgets.QStackedWidget()
         self.copy_common2single_stack.addWidget(self.pb_copy_common2single)
         self.copy_common2single_stack.addWidget(self.copy_common2single_progress)
 
@@ -1296,8 +1296,8 @@ class MiscPage(QtGui.QWidget):
         copy_layout.addWidget(self.copy_common2single_stack)
 
         # Version display
-        version_box = QtGui.QGroupBox("Version")
-        version_layout = QtGui.QFormLayout(version_box)
+        version_box = QtWidgets.QGroupBox("Version")
+        version_layout = QtWidgets.QFormLayout(version_box)
         version_layout.setContentsMargins(2, 2, 2, 2)
 
         self.version_labels = dict()
@@ -1307,7 +1307,7 @@ class MiscPage(QtGui.QWidget):
                 ("fpga_version", "FPGA"),
                 ("cpu_software_version", "CPU")):
 
-            self.version_labels[k] = label = QtGui.QLabel()
+            self.version_labels[k] = label = QtWidgets.QLabel()
             label.setStyleSheet(dynamic_label_style)
             version_layout.addRow(l+":", label)
 
@@ -1362,8 +1362,8 @@ class MiscPage(QtGui.QWidget):
             target=self.spin_sumdis_threshold
             ).add_update_callback(self._sumdis_threshold_cb))
 
-        more_box = QtGui.QGroupBox("More")
-        more_layout = QtGui.QFormLayout(more_box)
+        more_box = QtWidgets.QGroupBox("More")
+        more_layout = QtWidgets.QFormLayout(more_box)
         more_layout.setContentsMargins(2, 2, 2, 2)
         more_layout.addRow("SumDis Threshold", self.spin_sumdis_threshold)
 
@@ -1479,7 +1479,7 @@ class MiscPage(QtGui.QWidget):
 
         self.device.has_sumdis_threshold().add_done_callback(done)
 
-class SettingsWidget(QtGui.QWidget):
+class SettingsWidget(QtWidgets.QWidget):
     def __init__(self, device, parent=None):
         super(SettingsWidget, self).__init__(parent)
         self.log = util.make_logging_source_adapter(__name__, self)
@@ -1645,9 +1645,9 @@ if __name__ == "__main__":
     import sys
     import mscf16_profile
 
-    QtGui.QApplication.setDesktopSettingsAware(False)
-    app = QtGui.QApplication(sys.argv)
-    app.setStyle(QtGui.QStyleFactory.create("Plastique"))
+    QtWidgets.QApplication.setDesktopSettingsAware(False)
+    app = QtWidgets.QApplication(sys.argv)
+    app.setStyle(QtWidgets.QStyleFactory.create("Plastique"))
 
     def signal_handler(signum, frame):
         app.quit()
@@ -1669,6 +1669,6 @@ if __name__ == "__main__":
 
     ret = app.exec_()
 
-    print "device:", device.mock_calls
+    print("device:", device.mock_calls)
 
     sys.exit(ret)

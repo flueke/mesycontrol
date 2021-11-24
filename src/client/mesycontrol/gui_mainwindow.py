@@ -26,6 +26,7 @@ from mesycontrol.qt import Qt
 from mesycontrol.qt import QtCore
 from mesycontrol.qt import QtGui
 from mesycontrol.qt import QtWidgets
+from mesycontrol.qt import PySide2
 import platform
 
 from mesycontrol.mc_treeview import MCTreeView
@@ -45,12 +46,34 @@ class MainWindow(QtWidgets.QMainWindow):
         super(MainWindow, self).__init__(parent)
         self.log = util.make_logging_source_adapter(__name__, self)
         self.context = context
-        util.loadUi(":/ui/mainwin.ui", self)
-        # XXX: This was directly loaded from the ui file with pyqt
-        self.mdiArea = MCMdiArea(self)
-        # XXX: This was automatically created from the ui file with pyqt
-        self.toolbar = QtWidgets.QToolBar()
+        self.mdiArea = MCMdiArea()
+        self.toolbar = self.addToolBar("toolbar")
+        self.setWindowTitle("mesycontrol")
         self.setWindowIcon(make_icon(":/window-icon.png"))
+
+        self.central_widget = QtWidgets.QWidget();
+        #self.central_widget.setLayout(QtWidgets.QGridLayout())
+        self.setCentralWidget(self.central_widget)
+
+        self.status_bar = QtWidgets.QStatusBar()
+        self.setStatusBar(self.status_bar)
+
+        self.actionQuickstart = QtWidgets.QAction("Quickstart")
+        self.actionQuickstart.setShortcut("F1")
+
+        self.menu_file = QtWidgets.QMenu("&File")
+        self.menu_window = QtWidgets.QMenu("&Window")
+        self.menu_help = QtWidgets.QMenu("&Help")
+
+        self.menu_help.addAction(self.actionQuickstart)
+        self.menu_help.addSeparator()
+        self.menu_help.addAction("&About", self.on_actionAbout_triggered)
+        self.menu_help.addAction("About &Qt", self.on_actionAbout_Qt_triggered)
+
+        self.menu_bar = self.menuBar()
+        self.menu_bar.addMenu(self.menu_file)
+        self.menu_bar.addMenu(self.menu_help)
+
 
         # Treeview
         self.treeview = MCTreeView(app_registry=context.app_registry,
@@ -99,15 +122,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
         settings.beginGroup("MainWindow")
         try:
-            self.resize(settings.value("size", QtCore.QSize(1024, 768)).toSize())
-            self.move(settings.value("pos", QtCore.QPoint(0, 0)).toPoint())
-            self.restoreGeometry(settings.value("geometry").toByteArray())
-            self.restoreState(settings.value("state").toByteArray())
+            self.resize(settings.value("size", QtCore.QSize(1024, 768)))
+            self.move(settings.value("pos", QtCore.QPoint(0, 0)))
+            self.restoreGeometry(settings.value("geometry"))
+            self.restoreState(settings.value("state"))
         finally:
             settings.endGroup()
 
         self.treeview.splitter.restoreState(
-                settings.value("MCTreeView/state").toByteArray())
+                settings.value("MCTreeView/state"))
 
     @Slot()
     def on_actionAbout_triggered(self):
@@ -129,7 +152,7 @@ class MainWindow(QtWidgets.QMainWindow):
             f = QtCore.QFile(":/gpl-notice.txt")
             if not f.open(QtCore.QIODevice.ReadOnly | QtCore.QIODevice.Text):
                 return
-            license.setText(QtCore.QString(f.readAll()))
+            license.setPlainText(str(f.readAll(), 'utf-8'))
         finally:
             f.close()
 
@@ -149,15 +172,15 @@ class MainWindow(QtWidgets.QMainWindow):
         l.addWidget(label)
 
         l.addWidget(QtWidgets.QLabel("Remote control for mesytec devices."))
-        l.addWidget(QtWidgets.QLabel(QtCore.QString.fromUtf8("© 2014-2015 mesytec GmbH & Co. KG")))
+        l.addWidget(QtWidgets.QLabel("© 2014-2021 mesytec GmbH & Co. KG"))
 
         t = '<a href="mailto:info@mesytec.com">info@mesytec.com</a> - <a href="http://www.mesytec.com">www.mesytec.com</a>'
         label = QtWidgets.QLabel(t)
         label.setOpenExternalLinks(True)
         l.addWidget(label)
 
-        t = 'Running on Python %s using PyQt %s with Qt %s.' % (
-                platform.python_version(), QtCore.PYQT_VERSION_STR, QtCore.QT_VERSION_STR)
+        t = 'Running on Python %s using PySide2 %s with Qt %s.' % (
+                platform.python_version(), PySide2.__version__, PySide2.QtCore.__version__)
         l.addWidget(QtWidgets.QLabel(t))
 
         l.addSpacing(20)

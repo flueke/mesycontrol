@@ -21,7 +21,7 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-import mux16_profile
+import mesycontrol.devices.mux16_profile as mux16_profile
 
 idc = mux16_profile.idc
 profile_dict = mux16_profile.profile_dict

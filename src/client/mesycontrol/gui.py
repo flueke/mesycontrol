@@ -34,6 +34,7 @@ pg = pyqtgraph
 from mesycontrol.qt import Qt
 from mesycontrol.qt import QtCore
 from mesycontrol.qt import QtGui
+from mesycontrol.qt import QtWidgets
 
 from mesycontrol.basic_model import IDCConflict
 from mesycontrol.gui_util import is_setup, is_registry, is_mrc, is_bus, is_device, is_device_cfg, is_device_hw, get_mrc
@@ -105,7 +106,7 @@ class GUIApplication(QtCore.QObject):
         # Load device modules
         context.init_device_registry()
 
-        for mod in context.device_registry.modules.itervalues():
+        for mod in iter(context.device_registry.modules.values()):
             self.logview.append("Loaded device module '%s' (idc=%d, name=%s)" %
                     (mod.__name__, mod.idc, mod.profile.name))
 
@@ -129,7 +130,7 @@ class GUIApplication(QtCore.QObject):
         self._update_actions()
 
         settings = self.context.make_qsettings()
-        if settings.value('MainWindow/first_run', QtCore.QVariant(True)).toBool():
+        if bool(settings.value('MainWindow/first_run', True)):
             settings.setValue('MainWindow/first_run', False)
             self._show_quickstart()
 
@@ -189,7 +190,7 @@ class GUIApplication(QtCore.QObject):
         # ===== Config ===== #
 
         # Open setup
-        action = QtGui.QAction(make_icon(":/open-setup.png"),
+        action = QtWidgets.QAction(make_icon(":/open-setup.png"),
                 "&Open setup", self, triggered=self._open_setup)
 
         action.setToolTip("Open a setup file")
@@ -199,7 +200,7 @@ class GUIApplication(QtCore.QObject):
         self.actions['open_setup'] = action
 
         # Save setup
-        action = QtGui.QAction(make_icon(":/save-setup.png"),
+        action = QtWidgets.QAction(make_icon(":/save-setup.png"),
                 "&Save setup", self, triggered=self._save_setup)
 
         action.setToolTip("Save setup")
@@ -209,7 +210,7 @@ class GUIApplication(QtCore.QObject):
         self.actions['save_setup'] = action
 
         # Save setup as
-        action = QtGui.QAction(make_icon(":/save-setup-as.png"),
+        action = QtWidgets.QAction(make_icon(":/save-setup-as.png"),
                 "S&ave setup as", self, triggered=self._save_setup_as)
 
         action.setToolTip("Save setup as")
@@ -219,7 +220,7 @@ class GUIApplication(QtCore.QObject):
         self.actions['save_setup_as'] = action
 
         # Close setup
-        action = QtGui.QAction(make_icon(":/close-setup.png"),
+        action = QtWidgets.QAction(make_icon(":/close-setup.png"),
                 "&Close setup", self, triggered=self._close_setup)
 
         action.setToolTip("Close setup")
@@ -228,39 +229,39 @@ class GUIApplication(QtCore.QObject):
         self.actions['close_setup'] = action
 
         # Add config
-        action = QtGui.QAction(make_icon(":/add-config.png"), "Add config", self,
+        action = QtWidgets.QAction(make_icon(":/add-config.png"), "Add config", self,
                 triggered=self._add_config)
         action.cfg_toolbar = True
         self.actions['add_config'] = action
 
         # Remove config
-        action = QtGui.QAction(make_icon(":/remove-config.png"), "Remove config", self,
+        action = QtWidgets.QAction(make_icon(":/remove-config.png"), "Remove config", self,
                 triggered=self._remove_config)
         action.cfg_toolbar = True
         self.actions['remove_config'] = action
 
         # Rename
-        action = QtGui.QAction("Rename", self,
+        action = QtWidgets.QAction("Rename", self,
                 triggered=self._rename_config)
         self.actions['rename_config'] = action
 
         # Open device config
-        action = QtGui.QAction(QtGui.QIcon.fromTheme("document-open"),
+        action = QtWidgets.QAction(QtGui.QIcon.fromTheme("document-open"),
                 "Load device config from file", self, triggered=self._open_device_config)
         self.actions['open_device_config'] = action
 
         # Save device config
-        action = QtGui.QAction(QtGui.QIcon.fromTheme("document-save"),
+        action = QtWidgets.QAction(QtGui.QIcon.fromTheme("document-save"),
                 "Save device config to file", self, triggered=self._save_device_config)
         self.actions['save_device_config'] = action
 
         # Edit MRC config / MRC Properties
-        action = QtGui.QAction(QtGui.QIcon.fromTheme("document-properties"),
+        action = QtWidgets.QAction(QtGui.QIcon.fromTheme("document-properties"),
                 "Properties", self, triggered=self._edit_mrc_config)
         self.actions['edit_mrc_config'] = action
 
         # Edit device config / device properties
-        action = QtGui.QAction(QtGui.QIcon.fromTheme("document-properties"),
+        action = QtWidgets.QAction(QtGui.QIcon.fromTheme("document-properties"),
                 "Properties", self, triggered=self._edit_device_config)
         self.actions['edit_device_config'] = action
 
@@ -272,14 +273,14 @@ class GUIApplication(QtCore.QObject):
                 'disconnect':   make_icon(":/disconnect.png")
                 }
 
-        action = QtGui.QAction(icons['connect'], "&Connect", self,
+        action = QtWidgets.QAction(icons['connect'], "&Connect", self,
                 triggered=self._connect_or_disconnect)
         action.icons = icons
         action.hw_toolbar = True
         self.actions['connect_disconnect'] = action
 
         # Write access
-        action = QtGui.QAction(make_icon(":/write-access.png"), "Toggle write access", self,
+        action = QtWidgets.QAction(make_icon(":/write-access.png"), "Toggle write access", self,
                 checkable=True, triggered=self._toggle_write_access)
         action.hw_toolbar = True
         self.actions['toggle_write_access'] = action
@@ -289,38 +290,38 @@ class GUIApplication(QtCore.QObject):
                 True:  make_icon(":/silent-mode-on.png"),
                 False: make_icon(":/silent-mode-off.png")
                 }
-        action = QtGui.QAction(icons[False], "Toggle silent mode", self,
+        action = QtWidgets.QAction(icons[False], "Toggle silent mode", self,
                 checkable=True, triggered=self._toggle_silent_mode)
         action.icons = icons
         action.hw_toolbar = True
         self.actions['toggle_silent_mode'] = action
 
         # Toggle RC
-        action = QtGui.QAction(make_icon(":/remote-control.png"), "Toggle RC", self,
+        action = QtWidgets.QAction(make_icon(":/remote-control.png"), "Toggle RC", self,
                 checkable=True, triggered=self._toggle_rc)
         action.hw_toolbar = True
         self.actions['toggle_rc'] = action
 
         # Refresh device memory
-        action = QtGui.QAction(make_icon(":/refresh.png"), "&Refresh memory", self,
+        action = QtWidgets.QAction(make_icon(":/refresh.png"), "&Refresh memory", self,
                 triggered=self._refresh)
         action.hw_toolbar = True
         self.actions['refresh'] = action
 
         # Add connection
-        action = QtGui.QAction(make_icon(":/add-mrc.png"), "Add MRC connection", self,
+        action = QtWidgets.QAction(make_icon(":/add-mrc.png"), "Add MRC connection", self,
                 triggered=self._add_mrc_connection)
         action.hw_toolbar = True
         self.actions['add_mrc_connection'] = action
 
         # Remove connection
-        action = QtGui.QAction(make_icon(":/remove-mrc.png"), "Remove MRC connection", self,
+        action = QtWidgets.QAction(make_icon(":/remove-mrc.png"), "Remove MRC connection", self,
                 triggered=self._remove_mrc_connection)
         action.hw_toolbar = True
         self.actions['remove_mrc_connection'] = action
 
         # Show server output
-        action = QtGui.QAction("View server log", self,
+        action = QtWidgets.QAction("View server log", self,
                 triggered=self._view_server_log)
         self.actions['view_server_log'] = action
 
@@ -331,8 +332,8 @@ class GUIApplication(QtCore.QObject):
                 False: make_icon(":/unlinked.png")
                 }
 
-        action = QtGui.QAction(link_icons[self.linked_mode], "Toggle linked mode",
-                self, toggled=self.set_linked_mode)
+        action = QtWidgets.QAction(link_icons[self.linked_mode], "Toggle linked mode")
+        action.toggled.connect(self.set_linked_mode)
 
         action.icons = link_icons
         action.setToolTip("Link Hardware & Config Views")
@@ -343,25 +344,25 @@ class GUIApplication(QtCore.QObject):
         self.actions['toggle_linked_mode'] = action
 
         # Check config
-        action = QtGui.QAction(make_icon(":/check-config.png"), "Compare config and hardware", self,
+        action = QtWidgets.QAction(make_icon(":/check-config.png"), "Compare config and hardware", self,
                 triggered=self._check_config)
         action.splitter_toolbar = True
         self.actions['check_config'] = action
 
         # Config to Hardware
-        action = QtGui.QAction(make_icon(":/apply-config-to-hardware.png"),
+        action = QtWidgets.QAction(make_icon(":/apply-config-to-hardware.png"),
                 "Apply config to hardware", self, triggered=self._apply_config_to_hardware)
         action.splitter_toolbar = True
         self.actions['apply_config_to_hardware'] = action
 
         # Hardware to Config
-        action = QtGui.QAction(make_icon(":/apply-hardware-to-config.png"),
+        action = QtWidgets.QAction(make_icon(":/apply-hardware-to-config.png"),
                 "Copy hardware values to config", self, triggered=self._apply_hardware_to_config)
         action.splitter_toolbar = True
         self.actions['apply_hardware_to_config'] = action
 
         # Widget window
-        action = QtGui.QAction(make_icon(":/open-device-widget.png"),
+        action = QtWidgets.QAction(make_icon(":/open-device-widget.png"),
                 "Open device widget", self, triggered=self._open_device_widget)
 
         action.setToolTip("Open device widget")
@@ -370,7 +371,7 @@ class GUIApplication(QtCore.QObject):
         self.actions['open_device_widget'] = action
 
         # Table window
-        action = QtGui.QAction(make_icon(":/open-device-table.png"),
+        action = QtWidgets.QAction(make_icon(":/open-device-table.png"),
                 "Open device table", self, triggered=self._open_device_table)
 
         action.setToolTip("Open device table")
@@ -381,78 +382,78 @@ class GUIApplication(QtCore.QObject):
         # ===== Mainwindow toolbar =====
 
         # Display mode
-        group = QtGui.QActionGroup(self)
-        self.actions['display_hw']          = QtGui.QAction("Hardware", group,
+        group = QtWidgets.QActionGroup(self)
+        self.actions['display_hw']          = QtWidgets.QAction("Hardware", group,
                 checkable=True, enabled=False, triggered=self._on_display_hw_triggered)
-        self.actions['display_cfg']         = QtGui.QAction("Config", group,
+        self.actions['display_cfg']         = QtWidgets.QAction("Config", group,
                 checkable=True, enabled=False, triggered=self._on_display_cfg_triggered)
-        self.actions['display_combined']    = QtGui.QAction("Combined", group,
+        self.actions['display_combined']    = QtWidgets.QAction("Combined", group,
                 checkable=True, enabled=False, triggered=self._on_display_combined_triggered)
 
-        action = QtGui.QAction(make_icon(":/select-display-mode.png"),
+        action = QtWidgets.QAction(make_icon(":/select-display-mode.png"),
                 "Display mode", self, enabled=False)
 
         action.setToolTip("Select display mode")
         action.setStatusTip(action.toolTip())
         action.toolbar = True
-        action.setMenu(QtGui.QMenu())
+        action.setMenu(QtWidgets.QMenu())
         action.menu().addActions(group.actions())
         self.actions['select_display_mode'] = action
 
         # Write mode
-        group = QtGui.QActionGroup(self)
-        self.actions['write_hw']            = QtGui.QAction("Hardware", group,
+        group = QtWidgets.QActionGroup(self)
+        self.actions['write_hw']            = QtWidgets.QAction("Hardware", group,
                 checkable=True, enabled=False, triggered=self._on_write_hw_triggered)
-        self.actions['write_cfg']           = QtGui.QAction("Config", group,
+        self.actions['write_cfg']           = QtWidgets.QAction("Config", group,
                 checkable=True, enabled=False, triggered=self._on_write_cfg_triggered)
-        self.actions['write_combined']      = QtGui.QAction("Combined", group,
+        self.actions['write_combined']      = QtWidgets.QAction("Combined", group,
                 checkable=True, enabled=False, triggered=self._on_write_combined_triggered)
 
-        action = QtGui.QAction(make_icon(":/select-write-mode.png"),
+        action = QtWidgets.QAction(make_icon(":/select-write-mode.png"),
                 "Write mode", self, enabled=False)
 
         action.setToolTip("Select write mode")
         action.setStatusTip(action.toolTip())
         action.toolbar = True
-        action.setMenu(QtGui.QMenu())
+        action.setMenu(QtWidgets.QMenu())
         action.menu().addActions(group.actions())
         self.actions['select_write_mode'] = action
 
         # Quit
-        action = QtGui.QAction("&Quit", self, triggered=self.mainwindow.close)
+        action = QtWidgets.QAction("&Quit", self, triggered=self.mainwindow.close)
         action.setShortcut("Ctrl+Q")
         action.setShortcutContext(Qt.ApplicationShortcut)
         self.actions['quit'] = action
 
         # Next Window
-        action = QtGui.QAction("&Next Window", self,
+        action = QtWidgets.QAction("&Next Window", self,
                 triggered=self.mainwindow.mdiArea.activateNextSubWindow)
         action.setShortcut(QtGui.QKeySequence.NextChild)
         self.actions['next_window'] = action
 
         # Previous Window
-        action = QtGui.QAction("&Previous Window", self,
+        action = QtWidgets.QAction("&Previous Window", self,
                 triggered=self.mainwindow.mdiArea.activatePreviousSubWindow)
         action.setShortcut(QtGui.QKeySequence.PreviousChild)
         self.actions['previous_window'] = action
 
         # Cascade Windows
-        action = QtGui.QAction("&Cascade Windows", self,
+        action = QtWidgets.QAction("&Cascade Windows", self,
                 triggered=self.mainwindow.mdiArea.cascadeSubWindows)
         self.actions['cascade_windows'] = action
 
         # Tile Windows
-        action = QtGui.QAction("&Tile Windows", self,
+        action = QtWidgets.QAction("&Tile Windows", self,
                 triggered=self.mainwindow.mdiArea.tileSubWindows)
         self.actions['tile_windows'] = action
 
         # Close all windows
-        action = QtGui.QAction("Cl&ose all Windows", self,
+        action = QtWidgets.QAction("Cl&ose all Windows", self,
                 triggered=self.mainwindow.mdiArea.closeAllSubWindows)
         self.actions['close_all_windows'] = action
 
         # Edit extensions
-        action = QtGui.QAction("Show device extensions", self,
+        action = QtWidgets.QAction("Show device extensions", self,
                 triggered=self._show_device_extensions)
         self.actions['show_device_extensions'] = action
 
@@ -481,7 +482,7 @@ class GUIApplication(QtCore.QObject):
         for action in filter(f, self.actions.values()):
             tb.addAction(action)
             if action.menu() is not None:
-                tb.widgetForAction(action).setPopupMode(QtGui.QToolButton.InstantPopup)
+                tb.widgetForAction(action).setPopupMode(QtWidgets.QToolButton.InstantPopup)
 
     def _populate_treeview(self):
         # Splitter
@@ -972,7 +973,7 @@ class GUIApplication(QtCore.QObject):
 
         if f.done() and f.exception() is not None:
             log.error("Refresh: %s", f.exception())
-            QtGui.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
+            QtWidgets.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
 
     def _toggle_rc(self):
         node = self._selected_tree_node
@@ -995,14 +996,14 @@ class GUIApplication(QtCore.QObject):
             force = False
 
             if not mrc.can_acquire_write_access():
-                answer = QtGui.QMessageBox.question(
+                answer = QtWidgets.QMessageBox.question(
                         self.mainwindow,
                         "Acquire write access",
                         "Write access is currently taken by another client.\nForcibly acquire write access?",
-                        QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
-                        QtGui.QMessageBox.No)
+                        QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                        QtWidgets.QMessageBox.No)
 
-                if answer != QtGui.QMessageBox.Yes:
+                if answer != QtWidgets.QMessageBox.Yes:
                     self._update_actions()
                     return
 
@@ -1041,7 +1042,7 @@ class GUIApplication(QtCore.QObject):
         server = mrc.connection.server
         url    = mrc.connection.url
         view   = gui_util.ServerLogView(server, parent=self.mainwindow)
-        sub    = QtGui.QMdiSubWindow()
+        sub    = QtWidgets.QMdiSubWindow()
         sub.setWidget(view)
         sub.setAttribute(Qt.WA_DeleteOnClose)
         sub.setWindowIcon(util.make_icon(":/window-icon.png"))
@@ -1106,10 +1107,10 @@ class GUIApplication(QtCore.QObject):
 
         if f.done() and f.exception() is not None:
             log.error("Check config: %s", f.exception())
-            QtGui.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
+            QtWidgets.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
 
     def _run_config_creation_prompt(self, device):
-        QMB = QtGui.QMessageBox
+        QMB = QtWidgets.QMessageBox
         mb  = QMB(QMB.Question,
                 "Create device config",
                 """
@@ -1145,7 +1146,7 @@ Initialize using the current hardware values or the device defaults?
 
             if f.done() and f.exception() is not None:
                 log.error("Check config: %s", f.exception())
-                QtGui.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
+                QtWidgets.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
 
         return True
 
@@ -1182,7 +1183,7 @@ Initialize using the current hardware values or the device defaults?
 
         if f.done() and f.exception() is not None:
             log.error("Apply config: %s", f.exception())
-            QtGui.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
+            QtWidgets.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
 
     def _apply_hardware_to_config(self):
         # FIXME: this does not work for MRCs that have never been connected as
@@ -1220,7 +1221,7 @@ Initialize using the current hardware values or the device defaults?
 
         if f.done() and f.exception() is not None:
             log.error("Fill config: %s", f.exception())
-            QtGui.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
+            QtWidgets.QMessageBox.critical(self.mainwindow, "Error", str(f.exception()))
 
     def _open_device_config(self):
         device = self._selected_tree_node.ref
@@ -1540,7 +1541,7 @@ Initialize using the current hardware values or the device defaults?
         return subwin
 
     def _cfg_context_menu(self, node, idx, pos, view):
-        menu = QtGui.QMenu()
+        menu = QtWidgets.QMenu()
 
         def add_action(action):
             if action.isEnabled():
@@ -1583,7 +1584,7 @@ Initialize using the current hardware values or the device defaults?
             menu.exec_(view.mapToGlobal(pos))
 
     def _hw_context_menu(self, node, idx, pos, view):
-        menu = QtGui.QMenu()
+        menu = QtWidgets.QMenu()
 
         def add_action(action):
             if action.isEnabled():
@@ -1619,7 +1620,7 @@ Initialize using the current hardware values or the device defaults?
 
     def eventFilter(self, watched_object, event):
         if (event.type() == QtCore.QEvent.Close
-                and isinstance(watched_object, QtGui.QMdiSubWindow)):
+                and isinstance(watched_object, QtWidgets.QMdiSubWindow)):
 
             self.log.debug("CloseEvent for %s", watched_object)
 
@@ -1653,7 +1654,7 @@ Initialize using the current hardware values or the device defaults?
     def _create_device_extension_window(self, app_device, from_config_side, from_hw_side):
         from pyqtgraph import parametertree as pt
         tree = widget = pt.ParameterTree()
-        subwin = QtGui.QMdiSubWindow()
+        subwin = QtWidgets.QMdiSubWindow()
         subwin.setWidget(widget)
         self.mainwindow.mdiArea.addSubWindow(subwin)
         subwin.show()
@@ -1667,7 +1668,7 @@ Initialize using the current hardware values or the device defaults?
         tree.setParameters(extensions_param, showTop=False)
 
     def _show_quickstart(self):
-        subwin = self.mainwindow.findChild(QtGui.QMdiSubWindow, "quickstart")
+        subwin = self.mainwindow.findChild(QtWidgets.QMdiSubWindow, "quickstart")
 
         if subwin:
             subwin.widget().show()
@@ -1675,7 +1676,7 @@ Initialize using the current hardware values or the device defaults?
             subwin.showNormal()
             return
 
-        subwin = QtGui.QMdiSubWindow()
+        subwin = QtWidgets.QMdiSubWindow()
         subwin.setWidget(gui_tutorial.TutorialWidget(self))
         subwin.setWindowTitle("Quickstart")
         subwin.setObjectName("quickstart")

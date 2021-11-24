@@ -21,15 +21,15 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from qt import Property
-from qt import Signal
-from qt import QtCore
-from qt import QtGui
-from qt import Qt
+from mesycontrol.qt import Property
+from mesycontrol.qt import Signal
+from mesycontrol.qt import QtCore
+from mesycontrol.qt import QtWidgets
+from mesycontrol.qt import Qt
 
-import future
-import gui_util
-import util
+import mesycontrol.future as future
+import mesycontrol.gui_util as gui_util
+import mesycontrol.util as util
 
 class DeviceBase(QtCore.QObject):
     """Acts as a decorator for an app_model.Device. Should be subclassed to
@@ -252,7 +252,7 @@ class DeviceBase(QtCore.QObject):
                 mrc=self.mrc.get_display_url(),
                 self=self)
 
-class DeviceWidgetBase(QtGui.QWidget):
+class DeviceWidgetBase(QtWidgets.QWidget):
     """Base class for device specific widgets."""
     display_mode_changed = Signal(int)
     write_mode_changed   = Signal(int)
@@ -275,13 +275,13 @@ class DeviceWidgetBase(QtGui.QWidget):
 
         self.notes_widget = gui_util.DeviceNotesWidget(specialized_device)
 
-        self.hide_notes_button = QtGui.QPushButton(clicked=self._toggle_hide_notes)
+        self.hide_notes_button = QtWidgets.QPushButton(clicked=self._toggle_hide_notes)
         self.set_notes_visible(False)
 
-        self.tab_widget = QtGui.QTabWidget()
+        self.tab_widget = QtWidgets.QTabWidget()
         self.tab_widget.setCornerWidget(self.hide_notes_button, Qt.TopRightCorner)
 
-        layout = QtGui.QVBoxLayout(self)
+        layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.notes_widget)
         layout.addWidget(self.tab_widget)
@@ -361,7 +361,7 @@ class DeviceWidgetBase(QtGui.QWidget):
         return len(self.actions())
 
     def get_toolbar(self):
-        tb = QtGui.QToolBar()
+        tb = QtWidgets.QToolBar()
 
         for a in self.actions():
             tb.addAction(a)

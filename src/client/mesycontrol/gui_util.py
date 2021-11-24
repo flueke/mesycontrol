@@ -36,9 +36,9 @@ from mesycontrol.ui.dialogs import AddMRCDialog
 import mesycontrol.basic_model as bm
 import mesycontrol.config_model as cm
 import mesycontrol.config_tree_model as ctm
-import mesycontrol.config_xml
+import mesycontrol.config_xml as config_xml
 import mesycontrol.hardware_tree_model as htm
-import mesycontrol.util
+import mesycontrol.util as util
 
 log = logging.getLogger(__name__)
 

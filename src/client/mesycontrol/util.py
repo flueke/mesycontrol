@@ -507,14 +507,14 @@ def make_title_label(title):
 
 def hline(parent=None):
     ret = QtWidgets.QFrame(parent)
-    ret.setFrameShape(QtGui.QFrame.HLine)
-    ret.setFrameShadow(QtGui.QFrame.Sunken)
+    ret.setFrameShape(QtWidgets.QFrame.HLine)
+    ret.setFrameShadow(QtWidgets.QFrame.Sunken)
     return ret
 
 def vline(parent=None):
-    ret = QtGui.QFrame(parent)
-    ret.setFrameShape(QtGui.QFrame.VLine)
-    ret.setFrameShadow(QtGui.QFrame.Sunken)
+    ret = QtWidgets.QFrame(parent)
+    ret.setFrameShape(QtWidgets.QFrame.VLine)
+    ret.setFrameShadow(QtWidgets.QFrame.Sunken)
     return ret
 
 def make_spinbox(min_value=None, max_value=None, value=None, limits=None,
@@ -678,7 +678,7 @@ class FixedWidthVerticalToolBar(QtWidgets.QWidget):
 
     def addAction(self, action):
         super(FixedWidthVerticalToolBar, self).addAction(action)
-        b = QtGui.QToolButton()
+        b = QtWidgets.QToolButton()
         b.setDefaultAction(action)
 
         self.layout().takeAt(self.layout().count()-1)
@@ -701,7 +701,7 @@ class SimpleToolBar(QtWidgets.QWidget):
 
     def addAction(self, action):
         super(SimpleToolBar, self).addAction(action)
-        b = QtGui.QToolButton()
+        b = QtWidgets.QToolButton()
         b.setDefaultAction(action)
         self.addWidget(b)
 
@@ -719,7 +719,7 @@ def make_apply_common_button_layout(input_spinbox, tooltip, on_clicked):
     def _on_clicked(_ignored):
         on_clicked()
 
-    button = QtGui.QPushButton(clicked=_on_clicked)
+    button = QtWidgets.QPushButton(clicked=_on_clicked)
     button.setIcon(QtGui.QIcon(":/arrow-bottom.png"))
     button.setMaximumHeight(input_spinbox.sizeHint().height())
     button.setMaximumWidth(16)
@@ -737,7 +737,7 @@ def make_icon(source):
     return QtGui.QIcon(QtGui.QPixmap(source))
 
 def make_standard_icon(icon, option=None, widget=None):
-    return QtGui.QApplication.instance().style().standardIcon(icon, option, widget)
+    return QtWidgets.QApplication.instance().style().standardIcon(icon, option, widget)
 
 class ReadOnlyCheckBox(QtWidgets.QCheckBox):
     # Note: keyPressEvent and keyReleaseEvent do not need to be overriden

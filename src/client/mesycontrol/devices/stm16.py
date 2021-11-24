@@ -24,7 +24,7 @@ __email__  = 'f.lueke@mesytec.com'
 from .. qt import Signal
 from .. qt import Slot
 from .. qt import Qt
-from .. qt import QtGui
+from .. qt import QtWidgets
 
 import itertools
 
@@ -38,7 +38,7 @@ from .. util import hline
 from .. util import make_spinbox
 from .. util import make_title_label
 
-import stm16_profile
+import mesycontrol.devices.stm16_profile as stm16_profile
 
 NUM_CHANNELS        = 16        # number of channels
 NUM_GROUPS          =  8        # number of channel groups
@@ -79,7 +79,7 @@ class STM16(DeviceBase):
 
 dynamic_label_style = "QLabel { background-color: lightgrey; }"
 
-class GainPage(QtGui.QGroupBox):
+class GainPage(QtWidgets.QGroupBox):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(GainPage, self).__init__("Gain", parent)
         self.log    = util.make_logging_source_adapter(__name__, self)
@@ -92,7 +92,7 @@ class GainPage(QtGui.QGroupBox):
         self.hw_gain_input  = None
         self.bindings       = list()
 
-        layout = QtGui.QGridLayout(self)
+        layout = QtWidgets.QGridLayout(self)
 
         layout.addWidget(make_title_label("Group"),   1, 0, 1, 1, Qt.AlignRight)
         layout.addWidget(make_title_label("RC Gain"), 1, 1, 1, 1, Qt.AlignCenter)
@@ -102,7 +102,7 @@ class GainPage(QtGui.QGroupBox):
 
         for i in range(NUM_GROUPS):
             group_range = cg_helper.group_channel_range(i)
-            descr_label = QtGui.QLabel("%d-%d" % (group_range[0], group_range[-1]))
+            descr_label = QtWidgets.QLabel("%d-%d" % (group_range[0], group_range[-1]))
             gain_spin   = util.DelayedSpinBox()
 
             binding = pb.factory.make_binding(
@@ -116,7 +116,7 @@ class GainPage(QtGui.QGroupBox):
 
             self.bindings.append(binding)
 
-            gain_label  = QtGui.QLabel("N/A")
+            gain_label  = QtWidgets.QLabel("N/A")
             gain_label.setStyleSheet(dynamic_label_style)
 
             self.gain_inputs.append(gain_spin)
@@ -167,7 +167,7 @@ class GainPage(QtGui.QGroupBox):
 
         self.device.get_total_gain(group).add_done_callback(done)
 
-class TimingPage(QtGui.QGroupBox):
+class TimingPage(QtWidgets.QGroupBox):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(TimingPage, self).__init__("Timing", parent)
         self.log    = util.make_logging_source_adapter(__name__, self)
@@ -177,16 +177,16 @@ class TimingPage(QtGui.QGroupBox):
         self.threshold_labels = list()
         self.bindings = list()
 
-        layout = QtGui.QGridLayout(self)
+        layout = QtWidgets.QGridLayout(self)
 
         layout.addWidget(make_title_label("Channel"),   1, 0, 1, 1, Qt.AlignRight)
         layout.addWidget(make_title_label("Threshold"), 1, 1)
 
         for chan in range(NUM_CHANNELS):
             offset  = 2
-            descr_label     = QtGui.QLabel("%d" % chan)
+            descr_label     = QtWidgets.QLabel("%d" % chan)
             spin_threshold  = util.DelayedSpinBox()
-            label_threshold = QtGui.QLabel()
+            label_threshold = QtWidgets.QLabel()
             label_threshold.setStyleSheet(dynamic_label_style)
 
             layout.addWidget(descr_label,       chan+offset, 0, 1, 1, Qt.AlignRight)
@@ -220,18 +220,18 @@ class STM16Widget(DeviceWidgetBase):
 
         self.pages = [self.gain_page, self.timing_page]
 
-        layout = QtGui.QHBoxLayout()
+        layout = QtWidgets.QHBoxLayout()
         layout.setContentsMargins(*(4 for i in range(4)))
         layout.setSpacing(4)
 
         for page in self.pages:
-            vbox = QtGui.QVBoxLayout()
+            vbox = QtWidgets.QVBoxLayout()
             vbox.addWidget(page)
             vbox.addStretch(1)
             layout.addItem(vbox)
             page.installEventFilter(self)
 
-        widget = QtGui.QWidget()
+        widget = QtWidgets.QWidget()
         widget.setLayout(layout)
         self.tab_widget.addTab(widget, device.profile.name)
 
