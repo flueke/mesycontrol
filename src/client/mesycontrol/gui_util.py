@@ -25,6 +25,7 @@ from mesycontrol.qt import Qt
 from mesycontrol.qt import QtCore
 from mesycontrol.qt import QtGui
 from mesycontrol.qt import QtWidgets
+from mesycontrol.qt import Slot
 
 import logging
 import os
@@ -263,10 +264,11 @@ def run_add_mrc_connection_dialog(registry, parent_widget=None):
             do_connect_default=True, parent=parent_widget)
     dialog.setModal(True)
 
+    @Slot()
     def accepted():
         try:
-            url, connect, autoconnect = dialog.result()
-            add_mrc_connection(registry.hw, url, connect)
+            url, doConnect, autoconnect = dialog.result()
+            add_mrc_connection(registry.hw, url, doConnect)
         except Exception as e:
             log.exception("run_add_mrc_connection_dialog")
             QtWidgets.QMessageBox.critical(parent_widget, "Error", str(e))
@@ -499,7 +501,7 @@ def run_save_setup_as_dialog(context, parent_widget):
         log.exception("save setup as")
         QtWidgets.QMessageBox.critical(parent_widget, "Error", "Saving setup %s failed:\n%s" % (setup.filename, e))
         return False
-    
+
 def run_open_setup_dialog(context, parent_widget):
     if context.setup.modified and len(context.setup):
         answer = QtWidgets.QMessageBox.question(parent_widget,

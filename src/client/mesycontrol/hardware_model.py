@@ -25,9 +25,9 @@ from mesycontrol.qt import Property
 from mesycontrol.qt import Signal
 
 import mesycontrol.basic_model as bm
-import mesycontrol.future
-import mesycontrol.proto
-import mesycontrol.util
+import mesycontrol.future as future
+import mesycontrol.proto as proto
+import mesycontrol.util as util
 
 import os
 

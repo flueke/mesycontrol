@@ -29,7 +29,7 @@ import sys
 import time
 import traceback
 
-import mesycontrol.util
+import mesycontrol.util as util
 
 class LogView(QtWidgets.QTextEdit):
     def __init__(self, max_lines=10000, line_wrap=QtWidgets.QTextEdit.WidgetWidth, parent=None):

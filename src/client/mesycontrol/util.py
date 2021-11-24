@@ -597,14 +597,13 @@ class OrderedSet(collections.MutableSet):
             return len(self) == len(other) and list(self) == list(other)
         return set(self) == set(other)
 
-def loadUi(filename, baseinstance=None):
+def loadUi(filename, parentWidget=None):
     """This version of PyQts uic.loadUi() adds support for loading from
     resource files."""
     f = QtCore.QFile(filename)
     if not f.open(QtCore.QIODevice.ReadOnly | QtCore.QIODevice.Text):
         raise RuntimeError(str(f.errorString()))
-    #return uic.loadUi(f, baseinstance)
-    return QUiLoader().load(f, baseinstance)
+    return QUiLoader().load(f, parentWidget)
 
 class ChannelGroupHelper(object):
     def __init__(self, num_channels, num_groups):

@@ -25,8 +25,8 @@ from mesycontrol.qt import QtWidgets
 from mesycontrol.qt import Signal
 
 from mesycontrol import config_util
-import mesycontrol.hardware_controller
-import mesycontrol.util
+import mesycontrol.hardware_controller as hardware_controller
+import mesycontrol.util as util
 
 QMB = QtWidgets.QMessageBox
 

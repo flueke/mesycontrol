@@ -23,9 +23,9 @@ __email__  = 'f.lueke@mesytec.com'
 
 import logging
 
-import mesycontrol.hardware_controller
+import mesycontrol.hardware_controller as hardware_controller
 import mesycontrol.hardware_model as hm
-import mesycontrol.mrc_connection
+import mesycontrol.mrc_connection as mrc_connection
 
 log = logging.getLogger(__name__)
 

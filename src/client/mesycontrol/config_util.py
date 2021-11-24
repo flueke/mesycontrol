@@ -30,10 +30,10 @@ from functools import partial
 
 from mesycontrol.basic_model import IDCConflict
 import mesycontrol.basic_model as bm
-import mesycontrol.future
-import mesycontrol.hardware_controller
-import mesycontrol.model_util
-import mesycontrol.util
+import mesycontrol.future as future
+import mesycontrol.hardware_controller as hardware_controller
+import mesycontrol.model_util as model_util
+import mesycontrol.util as util
 
 import itertools
 import logging

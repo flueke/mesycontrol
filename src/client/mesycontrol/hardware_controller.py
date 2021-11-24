@@ -25,10 +25,10 @@ from mesycontrol.qt import QtCore
 import weakref
 
 import mesycontrol.basic_model as bm
-import mesycontrol.future
+import mesycontrol.future as future
 import mesycontrol.hardware_model as hm
-import mesycontrol.proto
-import mesycontrol.util
+import mesycontrol.proto as proto
+import mesycontrol.util as util
 
 class ErrorResponse(RuntimeError):
     pass

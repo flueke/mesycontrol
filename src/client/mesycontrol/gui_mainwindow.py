@@ -48,11 +48,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.context = context
         self.mdiArea = MCMdiArea()
         self.toolbar = self.addToolBar("toolbar")
+        self.toolbar.setObjectName("toolbar")
         self.setWindowTitle("mesycontrol")
         self.setWindowIcon(make_icon(":/window-icon.png"))
 
         self.central_widget = QtWidgets.QWidget();
-        #self.central_widget.setLayout(QtWidgets.QGridLayout())
+        self.central_widget.setLayout(QtWidgets.QGridLayout())
         self.setCentralWidget(self.central_widget)
 
         self.status_bar = QtWidgets.QStatusBar()

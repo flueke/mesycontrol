@@ -30,8 +30,8 @@ import struct
 
 from mesycontrol.future import Future
 from google.protobuf import message as proto_message
-import mesycontrol.proto
-import mesycontrol.util
+import mesycontrol.proto as proto
+import mesycontrol.util as util
 
 RequestResult = collections.namedtuple("RequestResult", "request response")
 
@@ -304,4 +304,3 @@ class MCTCPClient(QtCore.QObject):
 
     host = Property(str, get_host)
     port = Property(int, get_port)
-

@@ -34,7 +34,7 @@ import collections
 
 from mesycontrol.basic_model import IDCConflict
 from mesycontrol import util
-import mesycontrol.future
+import mesycontrol.future as future
 import mesycontrol.basic_model as bm
 
 # TODO: handle the case where there's no device config present yet -> create one
