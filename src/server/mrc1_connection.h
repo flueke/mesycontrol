@@ -34,7 +34,7 @@ class MRC1Connection:
         const std::string &, bool)>
       StatusChangeCallback;
 
-    MRC1Connection(boost::asio::io_service &io_service);
+    MRC1Connection(boost::asio::io_context &io_context);
 
     /** Start the connection. Opens the connection and performs the MRC
      * initialization sequence. */
@@ -69,7 +69,7 @@ class MRC1Connection:
     bool is_silenced() const { return m_silenced; }
     void set_silenced(bool silenced) { m_silenced = silenced; }
     boost::system::error_code get_last_error() const { return m_last_error; }
-    boost::asio::io_service &get_io_service() { return m_io_service; }
+    boost::asio::io_context &get_io_context() { return m_io_context; }
 
     void register_status_change_callback(const StatusChangeCallback &callback);
 
@@ -130,7 +130,7 @@ class MRC1Connection:
 
     friend class MRC1Initializer;
 
-    boost::asio::io_service &m_io_service;
+    boost::asio::io_context &m_io_context;
     boost::asio::deadline_timer m_timeout_timer;
     boost::posix_time::time_duration m_io_timeout;
     boost::posix_time::time_duration m_reconnect_timeout;
@@ -153,7 +153,7 @@ class MRC1Connection:
 class MRC1SerialConnection: public MRC1Connection
 {
   public:
-    MRC1SerialConnection(boost::asio::io_service &io_service,
+    MRC1SerialConnection(boost::asio::io_context &io_context,
         const std::string &serial_device, unsigned int baud_rate = 0);
 
     static const std::vector<unsigned int> default_baud_rates;
@@ -179,10 +179,10 @@ class MRC1SerialConnection: public MRC1Connection
 class MRC1TCPConnection: public MRC1Connection
 {
   public:
-    MRC1TCPConnection(boost::asio::io_service &io_service,
+    MRC1TCPConnection(boost::asio::io_context &io_context,
         const std::string &address, unsigned short port);
 
-    MRC1TCPConnection(boost::asio::io_service &io_service,
+    MRC1TCPConnection(boost::asio::io_context &io_context,
         const std::string &address, const std::string &service);
 
   protected:

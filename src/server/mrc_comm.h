@@ -45,7 +45,7 @@ class MRCComm:
   protected:
     typedef boost::function<void (boost::system::error_code, std::size_t)> AsioReadHandler;
 
-    MRCComm(asio::io_service &io,
+    MRCComm(asio::io_context &io,
         const pt::time_duration &read_timeout  = default_read_timeout,
         const pt::time_duration &write_timeout = default_write_timeout)
       : m_io(io)
@@ -82,7 +82,7 @@ class MRCComm:
     void handle_read_until_prompt_timeout(boost::system::error_code ec);
 
 
-    asio::io_service &m_io;
+    asio::io_context &m_io;
     pt::time_duration m_read_timeout;
     pt::time_duration m_write_timeout;
     bool m_busy;
@@ -97,8 +97,8 @@ class MRCComm:
 class MRCSerialComm: public MRCComm
 {
   public:
-    MRCSerialComm(asio::serial_port &port)
-      : MRCComm(port.get_io_service()
+    MRCSerialComm(asio::serial_port &port, asio::io_context &io)
+      : MRCComm(io
           , default_serial_read_timeout
           , default_serial_write_timeout
           )
@@ -134,8 +134,8 @@ class MRCSerialComm: public MRCComm
 class MRCTCPComm: public MRCComm
 {
   public:
-    MRCTCPComm(asio::ip::tcp::socket &socket)
-      : MRCComm(socket.get_io_service())
+    MRCTCPComm(asio::ip::tcp::socket &socket, asio::io_context &io)
+      : MRCComm(io)
       , m_socket(socket)
     {}
 

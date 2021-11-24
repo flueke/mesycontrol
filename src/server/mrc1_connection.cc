@@ -147,9 +147,9 @@ MRC1Connection::default_reconnect_timeout(boost::posix_time::milliseconds(2500))
 const std::string MRC1Connection::response_line_terminator = "\n\r";
 const char MRC1Connection::command_terminator = '\r';
 
-MRC1Connection::MRC1Connection(boost::asio::io_service &io_service):
-  m_io_service(io_service),
-  m_timeout_timer(io_service),
+MRC1Connection::MRC1Connection(boost::asio::io_context &io_context):
+  m_io_context(io_context),
+  m_timeout_timer(io_context),
   m_io_timeout(default_io_timeout),
   m_reconnect_timeout(default_reconnect_timeout),
   m_status(proto::MRCStatus::STOPPED),
@@ -246,7 +246,7 @@ bool MRC1Connection::write_command(const MessagePtr &command,
   }
 
   if (is_silenced()) {
-    m_io_service.post(boost::bind(response_handler, command,
+    m_io_context.post(boost::bind(response_handler, command,
           MessageFactory::make_error_response(proto::ResponseError::SILENCED)));
     return true;
   }
@@ -284,7 +284,7 @@ void MRC1Connection::handle_write_command(const boost::system::error_code &ec, s
         : proto::ResponseError::COM_ERROR);
     response->mutable_mrc_status()->set_info(ec.message());
 
-    m_io_service.post(boost::bind(m_current_response_handler, m_current_command, response));
+    m_io_context.post(boost::bind(m_current_response_handler, m_current_command, response));
     m_current_command.reset();
     m_current_response_handler = 0;
     stop(ec);
@@ -347,7 +347,7 @@ void MRC1Connection::handle_command_response_read(const boost::system::error_cod
           << proto::Message::Type_Name(m_reply_parser.get_response_message()->type());
 
         /* Parsing complete. Call the response handler. */
-        m_io_service.post(boost::bind(m_current_response_handler, m_current_command,
+        m_io_context.post(boost::bind(m_current_response_handler, m_current_command,
               m_reply_parser.get_response_message()));
 
         m_current_command.reset();
@@ -362,7 +362,7 @@ void MRC1Connection::handle_command_response_read(const boost::system::error_cod
         ec == errc::operation_canceled ? proto::ResponseError::COM_TIMEOUT : proto::ResponseError::COM_ERROR);
     response->mutable_mrc_status()->set_info(ec.message());
 
-    m_io_service.post(boost::bind(m_current_response_handler, m_current_command, response));
+    m_io_context.post(boost::bind(m_current_response_handler, m_current_command, response));
     m_current_command.reset();
     m_current_response_handler = 0;
     stop(ec);
@@ -435,15 +435,15 @@ void MRC1Connection::register_status_change_callback(const StatusChangeCallback 
 const std::vector<unsigned int> MRC1SerialConnection::default_baud_rates =
   boost::assign::list_of(115200)(9600)(19200)(38400)(57600);
 
-MRC1SerialConnection::MRC1SerialConnection(boost::asio::io_service &io_service,
+MRC1SerialConnection::MRC1SerialConnection(boost::asio::io_context &io_context,
     const std::string &serial_device, unsigned int baud_rate):
-  MRC1Connection(io_service),
+  MRC1Connection(io_context),
   m_serial_device(serial_device),
   m_requested_baud_rate(baud_rate),
   m_current_baud_rate_idx(0),
-  m_port(io_service)
+  m_port(io_context)
 {
-  set_comm(boost::make_shared<MRCSerialComm>(boost::ref(m_port)));
+  set_comm(boost::make_shared<MRCSerialComm>(boost::ref(m_port), boost::ref(io_context)));
 }
 
 void MRC1SerialConnection::start_impl(ErrorCodeCallback completion_handler)
@@ -518,26 +518,26 @@ void MRC1SerialConnection::set_next_baud_rate()
     << "MRC1SerialConnection: next baud rate setting is " << get_baud_rate();
 }
 
-MRC1TCPConnection::MRC1TCPConnection(boost::asio::io_service &io_service,
+MRC1TCPConnection::MRC1TCPConnection(boost::asio::io_context &io_context,
     const std::string &host, unsigned short port):
-  MRC1Connection(io_service),
+  MRC1Connection(io_context),
   m_host(host),
   m_service(boost::lexical_cast<std::string>(port)),
-  m_socket(io_service),
-  m_resolver(io_service)
+  m_socket(io_context),
+  m_resolver(io_context)
 {
-  set_comm(boost::make_shared<MRCTCPComm>(boost::ref(m_socket)));
+  set_comm(boost::make_shared<MRCTCPComm>(boost::ref(m_socket), boost::ref(io_context)));
 }
 
-MRC1TCPConnection::MRC1TCPConnection(boost::asio::io_service &io_service,
+MRC1TCPConnection::MRC1TCPConnection(boost::asio::io_context &io_context,
     const std::string &host, const std::string &service):
-  MRC1Connection(io_service),
+  MRC1Connection(io_context),
   m_host(host),
   m_service(service),
-  m_socket(io_service),
-  m_resolver(io_service)
+  m_socket(io_context),
+  m_resolver(io_context)
 {
-  set_comm(boost::make_shared<MRCTCPComm>(boost::ref(m_socket)));
+  set_comm(boost::make_shared<MRCTCPComm>(boost::ref(m_socket), boost::ref(io_context)));
 }
 
 void MRC1TCPConnection::start_impl(ErrorCodeCallback completion_handler)

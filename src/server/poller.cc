@@ -46,7 +46,7 @@ Poller::Poller(MRC1RequestQueue &mrc1_queue,
   : m_log(log::keywords::channel="Poller")
   , m_queue(mrc1_queue)
   , m_set_iter(m_set.end())
-  , m_timer(mrc1_queue.get_mrc1_connection()->get_io_service())
+  , m_timer(mrc1_queue.get_mrc1_connection()->get_io_context())
   , m_min_interval(min_interval)
   , m_stopped(true)
 {
@@ -225,7 +225,7 @@ ScanbusPoller::ScanbusPoller(MRC1RequestQueue &mrc1_queue,
     boost::posix_time::time_duration min_interval)
   : m_log(log::keywords::channel="ScanbusPoller")
   , m_queue(mrc1_queue)
-  , m_timer(mrc1_queue.get_mrc1_connection()->get_io_service())
+  , m_timer(mrc1_queue.get_mrc1_connection()->get_io_context())
   , m_min_interval(min_interval)
   , m_stopped(true)
 {

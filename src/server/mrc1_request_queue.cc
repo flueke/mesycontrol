@@ -13,7 +13,7 @@ const boost::asio::steady_timer::duration
 
 MRC1RequestQueue::MRC1RequestQueue(const boost::shared_ptr<MRC1Connection> &mrc1_connection):
   m_mrc1_connection(mrc1_connection),
-  m_retry_timer(mrc1_connection->get_io_service()),
+  m_retry_timer(mrc1_connection->get_io_context()),
   m_log(log::keywords::channel="MRC1RequestQueue"),
   m_command_in_progress(false)
 {
