@@ -295,7 +295,7 @@ def apply_device_config(device):
             return
 
     # extensions
-    for name, value in device.cfg.get_extensions().iteritems():
+    for name, value in device.cfg.get_extensions().items():
         device.hw.set_extension(name, value)
 
 def run_callables_generator(callables):
@@ -723,7 +723,7 @@ def fill_device_configs(devices):
                 return
 
         # extensions
-        for name, value in device.hw.get_extensions().iteritems():
+        for name, value in device.hw.get_extensions().items():
             device.cfg.set_extension(name, value)
 
         yield progress.increment()

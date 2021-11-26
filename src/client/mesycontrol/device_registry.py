@@ -87,7 +87,7 @@ class DeviceRegistry(object):
             return device_profile.make_generic_profile(idc)
 
     def get_device_profiles(self):
-        return (m.profile for m in self.modules.itervalues())
+        return (m.profile for m in self.modules.values())
 
     def get_device_module(self, idc):
         try:

@@ -81,13 +81,13 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         self.beginResetModel()
 
         if self.device is not None:
-            for signal, slot in signals_slots.iteritems():
+            for signal, slot in signals_slots.items():
                 getattr(self.device, signal).disconnect(slot)
 
         self._device = device
 
         if self.device is not None:
-            for signal, slot in signals_slots.iteritems():
+            for signal, slot in signals_slots.items():
                 getattr(self.device, signal).connect(slot)
 
             self._on_device_config_set(self.device, None, self.device.cfg)
@@ -151,7 +151,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 }
 
         if old_hw is not None:
-            for signal, slot in signal_slot_map.iteritems():
+            for signal, slot in signal_slot_map.items():
                 getattr(old_hw, signal).disconnect(slot)
 
             try:
@@ -161,7 +161,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 pass
 
         if new_hw is not None:
-            for signal, slot in signal_slot_map.iteritems():
+            for signal, slot in signal_slot_map.items():
                 getattr(new_hw, signal).connect(slot)
 
             if new_hw.is_connected():
@@ -630,7 +630,7 @@ class DeviceTableView(QtWidgets.QTableView):
     def contextMenuEvent(self, event):
         menu = QtGui.QMenu()
 
-        for a in self._actions.itervalues():
+        for a in self._actions.values():
             if a.isEnabled():
                 menu.addAction(a)
 

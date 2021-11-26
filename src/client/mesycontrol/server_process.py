@@ -291,7 +291,7 @@ class ServerProcessPool(QtCore.QObject):
     def create_process(self, options={}, parent=None):
         proc = ServerProcess(parent=parent)
 
-        for attr, value in options.iteritems():
+        for attr, value in options.items():
             setattr(proc, attr, value)
 
         proc.listen_port = self._get_free_port()

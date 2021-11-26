@@ -1450,7 +1450,7 @@ Initialize using the current hardware values or the device defaults?
         self._previous_tree_node = self._selected_tree_node = self._selected_device = None
         self._update_actions()
 
-        for device, window_list in self._device_window_map.iteritems():
+        for device, window_list in self._device_window_map.items():
             # Use a copy of window_list here as closing windows will modify the
             # original list.
             for window in list(window_list):
@@ -1709,7 +1709,7 @@ def extensions_to_ptree(extensions, device_profile):
     def dict2param(name, value):
         ret = pt.Parameter.create(name=name, type='group')
         ret.type = type(dict())
-        for k, v in value.iteritems():
+        for k, v in value.items():
             ret.addChild(value2param(name=str(k), value=v))
         return ret
 
@@ -1752,7 +1752,7 @@ def extensions_to_ptree(extensions, device_profile):
     ret.sigTreeStateChanged.connect(on_tree_state_changed)
 
     log.warning("value2param: exts=%s %s", type(extensions), extensions)
-    for name, value in extensions.iteritems():
+    for name, value in extensions.items():
         log.warning("value2param iteration: n=%s, v=%s", name, value)
         param = value2param(name, value)
         ret.addChild(param)

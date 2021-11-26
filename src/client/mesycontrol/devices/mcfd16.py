@@ -704,7 +704,7 @@ class PreampPage(QtWidgets.QGroupBox):
 
         def make_gain_combo():
             ret = QtWidgets.QComboBox()
-            for rc_value, gain in sorted(GAIN_FACTORS.iteritems()):
+            for rc_value, gain in sorted(GAIN_FACTORS.items()):
                 ret.addItem(str(gain), rc_value)
             return ret
 

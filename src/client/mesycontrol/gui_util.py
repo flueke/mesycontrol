@@ -382,10 +382,10 @@ def run_edit_device_config(device_registry, registry, device, parent_widget=None
         device_config = cm.make_device_config(bus, address, idc, name,
                 device_registry.get_device_profile(idc))
 
-        for k, v in device.cfg.extensions.iteritems():
+        for k, v in device.cfg.extensions.items():
             device_config.set_extension(k, v)
 
-        for k, v in device.cfg.get_cached_memory_ref().iteritems():
+        for k, v in device.cfg.get_cached_memory_ref().items():
             device_config.set_parameter(k, v)
 
         mrc.cfg.remove_device(device.cfg)

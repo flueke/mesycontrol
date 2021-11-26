@@ -53,7 +53,7 @@ def set_default_device_extensions(device, device_registry):
 
     p = device_registry.get_device_profile(device.idc)
 
-    for name, ext_profile in p.get_extensions().iteritems():
+    for name, ext_profile in p.get_extensions().items():
         if not device.has_extension(name):
             device.set_extension(name, ext_profile['value'])
             new_exts.append((name, ext_profile['value']))

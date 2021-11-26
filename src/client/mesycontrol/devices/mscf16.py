@@ -1150,11 +1150,11 @@ class HardwareInfoWidget(QtWidgets.QWidget):
                 HardwareInfo.WINDIS:        ReadOnlyCheckBox("WinDis", toolTip="Window Discriminator"),
                 }
 
-        for cb in self.checkboxes.itervalues():
+        for cb in self.checkboxes.values():
             cb.setStatusTip(cb.toolTip())
 
         self.checkbox_tooltips = dict(
-                (bit, cb.toolTip()) for bit, cb in self.checkboxes.iteritems())
+                (bit, cb.toolTip()) for bit, cb in self.checkboxes.items())
 
         layout = QtWidgets.QGridLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -1166,7 +1166,7 @@ class HardwareInfoWidget(QtWidgets.QWidget):
         layout.addWidget(self.checkboxes[HardwareInfo.WINDIS], 2, 0)
 
     def set_hardware_info(self, hw_info):
-        for bit, checkbox in self.checkboxes.iteritems():
+        for bit, checkbox in self.checkboxes.items():
             checkbox.setChecked(hw_info.is_valid() and hw_info & bit)
 
             checkbox.setToolTip(self.checkbox_tooltips[bit] if hw_info.is_valid()
@@ -1568,7 +1568,7 @@ class SettingsWidget(QtWidgets.QWidget):
     def _on_device_read_mode_changed(self, read_mode):
         self._update_gain_jumper_spins()
         # Create extension change events to repopulate the GUI
-        for k, v in self.device.get_extensions().iteritems():
+        for k, v in self.device.get_extensions().items():
             self._on_device_extension_changed(k, v)
 
     def _on_device_parameter_changed(self, address, value):
