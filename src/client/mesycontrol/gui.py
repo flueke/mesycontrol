@@ -31,6 +31,7 @@ import weakref
 import pyqtgraph.console
 pg = pyqtgraph
 
+from mesycontrol.qt import Slot
 from mesycontrol.qt import Qt
 from mesycontrol.qt import QtCore
 from mesycontrol.qt import QtGui
@@ -134,6 +135,7 @@ class GUIApplication(QtCore.QObject):
             settings.setValue('MainWindow/first_run', False)
             self._show_quickstart()
 
+    @Slot(object, object, object)
     def _setup_changed(self, app_registry, old, new):
         if old:
             old.modified_changed.disconnect(self._update_actions)
@@ -143,6 +145,7 @@ class GUIApplication(QtCore.QObject):
 
         self._update_actions()
 
+    @Slot(object)
     def _app_mrc_added(self, mrc):
         mrc.device_added.connect(self._app_device_added)
         mrc.device_about_to_be_removed.connect(self._app_device_about_to_be_removed)
@@ -150,14 +153,17 @@ class GUIApplication(QtCore.QObject):
         for device in mrc:
             self._app_device_added(device)
 
+    @Slot(object)
     def _app_mrc_about_to_be_removed(self, mrc):
         mrc.device_added.disconnect(self._app_device_added)
         mrc.device_about_to_be_removed.disconnect(self._app_device_about_to_be_removed)
 
+    @Slot(object)
     def _app_device_added(self, device):
         device.hardware_set.connect(self._app_device_hardware_set)
         device.config_set.connect(self._app_device_config_set)
 
+    @Slot(object)
     def _app_device_about_to_be_removed(self, device):
         device.hardware_set.disconnect(self._app_device_hardware_set)
         device.config_set.disconnect(self._app_device_config_set)
@@ -165,6 +171,7 @@ class GUIApplication(QtCore.QObject):
         for window in list(self._device_window_map.get(device, list())):
             window.close()
 
+    @Slot(object, object, object)
     def _app_device_hardware_set(self, device, old, new):
         if device.idc_conflict:
             for window in list(self._device_window_map.get(device, list())):
@@ -174,6 +181,7 @@ class GUIApplication(QtCore.QObject):
                 except AttributeError:
                     pass
 
+    @Slot(object, object, object)
     def _app_device_config_set(self, device, old, new):
         if device.idc_conflict:
             for window in list(self._device_window_map.get(device, list())):
@@ -509,6 +517,7 @@ class GUIApplication(QtCore.QObject):
         Future callback."""
         return self._update_actions()
 
+    @Slot()
     def _update_actions(self):
         node = self._selected_tree_node
 
@@ -1352,14 +1361,14 @@ Initialize using the current hardware values or the device defaults?
 
         windows = filter(window_filter, self._device_window_map[device])
 
-        self.log.debug("Found %d windows for %s", len(windows), device)
+        self.log.debug("Found %d windows for %s", util.ilen(windows), device)
 
         for subwin in windows:
             if subwin.isMinimized():
                 subwin.showNormal()
             self.mainwindow.mdiArea.setActiveSubWindow(subwin)
 
-        return len(windows) > 0
+        return util.ilen(windows) > 0
 
     def _close_device_windows(self, device):
         for window in copy.copy(self._device_window_map.get(device, set())):

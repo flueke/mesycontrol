@@ -224,7 +224,7 @@ class AddDeviceDialog(QtWidgets.QDialog):
             raise RuntimeError("No devices to choose from")
 
         if len(available_addresses) == 0 or (
-                bus is not None and len(filter(
+                bus is not None and util.ilen(filter(
                     lambda x: x[0] == bus, available_addresses)) == 0):
             raise RuntimeError("No addresses available")
 
@@ -280,7 +280,7 @@ class AddDeviceDialog(QtWidgets.QDialog):
 
         if allow_custom_idcs:
             self.idc_combo.setEditable(True)
-            self.idc_combo.setValidator(QtWidgets.QIntValidator(1, 99))
+            self.idc_combo.setValidator(QtGui.QIntValidator(1, 99))
 
             ok_button = self.button_box.button(QtWidgets.QDialogButtonBox.Ok)
             ok_button.setEnabled(len(known_idcs))
@@ -306,17 +306,16 @@ class AddDeviceDialog(QtWidgets.QDialog):
 
         def accept():
             bus = self.bus_combo.currentIndex()
-            address, ok = self.address_combos[bus].itemData(
-                    self.address_combos[bus].currentIndex()).toInt()
+            address = int(self.address_combos[bus].itemData(
+                self.address_combos[bus].currentIndex()))
 
             if self.allow_custom_idcs and self.idc_combo.lineEdit().hasAcceptableInput():
                 idc = int(self.idc_combo.lineEdit().text())
             else:
                 idx = self.idc_combo.currentIndex()
-                idc = self.idc_combo.itemData(idx)
-                idc, _ = idc.toInt()
+                idc = int(self.idc_combo.itemData(idx))
 
-            name = unicode(self.name_input.text())
+            name = self.name_input.text()
 
             self._result = AddDeviceDialog.Result(
                     bus, address, idc, name)

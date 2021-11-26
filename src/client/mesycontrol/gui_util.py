@@ -397,8 +397,8 @@ def run_edit_device_config(device_registry, registry, device, parent_widget=None
 def run_load_device_config(device, context, parent_widget):
     directory_hint = context.get_config_directory_hint()
 
-    filename = str(QtWidgets.QFileDialog.getOpenFileName(parent_widget, "Load Device config",
-        directory=directory_hint, filter="XML files (*.xml);;"))
+    filename = QtWidgets.QFileDialog.getOpenFileName(parent_widget, "Load Device config",
+        dir=directory_hint, filter="XML files (*.xml);;")[0]
 
     if not len(filename):
         return False
@@ -429,8 +429,8 @@ def run_load_device_config(device, context, parent_widget):
 def run_save_device_config(device, context, parent_widget):
     directory_hint = context.get_config_directory_hint()
 
-    filename = str(QtWidgets.QFileDialog.getSaveFileName(parent_widget, "Save Device config as",
-        directory=directory_hint, filter="XML files (*.xml);;"))
+    filename = QtWidgets.QFileDialog.getSaveFileName(parent_widget, "Save Device config as",
+        dir=directory_hint, filter="XML files (*.xml);;")[0]
 
     if not len(filename):
         return False
@@ -477,8 +477,9 @@ def run_save_setup_as_dialog(context, parent_widget):
     else:
         directory_hint = context.get_setup_directory_hint()
 
-    filename = str(QtWidgets.QFileDialog.getSaveFileName(parent_widget, "Save setup as",
-            directory=directory_hint, filter="XML files (*.xml);; *"))
+    filename = QtWidgets.QFileDialog.getSaveFileName(
+        parent_widget, "Save setup as",
+        dir=directory_hint, filter="XML files (*.xml);; *")[0]
 
     if not len(filename):
         return False
@@ -519,9 +520,9 @@ def run_open_setup_dialog(context, parent_widget):
 
     directory_hint = context.get_setup_directory_hint()
 
-    filename = str(QtWidgets.QFileDialog.getOpenFileName(
+    filename = QtWidgets.QFileDialog.getOpenFileName(
         parent_widget, "Open setup file",
-        directory=directory_hint, filter="XML files (*.xml);; *"))
+        dir=directory_hint, filter="XML files (*.xml);; *")[0]
 
     if not len(filename):
         return False
@@ -613,12 +614,12 @@ def restore_subwindow_state(subwin, settings):
     settings.beginGroup("MdiSubWindows")
     try:
         if settings.contains(name + "_size"):
-            size = settings.value(name + "_size").toSize()
+            size = settings.value(name + "_size")
             size = size.expandedTo(subwin.sizeHint())
             subwin.resize(size)
 
         if settings.contains(name + "_pos"):
-            subwin.move(settings.value(name + "_pos").toPoint())
+            subwin.move(settings.value(name + "_pos"))
 
         return True
     finally:

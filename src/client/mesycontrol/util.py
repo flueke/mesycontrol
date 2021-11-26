@@ -42,6 +42,8 @@ import os
 import re
 import sys
 
+from functools import reduce
+
 HARDWARE = 1
 CONFIG   = 2
 COMBINED = 3
@@ -611,7 +613,7 @@ class ChannelGroupHelper(object):
         self.num_groups   = num_groups
 
     def channels_per_group(self):
-        return self.num_channels / self.num_groups
+        return int(self.num_channels / self.num_groups)
 
     def group_channel_range(self, group_num):
         return range(group_num * self.channels_per_group(),
@@ -751,3 +753,7 @@ class ReadOnlyCheckBox(QtWidgets.QCheckBox):
 
     def mouseReleaseEvent(self, event):
         event.ignore()
+
+# Source: https://stackoverflow.com/a/44351664
+def ilen(iterable):
+    return reduce(lambda result, _: result+1, iterable, 0)

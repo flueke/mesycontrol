@@ -100,8 +100,8 @@ class Context(QtCore.QObject):
         v = os.path.dirname(str(v))
 
         if not len(v):
-            v = QtGui.QDesktopServices.storageLocation(
-                    QtGui.QDesktopServices.DocumentsLocation)
+            v = QtCore.QStandardPaths.writableLocation(
+                    QtCore.QStandardPaths.DocumentsLocation)
 
         return v
 
@@ -116,8 +116,8 @@ class Context(QtCore.QObject):
         v = os.path.dirname(str(v))
 
         if not len(v):
-            v = QtGui.QDesktopServices.storageLocation(
-                    QtGui.QDesktopServices.DocumentsLocation)
+            v = QtCore.QStandardPaths.writableLocation(
+                    QtCore.QStandardPaths.DocumentsLocation)
 
         return v
 

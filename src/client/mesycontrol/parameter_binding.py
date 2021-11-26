@@ -453,7 +453,7 @@ class DefaultParameterBinding(AbstractParameterBinding):
 
         log.info("DefaultParameterBinding: target=%s", self.target)
 
-        if isinstance(self.target, QtGui.QWidget):
+        if isinstance(self.target, QtWidgets.QWidget):
             self._original_palette = QtGui.QPalette(self.target.palette())
         else:
             self._original_palette = None
@@ -740,8 +740,8 @@ class RadioButtonGroupParameterBinding(DefaultParameterBinding):
 
     @staticmethod
     def predicate(target):
-        return (isinstance(target, QtGui.QButtonGroup) and
-                all(isinstance(b, QtGui.QRadioButton) for b in target.buttons()))
+        return (isinstance(target, QtWidgets.QButtonGroup) and
+                all(isinstance(b, QtWidgets.QRadioButton) for b in target.buttons()))
 
 class LCDNumberParameterBinding(DefaultParameterBinding):
     def __init__(self, unit_name=None, precision=2, **kwargs):

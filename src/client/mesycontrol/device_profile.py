@@ -241,7 +241,7 @@ class DeviceProfile(object):
                 param in self.name_parameter_map)
 
     def __getitem__(self, key):
-        if isinstance(key, (str, unicode, QtCore.QString)):
+        if isinstance(key, (str, )):
             return self.get_parameter_by_name(str(key))
 
         try:

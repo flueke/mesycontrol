@@ -405,7 +405,7 @@ class DeviceWidgetBase(QtWidgets.QWidget):
             settings = self.make_settings()
             name = "DeviceWidgets/%s_notes_visible" % self.parent().objectName()
             if settings.contains(name):
-                self.set_notes_visible(settings.value(name).toBool())
+                self.set_notes_visible(bool(settings.value(name)))
             else:
                 self.set_notes_visible(False)
 

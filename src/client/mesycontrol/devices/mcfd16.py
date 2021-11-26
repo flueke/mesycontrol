@@ -32,6 +32,7 @@ from .. qt import Property
 from .. qt import Signal
 from .. qt import Qt
 from .. qt import QtCore
+from .. qt import QtGui
 from .. qt import QtWidgets
 import pyqtgraph.widgets.VerticalLabel as vlabel
 
@@ -681,10 +682,10 @@ class PreampPage(QtWidgets.QGroupBox):
         self.device  = device
 
         self.polarity_icons = {
-                Polarity.positive: QtWidgets.QIcon(QtWidgets.QPixmap(":/polarity-positive.png").scaled(
+                Polarity.positive: QtGui.QIcon(QtGui.QPixmap(":/polarity-positive.png").scaled(
                     PreampPage.polarity_button_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)),
 
-                Polarity.negative: QtWidgets.QIcon(QtWidgets.QPixmap(":/polarity-negative.png").scaled(
+                Polarity.negative: QtGui.QIcon(QtGui.QPixmap(":/polarity-negative.png").scaled(
                     PreampPage.polarity_button_size, Qt.KeepAspectRatio, Qt.SmoothTransformation))
                 }
 

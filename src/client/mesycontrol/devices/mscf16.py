@@ -1607,7 +1607,7 @@ class SettingsWidget(QtWidgets.QWidget):
                 self.combo_type.itemText(idx))
 
     def _shaping_times_index_changed(self, idx):
-        value, _ = self.combo_shaping_times.itemData(idx).toInt()
+        value, _ = int(self.combo_shaping_times.itemData(idx))
         self.device.set_extension('shaping_time', value)
 
     def _input_type_index_changed(self, idx):
@@ -1628,7 +1628,7 @@ class SettingsWidget(QtWidgets.QWidget):
             cfd_delay = mscf16_profile.CFD_DELAYS[0]
         else:
             discriminator = 'CFD'
-            cfd_delay, _ = data_variant.toInt()
+            cfd_delay, _ = int(data_variant)
 
         self.device.set_extension('discriminator', discriminator)
         self.device.set_extension('cfd_delay', cfd_delay)
