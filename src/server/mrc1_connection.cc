@@ -560,6 +560,12 @@ void MRC1TCPConnection::start_impl(ErrorCodeCallback completion_handler)
       << m_host << ":" << m_service
       << ": " << e.what();
 
+
+    // TODO: pass more info in the error messages info string, e.g.:
+    //std::ostringstream ss;
+    //ss << "Could not connect to " << m_host << ": " << e.what();
+    //completion_handler(e.code(), ss);
+    
     completion_handler(e.code());
   }
 }
