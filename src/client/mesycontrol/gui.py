@@ -913,7 +913,7 @@ class GUIApplication(QtCore.QObject):
 
         if is_registry(node):
             if all((mrc.has_hw and mrc.hw.is_connected()) for mrc in node.ref):
-                futures = [mrc.hw.disconnect() for mrc in node.ref]
+                futures = [mrc.hw.disconnectMrc() for mrc in node.ref]
             else:
                 futures = list()
                 for mrc in node.ref:
@@ -933,7 +933,7 @@ class GUIApplication(QtCore.QObject):
                 node.ref.hw.connect()
                 a.setIcon(a.icons['disconnect'])
             else:
-                node.ref.hw.disconnect()
+                node.ref.hw.disconnectMrc()
                 a.setIcon(a.icons['connect'])
 
     def _refresh(self):
@@ -1034,7 +1034,7 @@ class GUIApplication(QtCore.QObject):
         def do_remove(f_ignored):
             self.app_registry.hw.remove_mrc(node.ref.hw)
 
-        node.ref.hw.disconnect().add_done_callback(do_remove)
+        node.ref.hw.disconnectMrc().add_done_callback(do_remove)
 
     def _view_server_log(self):
         node   = self._selected_tree_node
