@@ -77,7 +77,7 @@ def read_setup(source):
 
     ret = _setup_from_node(setup_node)
 
-    if isinstance(source, (str, unicode, QtCore.QString)):
+    if isinstance(source, (str,)):
         ret.filename = source
 
     ret.modified = False
@@ -98,10 +98,10 @@ def write_setup(setup, dest, idc_to_parameter_names=dict()):
     data = _xml_tree_to_string(tree)
 
     try:
-        dest.write(data.encode('utf-8'))
+        dest.write(data)
     except AttributeError:
         with open(dest, 'w') as fp:
-            fp.write(data.encode('utf-8'))
+            fp.write(data)
 
 def read_device_config(source):
     et   = ET.parse(source)
@@ -130,10 +130,11 @@ def write_device_config(device_config, dest, parameter_names=dict()):
     data = _xml_tree_to_string(tree)
 
     try:
-        dest.write(data.encode('utf-8'))
+        #dest.write(data.encode('utf-8'))
+        dest.write(data)
     except AttributeError:
         with open(dest, 'w') as fp:
-            fp.write(data.encode('utf-8'))
+            fp.write(data)
 
 class CommentTreeBuilder(TreeBuilder):
     def comment(self, data):
@@ -154,13 +155,13 @@ def _build_device_tree(cfg, parameter_names, tb):
 
     _add_attribute_tags(tb, cfg, attrs)
 
-    for address, value in sorted(cfg.get_cached_memory().iteritems()):
+    for address, value in sorted(cfg.get_cached_memory().items()):
         if address in parameter_names:
             tb.comment(parameter_names[address])
 
         _add_tag(tb=tb, tag='parameter', attrs=dict(address=str(address), value=str(value)))
 
-    for name, value in cfg.get_extensions().iteritems():
+    for name, value in cfg.get_extensions().items():
         tb.start("extension", {'name': name})
         value2xml(tb, value)
         tb.end("extension")
@@ -203,7 +204,7 @@ def _build_mrc_tree(mrc_config, idc_to_parameter_names, tb):
 
 def _mrc_config_from_node(mrc_node):
     attrs = ['url', 'name', 'autoconnect']
-    ret = cm.MRC()
+    ret = cm.ConfigMrc()
 
     for attr in attrs:
         n = mrc_node.find(attr)
@@ -252,10 +253,11 @@ def _build_setup_tree(setup, idc_to_parameter_names, tb):
     tb.end('setup')
 
 def _add_tag(tb, tag, value=None, attrs = {}):
+    #print(f"{tb=}, {tag=}, {value=}, {attrs=}")
     tb.start(tag, attrs)
 
     if value is not None:
-        tb.data(unicode(value))
+        tb.data(str(value))
 
     tb.end(tag)
 
@@ -265,10 +267,7 @@ def _xml_tree_to_string(tree):
     return pretty
 
 def value2xml(tb, value):
-    if isinstance(value, basestring):
-        _add_tag(tb, "value", value, {'type': 'str'})
-    elif isinstance(value, QtCore.QString):
-        value = unicode(value)
+    if isinstance(value, str):
         _add_tag(tb, "value", value, {'type': 'str'})
     elif isinstance(value, int):
         _add_tag(tb, "value", value, {'type': 'int'})

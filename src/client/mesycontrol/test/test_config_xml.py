@@ -22,11 +22,11 @@ __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
 import difflib
-import StringIO
+import io
 
-from .. import config_model as cm
-from .. import config_xml as cxml
-from .. qt import QtCore
+from mesycontrol import config_model as cm
+from mesycontrol import config_xml as cxml
+from mesycontrol.qt import QtCore
 from xml.etree import ElementTree as ET
 
 expected = """<?xml version="1.0" ?>
@@ -63,9 +63,11 @@ expected = """<?xml version="1.0" ?>
 expected2 = """<?xml version="1.0" ?>
 <mesycontrol version="1">
   <setup>
+    <autoconnect>True</autoconnect>
     <mrc_config>
       <url>/dev/ttyUSB0</url>
       <name>the_mrc</name>
+      <autoconnect>True</autoconnect>
       <device_config>
         <idc>1</idc>
         <bus>0</bus>
@@ -126,6 +128,7 @@ expected2 = """<?xml version="1.0" ?>
     <mrc_config>
       <url>/dev/ttyUSB1</url>
       <name>the_2nd_mrc</name>
+      <autoconnect>True</autoconnect>
       <device_config>
         <idc>2</idc>
         <bus>0</bus>
@@ -162,7 +165,7 @@ expected2 = """<?xml version="1.0" ?>
 def test_write_device_config():
     device = cm.Device(bus=1, address=15, idc=20)
     device.name = 'my test thing'
-    dest   = StringIO.StringIO()
+    dest   = io.StringIO()
     param_names = dict()
 
     for i in range(10):
@@ -176,14 +179,14 @@ def test_write_device_config():
     try:
         assert actual == expected
     except AssertionError:
-        print "test_write_device_config diff:"
+        print("test_write_device_config diff:")
         for l in difflib.unified_diff(expected.splitlines(), actual.splitlines(),
                 "expected", "actual"):
-            print l
+            print(l)
         raise
 
 def test_read_device_config():
-    source = StringIO.StringIO(expected)
+    source = io.StringIO(expected)
 
     device = cxml.read_device_config(source)
     
@@ -220,12 +223,12 @@ def test_write_setup():
         d2.set_parameter(i, i*i*i)
         d3.set_parameter(i, math.sqrt(i))
 
-    mrc1 = cm.MRC(url='/dev/ttyUSB0')
+    mrc1 = cm.ConfigMrc(url='/dev/ttyUSB0')
     mrc1.name = 'the_mrc'
     mrc1.add_device(d1)
     mrc1.add_device(d2)
 
-    mrc2 = cm.MRC(url='/dev/ttyUSB1')
+    mrc2 = cm.ConfigMrc(url='/dev/ttyUSB1')
     mrc2.name = 'the_2nd_mrc'
     mrc2.add_device(d3)
 
@@ -233,23 +236,26 @@ def test_write_setup():
     setup.add_mrc(mrc1)
     setup.add_mrc(mrc2)
 
-    dest = StringIO.StringIO()
+    dest = io.StringIO()
 
     cxml.write_setup(setup, dest, idc_to_param_names)
+
+    #with open("config_xml_debug_file.xml", 'w') as debugFile:
+    #    cxml.write_setup(setup, debugFile, idc_to_param_names)
 
     actual = dest.getvalue()
 
     try:
         assert actual == expected2
     except AssertionError:
-        print "test_write_device_config diff:"
+        print("test_write_device_config diff:")
         for l in difflib.unified_diff(expected2.splitlines(), actual.splitlines(),
                 "expected", "actual"):
-            print l
+            print(l)
         raise
 
 def test_read_setup():
-    source = StringIO.StringIO(expected2)
+    source = io.StringIO(expected2)
 
     setup = cxml.read_setup(source)
 
@@ -259,17 +265,15 @@ def test_read_setup():
     assert setup.get_mrc('/dev/ttyUSB1').get_device(0, 7).idc == 2
 
 def test_value2xml_string_types():
-    tb = cxml.CommentTreeBuilder()
 
     l = [
             "Hello World!",
             u"Hello Unicode World!",
-            QtCore.QString("Hello QString World!"),
             u"Hello unicode €uro World!",
-            QtCore.QString.fromUtf8("Hello QString.fromUtf8 €uro World!")
             ]
 
     for txt in l:
+        tb = cxml.CommentTreeBuilder()
         cxml.value2xml(tb, txt)
         tree = ET.ElementTree(tb.close())
         xml = cxml._xml_tree_to_string(tree)
@@ -277,6 +281,6 @@ def test_value2xml_string_types():
         et = ET.fromstring(xml.encode('utf-8'))
         value = cxml.xml2value(et)
 
-        print type(txt), type(value)
+        #print(type(txt), type(value))
 
         assert txt == value

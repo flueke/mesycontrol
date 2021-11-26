@@ -37,13 +37,13 @@ def add_mrc_connection(hardware_registry, url, do_connect, connect_timeout_ms=10
 
     connection      = mrc_connection.factory(url=url)
     controller      = hardware_controller.Controller(connection)
-    mrc             = hm.MRC(url)
+    mrc             = hm.HardwareMrc(url)
     mrc.controller  = controller
 
     hardware_registry.add_mrc(mrc)
 
     if do_connect:
-        return mrc.connect(connect_timeout_ms)
+        return mrc.connectMrc(connect_timeout_ms)
 
     return None
 

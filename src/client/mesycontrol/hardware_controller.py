@@ -98,7 +98,7 @@ class Controller(object):
 
     mrc = property(get_mrc, set_mrc)
 
-    def connect(self, timeout_ms=hm.DEFAULT_CONNECT_TIMEOUT_MS):
+    def connectMrc(self, timeout_ms=hm.DEFAULT_CONNECT_TIMEOUT_MS):
         self.log.debug("connect: timeout_ms=%s", timeout_ms)
 
         self._connect_future = future.Future()
@@ -112,7 +112,7 @@ class Controller(object):
             else:
                 self._connect_future.set_result(f.result())
 
-        f = self.connection.connect().add_done_callback(on_connection_connected)
+        f = self.connection.connectMrc().add_done_callback(on_connection_connected)
         future.progress_forwarder(f, self._connect_future)
 
         if timeout_ms > 0:
@@ -120,8 +120,8 @@ class Controller(object):
 
         return self._connect_future
 
-    def disconnect(self):
-        return self.connection.disconnect()
+    def disconnectMrc(self):
+        return self.connection.disconnectMrc()
 
     def read_parameter(self, bus, device, address):
         """Read the parameter at (bus, device address).
@@ -307,7 +307,7 @@ class Controller(object):
             self.log.debug("_on_connect_timer_timeout: TimeoutError, %s", self._connect_future)
             self._connect_future.set_exception(TimeoutError(self.connection.url))
             self._connect_future = None
-            self.connection.disconnect()
+            self.connection.disconnectMrc()
 
     def __str__(self):
         return "Controller(%s)" % util.display_url(self.connection.url)

@@ -112,13 +112,13 @@ class Setup(bm.MRCRegistry):
     filename    = Property(str, get_filename, set_filename, notify=filename_changed)
     autoconnect = Property(bool, get_autoconnect, set_autoconnect, notify=autoconnect_changed)
 
-class MRC(bm.MRC):
+class ConfigMrc(bm.BasicMrc):
     modified_changed    = Signal(bool)
     name_changed        = Signal(str)
     autoconnect_changed = Signal(bool)
 
     def __init__(self, url=None, parent=None):
-        super(MRC, self).__init__(url, parent)
+        super(ConfigMrc, self).__init__(url, parent)
         self._modified = False
         self._name = str()
         self._autoconnect = True
@@ -146,13 +146,13 @@ class MRC(bm.MRC):
 
     @modifies
     def add_device(self, device):
-        super(MRC, self).add_device(device)
+        super(ConfigMrc, self).add_device(device)
         device.modified_changed.connect(self._on_device_modified_changed)
         return True
 
     @modifies
     def remove_device(self, device):
-        super(MRC, self).remove_device(device)
+        super(ConfigMrc, self).remove_device(device)
         device.modified_changed.disconnect(self._on_device_modified_changed)
         return True
 
@@ -172,10 +172,10 @@ class MRC(bm.MRC):
         return self._autoconnect
 
     def __str__(self):
-        return "cm.MRC(id=%s, url=%s, modified=%s, autoconnect=%s)" % (
+        return "cm.ConfigMrc(id=%s, url=%s, modified=%s, autoconnect=%s)" % (
                 hex(id(self)), self.url, self.modified, self.autoconnect)
 
-    set_url     = modifies(bm.MRC.set_url)
+    set_url     = modifies(bm.BasicMrc.set_url)
     modified    = Property(bool, is_modified, set_modified, notify=modified_changed)
     name        = Property(str, get_name, set_name, notify=name_changed)
     autoconnect = Property(bool, get_autoconnect, set_autoconnect, notify=autoconnect_changed)

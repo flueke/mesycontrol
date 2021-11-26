@@ -65,7 +65,7 @@ class MCTCPClient(QtCore.QObject):
         self._current_request = None
         self._reset_state()
 
-    def connect(self, host, port):
+    def connectClient(self, host, port):
         """Connect to the given host and port.
         Returns a Future that fullfills once the connection has been
         established or an errors occurs.
@@ -109,7 +109,7 @@ class MCTCPClient(QtCore.QObject):
 
         return ret
 
-    def disconnect(self):
+    def disconnectClient(self):
         """Disconnect. Returns a Future that fullfills once the connection has
         been disconnected or an error occurs."""
 
@@ -226,8 +226,14 @@ class MCTCPClient(QtCore.QObject):
             self._socket.bytesWritten.connect(bytes_written)
 
     def _socket_readyRead(self):
+        print("hello")
         if self._read_size <= 0 and self._socket.bytesAvailable() >= 2:
-            self._read_size = struct.unpack('!H', self._socket.read(2))[0]
+            print(self._socket)
+            # Note: added the bytes() conversion when porting to PySide2.
+            # Without it the struct.unpack() call would lead to a segmentation
+            # fault.
+            data = bytes(self._socket.read(2))
+            self._read_size = struct.unpack('!H', data)[0]
             self.log.debug("_socket_readyRead: incoming msg size = %d", self._read_size)
 
         if self._read_size > 0 and self._socket.bytesAvailable() >= self._read_size:
@@ -304,3 +310,10 @@ class MCTCPClient(QtCore.QObject):
 
     host = Property(str, get_host)
     port = Property(int, get_port)
+
+if __name__ == "__main__":
+    client = MCTCPClient()
+    def on_client_disconnected():
+        print("on_client_disconnected")
+    print(client.disconnected.connect)
+    print(client.disconnected.connect(on_client_disconnected))

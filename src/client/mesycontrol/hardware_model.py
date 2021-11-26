@@ -37,7 +37,7 @@ class AddressConflict(RuntimeError):
     def __str__(self):
         return "Address conflict"
 
-class MRC(bm.MRC):
+class HardwareMrc(bm.BasicMrc):
     connected                   = Signal()
     connecting                  = Signal(object)    #: future object
     disconnected                = Signal()
@@ -50,7 +50,7 @@ class MRC(bm.MRC):
     silenced_changed            = Signal(bool)       #: is_silenced
 
     def __init__(self, url, parent=None):
-        super(MRC, self).__init__(url, parent)
+        super(HardwareMrc, self).__init__(url, parent)
         self.log   = util.make_logging_source_adapter(__name__, self)
         self._controller = None
 
@@ -151,7 +151,7 @@ class MRC(bm.MRC):
         return self._silenced
 
     def add_device(self, device):
-        super(MRC, self).add_device(device)
+        super(HardwareMrc, self).add_device(device)
 
         self.connected.connect(device.connected)
         self.connecting.connect(device.connecting)
@@ -159,7 +159,7 @@ class MRC(bm.MRC):
         self.connection_error.connect(device.connection_error)
 
     def remove_device(self, device):
-        super(MRC, self).remove_device(device)
+        super(HardwareMrc, self).remove_device(device)
 
         self.connected.disconnect(device.connected)
         self.connecting.disconnect(device.connecting)
@@ -169,13 +169,13 @@ class MRC(bm.MRC):
     def get_connection(self):
         return self.controller.connection
 
-    def connect(self, timeout_ms=DEFAULT_CONNECT_TIMEOUT_MS):
-        ret = self.controller.connect(timeout_ms)
+    def connectMrc(self, timeout_ms=DEFAULT_CONNECT_TIMEOUT_MS):
+        ret = self.controller.connectMrc(timeout_ms)
         self.set_connecting(ret)
         return ret
 
-    def disconnect(self):
-        return self.controller.disconnect()
+    def disconnectMrc(self):
+        return self.controller.disconnectMrc()
 
     def is_connected(self):
         return self._connected
@@ -231,7 +231,7 @@ class MRC(bm.MRC):
         return self.controller.scanbus(bus)
 
     def __str__(self):
-        return "hm.MRC(id=%s, url=%s, connected=%s)" % (
+        return "hm.HardwareMrc(id=%s, url=%s, connected=%s)" % (
                 hex(id(self)), self.url, self.is_connected())
 
     connection      = Property(object, get_connection)

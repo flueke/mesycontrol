@@ -29,7 +29,7 @@ from .. import hardware_model as hm
 #    scanbus_data[0] = (17, 1)
 #    scanbus_data[2] = (21, 0)
 #
-#    mrc = hm.MRC("/dev/ttyUSB0")
+#    mrc = hm.HardwareMrc("/dev/ttyUSB0")
 #
 #    for bus in range(2):
 #        for addr in range(16):
@@ -51,7 +51,7 @@ from .. import hardware_model as hm
 #    scanbus_data = [(0, 0) for i in range(16)]
 #    scanbus_data[15] = (21, 2)
 #
-#    mrc = hm.MRC("/dev/ttyUSB0")
+#    mrc = hm.HardwareMrc("/dev/ttyUSB0")
 #    mrc.set_scanbus_data(0, scanbus_data)
 #
 #    assert mrc.has_device(0, 15)
@@ -59,7 +59,7 @@ from .. import hardware_model as hm
 #    assert mrc.get_device(0, 15).has_address_conflict()
 
 def test_add_duplicate_device_raises():
-    mrc = hm.MRC("/dev/ttyUSB0")
+    mrc = hm.HardwareMrc("/dev/ttyUSB0")
     device_model_1 = hm.Device(bus=0, address=0, idc=1)
     device_model_2 = hm.Device(bus=0, address=0, idc=1)
     mrc.add_device(device_model_1)
@@ -69,7 +69,7 @@ def test_add_duplicate_device_raises():
 #    scanbus_data = [(0, 0) for i in range(16)]
 #    scanbus_data[0] = (17, 1)
 #
-#    mrc = hm.MRC("/dev/ttyUSB0")
+#    mrc = hm.HardwareMrc("/dev/ttyUSB0")
 #    mrc.set_scanbus_data(0, scanbus_data)
 #
 #    assert mrc.has_device(0, 0)

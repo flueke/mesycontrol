@@ -297,7 +297,10 @@ class MCTreeView(QtWidgets.QWidget):
         self.cfg_view.setObjectName('config_tree_view')
         self.cfg_view.setModel(self.cfg_model)
         self.cfg_model.rowsInserted.connect(self.cfg_view.expandAll)
-        self.cfg_model.rowsInserted.connect(partial(self.cfg_view.resizeColumnToContents, 0))
+        def resize_cfg_cols():
+            self.cfg_view.resizeColumnToContents(0)
+
+        self.cfg_model.rowsInserted.connect(resize_cfg_cols)
         self.cfg_view.customContextMenuRequested.connect(self._cfg_context_menu)
         self.cfg_view.expanded.connect(self._cfg_expanded)
         self.cfg_view.collapsed.connect(self._cfg_collapsed)
@@ -311,7 +314,10 @@ class MCTreeView(QtWidgets.QWidget):
         self.hw_view.setObjectName('hardware_tree_view')
         self.hw_view.setModel(self.hw_model)
         self.hw_model.rowsInserted.connect(self.hw_view.expandAll)
-        self.hw_model.rowsInserted.connect(partial(self.hw_view.resizeColumnToContents, 0))
+        def resize_hw_cols():
+            self.hw_view.resizeColumnToContents(0)
+
+        self.hw_model.rowsInserted.connect(resize_hw_cols)
         self.hw_view.customContextMenuRequested.connect(self._hw_context_menu)
         self.hw_view.expanded.connect(self._hw_expanded)
         self.hw_view.collapsed.connect(self._hw_collapsed)

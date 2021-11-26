@@ -239,7 +239,7 @@ def run_add_mrc_config_dialog(registry, parent_widget=None):
 
     def accepted():
         url, connect, autoconnect = dialog.result()
-        mrc = cm.MRC(url)
+        mrc = cm.ConfigMrc(url)
         mrc.autoconnect = autoconnect
         registry.cfg.add_mrc(mrc)
 

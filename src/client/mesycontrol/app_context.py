@@ -56,7 +56,7 @@ class Context(QtCore.QObject):
         observer = future.FutureObserver()
 
         def do_disconnect():
-            futures = [mrc.disconnect() for mrc in self.app_registry.hw.get_mrcs()]
+            futures = [mrc.disconnectMrc() for mrc in self.app_registry.hw.get_mrcs()]
             observer.set_future(future.all_done(*futures))
 
         util.wait_for_signal(signal=observer.done, emitting_callable=do_disconnect, timeout_ms=5000)
@@ -96,7 +96,7 @@ class Context(QtCore.QObject):
     def get_setup_directory_hint(self):
         s = self.make_qsettings()
 
-        v = s.value('Files/last_setup_file', QtCore.QString()).toString()
+        v = s.value('Files/last_setup_file', str())
         v = os.path.dirname(str(v))
 
         if not len(v):

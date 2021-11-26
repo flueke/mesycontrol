@@ -21,7 +21,7 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from PyQt4 import QtCore, QtGui
+from mesycontrol.qt import QtCore, QtGui
 import logging
 import signal
 import sys
@@ -65,23 +65,23 @@ def test_app_model_using_local_setup():
     setup.add_mrc_config(mrc_config)
 
     def on_mrc_connecting():
-        print "connecting..."
+        print("connecting...")
 
     def on_mrc_connected():
-        print "connected!"
+        print("connected!")
 
     def on_mrc_disconnected(info=None):
-        print "disconnected!", info
+        print("disconnected!", info)
 
     def on_mrc_ready():
-        print "MRC is ready!"
+        print("MRC is ready!")
         for device in mrc.get_devices():
-            print device, device.model, device.config
+            print(device, device.model, device.config)
 
-        print "Saving setup..."
+        print("Saving setup...")
 
     def on_device_added(device):
-        print "Device added: %s" % device
+        print("Device added: %s" % device)
 
     mrc.connecting.connect(on_mrc_connecting)
     mrc.connected.connect(on_mrc_connected)

@@ -101,14 +101,14 @@ class MRCRegistry(QtCore.QObject):
 
     mrcs = Property(list, lambda self: self.get_mrcs())
 
-class MRC(QtCore.QObject):
+class BasicMrc(QtCore.QObject):
     url_changed     = Signal(str)
     device_added    = Signal(object)
     device_about_to_be_removed = Signal(object)
     device_removed  = Signal(object)
 
     def __init__(self, url, parent=None):
-        super(MRC, self).__init__(parent)
+        super(BasicMrc, self).__init__(parent)
         self.log        = util.make_logging_source_adapter(__name__, self)
         self._url       = str(url)
         self._devices   = list()

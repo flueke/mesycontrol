@@ -39,7 +39,7 @@ class IsConnecting(Exception):
 class IsConnected(Exception):
     pass
 
-class AbstractConnection(QtCore.QObject):
+class AbstractMrcConnection(QtCore.QObject):
     connected               = Signal()          #: connected and ready to send requests
     disconnected            = Signal()          #: disconnected; not ready to handle requests
     connecting              = Signal(object)    #: Establishing the connection. The argument is a
@@ -58,12 +58,12 @@ class AbstractConnection(QtCore.QObject):
     queue_size_changed      = Signal(int)
 
     def __init__(self, parent=None):
-        super(AbstractConnection, self).__init__(parent)
+        super(AbstractMrcConnection, self).__init__(parent)
 
-    def connect(self):
+    def connectMrc(self):
         raise NotImplementedError()
 
-    def disconnect(self):
+    def disconnectMrc(self):
         raise NotImplementedError()
 
     def is_connected(self):
@@ -86,7 +86,7 @@ class AbstractConnection(QtCore.QObject):
 
     url = property(lambda self: self.get_url())
 
-class MRCConnection(AbstractConnection):
+class MRCConnection(AbstractMrcConnection):
     def __init__(self, host, port, parent=None):
         super(MRCConnection, self).__init__(parent)
         self.log    = util.make_logging_source_adapter(__name__, self)
@@ -94,12 +94,7 @@ class MRCConnection(AbstractConnection):
         self.port   = port
         self.client = MCTCPClient()
 
-        def on_disconnected():
-            self.on_client_disconnected()
-
-        self.client.disconnected.connect(on_disconnected)
-
-        #self.client.disconnected.connect(self.on_client_disconnected)
+        self.client.disconnected.connect(self.on_client_disconnected)
         self.client.socket_error.connect(self.on_client_socket_error)
 
         self.client.request_queued.connect(self.request_queued)
@@ -116,7 +111,7 @@ class MRCConnection(AbstractConnection):
         self._is_connecting = False
         self._is_connected  = False
 
-    def connect(self):
+    def connectMrc(self):
         self.log.debug("connect() is_connecting=%s, is_connected=%s",
                 self.is_connecting(), self.is_connected())
 
@@ -136,7 +131,7 @@ class MRCConnection(AbstractConnection):
             #else:
             #    ret.set_progress_text("Connected to %s:%d" % (self.host, self.port))
 
-        self.client.connect(self.host, self.port).add_done_callback(on_client_connect_done)
+        self.client.connectClient(self.host, self.port).add_done_callback(on_client_connect_done)
         # FIXME: emitting this causes the gui to see it twice
         #self.log.debug("connect: emitting connecting")
         #self.connecting.emit(ret)
@@ -178,9 +173,9 @@ class MRCConnection(AbstractConnection):
             self._connecting_future = None
         self.connection_error.emit(error)
 
-    def disconnect(self):
+    def disconnectMrc(self):
         self.log.debug("disconnect")
-        return self.client.disconnect()
+        return self.client.disconnectClient()
 
     def is_connected(self):
         return self._is_connected
@@ -197,7 +192,7 @@ class MRCConnection(AbstractConnection):
     def get_url(self):
         return util.build_connection_url(mc_host=self.host, mc_port=self.port)
 
-class LocalMRCConnection(AbstractConnection):
+class LocalMRCConnection(AbstractMrcConnection):
     connect_delay_ms = 1000 #: delay between server startup and connection attempt
 
     def __init__(self, server_options=dict(), parent=None):
@@ -221,7 +216,7 @@ class LocalMRCConnection(AbstractConnection):
         self._is_connecting = False
         self._is_connected  = False
 
-    def connect(self):
+    def connectMrc(self):
         # Start server, wait for connect_delay_ms, connect to server, done
         self._connecting_future = ret = Future()
 
@@ -240,7 +235,7 @@ class LocalMRCConnection(AbstractConnection):
         def on_connect_timer_expired():
             self.connection.host = self.server.listen_address
             self.connection.port = self.server.listen_port
-            f = self.connection.connect().add_done_callback(on_connection_connected)
+            f = self.connection.connectMrc().add_done_callback(on_connection_connected)
             progress_forwarder(f, ret)
 
         def on_server_started(f):
@@ -262,7 +257,7 @@ class LocalMRCConnection(AbstractConnection):
 
         return ret
 
-    def disconnect(self):
+    def disconnectMrc(self):
         self.log.debug("disconnect")
 
         ret = Future()
@@ -283,7 +278,7 @@ class LocalMRCConnection(AbstractConnection):
             else:
                 ret.set_result(True)
 
-        self.connection.disconnect().add_done_callback(on_connection_disconnected)
+        self.connection.disconnectMrc().add_done_callback(on_connection_disconnected)
 
         return ret
 

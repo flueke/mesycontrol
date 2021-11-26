@@ -21,7 +21,7 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-import mock
+import unittest.mock as mock
 from nose.tools import assert_raises
 
 from .. import basic_model as bm
@@ -39,7 +39,7 @@ def test_add_mrc():
 
     assert reg.get_mrc("foo") is None
 
-    mrc = bm.MRC("the url")
+    mrc = bm.BasicMrc("the url")
     reg.add_mrc(mrc)
 
     assert len(reg.mrcs) == 1
@@ -50,7 +50,7 @@ def test_add_mrc():
 
     reg.mrc_added.reset_mock()
 
-    mrc2 = bm.MRC("2nd")
+    mrc2 = bm.BasicMrc("2nd")
     reg.add_mrc(mrc2)
 
     assert len(reg.mrcs) == 2
@@ -65,8 +65,8 @@ def test_remove_mrc():
 
     reg.mrc_removed = mock.MagicMock()
 
-    mrc1 = bm.MRC("the url")
-    mrc2 = bm.MRC("2nd")
+    mrc1 = bm.BasicMrc("the url")
+    mrc2 = bm.BasicMrc("2nd")
 
     reg.add_mrc(mrc1)
 
@@ -96,7 +96,7 @@ def test_remove_mrc():
     assert_raises(ValueError, reg.remove_mrc, mrc2)
 
 def test_add_device():
-    mrc = bm.MRC("example.com")
+    mrc = bm.BasicMrc("example.com")
     d1  = bm.Device(0, 0, 42)
     d2  = bm.Device(0, 15, 42)
     d3  = bm.Device(1, 0, 13)
@@ -141,7 +141,7 @@ def test_add_device():
     assert mrc.get_device(1, 0) is d3
 
 def test_remove_device():
-    mrc = bm.MRC("example.com")
+    mrc = bm.BasicMrc("example.com")
     d1  = bm.Device(0, 0, 42)
     d2  = bm.Device(0, 15, 42)
     d3  = bm.Device(1, 0, 13)
@@ -211,7 +211,7 @@ def test_device():
     for i in range(256):
         assert d1.get_cached_parameter(i) is None
 
-    mrc    = bm.MRC("example.com")
+    mrc    = bm.BasicMrc("example.com")
     d1.mrc = mrc
     d1.mrc_changed.emit.assert_called_once_with(mrc)
     d1.mrc_changed.reset_mock()

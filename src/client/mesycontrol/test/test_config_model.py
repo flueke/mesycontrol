@@ -21,7 +21,7 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-import mock
+import unittest.mock as mock
 from nose.tools import assert_raises
 
 from .. import config_model as cm
@@ -63,7 +63,7 @@ def test_setup_basic():
 
 def test_setup_mrc():
     s = cm.Setup()
-    mrc = cm.MRC("the_url")
+    mrc = cm.ConfigMrc("the_url")
 
     s.modified_changed = mock.MagicMock()
     s.mrc_added = mock.MagicMock()
@@ -97,7 +97,7 @@ def test_setup_mrc():
     s.mrc_removed.emit.assert_called_once_with(mrc)
 
 def test_mrc_basic():
-    mrc = cm.MRC("the_url")
+    mrc = cm.ConfigMrc("the_url")
 
     mrc.modified_changed = mock.MagicMock()
     mrc.name_changed = mock.MagicMock()
@@ -142,7 +142,7 @@ def test_mrc_basic():
     mrc.url_changed.emit.assert_called_once_with("another_url")
 
 def test_mrc_device():
-    mrc = cm.MRC("the_url")
+    mrc = cm.ConfigMrc("the_url")
     device = cm.Device(0, 0, 1)
 
     # add device

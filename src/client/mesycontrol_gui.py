@@ -22,6 +22,7 @@ __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
 import argparse
+import faulthandler
 import logging
 import os
 import signal
@@ -51,6 +52,8 @@ from mesycontrol.qt import QtGui
 from mesycontrol.qt import QtWidgets
 
 if __name__ == "__main__":
+    faulthandler.enable()
+
     if not is_windows:
         parser = argparse.ArgumentParser(description='mesycontrol GUI command line arguments')
         parser.add_argument('--logging-config', metavar='FILE')
@@ -133,6 +136,7 @@ if __name__ == "__main__":
 
     # Qt setup
     QtCore.QLocale.setDefault(QtCore.QLocale.c())
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_ShareOpenGLContexts, True)
     app = QtWidgets.QApplication(sys.argv)
     app.setStyle(QtWidgets.QStyleFactory.create("Windows"))
     app.setAttribute(Qt.AA_DontShowIconsInMenus, False)

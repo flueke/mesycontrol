@@ -134,14 +134,14 @@ class MRCRegistry(AppObject):
             fset=lambda s, v: s.set_config(v))
     mrcs  = Property(list, get_mrcs)
 
-class MRC(AppObject):
+class AppMrc(AppObject):
     device_added    = Signal(object)
     device_about_to_be_removed = Signal(object)
     device_removed  = Signal(object)
     mrc_registry_changed = Signal(object)
 
     def __init__(self, url, mrc_registry=None, hw_mrc=None, cfg_mrc=None, parent=None):
-        super(MRC, self).__init__(hardware=hw_mrc, config=cfg_mrc, parent=parent)
+        super(AppMrc, self).__init__(hardware=hw_mrc, config=cfg_mrc, parent=parent)
         self.log  = util.make_logging_source_adapter(__name__, self)
         self._url = str(url)
         self._devices = list()
@@ -682,7 +682,7 @@ class Director(object):
         app_mrc = self.registry.get_mrc(mrc.url)
 
         if app_mrc is None:
-            app_mrc = MRC(url=mrc.url, mrc_registry=self.registry, hw_mrc=mrc)
+            app_mrc = AppMrc(url=mrc.url, mrc_registry=self.registry, hw_mrc=mrc)
             self.registry.add_mrc(app_mrc)
         else:
             app_mrc.hw = mrc
@@ -760,7 +760,7 @@ class Director(object):
         app_mrc = self.registry.get_mrc(mrc.url)
 
         if app_mrc is None:
-            app_mrc = MRC(url=mrc.url, mrc_registry=self.registry, cfg_mrc=mrc)
+            app_mrc = AppMrc(url=mrc.url, mrc_registry=self.registry, cfg_mrc=mrc)
             self.registry.add_mrc(app_mrc)
         else:
             app_mrc.cfg = mrc
