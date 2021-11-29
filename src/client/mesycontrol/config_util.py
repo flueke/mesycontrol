@@ -732,7 +732,7 @@ def read_config_parameters(devices):
     skipped_mrcs    = set()
     mrcs_to_connect = set(d.mrc for d in devices if (not d.mrc.has_hw or not d.mrc.hw.is_connected()))
 
-    progress             = ProgressUpdate(current=0, total=len(mrcs_to_connect) + len(devices))
+    progress             = ProgressUpdate(current=0, total=len(mrcs_to_connect) + util.ilen(devices))
     progress.subprogress = ProgressUpdate(current=0, total=0)
 
     yield progress
