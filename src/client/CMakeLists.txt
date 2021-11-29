@@ -40,7 +40,6 @@ set(PYTHON_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_profile.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_registry.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/device_tableview.py"
-    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/eventloop_callback.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/future.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/gui_mainwindow.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/gui.py"
