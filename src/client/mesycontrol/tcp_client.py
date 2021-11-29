@@ -226,9 +226,7 @@ class MCTCPClient(QtCore.QObject):
             self._socket.bytesWritten.connect(bytes_written)
 
     def _socket_readyRead(self):
-        print("hello")
         if self._read_size <= 0 and self._socket.bytesAvailable() >= 2:
-            print(self._socket)
             # Note: added the bytes() conversion when porting to PySide2.
             # Without it the struct.unpack() call would lead to a segmentation
             # fault.
