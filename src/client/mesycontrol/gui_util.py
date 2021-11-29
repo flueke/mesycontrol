@@ -636,10 +636,13 @@ class ServerLogView(QtWidgets.QPlainTextEdit):
         self.server.output.connect(self._on_server_output)
 
         for data in self.server.output_buffer:
-            self.appendPlainText(data.strip())
+            self._on_server_output(data)
 
     def _on_server_output(self, data):
-        self.appendPlainText(data.trimmed())
+        for line in data.split("\n"):
+            stripped = line.strip(" \t\n")
+            if len(stripped):
+                self.appendPlainText(f"mesycontrol_server: {stripped}")
 
 class NotesTextEdit(QtWidgets.QPlainTextEdit):
     def __init__(self, parent=None):

@@ -154,9 +154,11 @@ class ServerProcess(QtCore.QObject):
             cmd_line = "%s %s" % (program, " ".join(args))
 
             def dc():
-                self.process.started.disconnect(on_started)
-                self.process.error.disconnect(on_error)
-                self.process.finished.disconnect(on_finished)
+                return
+                # These error out with PySide2
+                #self.process.started.disconnect(on_started)
+                #self.process.error.disconnect(on_error)
+                #self.process.finished.disconnect(on_finished)
 
             def on_started():
                 self.log.debug("[pid=%s] Started %s", self.process.pid(), cmd_line)
@@ -170,9 +172,12 @@ class ServerProcess(QtCore.QObject):
                 ret.set_exception(ServerError(error))
 
             def on_finished(exit_code, exit_status):
-                self.log.debug("%s finished: code=%d, status=%d", exit_code, exit_status)
+                self.log.debug("pid=%s finished: code=%d, status=%d", self.process.pid(), exit_code, exit_status)
 
             def on_startup_delay_expired():
+                if ret.done():
+                    return
+
                 self._startup_delay_timer.timeout.disconnect(on_startup_delay_expired)
 
                 if self.process.state() == QProcess.Running:
@@ -209,7 +214,7 @@ class ServerProcess(QtCore.QObject):
         if self.process.state() != QProcess.NotRunning:
             def on_finished(code, status):
                 self.log.debug("Process finished with code=%d (%s)", code, ServerProcess.exit_code_string(code))
-                self.process.finished.disconnect(on_finished)
+                #self.process.finished.disconnect(on_finished)
                 ret.set_result(True)
 
             self.process.finished.connect(on_finished)
@@ -276,7 +281,8 @@ class ServerProcess(QtCore.QObject):
         self.finished.emit(status, code, ServerProcess.exit_code_string(code))
 
     def _output(self):
-        data = str(self.process.readAllStandardOutput())
+        data = bytes(self.process.readAllStandardOutput()).decode("unicode_escape")
+        #print("--->", data)
         self.output_buffer.append(data)
         self.output.emit(data)
 
@@ -306,7 +312,7 @@ class ServerProcessPool(QtCore.QObject):
         in_use = in_use.union(self._unavailable_ports)
 
 
-        for p in xrange(BASE_PORT, 65535):
+        for p in range(BASE_PORT, 65535):
             if p not in in_use:
                 return p
 
