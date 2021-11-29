@@ -51,31 +51,31 @@ class SubProgressDialog(QtWidgets.QDialog):
     def __init__(self, title=str(), parent=None):
         super(SubProgressDialog, self).__init__(parent)
         self.log = util.make_logging_source_adapter(__name__, self)
-        util.loadUi(":/ui/subprogress_widget.ui", self)
+        self.ui = util.loadUi(":/ui/subprogress_widget.ui", self)
         self.setWindowTitle(title)
-        self.cancel_button.clicked.connect(self.cancel)
+        self.ui.cancel_button.clicked.connect(self.cancel)
         self._reset()
 
     def _reset(self):
-        for label in (self.progress_label, self.subprogress_label):
+        for label in (self.ui.progress_label, self.ui.subprogress_label):
             label.setText(str())
 
-        for bar in (self.progressbar, self.subprogressbar):
+        for bar in (self.ui.progressbar, self.ui.subprogressbar):
             bar.setMinimum(0)
             bar.setMaximum(100)
             bar.setValue(0)
 
     def set_progress(self, progress):
         self.log.debug("set_progress: %s", progress)
-        self.progress_label.setText(progress.text)
-        self.progressbar.setMaximum(progress.total)
-        self.progressbar.setValue(progress.current)
+        self.ui.progress_label.setText(progress.text)
+        self.ui.progressbar.setMaximum(progress.total)
+        self.ui.progressbar.setValue(progress.current)
 
         if hasattr(progress, 'subprogress'):
             subprogress = progress.subprogress
-            self.subprogress_label.setText(subprogress.text)
-            self.subprogressbar.setMaximum(subprogress.total)
-            self.subprogressbar.setValue(subprogress.current)
+            self.ui.subprogress_label.setText(subprogress.text)
+            self.ui.subprogressbar.setMaximum(subprogress.total)
+            self.ui.subprogressbar.setValue(subprogress.current)
 
     def cancel(self):
         self.hide()
