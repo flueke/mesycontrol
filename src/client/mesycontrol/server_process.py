@@ -153,13 +153,6 @@ class ServerProcess(QtCore.QObject):
 
             cmd_line = "%s %s" % (program, " ".join(args))
 
-            def dc():
-                return
-                # These error out with PySide2
-                #self.process.started.disconnect(on_started)
-                #self.process.error.disconnect(on_error)
-                #self.process.finished.disconnect(on_finished)
-
             def on_started():
                 self.log.debug("[pid=%s] Started %s", self.process.pid(), cmd_line)
                 dc()
@@ -193,6 +186,16 @@ class ServerProcess(QtCore.QObject):
                         self.log.warning("Setting exception with exit_code: %s", self.exit_code())
                         ret.set_exception(ServerError(self.exit_code()))
 
+            def dc():
+                self.process.started.disconnect(on_started)
+                self.process.error.disconnect(on_error)
+                try:
+                    self.process.finished.disconnect(on_finished)
+                except RuntimeError:
+                    # Might have been disconnected in stop::on_finished
+                    pass
+
+
             self.process.started.connect(on_started)
             self.process.error.connect(on_error)
             self.process.finished.connect(on_finished)
@@ -214,7 +217,11 @@ class ServerProcess(QtCore.QObject):
         if self.process.state() != QProcess.NotRunning:
             def on_finished(code, status):
                 self.log.debug("Process finished with code=%d (%s)", code, ServerProcess.exit_code_string(code))
-                #self.process.finished.disconnect(on_finished)
+                try:
+                    self.process.finished.disconnect(on_finished)
+                except RuntimeError:
+                    # Might have been disconnected in start::dc
+                    pass
                 ret.set_result(True)
 
             self.process.finished.connect(on_finished)
