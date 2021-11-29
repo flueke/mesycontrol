@@ -483,7 +483,9 @@ void MRC1SerialConnection::start_impl(ErrorCodeCallback completion_handler)
   } catch (const boost::system::system_error &e) {
     BOOST_LOG_SEV(m_log, log::lvl::error) << "Failed opening " << m_serial_device
       << ": " << e.what();
-    completion_handler(e.code(), {});
+    std::ostringstream ss;
+    ss << "Error opening serial port " << m_serial_device << ": " << e.what();
+    completion_handler(e.code(), ss.str());
   }
 }
 
@@ -567,12 +569,9 @@ void MRC1TCPConnection::start_impl(ErrorCodeCallback completion_handler)
       << ": " << e.what();
 
 
-    // TODO: pass more info in the error messages info string, e.g.:
     std::ostringstream ss;
     ss << "Could not connect to " << m_host << ": " << e.what();
     completion_handler(e.code(), ss.str());
-    
-    //completion_handler(e.code());
   }
 }
 
