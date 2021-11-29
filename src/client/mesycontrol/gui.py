@@ -939,7 +939,7 @@ class GUIApplication(QtCore.QObject):
         if is_mrc(node):
             if not node.ref.has_hw:
                 add_mrc_connection(self.app_registry.hw, node.ref.url, True)
-            elif node.ref.hw.is_disconnected():
+            elif node.ref.hw.is_disconnected() and not node.ref.hw.is_connecting():
                 try:
                     node.ref.hw.connectMrc()
                     a.setIcon(a.icons['disconnect'])
