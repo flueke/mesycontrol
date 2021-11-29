@@ -213,10 +213,14 @@ class LocalMRCConnection(AbstractMrcConnection):
         self.connection.queue_empty.connect(self.queue_empty)
         self.connection.queue_size_changed.connect(self.queue_size_changed)
 
+        self._connecting_future = None
         self._is_connecting = False
         self._is_connected  = False
 
     def connectMrc(self):
+        if self._connecting_future is not None and not self._connecting_future.done():
+            return self._connecting_future
+
         # Start server, wait for connect_delay_ms, connect to server, done
         self._connecting_future = ret = Future()
 
@@ -229,7 +233,7 @@ class LocalMRCConnection(AbstractMrcConnection):
                 self.log.debug("Connected to %s", self.url)
 
             except Exception as e:
-                self.log.error("connect result: %s, f=%s, ret=%s", e, f, ret)
+                #self.log.error("connect result: %s, f=%s, ret=%s", e, f, ret)
                 ret.set_exception(e)
 
         def on_connect_timer_expired():
