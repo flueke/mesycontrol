@@ -121,8 +121,11 @@ class MCTreeDirector(object):
         if isinstance(cfg_node, ctm.BusNode):
             mrc      = cfg_node.parent.ref
             bus      = cfg_node.bus_number
-            hw_node = self.hw_model.find_node_by_ref(mrc).children[bus]
-            return self.hw_model.index_for_node(hw_node)
+            mrc_node = self.hw_model.find_node_by_ref(mrc)
+
+            if mrc_node:
+                hw_node = mrc_node.children[bus]
+                return self.hw_model.index_for_node(hw_node)
 
         return self.hw_model.index_for_ref(cfg_node.ref)
 
