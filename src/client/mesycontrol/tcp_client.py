@@ -89,11 +89,11 @@ class MCTCPClient(QtCore.QObject):
                 ret.set_result(True)
 
             def socket_error(socket_error):
-                self.log.error("Error connecting to %s:%d: %s", host, port,
-                        self._socket.errorString())
+                #self.log.error("Error connecting to %s:%d: %s", host, port,
+                #        self._socket.errorString())
                 dc()
                 ret.set_exception(util.SocketError(socket_error, self._socket.errorString()))
-                self.log.error("%s", ret.exception())
+                #self.log.error("%s", ret.exception())
 
             self._reset_state()
             self._socket.connected.connect(socket_connected)
@@ -132,8 +132,8 @@ class MCTCPClient(QtCore.QObject):
             ret.set_result(True)
 
         def socket_error(socket_error):
-            self.log.error("Socket error from %s:%d: %s", host, port,
-                    self._socket.errorString())
+            #self.log.error("Socket error from %s:%d: %s", host, port,
+            #        self._socket.errorString())
             dc()
             ret.set_exception(util.SocketError(socket_error, self._socket.errorString()))
 

@@ -139,6 +139,7 @@ class MRCConnection(AbstractMrcConnection):
 
     def _on_client_notification_received(self, msg):
         if self.is_connecting() and msg.type == proto.Message.NOTIFY_MRC_STATUS:
+            SC = proto.MRCStatus.StatusCode
             if msg.mrc_status.code == proto.MRCStatus.RUNNING:
                 self._is_connecting = False
                 self._is_connected  = True
@@ -146,7 +147,7 @@ class MRCConnection(AbstractMrcConnection):
                 self._connecting_future = None
                 self.connected.emit()
                 self.log.debug("%s: connected & running", self.url)
-            else:
+            elif (msg.mrc_status.code not in (SC.CONNECTING, SC.INITIALIZING)):
                 self._connecting_future.set_progress_text("MRC status: %s%s%s" % (
                         proto.MRCStatus.StatusCode.Name(msg.mrc_status.code),
                         " - " if len(msg.mrc_status.info) else str(),

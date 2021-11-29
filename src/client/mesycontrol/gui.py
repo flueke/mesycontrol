@@ -29,7 +29,6 @@ import sys
 import weakref
 
 import pyqtgraph.console
-from mesycontrol.mrc_connection import IsConnected, IsConnecting
 pg = pyqtgraph
 
 from mesycontrol.qt import Slot
@@ -42,8 +41,10 @@ from mesycontrol.basic_model import IDCConflict
 from mesycontrol.gui_util import is_setup, is_registry, is_mrc, is_bus, is_device, is_device_cfg, is_device_hw, get_mrc
 from mesycontrol.gui_util import is_config, is_hardware
 from mesycontrol.model_util import add_mrc_connection
+from mesycontrol.mrc_connection import IsConnected, IsConnecting
 from mesycontrol.util import make_icon
 
+import mesycontrol.mrc_connection as mrc_connection
 import mesycontrol.app_model as am
 import mesycontrol.async_util as async_util
 import mesycontrol.config_gui as config_gui
@@ -1494,14 +1495,18 @@ Initialize using the current hardware values or the device defaults?
         mrc.disconnected.connect(partial(self._hw_mrc_disconnected, mrc=mrc))
 
     def _hw_mrc_connecting(self, f, mrc):
-        self.logview.append("Connecting to %s" % mrc.get_display_url())
+        con = mrc.get_controller().connection
+        if isinstance(con, mrc_connection.MRCConnection):
+            self.logview.append("Connecting to %s" % mrc.get_display_url())
 
         fo = future.FutureObserver()
 
         def done(f, fo=fo):
             try:
                 f.result()
-                self.logview.append("Connected to %s" % mrc.get_display_url())
+                con = mrc.get_controller().connection
+                if isinstance(con, mrc_connection.MRCConnection):
+                    self.logview.append("Connected to %s" % mrc.get_display_url())
             except Exception as e:
                 self.logview.append("Error connecting to %s: %s" % (mrc.get_display_url(), e))
 
@@ -1516,7 +1521,9 @@ Initialize using the current hardware values or the device defaults?
         fo.progress_text_changed.connect(progress_text_changed)
 
     def _hw_mrc_disconnected(self, mrc):
-        self.logview.append("Disconnected from %s" % mrc.get_display_url())
+        con = mrc.get_controller().connection
+        if isinstance(con, mrc_connection.MRCConnection):
+            self.logview.append("Disconnected from %s" % mrc.get_display_url())
         self._update_actions()
 
     # Device table window creation
