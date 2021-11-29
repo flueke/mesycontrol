@@ -24,6 +24,7 @@ __email__  = 'f.lueke@mesytec.com'
 from .. qt import Slot
 from .. qt import Qt
 from .. qt import QtCore
+from .. qt import QtGui
 from .. qt import QtWidgets
 
 import itertools
@@ -122,26 +123,26 @@ class ChannelEnableButtonBinding(pb.DefaultParameterBinding):
 class ChannelWidget(QtWidgets.QWidget):
     def __init__(self, device, channel, display_mode, write_mode, parent=None):
         super(ChannelWidget, self).__init__(parent)
-        util.loadUi(":/ui/mhv4_channel.ui", self)
+        self.ui = util.loadUi(":/ui/mhv4_channel.ui", self)
         self.device  = device
         self.channel = channel
         self.bindings = list()
 
-        self.pb_channelstate.installEventFilter(self)
-        sz  = self.label_polarity.minimumSize()
+        self.ui.pb_channelstate.installEventFilter(self)
+        sz  = self.ui.label_polarity.minimumSize()
 
         self.polarity_pixmaps = {
-                Polarity.positive: QtWidgets.QPixmap(":/polarity-positive.png").scaled(
+                Polarity.positive: QtGui.QPixmap(":/polarity-positive.png").scaled(
                     sz, Qt.KeepAspectRatio, Qt.SmoothTransformation),
 
-                Polarity.negative: QtWidgets.QPixmap(":/polarity-negative.png").scaled(
+                Polarity.negative: QtGui.QPixmap(":/polarity-negative.png").scaled(
                     sz, Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 }
 
         self._last_temperature      = None
         self._last_tcomp_source     = None
 
-        self.slider_target_voltage.installEventFilter(WheelEventFilter(self))
+        self.ui.slider_target_voltage.installEventFilter(WheelEventFilter(self))
 
         # Voltage write
         self.bindings.append(pb.factory.make_binding(
@@ -149,7 +150,7 @@ class ChannelWidget(QtWidgets.QWidget):
             profile=device.profile['channel%d_voltage_write' % channel],
             display_mode=display_mode,
             write_mode=write_mode,
-            target=self.spin_target_voltage,
+            target=self.ui.spin_target_voltage,
             unit_name='volt'))
 
         self.bindings.append(pb.factory.make_binding(
@@ -157,7 +158,7 @@ class ChannelWidget(QtWidgets.QWidget):
             profile=device.profile['channel%d_voltage_write' % channel],
             display_mode=display_mode,
             write_mode=write_mode,
-            target=self.slider_target_voltage,
+            target=self.ui.slider_target_voltage,
             unit_name='volt', update_on='slider_released'))
 
         # Polarity
@@ -165,7 +166,7 @@ class ChannelWidget(QtWidgets.QWidget):
             device=device, profile=pb.ReadWriteProfile(
                 device.profile['channel%d_polarity_read' % channel],
                 device.profile['channel%d_polarity_write' % channel]),
-            target=self.label_polarity, display_mode=display_mode, write_mode=write_mode,
+            target=self.ui.label_polarity, display_mode=display_mode, write_mode=write_mode,
             pixmaps=self.polarity_pixmaps))
 
         # Channel enable
@@ -173,18 +174,18 @@ class ChannelWidget(QtWidgets.QWidget):
             device=device, profile=pb.ReadWriteProfile(
                 device.profile['channel%d_enable_read' % channel],
                 device.profile['channel%d_enable_write' % channel]),
-            target=self.label_polarity, display_mode=display_mode, write_mode=write_mode))
+            target=self.ui.label_polarity, display_mode=display_mode, write_mode=write_mode))
 
         self.bindings.append(ChannelEnableButtonBinding(
             device=device, profile=pb.ReadWriteProfile(
                 device.profile['channel%d_enable_read' % channel],
                 device.profile['channel%d_enable_write' % channel]),
-            target=self.pb_channelstate, display_mode=display_mode, write_mode=write_mode))
+            target=self.ui.pb_channelstate, display_mode=display_mode, write_mode=write_mode))
 
         # Voltage
         self.bindings.append(pb.factory.make_binding(
             device=device, profile=device.profile['channel%d_voltage_read' % channel],
-            target=self.lcd_voltage, display_mode=display_mode, write_mode=write_mode,
+            target=self.ui.lcd_voltage, display_mode=display_mode, write_mode=write_mode,
             unit_name='volt', precision=2))
 
         # Voltage limit
@@ -192,13 +193,13 @@ class ChannelWidget(QtWidgets.QWidget):
             device=device, profile=pb.ReadWriteProfile(
                 device.profile['channel%d_voltage_limit_read' % channel],
                 device.profile['channel%d_voltage_limit_write' % channel]),
-            target=self.label_upper_voltage_limit, display_mode=display_mode, write_mode=write_mode,
+            target=self.ui.label_upper_voltage_limit, display_mode=display_mode, write_mode=write_mode,
             unit_name='volt').add_update_callback(self._voltage_limit_updated))
 
         # Current
         self.bindings.append(pb.factory.make_binding(
             device=device, profile=device.profile['channel%d_current_read' % channel],
-            target=self.lcd_current, display_mode=display_mode, write_mode=write_mode,
+            target=self.ui.lcd_current, display_mode=display_mode, write_mode=write_mode,
             unit_name='microamps', precision=3
             ).add_update_callback(self._current_updated))
 
@@ -227,9 +228,9 @@ class ChannelWidget(QtWidgets.QWidget):
         unit    = self.device.profile[rf.result().address].get_unit('volt')
         voltage = unit.unit_value(int(rf))
 
-        self.spin_target_voltage.setMaximum(voltage)
-        self.slider_target_voltage.setMaximum(voltage)
-        self.slider_target_voltage.setTickInterval(100 if voltage > 200.0 else 10)
+        self.ui.spin_target_voltage.setMaximum(voltage)
+        self.ui.slider_target_voltage.setMaximum(voltage)
+        self.ui.slider_target_voltage.setTickInterval(100 if voltage > 200.0 else 10)
 
     def _current_updated(self, f_current):
         def done(f_current_limit):
@@ -295,7 +296,7 @@ class ChannelWidget(QtWidgets.QWidget):
     def _update_temperature_display(self, f_source, f_sensor):
 
         if f_sensor is None:
-            self.label_temperature.clear()
+            self.ui.label_temperature.clear()
         else:
             source_str  = TCOMP_SOURCES[int(f_source)]
             try:
@@ -313,7 +314,7 @@ class ChannelWidget(QtWidgets.QWidget):
 
                 text = "Temp: %.1f °C, Src: %s" % (temperature, source_str)
 
-            self.label_temperature.setText(QtCore.QString.fromUtf8(text))
+            self.ui.label_temperature.setText(QtCore.QString.fromUtf8(text))
 
     @Slot(int)
     def on_slider_target_voltage_valueChanged(self, value):
@@ -331,20 +332,20 @@ class ChannelWidget(QtWidgets.QWidget):
             QtWidgets.QApplication.sendEvent(slider, tooltip_event)
 
     def eventFilter(self, watched_object, event):
-        if watched_object == self.pb_channelstate:
+        if watched_object == self.ui.pb_channelstate:
             t = event.type()
-            c = self.pb_channelstate.isChecked()
+            c = self.ui.pb_channelstate.isChecked()
 
             if t == QtCore.QEvent.Enter:
                 if c:
-                    self.pb_channelstate.setText("Turn\n off ")
+                    self.ui.pb_channelstate.setText("Turn\n off ")
                 else:
-                    self.pb_channelstate.setText("Turn\n on")
+                    self.ui.pb_channelstate.setText("Turn\n on")
             elif t == QtCore.QEvent.Leave:
                 if c:
-                    self.pb_channelstate.setText("On")
+                    self.ui.pb_channelstate.setText("On")
                 else:
-                    self.pb_channelstate.setText("Off")
+                    self.ui.pb_channelstate.setText("Off")
 
         return False
 
@@ -352,7 +353,7 @@ class ChannelSettingsWidget(QtWidgets.QWidget):
     def __init__(self, device, channel, display_mode, write_mode, labels_on=True, parent=None):
         super(ChannelSettingsWidget, self).__init__(parent)
 
-        util.loadUi(":/ui/mhv4_channel_settings.ui", self)
+        self.ui = util.loadUi(":/ui/mhv4_channel_settings.ui", self)
         self.device  = device
         self.channel = channel
         self.bindings = list()
@@ -370,14 +371,14 @@ class ChannelSettingsWidget(QtWidgets.QWidget):
                 device.profile['channel%d_voltage_limit_read' % channel],
                 device.profile['channel%d_voltage_limit_write' % channel]),
             display_mode=display_mode, write_mode=write_mode,
-            target=self.spin_actual_voltage_limit, unit_name='volt'))
+            target=self.ui.spin_actual_voltage_limit, unit_name='volt'))
 
         self.bindings.append(pb.factory.make_binding(
             device=device, profile=pb.ReadWriteProfile(
                 device.profile['channel%d_voltage_limit_read' % channel],
                 device.profile['channel%d_voltage_limit_write' % channel]),
             display_mode=display_mode, write_mode=write_mode,
-            target=self.spin_target_voltage_limit, unit_name='volt'))
+            target=self.ui.spin_target_voltage_limit, unit_name='volt'))
 
         # Current limit
         self.bindings.append(pb.factory.make_binding(
@@ -385,14 +386,14 @@ class ChannelSettingsWidget(QtWidgets.QWidget):
                 device.profile['channel%d_current_limit_read' % channel],
                 device.profile['channel%d_current_limit_write' % channel]),
             display_mode=display_mode, write_mode=write_mode,
-            target=self.spin_actual_current_limit, unit_name='microamps'))
+            target=self.ui.spin_actual_current_limit, unit_name='microamps'))
 
         self.bindings.append(pb.factory.make_binding(
             device=device, profile=pb.ReadWriteProfile(
                 device.profile['channel%d_current_limit_read' % channel],
                 device.profile['channel%d_current_limit_write' % channel]),
             display_mode=display_mode, write_mode=write_mode,
-            target=self.spin_target_current_limit, unit_name='microamps'))
+            target=self.ui.spin_target_current_limit, unit_name='microamps'))
 
         # Polarity
         self.bindings.append(pb.factory.make_binding(
@@ -400,7 +401,7 @@ class ChannelSettingsWidget(QtWidgets.QWidget):
                 device.profile['channel%d_polarity_read' % channel],
                 device.profile['channel%d_polarity_write' % channel]),
             display_mode=display_mode, write_mode=write_mode,
-            target=self.combo_target_polarity
+            target=self.ui.combo_target_polarity
             ).add_update_callback(self._polarity_updated))
 
         # TComp Slope
@@ -409,14 +410,14 @@ class ChannelSettingsWidget(QtWidgets.QWidget):
                 device.profile['channel%d_tcomp_slope_read' % channel],
                 device.profile['channel%d_tcomp_slope_write' % channel]),
             display_mode=display_mode, write_mode=write_mode,
-            target=self.spin_actual_tcomp_slope, unit_name='volt_per_deg'))
+            target=self.ui.spin_actual_tcomp_slope, unit_name='volt_per_deg'))
 
         self.bindings.append(pb.factory.make_binding(
             device=device, profile=pb.ReadWriteProfile(
                 device.profile['channel%d_tcomp_slope_read' % channel],
                 device.profile['channel%d_tcomp_slope_write' % channel]),
             display_mode=display_mode, write_mode=write_mode,
-            target=self.spin_target_tcomp_slope, unit_name='volt_per_deg'))
+            target=self.ui.spin_target_tcomp_slope, unit_name='volt_per_deg'))
 
         # TComp Offset
         self.bindings.append(pb.factory.make_binding(
@@ -424,14 +425,14 @@ class ChannelSettingsWidget(QtWidgets.QWidget):
                 device.profile['channel%d_tcomp_offset_read' % channel],
                 device.profile['channel%d_tcomp_offset_write' % channel]),
             display_mode=display_mode, write_mode=write_mode,
-            target=self.spin_actual_tcomp_offset, unit_name='degree_celcius'))
+            target=self.ui.spin_actual_tcomp_offset, unit_name='degree_celcius'))
 
         self.bindings.append(pb.factory.make_binding(
             device=device, profile=pb.ReadWriteProfile(
                 device.profile['channel%d_tcomp_offset_read' % channel],
                 device.profile['channel%d_tcomp_offset_write' % channel]),
             display_mode=display_mode, write_mode=write_mode,
-            target=self.spin_target_tcomp_offset, unit_name='degree_celcius'))
+            target=self.ui.spin_target_tcomp_offset, unit_name='degree_celcius'))
 
         # TComp Source
         self.bindings.append(pb.factory.make_binding(
@@ -439,7 +440,7 @@ class ChannelSettingsWidget(QtWidgets.QWidget):
                 device.profile['channel%d_tcomp_source_read' % channel],
                 device.profile['channel%d_tcomp_source_write' % channel]),
             display_mode=display_mode, write_mode=write_mode,
-            target=self.combo_target_tcomp_source
+            target=self.ui.combo_target_tcomp_source
             ).add_update_callback(self._tcomp_source_updated))
 
     def _polarity_updated(self, rf):
@@ -451,8 +452,8 @@ class ChannelSettingsWidget(QtWidgets.QWidget):
         r = rf.result()
 
         if r.address == p.address:
-            text = self.combo_target_polarity.itemData(r.value, Qt.DisplayRole).toString()
-            self.le_actual_polarity.setText(text)
+            text = self.ui.combo_target_polarity.itemData(r.value, Qt.DisplayRole)
+            self.ui.le_actual_polarity.setText(text)
 
     def _tcomp_source_updated(self, rf):
         dev = self.device.cfg if self.display_mode == util.CONFIG else self.device.hw
@@ -463,14 +464,14 @@ class ChannelSettingsWidget(QtWidgets.QWidget):
         r = rf.result()
 
         if r.address == p.address:
-            text = self.combo_target_tcomp_source.itemData(r.value, Qt.DisplayRole).toString()
-            self.le_actual_tcomp_source.setText(text)
+            text = self.ui.combo_target_tcomp_source.itemData(r.value, Qt.DisplayRole)
+            self.ui.le_actual_tcomp_source.setText(text)
 
 class GlobalSettingsWidget(QtWidgets.QWidget):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(GlobalSettingsWidget, self).__init__(parent)
 
-        util.loadUi(":/ui/mhv4_global_settings.ui", self)
+        self.ui = util.loadUi(":/ui/mhv4_global_settings.ui", self)
         self.device = device
         self.bindings = list()
 
@@ -483,7 +484,7 @@ class GlobalSettingsWidget(QtWidgets.QWidget):
                 device.profile['ramp_speed_read'],
                 device.profile['ramp_speed_write']),
             display_mode=display_mode, write_mode=write_mode,
-            target=self.combo_target_ramp_speed
+            target=self.ui.combo_target_ramp_speed
             ).add_update_callback(self._ramp_speed_updated))
 
     def _ramp_speed_updated(self, rf):
@@ -495,8 +496,8 @@ class GlobalSettingsWidget(QtWidgets.QWidget):
         r = rf.result()
 
         if r.address == p.address:
-            text = self.combo_target_ramp_speed.itemData(r.value, Qt.DisplayRole).toString()
-            self.le_actual_ramp_speed.setText(text)
+            text = self.ui.combo_target_ramp_speed.itemData(r.value, Qt.DisplayRole)
+            self.ui.le_actual_ramp_speed.setText(text)
 
 class MHV4Widget(DeviceWidgetBase):
     def __init__(self, device, display_mode, write_mode, parent=None):

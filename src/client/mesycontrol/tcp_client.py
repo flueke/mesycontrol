@@ -103,7 +103,7 @@ class MCTCPClient(QtCore.QObject):
             self.connecting.emit(host, port)
 
         if self.is_connected() or self.is_connecting():
-            self.disconnect().add_done_callback(do_connect)
+            self.disconnectClient().add_done_callback(do_connect)
         else:
             do_connect()
 
@@ -244,7 +244,7 @@ class MCTCPClient(QtCore.QObject):
                 self.log.debug("_socket_readyRead: received %s", message)
             except proto_message.DecodeError as e:
                 self.log.error("Could not deserialize incoming message: %s.", e)
-                self.disconnect()
+                self.disconnectClient()
                 return
 
             self._read_size = 0

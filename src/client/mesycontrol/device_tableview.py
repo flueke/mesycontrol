@@ -348,7 +348,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
 
                 value = unit.unit_value(raw)
 
-                return QtCore.QString.fromUtf8("%f %s" % (value, unit.label))
+                return "%f %s" % (value, unit.label)
 
         if role == Qt.EditRole:
             if col == COL_HW_VALUE:
@@ -559,7 +559,7 @@ class DeviceTableView(QtWidgets.QTableView):
         model.modelReset.connect(self.resizeRowsToContents)
 
         self.verticalHeader().hide()
-        self.horizontalHeader().setMovable(True)
+        self.horizontalHeader().setSectionsMovable(True)
         self.sortByColumn(0, Qt.AscendingOrder)
         self.setSortingEnabled(True)
         self.setItemDelegate(DeviceTableItemDelegate())
@@ -574,7 +574,7 @@ class DeviceTableView(QtWidgets.QTableView):
 
         self._actions = collections.OrderedDict()
         self._toolbar = None
-        self._clipboard = QtGui.QApplication.clipboard()
+        self._clipboard = QtWidgets.QApplication.clipboard()
 
         self._create_actions()
 
@@ -587,14 +587,14 @@ class DeviceTableView(QtWidgets.QTableView):
             pass
 
     def _create_actions(self):
-        a = QtGui.QAction(QtGui.QIcon.fromTheme("edit-copy"), "&Copy", self,
+        a = QtWidgets.QAction(QtGui.QIcon.fromTheme("edit-copy"), "&Copy", self,
                 triggered=self._copy_action)
 
         a.setShortcut(QtGui.QKeySequence.Copy)
         a.setEnabled(False)
         self._actions['copy'] = a
 
-        a = QtGui.QAction(QtGui.QIcon.fromTheme("edit-paste"), "&Paste", self,
+        a = QtWidgets.QAction(QtGui.QIcon.fromTheme("edit-paste"), "&Paste", self,
                 triggered=self._paste_action)
         a.setShortcut(QtGui.QKeySequence.Paste)
         a.setEnabled(False)
@@ -628,7 +628,7 @@ class DeviceTableView(QtWidgets.QTableView):
         return self.display_mode & util.CONFIG
 
     def contextMenuEvent(self, event):
-        menu = QtGui.QMenu()
+        menu = QtWidgets.QMenu()
 
         for a in self._actions.values():
             if a.isEnabled():
@@ -652,7 +652,7 @@ class DeviceTableView(QtWidgets.QTableView):
 
     def get_toolbar(self):
         if self._toolbar is None:
-            self._toolbar = tb = QtGui.QToolBar()
+            self._toolbar = tb = QtWidgets.QToolBar()
             for a in self._actions.values():
                 tb.addAction(a)
         return self._toolbar
@@ -726,7 +726,7 @@ class DeviceTableView(QtWidgets.QTableView):
 
         #selection_model = self.selectionModel()
 
-        #menu = QtGui.QMenu()
+        #menu = QtWidgets.QMenu()
         #if selection_model.hasSelection():
         #    menu.addAction("Refresh selected").triggered.connect(self._slt_refresh_selected)
 
@@ -748,7 +748,7 @@ class DeviceTableView(QtWidgets.QTableView):
 
     #def _slt_refresh_visible(self):
     #    f = lambda a: self.sort_model.filterAcceptsRow(a, QtCore.QModelIndex())
-    #    addresses = filter(f, xrange(256))
+    #    addresses = filter(f, range(256))
 
     #    #seq_cmd     = command.SequentialCommandGroup()
 
@@ -780,7 +780,7 @@ class DeviceTableWidget(QtWidgets.QWidget):
         self.view.display_mode_changed.connect(self.display_mode_changed)
         self.view.write_mode_changed.connect(self.write_mode_changed)
 
-        menu   = QtGui.QMenu('Filter options', self)
+        menu   = QtWidgets.QMenu('Filter options', self)
         action = menu.addAction("Hide unknown")
         action.setCheckable(True)
         action.setChecked(sort_model.filter_unknown)
@@ -817,7 +817,7 @@ class DeviceTableWidget(QtWidgets.QWidget):
 
         settings.le_filter.textChanged.connect(sort_model.setFilterWildcard)
 
-        layout = QtGui.QVBoxLayout()
+        layout = QtWidgets.QVBoxLayout()
         layout.addWidget(settings)
         layout.addWidget(self.view)
         self.setLayout(layout)

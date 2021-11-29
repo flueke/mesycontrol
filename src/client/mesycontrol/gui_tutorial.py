@@ -132,5 +132,5 @@ class TutorialWidget(QtWidgets.QWidget):
             self.flasher.set_widget(widget)
 
         elif scheme == 'flash-widget':
-            widget = self.gui_app.mainwindow.findChild(QtGui.QWidget, name)
+            widget = self.gui_app.mainwindow.findChild(QtWidgets.QWidget, name)
             self.flasher.set_widget(widget)

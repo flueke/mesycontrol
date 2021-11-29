@@ -306,7 +306,7 @@ if __name__ == "__main__":
             def callback(result):
                 self._list.addItem("Result: %s" % result)
 
-            for i in xrange(20):
+            for i in range(20):
                 self._pool.apply_async(action, (i, i), callback=callback)
 
 

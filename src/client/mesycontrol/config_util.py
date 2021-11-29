@@ -337,13 +337,13 @@ def establish_connections(setup, hardware_registry):
         if hw_mrc.is_connecting():
             # Cancel active connection attempts as we need the Future returned
             # by connect().
-            yield hw_mrc.disconnect()
+            yield hw_mrc.disconnectMrc()
 
         if hw_mrc.is_disconnected():
             action = ACTION_RETRY
 
             while action == ACTION_RETRY:
-                f = yield hw_mrc.connect()
+                f = yield hw_mrc.connectMrc()
 
                 try:
                     f.result()
@@ -536,7 +536,7 @@ def apply_device_configs(devices):
         if mrc.hw.is_connecting():
             # Cancel active connection attempts as we need the Future returned
             # by connect().
-            yield mrc.hw.disconnect()
+            yield mrc.hw.disconnectMrc()
 
         if mrc.hw.is_disconnected():
             progress.text = "Connecting to %s" % mrc.get_display_url()
@@ -545,7 +545,7 @@ def apply_device_configs(devices):
             action = ACTION_RETRY
 
             while action == ACTION_RETRY:
-                f = yield mrc.hw.connect()
+                f = yield mrc.hw.connectMrc()
 
                 try:
                     f.result()
@@ -660,7 +660,7 @@ def fill_device_configs(devices):
         if mrc.hw.is_connecting():
             # Cancel active connection attempts as we need the Future returned
             # by connect().
-            yield mrc.hw.disconnect()
+            yield mrc.hw.disconnectMrc()
 
         if mrc.hw.is_disconnected():
             progress.text = "Connecting to %s" % mrc.get_display_url()
@@ -669,7 +669,7 @@ def fill_device_configs(devices):
             action = ACTION_RETRY
 
             while action == ACTION_RETRY:
-                f = yield mrc.hw.connect()
+                f = yield mrc.hw.connectMrc()
 
                 try:
                     f.result()
@@ -751,7 +751,7 @@ def read_config_parameters(devices):
         if mrc.hw.is_connecting():
             # Cancel active connection attempts as we need the Future returned
             # by connect().
-            yield mrc.hw.disconnect()
+            yield mrc.hw.disconnectMrc()
 
         if mrc.hw.is_disconnected():
             progress.text = "Connecting to %s" % mrc.get_display_url()
@@ -760,7 +760,7 @@ def read_config_parameters(devices):
             action = ACTION_RETRY
 
             while action == ACTION_RETRY:
-                f = yield mrc.hw.connect()
+                f = yield mrc.hw.connectMrc()
 
                 try:
                     f.result()

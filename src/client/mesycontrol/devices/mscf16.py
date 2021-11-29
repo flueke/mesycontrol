@@ -28,6 +28,7 @@ import itertools
 from .. qt import Signal
 from .. qt import Qt
 from .. qt import QtCore
+from .. qt import QtGui
 from .. qt import QtWidgets
 
 from .. future import future_progress_dialog
@@ -675,7 +676,7 @@ class ShapingPage(QtWidgets.QGroupBox):
         self.device.hardware_set.connect(self._on_hardware_set)
         self.device.extension_changed.connect(self._on_device_extension_changed)
 
-        self.stop_icon  = QtWidgets.QIcon(':/stop.png')
+        self.stop_icon  = QtGui.QIcon(':/stop.png')
         self.sht_inputs = list()
         self.sht_labels = list()
         self.pz_inputs  = list()
@@ -878,7 +879,7 @@ class ShapingPage(QtWidgets.QGroupBox):
             if value == 0 or i != value-1:
                 pz_stack.showSpin()
                 button.setText("A")
-                button.setIcon(QtWidgets.QIcon())
+                button.setIcon(QtGui.QIcon())
                 button.setToolTip("Start auto PZ for channel %d" % i)
             elif i == value-1:
                 pz_stack.showProgress()
@@ -1483,40 +1484,40 @@ class SettingsWidget(QtWidgets.QWidget):
     def __init__(self, device, parent=None):
         super(SettingsWidget, self).__init__(parent)
         self.log = util.make_logging_source_adapter(__name__, self)
-        util.loadUi(":/ui/mscf16_settings.ui", self)
+        self.ui = util.loadUi(":/ui/mscf16_settings.ui", self)
         self.device = device
 
         # Gain jumpers
         for idx in range(NUM_GROUPS):
-            spin = getattr(self, 'spin_gain_jumpers_group%d' % idx)
+            spin = getattr(self.ui, 'spin_gain_jumpers_group%d' % idx)
             spin.setMinimum(GAIN_JUMPER_LIMITS_V[0])
             spin.setMaximum(GAIN_JUMPER_LIMITS_V[1])
             spin.valueChanged.connect(partial(self._spin_gain_jumpers_value_changed, group=idx))
 
         # Module name
-        self.combo_type.addItems(mscf16_profile.MODULE_NAMES)
-        self.combo_type.currentIndexChanged.connect(self._type_index_changed)
+        self.ui.combo_type.addItems(mscf16_profile.MODULE_NAMES)
+        self.ui.combo_type.currentIndexChanged.connect(self._type_index_changed)
 
         # Shaping times
         for sht in mscf16_profile.SHAPING_TIMES:
-            self.combo_shaping_times.addItem("SH%d" % sht, sht)
+            self.ui.combo_shaping_times.addItem("SH%d" % sht, sht)
 
-        self.combo_shaping_times.currentIndexChanged.connect(self._shaping_times_index_changed)
+        self.ui.combo_shaping_times.currentIndexChanged.connect(self._shaping_times_index_changed)
 
         # Input type
-        self.combo_input_type.addItems(mscf16_profile.INPUT_TYPES)
-        self.combo_input_type.currentIndexChanged.connect(self._input_type_index_changed)
+        self.ui.combo_input_type.addItems(mscf16_profile.INPUT_TYPES)
+        self.ui.combo_input_type.currentIndexChanged.connect(self._input_type_index_changed)
 
         # Input connector
-        self.combo_input_connector.addItems(mscf16_profile.INPUT_CONNECTORS)
-        self.combo_input_connector.currentIndexChanged.connect(self._input_connector_index_changed)
+        self.ui.combo_input_connector.addItems(mscf16_profile.INPUT_CONNECTORS)
+        self.ui.combo_input_connector.currentIndexChanged.connect(self._input_connector_index_changed)
 
         # Discriminator & CFD delay
         for delay in mscf16_profile.CFD_DELAYS:
-            self.combo_discriminator.addItem("CFD-%d" % delay, delay)
+            self.ui.combo_discriminator.addItem("CFD-%d" % delay, delay)
 
-        self.combo_discriminator.addItem('LE')
-        self.combo_discriminator.currentIndexChanged.connect(self._discriminator_index_changed)
+        self.ui.combo_discriminator.addItem('LE')
+        self.ui.combo_discriminator.currentIndexChanged.connect(self._discriminator_index_changed)
 
         self.device.extension_changed.connect(self._on_device_extension_changed)
         self.device.parameter_changed.connect(self._on_device_parameter_changed)
@@ -1527,30 +1528,30 @@ class SettingsWidget(QtWidgets.QWidget):
     def _on_device_extension_changed(self, name, ext_value):
         if name == 'gain_jumpers':
             for idx, value in enumerate(ext_value):
-                spin = getattr(self, 'spin_gain_jumpers_group%d' % idx)
+                spin = getattr(self.ui, 'spin_gain_jumpers_group%d' % idx)
                 with util.block_signals(spin):
                     spin.setValue(float(value))
 
         elif name == 'module_name':
-            idx = self.combo_type.findText(ext_value)
-            with util.block_signals(self.combo_type) as o:
+            idx = self.ui.combo_type.findText(ext_value)
+            with util.block_signals(self.ui.combo_type) as o:
                 o.setCurrentIndex(idx)
 
         elif name == 'shaping_time':
-            idx = self.combo_shaping_times.findData(ext_value)
-            with util.block_signals(self.combo_shaping_times) as o:
+            idx = self.ui.combo_shaping_times.findData(ext_value)
+            with util.block_signals(self.ui.combo_shaping_times) as o:
                 o.setCurrentIndex(idx)
 
         elif name == 'input_type':
-            idx = self.combo_input_type.findText(ext_value)
-            with util.block_signals(self.combo_input_type) as o:
+            idx = self.ui.combo_input_type.findText(ext_value)
+            with util.block_signals(self.ui.combo_input_type) as o:
                 o.setCurrentIndex(idx)
 
             self._update_gain_jumper_spins()
 
         elif name == 'input_connector':
-            idx = self.combo_input_connector.findText(ext_value)
-            with util.block_signals(self.combo_input_connector) as o:
+            idx = self.ui.combo_input_connector.findText(ext_value)
+            with util.block_signals(self.ui.combo_input_connector) as o:
                 o.setCurrentIndex(idx)
 
         elif name in ('discriminator', 'cfd_delay'):
@@ -1558,11 +1559,11 @@ class SettingsWidget(QtWidgets.QWidget):
             cfd_delay     = self.device.get_extension('cfd_delay')
 
             if discriminator == 'LE':
-                idx = self.combo_discriminator.findText('LE')
+                idx = self.ui.combo_discriminator.findText('LE')
             else:
-                idx = self.combo_discriminator.findData(cfd_delay)
+                idx = self.ui.combo_discriminator.findData(cfd_delay)
 
-            with util.block_signals(self.combo_discriminator) as o:
+            with util.block_signals(self.ui.combo_discriminator) as o:
                 o.setCurrentIndex(idx)
 
     def _on_device_read_mode_changed(self, read_mode):
@@ -1589,7 +1590,7 @@ class SettingsWidget(QtWidgets.QWidget):
                 ss          = 0.01
 
             for idx in range(NUM_GROUPS):
-                spin = getattr(self, 'spin_gain_jumpers_group%d' % idx)
+                spin = getattr(self.ui, 'spin_gain_jumpers_group%d' % idx)
                 spin.setMinimum(limits[0])
                 spin.setMaximum(limits[1])
                 spin.setSuffix(suffix)
@@ -1612,14 +1613,14 @@ class SettingsWidget(QtWidgets.QWidget):
 
     def _input_type_index_changed(self, idx):
         self.device.set_extension('input_type',
-                self.combo_input_type.itemText(idx))
+                self.ui.combo_input_type.itemText(idx))
 
     def _input_connector_index_changed(self, idx):
         self.device.set_extension('input_connector',
-                self.combo_input_connector.itemText(idx))
+                self.ui.combo_input_connector.itemText(idx))
 
     def _discriminator_index_changed(self, idx):
-        data_variant = self.combo_discriminator.itemData(idx)
+        data_variant = self.ui.combo_discriminator.itemData(idx)
 
         if not data_variant.isValid():
             discriminator = 'LE'

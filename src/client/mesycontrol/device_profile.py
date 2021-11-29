@@ -145,7 +145,7 @@ class ParameterProfile(object):
         self._name = str(name) if name is not None else None
 
     def get_unit(self, label_or_name):
-        return filter(lambda u: u.label == label_or_name or u.name == label_or_name, self.units)[0]
+        return next(filter(lambda u: u.label == label_or_name or u.name == label_or_name, self.units))
 
     def has_index(self):
         return self.index is not None
@@ -253,18 +253,18 @@ class DeviceProfile(object):
         return list(self.parameters)
 
     def get_critical_parameters(self):
-        return filter(lambda p: p.critical, self.parameters)
+        return list(filter(lambda p: p.critical, self.parameters))
 
     def get_non_critical_parameters(self):
-        return filter(lambda p: not p.critical, self.parameters)
+        return list(filter(lambda p: not p.critical, self.parameters))
 
     def get_config_parameters(self):
         predicate = lambda p: not p.read_only and not p.do_not_store
-        return filter(predicate, self.parameters)
+        return list(filter(predicate, self.parameters))
 
     def get_non_critical_config_parameters(self):
         predicate = lambda p: not p.critical and not p.read_only and not p.do_not_store
-        return filter(predicate, self.parameters)
+        return (filter(predicate, self.parameters))
 
     def get_static_addresses(self):
         return map(lambda p: p.address, filter(lambda p: not p.poll, self.parameters))

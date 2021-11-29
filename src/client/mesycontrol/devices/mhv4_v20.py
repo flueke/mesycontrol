@@ -24,6 +24,7 @@ __email__  = 'f.lueke@mesytec.com'
 from .. qt import Slot
 from .. qt import Qt
 from .. qt import QtCore
+from .. qt import QtGui
 from .. qt import QtWidgets
 
 import itertools
@@ -95,26 +96,26 @@ class ChannelEnableButtonBinding(pb.DefaultParameterBinding):
 class ChannelWidget(QtWidgets.QWidget):
     def __init__(self, device, channel, display_mode, write_mode, parent=None):
         super(ChannelWidget, self).__init__(parent)
-        util.loadUi(":/ui/mhv4_v20_channel.ui", self)
+        self.ui = util.loadUi(":/ui/mhv4_v20_channel.ui", self)
         self.device  = device
         self.channel = channel
         self.bindings = list()
 
-        self.pb_channelstate.installEventFilter(self)
-        sz  = self.label_polarity.minimumSize()
+        self.ui.pb_channelstate.installEventFilter(self)
+        sz  = self.ui.label_polarity.minimumSize()
 
         self.polarity_pixmaps = {
-                Polarity.positive: QtWidgets.QPixmap(":/polarity-positive.png").scaled(
+                Polarity.positive: QtGui.QPixmap(":/polarity-positive.png").scaled(
                     sz, Qt.KeepAspectRatio, Qt.SmoothTransformation),
 
-                Polarity.negative: QtWidgets.QPixmap(":/polarity-negative.png").scaled(
+                Polarity.negative: QtGui.QPixmap(":/polarity-negative.png").scaled(
                     sz, Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 }
 
         self._last_temperature      = None
         self._last_tcomp_source     = None
 
-        self.slider_target_voltage.installEventFilter(WheelEventFilter(self))
+        self.ui.slider_target_voltage.installEventFilter(WheelEventFilter(self))
 
         # Voltage write
         self.bindings.append(pb.factory.make_binding(
@@ -122,7 +123,7 @@ class ChannelWidget(QtWidgets.QWidget):
             profile=device.profile['channel%d_voltage_write' % channel],
             display_mode=display_mode,
             write_mode=write_mode,
-            target=self.spin_target_voltage,
+            target=self.ui.spin_target_voltage,
             unit_name='volt'))
 
         self.bindings.append(pb.factory.make_binding(
@@ -130,13 +131,13 @@ class ChannelWidget(QtWidgets.QWidget):
             profile=device.profile['channel%d_voltage_write' % channel],
             display_mode=display_mode,
             write_mode=write_mode,
-            target=self.slider_target_voltage,
+            target=self.ui.slider_target_voltage,
             unit_name='volt', update_on='slider_released'))
 
         # Polarity
         self.bindings.append(PolarityLabelBinding(
             device=device, profile=device.profile['channel%d_polarity_read' % channel],
-            target=self.label_polarity, display_mode=display_mode, write_mode=write_mode,
+            target=self.ui.label_polarity, display_mode=display_mode, write_mode=write_mode,
             pixmaps=self.polarity_pixmaps))
 
         # Channel enable
@@ -144,18 +145,18 @@ class ChannelWidget(QtWidgets.QWidget):
             device=device, profile=pb.ReadWriteProfile(
                 device.profile['channel%d_enable_read' % channel],
                 device.profile['channel%d_enable_write' % channel]),
-            target=self.label_polarity, display_mode=display_mode, write_mode=write_mode))
+            target=self.ui.label_polarity, display_mode=display_mode, write_mode=write_mode))
 
         self.bindings.append(ChannelEnableButtonBinding(
             device=device, profile=pb.ReadWriteProfile(
                 device.profile['channel%d_enable_read' % channel],
                 device.profile['channel%d_enable_write' % channel]),
-            target=self.pb_channelstate, display_mode=display_mode, write_mode=write_mode))
+            target=self.ui.pb_channelstate, display_mode=display_mode, write_mode=write_mode))
 
         # Voltage
         self.bindings.append(pb.factory.make_binding(
             device=device, profile=device.profile['channel%d_voltage_read' % channel],
-            target=self.lcd_voltage, display_mode=display_mode, write_mode=write_mode,
+            target=self.ui.lcd_voltage, display_mode=display_mode, write_mode=write_mode,
             unit_name='volt', precision=2))
 
         # Voltage limit label
@@ -167,7 +168,7 @@ class ChannelWidget(QtWidgets.QWidget):
         # Current
         self.bindings.append(pb.factory.make_binding(
             device=device, profile=device.profile['channel%d_current_read' % channel],
-            target=self.lcd_current, display_mode=display_mode, write_mode=write_mode,
+            target=self.ui.lcd_current, display_mode=display_mode, write_mode=write_mode,
             unit_name='microamps', precision=3
             ).add_update_callback(self._current_updated))
 
@@ -178,14 +179,16 @@ class ChannelWidget(QtWidgets.QWidget):
             ).add_update_callback(self._current_limit_updated))
 
     def _voltage_range_updated(self, rf):
-
+        #try:
         voltage_range = int(rf)
-        voltage = 100 if voltage_range == mhv4_v20_profile.VoltageRange.range_100v else 400
+        #except pb.ParameterUnavailable:
+        voltage_range = mhv4_v20_profile.VoltageRange.range_400v
 
-        self.spin_target_voltage.setMaximum(voltage)
-        self.slider_target_voltage.setMaximum(voltage)
-        self.slider_target_voltage.setTickInterval(100 if voltage > 200.0 else 10)
-        self.label_upper_voltage_limit.setText(str(voltage) + " V")
+        voltage = 100 if voltage_range == mhv4_v20_profile.VoltageRange.range_100v else 400
+        self.ui.spin_target_voltage.setMaximum(voltage)
+        self.ui.slider_target_voltage.setMaximum(voltage)
+        self.ui.slider_target_voltage.setTickInterval(100 if voltage > 200.0 else 10)
+        self.ui.label_upper_voltage_limit.setText(str(voltage) + " V")
 
 
     def _current_updated(self, f_current):
@@ -217,7 +220,7 @@ class ChannelWidget(QtWidgets.QWidget):
 
     @Slot(int)
     def on_slider_target_voltage_valueChanged(self, value):
-        slider = self.slider_target_voltage
+        slider = self.ui.slider_target_voltage
         slider.setToolTip("%d V" % value)
 
         if slider.isVisible():
@@ -231,20 +234,20 @@ class ChannelWidget(QtWidgets.QWidget):
             QtWidgets.QApplication.sendEvent(slider, tooltip_event)
 
     def eventFilter(self, watched_object, event):
-        if watched_object == self.pb_channelstate:
+        if watched_object == self.ui.pb_channelstate:
             t = event.type()
-            c = self.pb_channelstate.isChecked()
+            c = self.ui.pb_channelstate.isChecked()
 
             if t == QtCore.QEvent.Enter:
                 if c:
-                    self.pb_channelstate.setText("Turn\n off ")
+                    self.ui.pb_channelstate.setText("Turn\n off ")
                 else:
-                    self.pb_channelstate.setText("Turn\n on")
+                    self.ui.pb_channelstate.setText("Turn\n on")
             elif t == QtCore.QEvent.Leave:
                 if c:
-                    self.pb_channelstate.setText("On")
+                    self.ui.pb_channelstate.setText("On")
                 else:
-                    self.pb_channelstate.setText("Off")
+                    self.ui.pb_channelstate.setText("Off")
 
         return False
 
@@ -252,7 +255,7 @@ class SettingsWidget(QtWidgets.QWidget):
     def __init__(self, device, display_mode, write_mode, parent=None):
         super(SettingsWidget, self).__init__(parent)
 
-        util.loadUi(":/ui/mhv4_v20_settings.ui", self)
+        self.ui = util.loadUi(":/ui/mhv4_v20_settings.ui", self)
 
         self.device = device
         self.bindings = list()
@@ -260,17 +263,17 @@ class SettingsWidget(QtWidgets.QWidget):
         self.write_mode   = write_mode
 
         curLimit_actual_spins = [
-                self.spin_actual_current_limit0,
-                self.spin_actual_current_limit1,
-                self.spin_actual_current_limit2,
-                self.spin_actual_current_limit3
+                self.ui.spin_actual_current_limit0,
+                self.ui.spin_actual_current_limit1,
+                self.ui.spin_actual_current_limit2,
+                self.ui.spin_actual_current_limit3
                 ]
 
         curLimit_target_spins = [
-                self.spin_target_current_limit0,
-                self.spin_target_current_limit1,
-                self.spin_target_current_limit2,
-                self.spin_target_current_limit3
+                self.ui.spin_target_current_limit0,
+                self.ui.spin_target_current_limit1,
+                self.ui.spin_target_current_limit2,
+                self.ui.spin_target_current_limit3
                 ]
 
         for channel in range(NUM_CHANNELS):
@@ -293,7 +296,7 @@ class SettingsWidget(QtWidgets.QWidget):
                 device.profile['voltage_range_read'],
                 device.profile['voltage_range_write']),
             display_mode=display_mode, write_mode=write_mode,
-            target=self.combo_target_voltage_range
+            target=self.ui.combo_target_voltage_range
             ).add_update_callback(self._voltage_range_updated))
 
     def _voltage_range_updated(self, rf):
@@ -305,8 +308,8 @@ class SettingsWidget(QtWidgets.QWidget):
         r = rf.result()
 
         if r.address == p.address:
-            text = self.combo_target_voltage_range.itemData(r.value, Qt.DisplayRole).toString()
-            self.le_actual_voltage_range.setText(text)
+            text = self.ui.combo_target_voltage_range.itemData(r.value, Qt.DisplayRole)
+            self.ui.le_actual_voltage_range.setText(text)
 
 class MHV4_V20_Widget(DeviceWidgetBase):
     def __init__(self, device, display_mode, write_mode, parent=None):

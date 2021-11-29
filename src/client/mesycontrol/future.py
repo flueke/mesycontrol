@@ -83,6 +83,9 @@ class Future(object):
 
         return self._result
 
+    #def __int__(self):
+    #    return int(self.result())
+
     def exception(self):
         if not self.done():
             raise IncompleteFuture(self)

@@ -27,6 +27,7 @@ from mesycontrol.qt import QtWidgets
 
 import collections
 import logging
+import sys
 import traceback
 import weakref
 
@@ -246,7 +247,8 @@ class AbstractParameterBinding(object):
                 pass
             except Exception as e:
                 log.warning("target=%s, update callback raised %s: %s", self.target, type(e), e)
-                log.warning("traceback=%s", traceback.format_exc(e))
+                log.warning("traceback=%s", traceback.format_exception(*sys.exc_info()))
+                #raise e
 
     def _on_device_hw_set(self, device, old_hw, new_hw):
         if old_hw is not None:
@@ -364,6 +366,7 @@ class AbstractParameterBinding(object):
                 self._update(result_future)
         except Exception as e:
             log.debug("_update raised %s", e)
+            raise e
 
         self._exec_callbacks(result_future)
 
@@ -443,7 +446,7 @@ class AbstractParameterBinding(object):
 
             if len(self.profile.units) > 1:
                 unit = self.profile.units[1]
-                tt += ", %f %s" % (unit.unit_value(value), QtCore.QString.fromUtf8(unit.label))
+                tt += ", %f %s" % (unit.unit_value(value), unit.label)
 
         return tt
 

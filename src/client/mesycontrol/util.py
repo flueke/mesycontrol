@@ -717,7 +717,7 @@ def make_apply_common_button_layout(input_spinbox, tooltip, on_clicked):
 
     # Wrapper to invoke the clicked handler without the boolean arg that's
     # passed from QPushButton.clicked().
-    def _on_clicked(_ignored):
+    def _on_clicked():
         on_clicked()
 
     button = QtWidgets.QPushButton(clicked=_on_clicked)

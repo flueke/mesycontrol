@@ -929,7 +929,7 @@ class GUIApplication(QtCore.QObject):
                     if not mrc.has_hw:
                         futures.append(add_mrc_connection(self.app_registry.hw, mrc.url, True))
                     elif not mrc.hw.is_connected() and not mrc.hw.is_connecting():
-                        futures.append(mrc.hw.connect())
+                        futures.append(mrc.hw.connectMrc())
 
             if len(futures):
                 future.all_done(*futures).add_done_callback(
@@ -939,7 +939,7 @@ class GUIApplication(QtCore.QObject):
             if not node.ref.has_hw:
                 add_mrc_connection(self.app_registry.hw, node.ref.url, True)
             elif node.ref.hw.is_disconnected():
-                node.ref.hw.connect()
+                node.ref.hw.connectMrc()
                 a.setIcon(a.icons['disconnect'])
             else:
                 node.ref.hw.disconnectMrc()
