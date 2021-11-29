@@ -60,6 +60,9 @@ target_link_libraries(${MESYCONTROL_SERVER_TARGET}
     ${CMAKE_THREAD_LIBS_INIT}
     ${PROTOBUF_LIBRARY})
 
+target_compile_definitions(${MESYCONTROL_SERVER_TARGET}
+    PRIVATE -DBOOST_BIND_GLOBAL_PLACEHOLDERS)
+
 if(WIN32)
     # Statically link against the GCC and C++ libraries to avoid
     # depending on DLLs installed with MinGW.
