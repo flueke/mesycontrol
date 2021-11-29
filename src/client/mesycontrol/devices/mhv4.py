@@ -94,7 +94,7 @@ class PolarityLabelBinding(pb.DefaultParameterBinding):
 
     def _update(self, rf):
         try:
-            self.target.setPixmap(self._pixmaps[int(rf)])
+            self.target.setPixmap(self._pixmaps[int(rf.result())])
         except Exception:
             pass
 
@@ -105,7 +105,7 @@ class ChannelEnablePolarityBinding(pb.DefaultParameterBinding):
         super(ChannelEnablePolarityBinding, self).__init__(**kwargs)
 
     def _update(self, rf):
-        self.target.setEnabled(int(rf))
+        self.target.setEnabled(int(rf.result()))
 
 class ChannelEnableButtonBinding(pb.DefaultParameterBinding):
     def __init__(self, **kwargs):
@@ -113,7 +113,7 @@ class ChannelEnableButtonBinding(pb.DefaultParameterBinding):
         self.target.clicked.connect(self._button_clicked)
 
     def _update(self, rf):
-        is_enabled = int(rf)
+        is_enabled = int(rf.result())
         self.target.setChecked(is_enabled)
         self.target.setText("On" if is_enabled else "Off")
 
@@ -226,7 +226,7 @@ class ChannelWidget(QtWidgets.QWidget):
 
     def _voltage_limit_updated(self, rf):
         unit    = self.device.profile[rf.result().address].get_unit('volt')
-        voltage = unit.unit_value(int(rf))
+        voltage = unit.unit_value(int(rf.result()))
 
         self.ui.spin_target_voltage.setMaximum(voltage)
         self.ui.slider_target_voltage.setMaximum(voltage)

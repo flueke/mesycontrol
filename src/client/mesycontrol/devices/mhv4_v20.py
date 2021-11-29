@@ -67,7 +67,7 @@ class PolarityLabelBinding(pb.DefaultParameterBinding):
 
     def _update(self, rf):
         try:
-            self.target.setPixmap(self._pixmaps[int(rf)])
+            self.target.setPixmap(self._pixmaps[int(rf.result())])
         except Exception:
             pass
 
@@ -78,7 +78,7 @@ class ChannelEnablePolarityBinding(pb.DefaultParameterBinding):
         super(ChannelEnablePolarityBinding, self).__init__(**kwargs)
 
     def _update(self, rf):
-        self.target.setEnabled(int(rf))
+        self.target.setEnabled(int(rf.result()))
 
 class ChannelEnableButtonBinding(pb.DefaultParameterBinding):
     def __init__(self, **kwargs):
@@ -86,7 +86,7 @@ class ChannelEnableButtonBinding(pb.DefaultParameterBinding):
         self.target.clicked.connect(self._button_clicked)
 
     def _update(self, rf):
-        is_enabled = int(rf)
+        is_enabled = int(rf.result())
         self.target.setChecked(is_enabled)
         self.target.setText("On" if is_enabled else "Off")
 
@@ -179,10 +179,10 @@ class ChannelWidget(QtWidgets.QWidget):
             ).add_update_callback(self._current_limit_updated))
 
     def _voltage_range_updated(self, rf):
-        #try:
-        voltage_range = int(rf)
-        #except pb.ParameterUnavailable:
-        voltage_range = mhv4_v20_profile.VoltageRange.range_400v
+        try:
+            voltage_range = int(rf.result())
+        except pb.ParameterUnavailable:
+            voltage_range = mhv4_v20_profile.VoltageRange.range_400v
 
         voltage = 100 if voltage_range == mhv4_v20_profile.VoltageRange.range_100v else 400
         self.ui.spin_target_voltage.setMaximum(voltage)

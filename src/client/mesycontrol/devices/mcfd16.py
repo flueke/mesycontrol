@@ -643,7 +643,7 @@ class BitPatternBinding(pb.AbstractParameterBinding):
 
     def _update(self, rf):
         with util.block_signals(self.target):
-            self.target.set_value(int(rf))
+            self.target.set_value(int(rf.result()))
 
         tt = self._get_tooltip(rf)
 
@@ -656,7 +656,7 @@ class BitPatternBinding(pb.AbstractParameterBinding):
                 cb.setStatusTip(tt)
 
         if self.label and self.label():
-            self.label().setText(str(int(rf)))
+            self.label().setText(str(int(rf.result())))
 
 class TogglePolarityBinding(pb.DefaultParameterBinding):
     def __init__(self, **kwargs):
@@ -668,7 +668,7 @@ class TogglePolarityBinding(pb.DefaultParameterBinding):
 
     def _update(self, rf):
         super(TogglePolarityBinding, self)._update(rf)
-        self._polarity = int(rf)
+        self._polarity = int(rf.result())
         self.target.setIcon(self._icons[self._polarity])
 
     def _toggle_polarity(self):
@@ -1494,7 +1494,7 @@ class CoincidenceTimeSpinBoxBinding(pb.DefaultParameterBinding):
 
     def _update(self, rf):
         super(CoincidenceTimeSpinBoxBinding, self)._update(rf)
-        value = max(int(rf), self.target.minimum())
+        value = max(int(rf.result()), self.target.minimum())
 
         with util.block_signals(self.target):
             self.target.setValue(value)

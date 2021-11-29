@@ -718,7 +718,7 @@ class ComboBoxParameterBinding(DefaultParameterBinding):
         super(ComboBoxParameterBinding, self)._update(rf)
         try:
             with util.block_signals(self.target):
-                self.target.setCurrentIndex(int(rf))
+                self.target.setCurrentIndex(int(rf.result()))
         except Exception:
             pass
 
@@ -733,7 +733,7 @@ class RadioButtonGroupParameterBinding(DefaultParameterBinding):
     def _update(self, rf):
         try:
             with util.block_signals(self.target):
-                self.target.button(int(rf)).setChecked(True)
+                self.target.button(int(rf.result())).setChecked(True)
 
             for b in self.target.buttons():
                 b.setToolTip(self._get_tooltip(rf))
@@ -756,10 +756,10 @@ class LCDNumberParameterBinding(DefaultParameterBinding):
         super(LCDNumberParameterBinding, self)._update(rf)
         try:
             if self.unit_name is None:
-                self.target.display(str(int(rf)))
+                self.target.display(str(int(rf.result())))
             else:
                 unit  = self.profile.get_unit(self.unit_name)
-                value = unit.unit_value(int(rf))
+                value = unit.unit_value(int(rf.result()))
                 text  = "%%.%df" % self.precision
                 text  = text % value
                 self.target.display(text)
