@@ -340,13 +340,13 @@ class MCTreeView(QtWidgets.QWidget):
         self.hw_toolbar         = util.SimpleToolBar(Qt.Horizontal)
         self.hw_toolbar.layout().setContentsMargins(0, 0, 0, 0)
 
-        cfg_widget = QtWidgets.QWidget()
+        cfg_widget = QtWidgets.QGroupBox("Config")
         cfg_layout = QtWidgets.QVBoxLayout(cfg_widget)
         cfg_layout.setContentsMargins(0, 0, 0, 0)
         cfg_layout.addWidget(self.cfg_toolbar)
         cfg_layout.addWidget(self.cfg_view)
 
-        hw_widget = QtWidgets.QWidget()
+        hw_widget = QtWidgets.QGroupBox("Hardware")
         hw_layout = QtWidgets.QVBoxLayout(hw_widget)
         hw_layout.setContentsMargins(0, 0, 0, 0)
         hw_layout.addWidget(self.hw_toolbar)
