@@ -271,7 +271,7 @@ def run_add_mrc_connection_dialog(registry, parent_widget=None):
             add_mrc_connection(registry.hw, url, doConnect)
         except Exception as e:
             log.exception("run_add_mrc_connection_dialog")
-            QtWidgets.QMessageBox.critical(parent_widget, "Error", str(e))
+            #QtWidgets.QMessageBox.critical(parent_widget, "Error", str(e))
 
     dialog.accepted.connect(accepted)
     dialog.show()
@@ -326,7 +326,7 @@ def run_edit_mrc_config(mrc, registry, parent_widget=None):
 
         except Exception as e:
             log.exception("run_edit_mrc_config")
-            QtWidgets.QMessageBox.critical(parent_widget, "Error", str(e))
+            #QtWidgets.QMessageBox.critical(parent_widget, "Error", str(e))
 
     dialog.accepted.connect(accepted)
     dialog.show()
@@ -357,7 +357,7 @@ def run_add_device_config_dialog(device_registry, registry, mrc, bus=None, addre
         dialog.show()
     except RuntimeError as e:
         log.exception("add device config")
-        QtWidgets.QMessageBox.critical(parent_widget, "Error", str(e))
+        #QtWidgets.QMessageBox.critical(parent_widget, "Error", str(e))
 
 def run_edit_device_config(device_registry, registry, device, parent_widget=None):
     assert device.cfg is not None
@@ -422,8 +422,8 @@ def run_load_device_config(device, context, parent_widget):
         return True
     except Exception as e:
         log.exception("load device config")
-        QtWidgets.QMessageBox.critical(parent_widget, "Error",
-                "Loading device config from %s failed:\n%s" % (filename, e))
+        #QtWidgets.QMessageBox.critical(parent_widget, "Error",
+        #        "Loading device config from %s failed:\n%s" % (filename, e))
         return False
 
 def run_save_device_config(device, context, parent_widget):
@@ -447,8 +447,8 @@ def run_save_device_config(device, context, parent_widget):
         return True
     except Exception as e:
         log.exception("save device config")
-        QtWidgets.QMessageBox.critical(parent_widget, "Error",
-                "Saving device config to %s failed:\n%s" % (filename, e))
+        #QtWidgets.QMessageBox.critical(parent_widget, "Error",
+        #        "Saving device config to %s failed:\n%s" % (filename, e))
         return False
 
 # ===== Setup =====
@@ -466,7 +466,7 @@ def run_save_setup(context, parent_widget):
         return True
     except Exception as e:
         log.exception("save setup")
-        QtWidgets.QMessageBox.critical(parent_widget, "Error", "Saving setup %s failed:\n%s" % (setup.filename, e))
+        #QtWidgets.QMessageBox.critical(parent_widget, "Error", "Saving setup %s failed:\n%s" % (setup.filename, e))
         return False
 
 def run_save_setup_as_dialog(context, parent_widget):
@@ -500,7 +500,7 @@ def run_save_setup_as_dialog(context, parent_widget):
         return True
     except Exception as e:
         log.exception("save setup as")
-        QtWidgets.QMessageBox.critical(parent_widget, "Error", "Saving setup %s failed:\n%s" % (setup.filename, e))
+        #QtWidgets.QMessageBox.critical(parent_widget, "Error", "Saving setup %s failed:\n%s" % (setup.filename, e))
         return False
 
 def run_open_setup_dialog(context, parent_widget):
@@ -531,7 +531,7 @@ def run_open_setup_dialog(context, parent_widget):
         context.open_setup(filename)
     except Exception as e:
         log.exception("open setup")
-        QtWidgets.QMessageBox.critical(parent_widget, "Error", "Opening setup file %s failed:\n%s" % (filename, e))
+        #QtWidgets.QMessageBox.critical(parent_widget, "Error", "Opening setup file %s failed:\n%s" % (filename, e))
         return False
 
 def run_close_setup(context, parent_widget):
