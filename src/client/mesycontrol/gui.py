@@ -29,6 +29,7 @@ import sys
 import weakref
 
 import pyqtgraph.console
+from mesycontrol.mrc_connection import IsConnected, IsConnecting
 pg = pyqtgraph
 
 from mesycontrol.qt import Slot
@@ -249,17 +250,17 @@ class GUIApplication(QtCore.QObject):
         self.actions['remove_config'] = action
 
         # Rename
-        action = QtWidgets.QAction("Rename", self,
+        action = QtWidgets.QAction(make_icon(":/rename.png"), "Rename", self,
                 triggered=self._rename_config)
         self.actions['rename_config'] = action
 
         # Open device config
-        action = QtWidgets.QAction(QtGui.QIcon.fromTheme("document-open"),
+        action = QtWidgets.QAction(make_icon(":/open-setup.png"),
                 "Load device config from file", self, triggered=self._open_device_config)
         self.actions['open_device_config'] = action
 
         # Save device config
-        action = QtWidgets.QAction(QtGui.QIcon.fromTheme("document-save"),
+        action = QtWidgets.QAction(make_icon(":/save-setup.png"),
                 "Save device config to file", self, triggered=self._save_device_config)
         self.actions['save_device_config'] = action
 
@@ -939,8 +940,11 @@ class GUIApplication(QtCore.QObject):
             if not node.ref.has_hw:
                 add_mrc_connection(self.app_registry.hw, node.ref.url, True)
             elif node.ref.hw.is_disconnected():
-                node.ref.hw.connectMrc()
-                a.setIcon(a.icons['disconnect'])
+                try:
+                    node.ref.hw.connectMrc()
+                    a.setIcon(a.icons['disconnect'])
+                except (IsConnecting, IsConnected):
+                    pass
             else:
                 node.ref.hw.disconnectMrc()
                 a.setIcon(a.icons['connect'])
