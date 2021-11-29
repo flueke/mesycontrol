@@ -1,48 +1,47 @@
 <!DOCTYPE RCC><RCC version="1.0">
 <qresource>
     <!-- icons -->
-    <file alias="add-config.png">resources/plus-2x.png</file>
-    <file alias="add-mrc.png">resources/plus-2x.png</file>
-    <file alias="apply-config-to-hardware.png">resources/arrow-circle-left-2x.png</file>
-    <file alias="apply-hardware-to-config.png">resources/arrow-circle-right-2x.png</file>
-    <file alias="arrow-bottom.png">resources/arrow-bottom-2x.png</file>
-    <file alias="check-config.png">resources/check-2x.png</file>
-    <file alias="close-setup.png">resources/process-stop.png</file>
-    <file alias="connected.png">resources/connected.png</file>
+    <file alias="add-config.png">resources/plus.png</file>
+    <file alias="add-mrc.png">resources/plus.png</file>
+    <file alias="apply-config-to-hardware.png">resources/arrow-180.png</file>
+    <file alias="apply-hardware-to-config.png">resources/arrow.png</file>
+    <file alias="arrow-bottom.png">resources/arrow-270.png</file>
+    <file alias="check-config.png">resources/dialog-ok-apply.png</file>
+    <file alias="close-setup.png">resources/dialog-close.png</file>
+    <file alias="connected.png">resources/plug-connect.png</file>
     <file alias="connecting.png">resources/loop-circular-2x.png</file>
-    <file alias="connect.png">resources/connected.png</file>
-    <file alias="disconnected.png">resources/disconnected.png</file>
-    <file alias="disconnect.png">resources/disconnected.png</file>
-    <file alias="linked.png">resources/link-broken-2x.png</file>
+    <file alias="connect.png">resources/plug-connect.png</file>
+    <file alias="disconnected.png">resources/plug-disconnect.png</file>
+    <file alias="disconnect.png">resources/plug-disconnect.png</file>
+    <file alias="linked.png">resources/chain.png</file>
     <file alias="mesytec-logo.png">resources/mesytec-logo-yellow.png</file>
-    <file alias="open-device-table.png">resources/spreadsheet-2x.png</file>
-    <file alias="open-device-widget.png">resources/dial-2x.png</file>
+    <file alias="open-device-table.png">resources/table.png</file>
+    <file alias="open-device-widget.png">resources/application-monitor.png</file>
     <file alias="open-setup.png">resources/document-open.png</file>
     <file alias="polarity-negative.png">resources/list-remove.png</file>
     <file alias="polarity-positive.png">resources/list-add.png</file>
     <file alias="polling.png">resources/timer-2x.png</file>
     <file alias="preferences.png">resources/preferences-system.png</file>
     <file alias="question-mark.png">resources/question-mark-2x.png</file>
-    <file alias="refresh.png">resources/loop-circular-2x.png</file>
+    <file alias="refresh.png">resources/arrow-circle.png</file>
     <file alias="remote-control.png">resources/wifi-2x.png</file>
-    <file alias="remove-config.png">resources/minus-2x.png</file>
-    <file alias="remove-mrc.png">resources/minus-2x.png</file>
+    <file alias="remove-config.png">resources/list-remove.png</file>
+    <file alias="remove-mrc.png">resources/list-remove.png</file>
     <file alias="save-setup-as.png">resources/document-save-as.png</file>
     <file alias="save-setup.png">resources/document-save.png</file>
+    <file alias="rename.png">resources/document-rename.png</file>
     <file alias="select-display-mode.png">resources/eye-2x.png</file>
     <file alias="select-write-mode.png">resources/pencil-2x.png</file>
-    <file alias="silent-mode-off.png">resources/volume-high-2x.png</file>
-    <file alias="silent-mode-on.png">resources/volume-off-2x.png</file>
-    <file alias="stop.png">resources/process-stop.png</file>
-    <file alias="unlinked.png">resources/link-intact-2x.png</file>
-    <file alias="warning.png">resources/warning-2x.png</file>
+    <file alias="silent-mode-off.png">resources/speaker-volume.png</file>
+    <file alias="silent-mode-on.png">resources/speaker-volume-control-mute.png</file>
+    <file alias="stop.png">resources/dialog-close.png</file>
+    <file alias="unlinked.png">resources/chain-unchain.png</file>
+    <file alias="warning.png">resources/emblem-important.png</file>
     <file alias="window-icon.png">resources/32x32.png</file>
-    <file alias="write-access.png">resources/media-record-2x.png</file>
-    <file alias="device-notes.png">resources/document-2x.png</file>
+    <file alias="write-access.png">resources/control-record.png</file>
     <file alias="edit.png">resources/accessories-text-editor.png</file>
     <file alias="collapse-up.png">resources/data-transfer-upload-2x.png</file>
     <file alias="collapse-down.png">resources/data-transfer-download-2x.png</file>
-
 
     <file>resources/applications-utilities.png</file>
     <file>resources/ban-2x.png</file>
@@ -52,11 +51,8 @@
     <file>resources/data-transfer-download-2x.png</file>
     <file>resources/data-transfer-upload-2x.png</file>
     <file>resources/flash-2x.png</file>
-    <file>resources/lock-locked-2x.png</file>
-    <file>resources/lock-unlocked-2x.png</file>
     <file>resources/loop-2x.png</file>
     <file>resources/loop-square-2x.png</file>
-    <file>resources/reload-2x.png</file>
     <file>resources/task-2x.png</file>
     <file>resources/wrench-2x.png</file>
     <file>resources/x-2x.png</file>
