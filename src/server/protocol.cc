@@ -26,15 +26,18 @@ namespace
   MessagePtr make_status_message(
       const proto::Message::Type &type,
       const proto::MRCStatus::StatusCode &status,
-      const boost::system::error_code &reason,
+      const boost::system::error_code &ec,
       const std::string &version,
-      bool has_read_multi)
+      bool has_read_multi,
+      const std::string &infoMsg = {})
   {
     MessagePtr ret(make_message(type));
     ret->mutable_mrc_status()->set_code(status);
-    ret->mutable_mrc_status()->set_reason(reason.value());
-    if (reason.value())
-      ret->mutable_mrc_status()->set_info(reason.message());
+    ret->mutable_mrc_status()->set_reason(ec.value());
+    if (!infoMsg.empty())
+        ret->mutable_mrc_status()->set_info(infoMsg);
+    else if (ec.value())
+      ret->mutable_mrc_status()->set_info(ec.message());
     ret->mutable_mrc_status()->set_version(version);
     ret->mutable_mrc_status()->set_has_read_multi(has_read_multi);
     return ret;
@@ -150,10 +153,11 @@ MessagePtr MessageFactory::make_mrc_status_notification(
     const proto::MRCStatus::StatusCode &status,
     const boost::system::error_code &reason,
     const std::string &version,
-    bool has_read_multi)
+    bool has_read_multi,
+    const std::string &msg)
 {
   return make_status_message(proto::Message::NOTIFY_MRC_STATUS,
-      status, reason, version, has_read_multi);
+      status, reason, version, has_read_multi, msg);
 }
 
 MessagePtr MessageFactory::make_read_multi_response(boost::uint8_t bus, boost::uint8_t dev,

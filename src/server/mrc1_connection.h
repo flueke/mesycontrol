@@ -31,7 +31,7 @@ class MRC1Connection:
     typedef boost::function<void (
         const proto::MRCStatus::StatusCode &,
         const boost::system::error_code &,
-        const std::string &, bool)>
+        const std::string &, bool, const std::string &msg)>
       StatusChangeCallback;
 
     MRC1Connection(boost::asio::io_context &io_context);
@@ -79,7 +79,7 @@ class MRC1Connection:
     typedef boost::function<void (const boost::system::error_code, std::size_t)>
       ReadWriteCallback;
 
-    typedef boost::function<void (const boost::system::error_code)>
+    typedef boost::function<void (const boost::system::error_code, const std::string &msg)>
       ErrorCodeCallback;
 
     /** Start an async write of the given data, using the given completion handler.
@@ -114,17 +114,19 @@ class MRC1Connection:
 
   private:
     void handle_write_command(const boost::system::error_code &ec, std::size_t bytes);
-    void handle_start(const boost::system::error_code &ec);
+    void handle_start(const boost::system::error_code &ec, const std::string &msg);
     void handle_io_timeout(const boost::system::error_code &ec);
     void handle_reconnect_timeout(const boost::system::error_code &ec);
     void stop(const boost::system::error_code &reason,
-        proto::MRCStatus::StatusCode new_status = proto::MRCStatus::STOPPED);
+        proto::MRCStatus::StatusCode new_status = proto::MRCStatus::STOPPED,
+        const std::string &msg = {});
     void reconnect_if_enabled();
     void set_status(
         const proto::MRCStatus::StatusCode &status,
         const boost::system::error_code &reason = boost::system::error_code(),
         const std::string &version = std::string(),
-        bool has_read_multi = false);
+        bool has_read_multi = false,
+        const std::string &msg = {});
 
     void handle_command_response_read(const boost::system::error_code &ec, const std::string &data);
 

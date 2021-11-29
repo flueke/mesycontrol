@@ -15,7 +15,7 @@ TCPConnectionManager::TCPConnectionManager(MRC1RequestQueue &mrc1_queue)
   , m_scanbus_poller(mrc1_queue)
 {
   m_mrc1_queue.get_mrc1_connection()->register_status_change_callback(
-      boost::bind(&TCPConnectionManager::handle_mrc1_status_change, this, _1, _2, _3, _4));
+      boost::bind(&TCPConnectionManager::handle_mrc1_status_change, this, _1, _2, _3, _4, _5));
 
   m_poller.register_result_handler(boost::bind(
         &TCPConnectionManager::handle_poll_cycle_complete, this, _1));
@@ -289,10 +289,11 @@ void TCPConnectionManager::handle_mrc1_status_change(
     const proto::MRCStatus::StatusCode &status,
     const boost::system::error_code &reason,
     const std::string &version,
-    bool has_read_multi)
+    bool has_read_multi,
+    const std::string &msg)
 {
   send_to_all(MessageFactory::make_mrc_status_notification(status, reason, version,
-        has_read_multi));
+        has_read_multi, msg));
 
   if (status == proto::MRCStatus::RUNNING && !m_connections.empty()) {
     m_poller.start();

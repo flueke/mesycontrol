@@ -48,7 +48,8 @@ class TCPConnectionManager: private boost::noncopyable
         const proto::MRCStatus::StatusCode &status,
         const boost::system::error_code &reason,
         const std::string &version,
-        bool has_read_multi);
+        bool has_read_multi,
+        const std::string &msg);
 
     void set_write_connection(const TCPConnectionPtr &connection);
 

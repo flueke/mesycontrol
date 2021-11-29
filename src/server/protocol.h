@@ -50,7 +50,8 @@ class MessageFactory
         const proto::MRCStatus::StatusCode &status,
         const boost::system::error_code &reason = boost::system::error_code(),
         const std::string &version=std::string(),
-        bool has_read_multi=false);
+        bool has_read_multi=false,
+        const std::string &msg = {});
 
     static MessagePtr make_read_multi_response(boost::uint8_t bus, boost::uint8_t dev,
         boost::uint8_t start_param, const std::vector<boost::int32_t> &values = std::vector<boost::int32_t>());

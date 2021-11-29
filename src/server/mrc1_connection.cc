@@ -81,9 +81,9 @@ class MRC1Initializer:
 
         /* Translate operation_canceled from the timeout handler to a timed_out error. */
         if (ec == errc::operation_canceled)
-          m_completion_handler(boost::system::error_code(errc::timed_out, boost::system::system_category()));
+          m_completion_handler(boost::system::error_code(errc::timed_out, boost::system::system_category()), {});
         else
-          m_completion_handler(ec);
+          m_completion_handler(ec, {});
       }
     }
 
@@ -103,7 +103,7 @@ class MRC1Initializer:
       } else {
         BOOST_LOG_SEV(m_log, log::lvl::info) << "init data read error. message:   " << ec.message();
         BOOST_LOG_SEV(m_log, log::lvl::info) << "init data read error. condition: " << ec.default_error_condition().message();
-        m_completion_handler(ec);
+        m_completion_handler(ec, {});
       }
     }
 
@@ -121,13 +121,13 @@ class MRC1Initializer:
       //if (last_line == "ERROR!") {
       if (regex_match(last_line, prompt_regex)) {
         // init success
-        m_completion_handler(boost::system::error_code());
+        m_completion_handler(boost::system::error_code(), {});
       } else {
         std::string last_line_escaped(last_line);
         boost::find_format_all(last_line_escaped, boost::token_finder(!boost::is_print()), character_escaper());
         BOOST_LOG_SEV(m_log, log::lvl::error) << "init failed, last mrc output: " << last_line_escaped;
         // signal failure using a boost system error_code
-        m_completion_handler(boost::system::error_code(errc::io_error, boost::system::system_category()));
+        m_completion_handler(boost::system::error_code(errc::io_error, boost::system::system_category()), {});
       }
     }
 
@@ -177,10 +177,10 @@ void MRC1Connection::start()
   m_current_response_handler = 0;
   set_silenced(false);
 
-  start_impl(boost::bind(&MRC1Connection::handle_start, shared_from_this(), _1));
+  start_impl(boost::bind(&MRC1Connection::handle_start, shared_from_this(), _1, _2));
 }
 
-void MRC1Connection::handle_start(const boost::system::error_code &ec)
+void MRC1Connection::handle_start(const boost::system::error_code &ec, const std::string &msg)
 {
   if (!ec) {
     set_status(proto::MRCStatus::INITIALIZING);
@@ -189,7 +189,7 @@ void MRC1Connection::handle_start(const boost::system::error_code &ec)
         boost::bind(&MRC1Connection::handle_init, shared_from_this(), _1))
       ->start();
   } else {
-    stop(ec, proto::MRCStatus::CONNECT_FAILED);
+    stop(ec, proto::MRCStatus::CONNECT_FAILED, msg);
     reconnect_if_enabled();
   }
 }
@@ -199,13 +199,16 @@ void MRC1Connection::stop()
   stop(boost::system::error_code(), proto::MRCStatus::STOPPED);
 }
 
-void MRC1Connection::stop(const boost::system::error_code &reason, proto::MRCStatus::StatusCode new_status)
+void MRC1Connection::stop(
+    const boost::system::error_code &reason,
+    proto::MRCStatus::StatusCode new_status,
+    const std::string &msg)
 {
   stop_impl();
   m_timeout_timer.cancel();
   m_last_error = reason;
-  set_status(new_status, reason);
-  BOOST_LOG_SEV(m_log, log::lvl::info) << "stopped";
+  set_status(new_status, reason, {}, false, msg);
+  BOOST_LOG_SEV(m_log, log::lvl::info) << "stopped (msg=" << msg << ")";
 }
 
 void MRC1Connection::reconnect_if_enabled()
@@ -409,7 +412,8 @@ void MRC1Connection::set_status(
     const proto::MRCStatus::StatusCode &status,
     const boost::system::error_code &reason,
     const std::string &version,
-    bool has_read_multi)
+    bool has_read_multi,
+    const std::string &msg)
 {
   BOOST_LOG_SEV(m_log, log::lvl::info) << "MRC status changed: "
     << proto::MRCStatus::StatusCode_Name(m_status)
@@ -418,12 +422,14 @@ void MRC1Connection::set_status(
     << "(reason="  << reason.value()
     << ",info=\""  << reason.message()
     << "\",version="  << version
-    << ",has_read_multi=" << has_read_multi << ")";
+    << ",has_read_multi=" << has_read_multi
+    << ", msg=\"" << msg << "\""
+    << ")";
 
   m_status = status;
 
   BOOST_FOREACH(StatusChangeCallback callback, m_status_change_callbacks) {
-    callback(m_status, reason, version, has_read_multi);
+    callback(m_status, reason, version, has_read_multi, msg);
   }
 }
 
@@ -473,11 +479,11 @@ void MRC1SerialConnection::start_impl(ErrorCodeCallback completion_handler)
     }
 #endif
 
-    completion_handler(boost::system::error_code());
+    completion_handler(boost::system::error_code(), {});
   } catch (const boost::system::system_error &e) {
     BOOST_LOG_SEV(m_log, log::lvl::error) << "Failed opening " << m_serial_device
       << ": " << e.what();
-    completion_handler(e.code());
+    completion_handler(e.code(), {});
   }
 }
 
@@ -554,7 +560,7 @@ void MRC1TCPConnection::start_impl(ErrorCodeCallback completion_handler)
     asio::connect(m_socket, endpoint_iter);
     m_socket.set_option(asio::ip::tcp::no_delay(true));
 
-    completion_handler(boost::system::error_code());
+    completion_handler(boost::system::error_code(), {});
   } catch (const boost::system::system_error &e) {
     BOOST_LOG_SEV(m_log, log::lvl::error) << "Could not connect to "
       << m_host << ":" << m_service
@@ -562,11 +568,11 @@ void MRC1TCPConnection::start_impl(ErrorCodeCallback completion_handler)
 
 
     // TODO: pass more info in the error messages info string, e.g.:
-    //std::ostringstream ss;
-    //ss << "Could not connect to " << m_host << ": " << e.what();
-    //completion_handler(e.code(), ss);
+    std::ostringstream ss;
+    ss << "Could not connect to " << m_host << ": " << e.what();
+    completion_handler(e.code(), ss.str());
     
-    completion_handler(e.code());
+    //completion_handler(e.code());
   }
 }
 
