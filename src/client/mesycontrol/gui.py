@@ -132,7 +132,8 @@ class GUIApplication(QtCore.QObject):
         self._update_actions()
 
         settings = self.context.make_qsettings()
-        if bool(settings.value('MainWindow/first_run', True)):
+
+        if settings.value('MainWindow/first_run', True, type=bool):
             settings.setValue('MainWindow/first_run', False)
             self._show_quickstart()
 

@@ -102,8 +102,8 @@ class MainWindow(QtWidgets.QMainWindow):
         settings.beginGroup("MainWindow")
 
         try:
-            settings.setValue("size",       self.size());
-            settings.setValue("pos",        self.pos());
+            settings.setValue("size",       self.size().toTuple());
+            settings.setValue("pos",        self.pos().toTuple());
             settings.setValue("geometry",   self.saveGeometry());
             settings.setValue("state",      self.saveState());
         finally:
@@ -122,8 +122,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         settings.beginGroup("MainWindow")
         try:
-            self.resize(settings.value("size", QtCore.QSize(1024, 768)))
-            self.move(settings.value("pos", QtCore.QPoint(0, 0)))
+            self.resize(*settings.value("size", (1024, 768)))
+            self.move(*settings.value("pos", (0, 0)))
             self.restoreGeometry(settings.value("geometry"))
             self.restoreState(settings.value("state"))
         finally:

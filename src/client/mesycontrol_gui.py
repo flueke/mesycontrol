@@ -166,8 +166,8 @@ if __name__ == "__main__":
 
     if opts is not None and opts.setup is not None:
         setup_file = opts.setup
-    elif bool(settings.value('Options/open_last_setup_at_start', True)):
-        setup_file = str(settings.value('Files/last_setup_file', str()))
+    elif bool(settings.value('Options/open_last_setup_at_start', True, type=bool)):
+        setup_file = settings.value('Files/last_setup_file', str())
 
     with app_context.use(context):
         mainwindow      = gui_mainwindow.MainWindow(context)
