@@ -112,7 +112,7 @@ class Context(QtCore.QObject):
     def get_config_directory_hint(self):
         s = self.make_qsettings()
 
-        v = s.value('Files/last_config_file', QtCore.QString()).toString()
+        v = s.value('Files/last_config_file', str())
         v = os.path.dirname(str(v))
 
         if not len(v):

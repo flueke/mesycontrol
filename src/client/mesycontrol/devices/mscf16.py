@@ -863,7 +863,7 @@ class ShapingPage(QtWidgets.QGroupBox):
             try:
                 text  = "%.2f µs" % f.result()
                 label = self.sht_labels[group]
-                label.setText(QtCore.QString.fromUtf8(text))
+                label.setText(text)
             except Exception:
                 self.sht_labels[group].setText("N/A")
 

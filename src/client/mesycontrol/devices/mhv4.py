@@ -314,7 +314,7 @@ class ChannelWidget(QtWidgets.QWidget):
 
                 text = "Temp: %.1f °C, Src: %s" % (temperature, source_str)
 
-            self.ui.label_temperature.setText(QtCore.QString.fromUtf8(text))
+            self.ui.label_temperature.setText(text)
 
     @Slot(int)
     def on_slider_target_voltage_valueChanged(self, value):
