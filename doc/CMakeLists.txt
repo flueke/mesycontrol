@@ -32,13 +32,13 @@ if (SPHINX_FOUND)
     "${CMAKE_CURRENT_SOURCE_DIR}/sphinx"
     "${SPHINX_SOURCE_DIR}"
 
-    COMMAND
-    sphinx-apidoc
-    -f -d 2
-    -o "${SPHINX_SOURCE_DIR}"
-    "${CMAKE_SOURCE_DIR}/src/client/mesycontrol"      # package dir
-    "${CMAKE_SOURCE_DIR}/src/client/mesycontrol/test" # exclude
-    "${CMAKE_SOURCE_DIR}/src/client/mesycontrol/ui"   # exclude
+    #COMMAND
+    #sphinx-apidoc
+    #-f -d 2
+    #-o "${SPHINX_SOURCE_DIR}"
+    #"${CMAKE_SOURCE_DIR}/src/client/mesycontrol"      # package dir
+    #"${CMAKE_SOURCE_DIR}/src/client/mesycontrol/test" # exclude
+    #"${CMAKE_SOURCE_DIR}/src/client/mesycontrol/ui"   # exclude
 
     COMMAND
     ${SPHINX_EXECUTABLE}
@@ -55,7 +55,7 @@ if (SPHINX_FOUND)
     "${SPHINX_LATEX_DIR}"
 
     COMMAND
-    ${CMAKE_MAKE_PROGRAM} -C ${SPHINX_LATEX_DIR} all-pdf
+    make -C ${SPHINX_LATEX_DIR} all-pdf
 
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/sphinx/index.rst"
     #BYPRODUCTS "${SPHINX_LATEX_DIR}/mesycontrol.pdf" "${SPHINX_HTML_DIR}/index.html"
