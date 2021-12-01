@@ -262,7 +262,7 @@ def list_serial_ports_windows(type_mask):
     of serial (COM) ports existing on this computer.
     Source: http://eli.thegreenplace.net/2009/07/31/listing-all-serial-ports-on-windows-with-python/
     """
-    import _winreg as winreg
+    import winreg
     import itertools
     path = 'HARDWARE\\DEVICEMAP\\SERIALCOMM'
     try:
@@ -275,8 +275,8 @@ def list_serial_ports_windows(type_mask):
             val  = winreg.EnumValue(key, i)
             device, name = val[:2]
 
-            serial_pattern = r"^.*\Serial[0-9]+$"
-            usb_pattern    = r"^.*\VCP[0-9]+$"
+            serial_pattern = r"^.*Serial[0-9]+$"
+            usb_pattern    = r"^.*VCP[0-9]+$"
 
             matches_serial = re.match(serial_pattern, device)
             matches_usb    = re.match(usb_pattern, device)
