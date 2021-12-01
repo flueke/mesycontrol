@@ -7,6 +7,7 @@ Dependencies
   - libprotobuf-dev protobuf-compiler
   - libqwt-qt5-dev
   - libxcb-util
+  - patchelf
 
 * pip packages:
 
