@@ -3,10 +3,10 @@ set(Boost_USE_STATIC_LIBS   ON)
 
 if (WIN32) # Use static boost libraries for windows builds.
     set(Boost_USE_STATIC_LIBS ON)
-    add_definitions(-D_WIN32_WINNT=0x0501)
+    #add_definitions(-D_WIN32_WINNT=0x0501)
 endif(WIN32)
 
-find_package(Boost 1.67 REQUIRED COMPONENTS chrono program_options system date_time log_setup log regex thread)
+find_package(Boost 1.67 REQUIRED COMPONENTS chrono program_options system date_time log log_setup log regex thread)
 find_package(Threads REQUIRED)
 find_package(Protobuf REQUIRED)
 
@@ -37,7 +37,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 if (WIN32)
   # Boost uses -march=i686. To avoid linker warnings about duplicate sections
   # having different sizes this flag needs to be used by CMake aswell.
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=i686")
+  #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=i686")
 endif(WIN32)
 
 if(NOT WIN32)
@@ -56,12 +56,16 @@ add_executable(${MESYCONTROL_SERVER_TARGET}
     ${PROTO_SRCS} ${PROTO_HDRS})
 
 target_link_libraries(${MESYCONTROL_SERVER_TARGET}
+    Boost::disable_autolinking
+    #Boost::dynamic_linking
     ${Boost_LIBRARIES}
     ${CMAKE_THREAD_LIBS_INIT}
     ${PROTOBUF_LIBRARY})
 
 target_compile_definitions(${MESYCONTROL_SERVER_TARGET}
-    PRIVATE -DBOOST_BIND_GLOBAL_PLACEHOLDERS)
+    PRIVATE -DBOOST_BIND_GLOBAL_PLACEHOLDERS
+    #PRIVATE -DBOOST_ALL_DYN_LINK
+    )
 
 if(WIN32)
     # Statically link against the GCC and C++ libraries to avoid
