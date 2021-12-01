@@ -18,15 +18,15 @@ BD = '${CMAKE_BINARY_DIR}'
 # Dependencies are automatically detected, but it might need
 # fine tuning.
 
-includes = list()
-maybe_includes = ['scipy.sparse.csgraph._validation', 'scipy.special._ufuncs_cxx']
+includes = ['PySide2.QtXml']
+maybe_includes = ['scipy.sparse.csgraph._validation', 'scipy.special._ufuncs_cxx', 'winreg']
 
-#for mod in maybe_includes:
-#    try:
-#        importlib.import_module(mod)
-#        includes.append(mod)
-#    except ImportError:
-#        pass
+for mod in maybe_includes:
+    try:
+        importlib.import_module(mod)
+        includes.append(mod)
+    except ImportError:
+        pass
 
 include_files = list()
 maybe_include_files = [
