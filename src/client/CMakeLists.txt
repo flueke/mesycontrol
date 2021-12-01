@@ -11,7 +11,8 @@ set(STAMP         "${CMAKE_CURRENT_BINARY_DIR}/build/timestamp")
 
 # Note: The resources file is updated directly inside the source tree before
 # being included in the cx_freeze library.zip by running setup.py.
-set(PYRCC       "pyside2-rcc")
+find_program(PYRCC "pyside2-rcc")
+#set(PYRCC       "pyside2-rcc")
 set(QRC_IN      "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/resources.qrc")
 set(QRC_OUT     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/resources.py")
 
@@ -122,10 +123,15 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E touch ${STAMP}
     DEPENDS ${PYTHON_SOURCES} ${QRC_OUT} ${PROTO_PY_OUT})
 
-add_custom_command(
-    OUTPUT ${QRC_OUT}
-    COMMAND ${PYRCC} ${QRC_IN} -o ${QRC_OUT}
-    DEPENDS ${QRC_IN})
+# Note: for some reason pyside2-rcc is not included in the msys2 pyside2
+# package (or the "tools" variant). As the generated resources.py is included
+# in the git repo I made the command optional.
+if (${PYRCC})
+    add_custom_command(
+        OUTPUT ${QRC_OUT}
+        COMMAND ${PYRCC} ${QRC_IN} -o ${QRC_OUT}
+        DEPENDS ${QRC_IN})
+endif()
 
 add_custom_command(
     OUTPUT ${PROTO_PY_OUT}
