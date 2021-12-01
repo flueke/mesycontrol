@@ -1,0 +1,60 @@
+# -*- mode: python ; coding: utf-8 -*-
+
+
+block_cipher = None
+
+
+a = Analysis(['mesycontrol_gui.py'],
+             pathex=[],
+             binaries=[],
+             datas=[],
+             # Buggy pyinstaller does not evaulate __all__ nor do the star imports work
+             hiddenimports=[
+                 "pyqtgraph.console.template_pyside2",
+                 "mesycontrol.devices.*",
+                 'mesycontrol.devices.mcfd16',
+                 'mesycontrol.devices.mhv4' ,
+                 'mesycontrol.devices.mhv4_v20' ,
+                 'mesycontrol.devices.mpd4',
+                 'mesycontrol.devices.mpd8',
+                 'mesycontrol.devices.mprb16',
+                 'mesycontrol.devices.mprb16dr',
+                 'mesycontrol.devices.mscf16',
+                 'mesycontrol.devices.mux16',
+                 'mesycontrol.devices.stm16',
+                 ],
+             hookspath=[],
+             hooksconfig={},
+             runtime_hooks=[],
+             excludes=[],
+             win_no_prefer_redirects=False,
+             win_private_assemblies=False,
+             cipher=block_cipher,
+             noarchive=False)
+pyz = PYZ(a.pure, a.zipped_data,
+             cipher=block_cipher)
+
+exe = EXE(pyz,
+          a.scripts,
+          [],
+          exclude_binaries=True,
+          name='mesycontrol_gui',
+          debug=False,
+          bootloader_ignore_signals=False,
+          strip=False,
+          upx=True,
+          console=True,
+          disable_windowed_traceback=False,
+          target_arch=None,
+          codesign_identity=None,
+          entitlements_file=None )
+coll = COLLECT(exe,
+               a.binaries,
+               a.zipfiles,
+               a.datas,
+               strip=False,
+               upx=True,
+               upx_exclude=[],
+               name='mesycontrol_gui')
+
+# vim:ft=python
