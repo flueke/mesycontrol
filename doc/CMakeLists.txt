@@ -2,7 +2,9 @@
 find_package(Sphinx)
 
 if (SPHINX_FOUND)
-  find_package(PythonInterp REQUIRED)
+    # Note (flueke): this was probably added for sphinx-apidoc but that's not
+    # used anymore.
+  #find_package(PythonInterp REQUIRED)
 
   set(SPHINX_SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/sphinx-source")
   set(SPHINX_BUILD_DIR  "${CMAKE_CURRENT_BINARY_DIR}/sphinx-build")

@@ -1,4 +1,4 @@
-find_package(PythonInterp REQUIRED)
+find_package(Python3)
 find_package(Protobuf REQUIRED)
 
 set(SETUP_PY_IN   "${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in")
@@ -118,7 +118,7 @@ endif (WIN32)
 # into the build directory.
 add_custom_command(
     OUTPUT ${STAMP}
-    COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} install --prefix="${DISTUTILS_PREFIX}"
+    COMMAND ${Python3_EXECUTABLE} ${SETUP_PY} install --prefix="${DISTUTILS_PREFIX}"
     COMMAND ${CMAKE_COMMAND} -E touch ${STAMP}
     DEPENDS ${PYTHON_SOURCES} ${QRC_OUT} ${PROTO_PY_OUT})
 
