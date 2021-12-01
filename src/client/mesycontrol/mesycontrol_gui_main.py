@@ -51,7 +51,8 @@ from mesycontrol.qt import QtCore
 from mesycontrol.qt import QtGui
 from mesycontrol.qt import QtWidgets
 
-if __name__ == "__main__":
+#if __name__ == "__main__":
+def mesycontrol_gui_main():
     faulthandler.enable()
 
     if not is_windows:
