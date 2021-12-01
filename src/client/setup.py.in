@@ -21,12 +21,12 @@ BD = '${CMAKE_BINARY_DIR}'
 includes = list()
 maybe_includes = ['scipy.sparse.csgraph._validation', 'scipy.special._ufuncs_cxx']
 
-for mod in maybe_includes:
-    try:
-        importlib.import_module(mod)
-        includes.append(mod)
-    except ImportError:
-        pass
+#for mod in maybe_includes:
+#    try:
+#        importlib.import_module(mod)
+#        includes.append(mod)
+#    except ImportError:
+#        pass
 
 include_files = list()
 maybe_include_files = [
@@ -74,9 +74,10 @@ excluded_modules = [
         'http',
         'matplotlib',
         'pdb',
+        'pdb',
+        'pydoc',
         'tkinter',
         'unittest',
-        'xml',
 
         'PyQt4.uic.port_v3',
         'PyQt5',
@@ -106,7 +107,6 @@ excluded_modules = [
         'PySide2.QtSql',
         'PySide2.QtSvg',
         'PySide2.QtTest',
-        'PySide2.QtUiTools',
         'PySide2.QtWebEngineWidgets',
         'PySide2.QtWebSockets',
         ]
