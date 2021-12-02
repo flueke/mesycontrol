@@ -268,7 +268,8 @@ def list_serial_ports_windows(type_mask):
     try:
         key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path)
     except WindowsError:
-        raise StopIteration
+        #raise StopIteration
+        return # PEP-0479
 
     for i in itertools.count():
         try:
