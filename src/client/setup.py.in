@@ -10,6 +10,7 @@ import importlib
 import glob
 import hashlib
 import os
+import pathlib
 import sys
 
 CSD = '${CMAKE_CURRENT_SOURCE_DIR}'
@@ -177,12 +178,28 @@ def remove_duplicate_libs():
     # { hash -> list of lib paths hashing to the same hash }
     groupedLibs = { libHash: files for libHash, files in groupedLibs.items() if len(files) > 1 }
 
-    for libHash, libPaths in groupedLibs.items():
-        # Find shortest path for file instances of the same library. minTuple structure is (pathLen, path).
-        minTuple = min(((len(libPath), libPath) for libPath in libPaths), key=lambda t: t[0])
+    for _, libPaths in groupedLibs.items():
+        ## Find shortest path for file instances of the same library. minTuple structure is (pathLen, path).
+        #minTuple = min(((len(libPath), libPath) for libPath in libPaths), key=lambda t: t[0])
 
-        libToKeep = minTuple[1]
-        libBasename = os.path.basename(libToKeep)
+        libBasename = os.path.basename(libPaths[0])
+
+        # Walk the list of duplicates and group them by path depth: { depth -> [libPaths] }
+        libsByPathDepth = {}
+
+        for libPath in libPaths:
+            depth = len(pathlib.PurePath(libPath).parts)
+            libsByPathDepth.setdefault(depth, list())
+            libsByPathDepth[depth].append(libPath)
+
+        # Now pick the shortest depth (topmost path) and from the list of
+        # candidate libs pick the one with the longest (meaning 'most
+        # detailed') filename. E.g. instead of libpython.so we pick
+        # libpython.so.0.1 as the file to keep.
+
+        minDepth = min(libsByPathDepth.keys())
+        candidates = libsByPathDepth[minDepth]
+        libToKeep = max(candidates, key=lambda path: len(path))
         print(f"  lib={libBasename} -> keeping {libToKeep}")
 
         for libPath in (libPath for libPath in libPaths if libPath != libToKeep):
