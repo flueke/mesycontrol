@@ -69,7 +69,7 @@ set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/src/client/mesycontrol/reso
 set(CPACK_STRIP_FILES TRUE)
 
 if (WIN32)
-    set(CPACK_GENERATOR "ZIP" "NSIS")
+    set(CPACK_GENERATOR "ZIP")# "NSIS")
     set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL "ON")
     set(CPACK_NSIS_PACKAGE_NAME "mesycontrol")
     set(CPACK_NSIS_MUI_FINISHPAGE_RUN "mesycontrol_gui.exe")
