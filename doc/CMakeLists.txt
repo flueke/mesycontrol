@@ -49,15 +49,15 @@ if (SPHINX_FOUND)
     "${SPHINX_SOURCE_DIR}"
     "${SPHINX_HTML_DIR}"
 
-    COMMAND
-    ${SPHINX_EXECUTABLE}
-    -b latex
-    -d "${SPHINX_CACHE_DIR}"
-    "${SPHINX_SOURCE_DIR}"
-    "${SPHINX_LATEX_DIR}"
+    #COMMAND
+    #${SPHINX_EXECUTABLE}
+    #-b latex
+    #-d "${SPHINX_CACHE_DIR}"
+    #"${SPHINX_SOURCE_DIR}"
+    #"${SPHINX_LATEX_DIR}"
 
-    COMMAND
-    make -C ${SPHINX_LATEX_DIR} all-pdf
+    #COMMAND
+    #make -C ${SPHINX_LATEX_DIR} all-pdf
 
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/sphinx/index.rst"
     #BYPRODUCTS "${SPHINX_LATEX_DIR}/mesycontrol.pdf" "${SPHINX_HTML_DIR}/index.html"
