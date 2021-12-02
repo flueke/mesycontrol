@@ -126,7 +126,7 @@ endif (WIN32)
 # Run pyinstaller
 add_custom_command(
     OUTPUT ${STAMP}
-    COMMAND pyinstaller ${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol_gui.spec
+    COMMAND pyinstaller -y ${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol_gui.spec
     COMMAND ${CMAKE_COMMAND} -E touch ${STAMP}
     DEPENDS ${PYTHON_SOURCES} ${QRC_OUT} ${PROTO_PY_OUT}
     )
