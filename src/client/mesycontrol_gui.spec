@@ -9,7 +9,7 @@ binaries = list()
 
 if sys.platform.startswith('win32'):
     binaries = [
-            'C:\msys64\mingw64\bin\libprotobuf.dll'
+            r'C:/msys64\mingw64\bin\libprotobuf.dll'
             ]
 
 
