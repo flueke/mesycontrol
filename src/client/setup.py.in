@@ -2,6 +2,23 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Lüke <florianlueke@gmx.net>
 
+# Note (flueke, 211202): cxfreeze is very broken by now (version 6.8.4  was used):
+# - Shared libraries are duplicated deep in the directory tree: dependencies of
+#   qt plugins are placed inside the plugin subdirectory.
+# - Symlinks are not handled properly. Instead the files are copied leading to
+#   even more duplication.
+# - The rpath of the copied libraries is not updated to point to the root of
+#   the frozen lib tree -> the dynamic loader cannot find the libs -> the program
+#   cannot start at all.
+# 
+# After trying to work around the issues I decided to drop cxfreeze and instead
+# use pyinstaller.
+
+
+import sys
+print("cxfreeze is just too broken")
+sys.exit(1)
+
 print("Start of setup.py")
 
 from cx_Freeze import setup, Executable
@@ -11,7 +28,6 @@ import glob
 import hashlib
 import os
 import pathlib
-import sys
 
 CSD = '${CMAKE_CURRENT_SOURCE_DIR}'
 CBD = '${CMAKE_CURRENT_BINARY_DIR}'
@@ -229,7 +245,6 @@ exclude_lib_patterns = [
     '*Qt5Bodymovin*',
     '*Qt5Charts*',
     '*Qt5Concurrent*',
-    '*Qt5Core*',
     '*Qt5DBus*',
     '*Qt5DataVisualization*',
     '*Qt5Designer*',
