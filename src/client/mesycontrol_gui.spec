@@ -1,12 +1,21 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import sys
+
 
 block_cipher = None
+
+binaries = list()
+
+if sys.platform.startswith('win32'):
+    binaries = [
+            'C:\msys64\mingw64\bin\libprotobuf.dll'
+            ]
 
 
 a = Analysis(['mesycontrol_gui.py'],
              pathex=[],
-             binaries=[],
+             binaries=binaries,
              datas=[],
              # Buggy pyinstaller does not evaulate __all__ nor do the star imports work
              hiddenimports=[
@@ -14,7 +23,6 @@ a = Analysis(['mesycontrol_gui.py'],
                  'pyqtgraph.graphicsItems.ViewBox.axisCtrlTemplate_pyside2',
                  'pyqtgraph.graphicsItems.PlotItem.plotConfigTemplate_pyside2',
                  'pyqtgraph.imageview.ImageViewTemplate_pyside2',
-                 'protobuf',
                  'mesycontrol.devices.mcfd16',
                  'mesycontrol.devices.mhv4' ,
                  'mesycontrol.devices.mhv4_v20' ,
