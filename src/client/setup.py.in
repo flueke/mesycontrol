@@ -8,6 +8,7 @@ from cx_Freeze import setup, Executable
 from os.path import join as pjoin
 import importlib
 import glob
+import hashlib
 import os
 import sys
 
@@ -18,15 +19,15 @@ BD = '${CMAKE_BINARY_DIR}'
 # Dependencies are automatically detected, but it might need
 # fine tuning.
 
-includes = ['PySide2.QtXml']
-maybe_includes = ['scipy.sparse.csgraph._validation', 'scipy.special._ufuncs_cxx', 'winreg']
+includes = list()
+#maybe_includes = ['scipy.sparse.csgraph._validation', 'scipy.special._ufuncs_cxx']
 
-for mod in maybe_includes:
-    try:
-        importlib.import_module(mod)
-        includes.append(mod)
-    except ImportError:
-        pass
+#for mod in maybe_includes:
+#    try:
+#        importlib.import_module(mod)
+#        includes.append(mod)
+#    except ImportError:
+#        pass
 
 include_files = list()
 maybe_include_files = [
@@ -121,6 +122,8 @@ build_options = dict(
       includes = includes,
       include_files = include_files,
       zip_includes = [ (pjoin(CBD, 'mesycontrol/mc_version.py'), 'mesycontrol/mc_version.py') ],
+      # With zip_include_packages enabled PySide2.QtXml cannot be loaded at startup
+      #zip_include_packages = ['PySide2', 'PySide2.QtXml', 'shiboken2'], 
       path = sys.path + [CSD],
       )
 
@@ -143,6 +146,54 @@ setup(name='@CMAKE_PROJECT_NAME@',
       options = dict(build_exe = build_options),
       executables = executables,
       )
+
+SharedLibSuffixPattern = '*.dll*' if sys.platform == 'win32' else '*.so*'
+
+# Duplicate libs removal =======================================================
+
+def calculate_file_hash(filename):
+    def file_as_bytes(f):
+        with f:
+            return f.read()
+
+    return hashlib.sha256(file_as_bytes(open(filename, 'rb')))
+
+def group_identical_shared_libs(startPath):
+    pattern = os.path.join(startPath, '**', SharedLibSuffixPattern)
+    matches = glob.glob(pattern, recursive=True)
+    groups = {}
+    for filename in matches:
+        fileHash = calculate_file_hash(filename).hexdigest()
+
+        groups.setdefault(fileHash, list())
+        groups[fileHash].append(filename)
+
+    return groups
+
+def remove_duplicate_libs():
+    print(">>> Checking for duplicate shared libraries in install directory...")
+
+    groupedLibs = group_identical_shared_libs(os.path.join(BD, "python-install"))
+    # { hash -> list of lib paths hashing to the same hash }
+    groupedLibs = { libHash: files for libHash, files in groupedLibs.items() if len(files) > 1 }
+
+    for libHash, libPaths in groupedLibs.items():
+        # Find shortest path for file instances of the same library. minTuple structure is (pathLen, path).
+        minTuple = min(((len(libPath), libPath) for libPath in libPaths), key=lambda t: t[0])
+
+        libToKeep = minTuple[1]
+        libBasename = os.path.basename(libToKeep)
+        print(f"  lib={libBasename} -> keeping {libToKeep}")
+
+        for libPath in (libPath for libPath in libPaths if libPath != libToKeep):
+            print(f"    lib={libBasename} -> removing duplicate {libPath}")
+            os.remove(libPath)
+
+    print("<<< Done removing duplicate shared libraries")
+
+remove_duplicate_libs()
+
+# Excluded libs removal ========================================================
 
 exclude_lib_patterns = [
     '*Qt53DAnimation*',
@@ -228,35 +279,16 @@ exclude_lib_patterns = [
 
 shared_lib_suffix = '.dll' if sys.platform == 'win32' else '.so*'
 
-print(">>> Looking for excluded lib patterns")
+print(">>> Removing excluded libs")
 
 for l in exclude_lib_patterns:
-    lib_pattern = l + shared_lib_suffix
-    pattern = BD + "/python-install/**/PySide2/**/" + lib_pattern
-
+    pattern = os.path.join(BD, "python-install", "**", l + SharedLibSuffixPattern)
     globbed = glob.glob(pattern, recursive=True)
 
     for f in globbed:
-        print(f">>> Removing excluded lib {f}")
+        print(f"  Removing excluded lib {f}")
         os.remove(f)
 
-print(">>> Looking for excluded lib names")
-
-exclude_lib_names = [
-    'libicudata%s.56.1',
-    'libicui18n%s.56.1',
-    'libicuuc%s.56.1',
-    ]
-
-for l in exclude_lib_names:
-    lib_pattern = l % (shared_lib_suffix, )
-    pattern = BD + "/python-install/**/PySide2/**/" + lib_pattern
-
-    globbed = glob.glob(pattern, recursive=True)
-
-    for f in globbed:
-        print(f">>> Removing excluded lib {f}")
-        os.remove(f)
-
+print("<<< Done removing excluded libs")
 
 print("End of setup.py")
