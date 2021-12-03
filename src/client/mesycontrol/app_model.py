@@ -188,7 +188,7 @@ class AppMrc(AppObject):
     def get_device(self, bus, address):
         compare = lambda d: (d.bus, d.address) == (bus, address)
         return next((dev for dev in self._devices if compare(dev)), None)
-    
+
     def get_devices(self, bus=None):
         if bus is None:
             return list(self._devices)
@@ -204,7 +204,7 @@ class AppMrc(AppObject):
         if self.cfg is not None:
             raise RuntimeError("MRC config exists")
 
-        self.mrc_registry.cfg.add_mrc(cm.MRC(self.url))
+        self.mrc_registry.cfg.add_mrc(cm.ConfigMrc(self.url))
 
         return self.cfg
 
