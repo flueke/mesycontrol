@@ -940,4 +940,4 @@ def apply_parameters(source, dest, criticals, non_criticals):
     progress.text = "Parameters applied successfully"
     yield progress
 
-    raise StopIteration()
+    return
