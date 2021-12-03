@@ -51,8 +51,16 @@ class SubProgressDialog(QtWidgets.QDialog):
     def __init__(self, title=str(), parent=None):
         super(SubProgressDialog, self).__init__(parent)
         self.log = util.make_logging_source_adapter(__name__, self)
-        self.ui = util.loadUi(":/ui/subprogress_widget.ui", self)
+        self.ui = util.loadUi(":/ui/subprogress_widget.ui")
         self.setWindowTitle(title)
+        self.setWindowIcon(util.make_icon(":/window-icon.png"))
+
+        l = QtWidgets.QHBoxLayout(self)
+        l.setContentsMargins(0, 0, 0, 0)
+        l.setSpacing(0)
+        l.addWidget(self.ui)
+        self.resize(300, 100)
+
         self.ui.cancel_button.clicked.connect(self.cancel)
         self._reset()
 
@@ -387,3 +395,15 @@ class ReadConfigParametersRunner(config_util.GeneratorRunner):
     def _progress_update(self, progress):
         super(ReadConfigParametersRunner, self)._progress_update(progress)
         self.progress_changed.emit(progress)
+
+
+if __name__ == "__main__":
+    from mesycontrol.qt import QtCore
+    import sys
+
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_ShareOpenGLContexts, True)
+    app = QtWidgets.QApplication(sys.argv)
+    d = SubProgressDialog("entitled!")
+    d.show()
+
+    sys.exit(app.exec_())
