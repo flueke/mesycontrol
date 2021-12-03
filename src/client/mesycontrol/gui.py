@@ -394,12 +394,14 @@ class GUIApplication(QtCore.QObject):
 
         # Display mode
         group = QtWidgets.QActionGroup(self)
-        self.actions['display_hw']          = QtWidgets.QAction("Hardware", group,
-                checkable=True, enabled=False, triggered=self._on_display_hw_triggered)
-        self.actions['display_cfg']         = QtWidgets.QAction("Config", group,
-                checkable=True, enabled=False, triggered=self._on_display_cfg_triggered)
-        self.actions['display_combined']    = QtWidgets.QAction("Combined", group,
-                checkable=True, enabled=False, triggered=self._on_display_combined_triggered)
+        self.actions['display_hw'] = QtWidgets.QAction("Hardware", group, checkable=True, enabled=False)
+        self.actions['display_hw'].triggered[bool].connect(self._on_display_hw_triggered)
+
+        self.actions['display_cfg'] = QtWidgets.QAction("Config", group, checkable=True, enabled=False)
+        self.actions['display_cfg'].triggered[bool].connect(self._on_display_cfg_triggered)
+
+        self.actions['display_combined'] = QtWidgets.QAction("Combined", group, checkable=True, enabled=False)
+        self.actions['display_combined'].triggered[bool].connect(self._on_display_combined_triggered)
 
         action = QtWidgets.QAction(make_icon(":/select-display-mode.png"),
                 "Display mode", self, enabled=False)
@@ -413,12 +415,14 @@ class GUIApplication(QtCore.QObject):
 
         # Write mode
         group = QtWidgets.QActionGroup(self)
-        self.actions['write_hw']            = QtWidgets.QAction("Hardware", group,
-                checkable=True, enabled=False, triggered=self._on_write_hw_triggered)
-        self.actions['write_cfg']           = QtWidgets.QAction("Config", group,
-                checkable=True, enabled=False, triggered=self._on_write_cfg_triggered)
-        self.actions['write_combined']      = QtWidgets.QAction("Combined", group,
-                checkable=True, enabled=False, triggered=self._on_write_combined_triggered)
+        self.actions['write_hw'] = QtWidgets.QAction("Hardware", group, checkable=True, enabled=False)
+        self.actions['write_hw'].triggered[bool].connect(self._on_write_hw_triggered)
+
+        self.actions['write_cfg'] = QtWidgets.QAction("Config", group, checkable=True, enabled=False)
+        self.actions['write_cfg'].triggered[bool].connect(self._on_write_cfg_triggered)
+
+        self.actions['write_combined'] = QtWidgets.QAction("Combined", group, checkable=True, enabled=False)
+        self.actions['write_combined'].triggered[bool].connect(self._on_write_combined_triggered)
 
         action = QtWidgets.QAction(make_icon(":/select-write-mode.png"),
                 "Write mode", self, enabled=False)
