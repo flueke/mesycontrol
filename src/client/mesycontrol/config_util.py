@@ -433,7 +433,8 @@ def apply_setup(app_registry, device_registry):
                     url=device.mrc.url, bus=device.bus, dev=device.address)
 
             if action == ACTION_SKIP:
-                raise StopIteration()
+                #raise StopIteration()
+                return
 
         gen = apply_device_config(device)
         arg = None
@@ -462,7 +463,8 @@ def apply_setup(app_registry, device_registry):
             action = yield MissingDestinationMRC(url=app_mrc.url)
 
             if action == ACTION_SKIP:
-                raise StopIteration()
+                #raise StopIteration()
+                return
 
         if not app_mrc.hw.is_connected():
             return
