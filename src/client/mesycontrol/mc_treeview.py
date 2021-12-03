@@ -629,7 +629,7 @@ class MCTreeItemDelegate(QtWidgets.QStyledItemDelegate):
         if not self._is_device_rc(idx):
             return super(MCTreeItemDelegate, self).setEditorData(editor, idx)
 
-        rc = idx.data(Qt.EditRole).toBool()
+        rc = bool(idx.data(Qt.EditRole))
         combo_idx = editor.findData(rc)
         if combo_idx >= 0:
             editor.setCurrentIndex(combo_idx)
@@ -639,7 +639,7 @@ class MCTreeItemDelegate(QtWidgets.QStyledItemDelegate):
             return super(MCTreeItemDelegate, self).setModelData(editor, model, idx)
 
         combo_idx  = editor.currentIndex()
-        combo_data = editor.itemData(combo_idx).toBool()
+        combo_data = bool(editor.itemData(combo_idx))
         model.setData(idx, combo_data)
 
 class AutoPopupComboBox(QtWidgets.QComboBox):
