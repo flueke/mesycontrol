@@ -22,7 +22,7 @@ __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
 from mesycontrol.qt import QtCore
-from mesycontrol.qt import QtGui
+from mesycontrol.qt import QtWidgets
 from mesycontrol.qt import Property
 from mesycontrol.qt import Signal
 
@@ -347,7 +347,7 @@ def future_progress_dialog(cancelable=True):
                 return
 
             fo = FutureObserver(the_future=f)
-            pd = QtGui.QProgressDialog()
+            pd = QtWidgets.QProgressDialog()
 
             if not cancelable:
                 pd.setCancelButton(None)
