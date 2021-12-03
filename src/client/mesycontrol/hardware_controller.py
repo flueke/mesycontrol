@@ -22,6 +22,7 @@ __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
 from mesycontrol.qt import QtCore
+import functools
 import weakref
 
 import mesycontrol.basic_model as bm
@@ -278,7 +279,7 @@ class Controller(object):
         # Merge all poll items into one set.
         # Note: This does not try to merge any overlapping ranges. Those will
         # lead to parameters being read multiple times.
-        items = reduce(lambda x, y: x.union(y), self._poll_subscriptions.values(), set())
+        items = functools.reduce(lambda x, y: x.union(y), self._poll_subscriptions.values(), set())
 
         self.log.debug("_send_poll_request: request contains %d items", len(items))
 
