@@ -182,7 +182,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         if self.device.has_hw:
             self.log.debug("_on_device_idc_conflict_changed: removing poll subscription")
             self.device.hw.remove_polling_subscriber(self)
-        
+
         if self.display_mode == util.COMBINED and conflict:
             self.beginResetModel()
             self.endResetModel()
@@ -408,10 +408,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
 
         row             = idx.row()
         col             = idx.column()
-        value, ok       = value.toInt()
-
-        if not ok:
-            return False
+        value           = int(value)
 
         try:
             if col == COL_HW_VALUE:
