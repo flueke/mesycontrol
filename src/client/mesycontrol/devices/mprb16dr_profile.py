@@ -22,7 +22,7 @@ __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
 voltage_10  = { 'label': 'V',       'name': 'volt',             'factor': 10.0 }
-nanoamps    = { 'label': 'nA',      'name': 'nanoamps', 'offset': 2048 } # TODO: factor
+nanoamps    = { 'label': 'nA',      'name': 'nanoamps', 'offset': -2048 } # TODO: factor
 
 idc = 28
 
