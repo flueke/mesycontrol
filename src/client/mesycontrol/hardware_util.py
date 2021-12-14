@@ -23,6 +23,7 @@ __email__  = 'f.lueke@mesytec.com'
 
 from functools import partial
 import itertools
+import logging
 
 from mesycontrol.config_util import run_callables_generator
 from mesycontrol.config_util import ProgressUpdate
@@ -33,9 +34,14 @@ def refresh_device_memory(devices):
     profile parameters and the parameters already present in the devices memory
     cache."""
 
+    log = logging.getLogger("refresh_device_memory")
+
+    log.info(f"Refreshing memory of {len(devices)} devices")
+
     progress = ProgressUpdate(current=0, total=len(devices))
     progress.subprogress = ProgressUpdate(current=0, total=0)
 
+    log.debug("yield initial progress")
     yield progress
 
     for device in devices:
@@ -45,10 +51,11 @@ def refresh_device_memory(devices):
         progress.text = "Current device: (%s, %d, %d)" % (
                 device.mrc.get_display_url(), device.bus, device.address)
 
+        log.debug("yield current progress")
         yield progress
 
         params    = (p.address for p in device.hw_profile.get_parameters())
-        cached    = device.hw.get_cached_memory_ref().iterkeys()
+        cached    = device.hw.get_cached_memory_ref().keys()
         addresses = set(itertools.chain(params, cached))
 
         gen = run_callables_generator(
@@ -57,6 +64,7 @@ def refresh_device_memory(devices):
 
         while True:
             try:
+                log.debug(f"gen.send({arg})")
                 obj = gen.send(arg)
 
                 if isinstance(obj, ProgressUpdate):
@@ -65,12 +73,8 @@ def refresh_device_memory(devices):
                     arg = None
                 else:
                     arg = yield obj
-            except StopIteration:
-                break
-            except GeneratorExit:
+            except (GeneratorExit, StopIteration):
                 gen.close()
-                return
+                break
 
         yield progress.increment()
-
-    raise StopIteration()
