@@ -21,12 +21,14 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
+import mesycontrol.util as util
 from mesycontrol.config_util import GeneratorRunner
 
 class DefaultGeneratorRunner(GeneratorRunner):
     def __init__(self, generator=None, parent_widget=None, parent=None):
         super(DefaultGeneratorRunner, self).__init__(generator, parent)
         self.parent_widget = parent_widget
+        self.log = util.make_logging_source_adapter(__name__, self)
 
     def _object_yielded(self, obj):
         raise ValueError("Error: %s" % obj)
