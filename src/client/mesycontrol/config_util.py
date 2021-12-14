@@ -299,7 +299,7 @@ def apply_device_config(device):
         device.hw.set_extension(name, value)
 
 def run_callables_generator(callables):
-    progress = ProgressUpdate(current=0, total=len(callables))
+    progress = ProgressUpdate(current=0, total=util.ilen(callables))
 
     for c in callables:
         action = ACTION_RETRY
@@ -312,7 +312,7 @@ def run_callables_generator(callables):
                     raise SetParameterError(r)
                 yield progress.increment()
                 break
-            except GeneratorExit:
+            except (GeneratorExit, StopIteration):
                 return
             except Exception as e:
                 action = yield e
