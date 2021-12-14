@@ -701,11 +701,13 @@ class SimpleToolBar(QtWidgets.QWidget):
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().addStretch(1)
 
+    # Returns the button created for the action
     def addAction(self, action):
         super(SimpleToolBar, self).addAction(action)
         b = QtWidgets.QToolButton()
         b.setDefaultAction(action)
         self.addWidget(b)
+        return b
 
     def addWidget(self, widget):
         self.layout().takeAt(self.layout().count()-1)

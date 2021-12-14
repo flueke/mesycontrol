@@ -355,26 +355,26 @@ class GUIApplication(QtCore.QObject):
         self.actions['toggle_linked_mode'] = action
 
         # Check config
-        action = QtWidgets.QAction(make_icon(":/check-config.png"), "Compare config and hardware", self,
+        action = QtWidgets.QAction(make_icon(":/check-config.png"), "Compare cfg/hw", self,
                 triggered=self._check_config)
         action.splitter_toolbar = True
         self.actions['check_config'] = action
 
         # Config to Hardware
         action = QtWidgets.QAction(make_icon(":/apply-config-to-hardware.png"),
-                "Apply config to hardware", self, triggered=self._apply_config_to_hardware)
+                "Apply cfg to hw", self, triggered=self._apply_config_to_hardware)
         action.splitter_toolbar = True
         self.actions['apply_config_to_hardware'] = action
 
         # Hardware to Config
         action = QtWidgets.QAction(make_icon(":/apply-hardware-to-config.png"),
-                "Copy hardware values to config", self, triggered=self._apply_hardware_to_config)
+                "Copy hw values to cfg", self, triggered=self._apply_hardware_to_config)
         action.splitter_toolbar = True
         self.actions['apply_hardware_to_config'] = action
 
         # Widget window
         action = QtWidgets.QAction(make_icon(":/open-device-widget.png"),
-                "Open device widget", self, triggered=self._open_device_widget)
+                "Open device gui", self, triggered=self._open_device_widget)
 
         action.setToolTip("Open device widget")
         action.setStatusTip(action.toolTip())
@@ -504,7 +504,8 @@ class GUIApplication(QtCore.QObject):
         f = lambda a: getattr(a, 'splitter_toolbar', False)
 
         for action in filter(f, self.actions.values()):
-            self.treeview.splitter_toolbar.addAction(action)
+            button = self.treeview.splitter_toolbar.addAction(action)
+            button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
 
         # Config
         f = lambda a: getattr(a, 'cfg_toolbar', False)
@@ -757,6 +758,9 @@ class GUIApplication(QtCore.QObject):
         for a in self.actions.values():
             if len(a.toolTip()) and not len(a.statusTip()):
                 a.setStatusTip(a.toolTip())
+
+        self.actions['toggle_linked_mode'].setText(
+                "Views Linked" if self.linked_mode else "Views Unlinked")
 
     def _tree_node_selected(self, node):
         self.log.debug("_tree_node_selected: %s", node)
@@ -1540,6 +1544,7 @@ Initialize using the current hardware values or the device defaults?
         widget = device_tableview.DeviceTableWidget(device, display_mode, write_mode)
         subwin = gui_util.DeviceTableSubWindow(widget=widget)
         subwin.set_linked_mode(self.linked_mode)
+
         return self._register_device_subwindow(subwin)
 
     def _add_device_widget_window(self, app_device, display_mode, write_mode):

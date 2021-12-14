@@ -139,7 +139,7 @@ class MCTreeDirector(object):
         for mrc in self.app_registry.get_mrcs():
             self._mrc_added(mrc)
 
-    ########## MRC ########## 
+    ########## MRC ##########
     def _add_hw_mrc_node(self, mrc):
         if self.hw_model.find_node_by_ref(mrc) is not None:
             raise RuntimeError("Node exists")
@@ -216,7 +216,7 @@ class MCTreeDirector(object):
         if hw_node is not None:
             self.hw_model.remove_node(hw_node)
 
-    ########## Device ########## 
+    ########## Device ##########
     def _add_hw_device_node(self, device):
         if self.hw_model.find_node_by_ref(device) is not None:
             raise RuntimeError("Node exists")
