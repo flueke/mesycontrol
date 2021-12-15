@@ -222,7 +222,7 @@ class GUIApplication(QtCore.QObject):
 
         # Save setup as
         action = QtWidgets.QAction(make_icon(":/save-setup-as.png"),
-                "S&ave setup as", self, triggered=self._save_setup_as)
+                "S&ave\nsetup as", self, triggered=self._save_setup_as)
 
         action.setToolTip("Save setup as")
         action.setStatusTip(action.toolTip())
@@ -314,7 +314,7 @@ class GUIApplication(QtCore.QObject):
         self.actions['toggle_rc'] = action
 
         # Refresh device memory
-        action = QtWidgets.QAction(make_icon(":/refresh.png"), "&Refresh memory", self,
+        action = QtWidgets.QAction(make_icon(":/refresh.png"), "&Refresh\nmemory", self,
                 triggered=self._refresh)
         action.hw_toolbar = True
         self.actions['refresh'] = action
