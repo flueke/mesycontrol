@@ -100,6 +100,8 @@ class MRCNode(HardwareTreeNode):
             ret = mrc.get_display_url()
             if mrc.hw.is_silenced():
                 ret += " (silenced)"
+            if not mrc.hw.has_write_access():
+                ret += " (read-only)"
             return ret
 
         if column == 0:
