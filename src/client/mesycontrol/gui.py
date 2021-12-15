@@ -320,14 +320,18 @@ class GUIApplication(QtCore.QObject):
         self.actions['refresh'] = action
 
         # Add connection
-        action = QtWidgets.QAction(make_icon(":/add-mrc.png"), "Add MRC connection", self,
+        action = QtWidgets.QAction(make_icon(":/add-mrc.png"), "Add MRC", self,
                 triggered=self._add_mrc_connection)
+        action.setStatusTip("Add MRC connection")
+        action.setToolTip(action.statusTip())
         action.hw_toolbar = True
         self.actions['add_mrc_connection'] = action
 
         # Remove connection
-        action = QtWidgets.QAction(make_icon(":/remove-mrc.png"), "Remove MRC connection", self,
+        action = QtWidgets.QAction(make_icon(":/remove-mrc.png"), "Remove MRC", self,
                 triggered=self._remove_mrc_connection)
+        action.setStatusTip("Remove MRC connection")
+        action.setToolTip(action.statusTip())
         action.hw_toolbar = True
         self.actions['remove_mrc_connection'] = action
 
@@ -526,13 +530,21 @@ class GUIApplication(QtCore.QObject):
         f = lambda a: getattr(a, 'cfg_toolbar', False)
 
         for action in filter(f, self.actions.values()):
-            self.treeview.cfg_toolbar.addAction(action)
+            button = self.treeview.cfg_toolbar.addAction(action)
+            button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+            buttonFont = button.font()
+            buttonFont.setPixelSize(10)
+            button.setFont(buttonFont)
 
         # Hardware
         f = lambda a: getattr(a, 'hw_toolbar', False)
 
         for action in filter(f, self.actions.values()):
-            self.treeview.hw_toolbar.addAction(action)
+            button = self.treeview.hw_toolbar.addAction(action)
+            button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+            buttonFont = button.font()
+            buttonFont.setPixelSize(10)
+            button.setFont(buttonFont)
 
 
     def _update_actions_cb(self, *args, **kwargs):
@@ -582,10 +594,8 @@ class GUIApplication(QtCore.QObject):
         if a.isEnabled() and is_registry(node):
             if all((mrc.has_hw and mrc.hw.is_connected()) for mrc in node.ref):
                 a.setIcon(a.icons['disconnect'])
-                a.setToolTip("Disconnect all MRCs")
             else:
                 a.setIcon(a.icons['connect'])
-                a.setToolTip("Connect all MRCs")
 
             a.setText(a.toolTip())
             a.setStatusTip(a.toolTip())
@@ -636,9 +646,9 @@ class GUIApplication(QtCore.QObject):
         a.setChecked(a.isEnabled() and mrc.hw.write_access)
 
         if a.isChecked():
-            a.setToolTip("Release write access")
+            a.setToolTip("Release write\naccess")
         else:
-            a.setToolTip("Acquire write access")
+            a.setToolTip("Acquire write\naccess")
 
         a.setText(a.toolTip())
         a.setStatusTip(a.toolTip())
@@ -662,9 +672,9 @@ class GUIApplication(QtCore.QObject):
         a.setIcon(a.icons[a.isChecked()])
 
         if a.isChecked():
-            a.setToolTip("Disable silent mode")
+            a.setToolTip("Disable silent\nmode")
         else:
-            a.setToolTip("Enable silent mode")
+            a.setToolTip("Enable silent\nmode")
 
         a.setText(a.toolTip())
         a.setStatusTip(a.toolTip())
