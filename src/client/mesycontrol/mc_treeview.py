@@ -352,10 +352,16 @@ class MCTreeView(QtWidgets.QWidget):
         hw_layout.addWidget(self.hw_toolbar)
         hw_layout.addWidget(self.hw_view)
 
+        center_widget = QtWidgets.QGroupBox("Actions")
+        center_layout = QtWidgets.QVBoxLayout(center_widget)
+        center_layout.setContentsMargins(2, 2, 2, 2)
+        center_layout.addWidget(self.splitter_toolbar)
+        self.center_widget = center_widget
+
         self.splitter = splitter = DoubleClickSplitter()
         splitter.setChildrenCollapsible(False)
         splitter.addWidget(hw_widget)
-        splitter.addWidget(self.splitter_toolbar)
+        splitter.addWidget(center_widget)
         splitter.addWidget(cfg_widget)
 
         def on_handle_double_clicked():

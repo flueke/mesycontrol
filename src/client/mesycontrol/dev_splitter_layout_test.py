@@ -31,6 +31,7 @@ if __name__ == "__main__":
     rightTree = QtWidgets.QTreeView()
 
     splitter = QtWidgets.QSplitter()
+    splitter.setChildrenCollapsible(False)
     splitter.addWidget(leftTree)
     splitter.addWidget(centerWidget)
     splitter.addWidget(rightTree)

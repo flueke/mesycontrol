@@ -701,8 +701,10 @@ class SimpleToolBar(QtWidgets.QWidget):
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().addStretch(1)
 
-    # Returns the button created for the action
-    def addAction(self, action):
+    # Adds the action to the widget, creates a toolbutton linked to the action,
+    # adds the toolbutton to the layout.
+    # Returns the button created for the action.
+    def addAction(self, action) -> QtWidgets.QToolButton:
         super(SimpleToolBar, self).addAction(action)
         b = QtWidgets.QToolButton()
         b.setDefaultAction(action)
@@ -710,8 +712,10 @@ class SimpleToolBar(QtWidgets.QWidget):
         return b
 
     def addWidget(self, widget):
+        # Remove the stretch from the last position in the layout.
         self.layout().takeAt(self.layout().count()-1)
-        self.layout().addWidget(widget, 0, Qt.AlignCenter)
+        self.layout().addWidget(widget)
+        # Re-add the stretch as the last element in the layout.
         self.layout().addStretch(1)
         if self.orientation == Qt.Vertical:
             self.setFixedWidth(self.sizeHint().width())

@@ -355,26 +355,32 @@ class GUIApplication(QtCore.QObject):
         self.actions['toggle_linked_mode'] = action
 
         # Check config
-        action = QtWidgets.QAction(make_icon(":/check-config.png"), "Compare cfg/hw", self,
+        action = QtWidgets.QAction(make_icon(":/check-config.png"), "Compare hw/cfg", self,
                 triggered=self._check_config)
+        action.setStatusTip("Compare hardware and config values")
+        action.setToolTip(action.statusTip())
         action.splitter_toolbar = True
         self.actions['check_config'] = action
 
         # Config to Hardware
         action = QtWidgets.QAction(make_icon(":/apply-config-to-hardware.png"),
                 "Apply cfg to hw", self, triggered=self._apply_config_to_hardware)
+        action.setStatusTip("Apply config to hardware")
+        action.setToolTip(action.statusTip())
         action.splitter_toolbar = True
         self.actions['apply_config_to_hardware'] = action
 
         # Hardware to Config
         action = QtWidgets.QAction(make_icon(":/apply-hardware-to-config.png"),
-                "Copy hw values to cfg", self, triggered=self._apply_hardware_to_config)
+                "Copy hw to cfg", self, triggered=self._apply_hardware_to_config)
+        action.setStatusTip("Copy hardware to config")
+        action.setToolTip(action.statusTip())
         action.splitter_toolbar = True
         self.actions['apply_hardware_to_config'] = action
 
         # Widget window
         action = QtWidgets.QAction(make_icon(":/open-device-widget.png"),
-                "Open device gui", self, triggered=self._open_device_widget)
+                "Open device GUI", self, triggered=self._open_device_widget)
 
         action.setToolTip("Open device widget")
         action.setStatusTip(action.toolTip())
@@ -500,12 +506,21 @@ class GUIApplication(QtCore.QObject):
                 tb.widgetForAction(action).setPopupMode(QtWidgets.QToolButton.InstantPopup)
 
     def _populate_treeview(self):
-        # Splitter
+        # Center splitter toolbar
         f = lambda a: getattr(a, 'splitter_toolbar', False)
 
         for action in filter(f, self.actions.values()):
             button = self.treeview.splitter_toolbar.addAction(action)
             button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+            buttonFont = button.font()
+            buttonFont.setPixelSize(10)
+            button.setFont(buttonFont)
+            # Makes the buttons expand horizontally to fill the width of the
+            # center widget in the splitter.
+            button.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+
+        self.treeview.center_widget.setFixedWidth(
+                self.treeview.center_widget.sizeHint().width())
 
         # Config
         f = lambda a: getattr(a, 'cfg_toolbar', False)
