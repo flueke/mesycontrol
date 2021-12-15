@@ -224,7 +224,7 @@ class AddDeviceDialog(QtWidgets.QDialog):
             raise RuntimeError("No devices to choose from")
 
         if len(available_addresses) == 0 or (
-                bus is not None and util.ilen(filter(
+                bus is not None and util.ilen_destructive(filter(
                     lambda x: x[0] == bus, available_addresses)) == 0):
             raise RuntimeError("No addresses available")
 
@@ -245,7 +245,7 @@ class AddDeviceDialog(QtWidgets.QDialog):
             self.address_combos[b].addItem("%X" % a, a)
 
         self.address_combo_stack = QtWidgets.QStackedWidget()
-        
+
         for combo in self.address_combos:
             self.address_combo_stack.addWidget(combo)
 

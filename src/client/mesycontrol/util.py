@@ -762,5 +762,6 @@ class ReadOnlyCheckBox(QtWidgets.QCheckBox):
         event.ignore()
 
 # Source: https://stackoverflow.com/a/44351664
-def ilen(iterable):
+# Caution: this exhausts the iterator!
+def ilen_destructive(iterable):
     return reduce(lambda result, _: result+1, iterable, 0)

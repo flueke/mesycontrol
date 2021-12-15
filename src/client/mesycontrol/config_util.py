@@ -299,7 +299,10 @@ def apply_device_config(device):
         device.hw.set_extension(name, value)
 
 def run_callables_generator(callables):
-    progress = ProgressUpdate(current=0, total=util.ilen(callables))
+    if not isinstance(callables, list):
+        callables = list(callables)
+
+    progress = ProgressUpdate(current=0, total=len(callables))
 
     for c in callables:
         action = ACTION_RETRY
@@ -734,7 +737,10 @@ def read_config_parameters(devices):
     skipped_mrcs    = set()
     mrcs_to_connect = set(d.mrc for d in devices if (not d.mrc.has_hw or not d.mrc.hw.is_connected()))
 
-    progress             = ProgressUpdate(current=0, total=len(mrcs_to_connect) + util.ilen(devices))
+    if not isinstance(devices, list):
+        devices = list(devices)
+
+    progress             = ProgressUpdate(current=0, total=len(mrcs_to_connect) + len(devices))
     progress.subprogress = ProgressUpdate(current=0, total=0)
 
     yield progress

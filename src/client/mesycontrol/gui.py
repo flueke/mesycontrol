@@ -1108,6 +1108,7 @@ class GUIApplication(QtCore.QObject):
 
     def _check_config(self):
         node = self._selected_tree_node
+        gen = None
 
         if is_registry(node):
             gen = (d for mrc in node.ref for d in mrc)
@@ -1125,7 +1126,7 @@ class GUIApplication(QtCore.QObject):
             return
 
         predicate = lambda d: not d.idc_conflict and d.has_cfg
-        devices   = filter(predicate, gen)
+        devices   = list(filter(predicate, gen))
 
         self.log.info("check config: node=%s, devices=%s", node, devices)
 
@@ -1388,16 +1389,16 @@ Initialize using the current hardware values or the device defaults?
             return ((show_cfg and window.display_mode & util.CONFIG)
                     or (show_hw and window.display_mode & util.HARDWARE))
 
-        windows = filter(window_filter, self._device_window_map[device])
+        windows = list(filter(window_filter, self._device_window_map[device]))
 
-        self.log.debug("Found %d windows for %s", util.ilen(windows), device)
+        self.log.debug("Found %d windows for %s", len(windows), device)
 
         for subwin in windows:
             if subwin.isMinimized():
                 subwin.showNormal()
             self.mainwindow.mdiArea.setActiveSubWindow(subwin)
 
-        return util.ilen(windows) > 0
+        return len(windows) > 0
 
     def _close_device_windows(self, device):
         for window in copy.copy(self._device_window_map.get(device, set())):
