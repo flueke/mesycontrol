@@ -931,6 +931,7 @@ class GUIApplication(QtCore.QObject):
                 registry=self.app_registry,
                 device_registry=self.context.device_registry,
                 mrc=node.ref.mrc,
+                bus=node.ref.bus,
                 address=None if node.ref.has_cfg else node.ref.address,
                 parent_widget=self.mainwindow)
 
