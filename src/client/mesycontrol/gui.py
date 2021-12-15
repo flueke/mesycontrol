@@ -236,7 +236,7 @@ class GUIApplication(QtCore.QObject):
 
         action.setToolTip("Close setup")
         action.setStatusTip(action.toolTip())
-        action.cfg_toolbar = True
+        action.cfg_toolbar = False
         self.actions['close_setup'] = action
 
         # Add config
