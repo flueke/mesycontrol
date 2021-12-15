@@ -535,6 +535,7 @@ class GUIApplication(QtCore.QObject):
             buttonFont = button.font()
             buttonFont.setPixelSize(10)
             button.setFont(buttonFont)
+            button.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Expanding)
 
         # Hardware
         f = lambda a: getattr(a, 'hw_toolbar', False)
@@ -545,6 +546,7 @@ class GUIApplication(QtCore.QObject):
             buttonFont = button.font()
             buttonFont.setPixelSize(10)
             button.setFont(buttonFont)
+            button.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Expanding)
 
 
     def _update_actions_cb(self, *args, **kwargs):
@@ -577,10 +579,10 @@ class GUIApplication(QtCore.QObject):
                 and (self.linked_mode or is_config(node)))
 
         if a.isEnabled() and is_mrc(node):
-            a.setText("Remove MRC config")
+            a.setText("Remove MRC")
 
         if a.isEnabled() and is_device(node):
-            a.setText("Remove Device config")
+            a.setText("Remove Device")
 
         self.actions['rename_config'].setEnabled(
                 (is_mrc(node) or is_device(node)) and node.ref.has_cfg)
