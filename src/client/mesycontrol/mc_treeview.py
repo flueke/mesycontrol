@@ -345,12 +345,14 @@ class MCTreeView(QtWidgets.QWidget):
         cfg_layout.setContentsMargins(2, 2, 2, 2)
         cfg_layout.addWidget(self.cfg_toolbar)
         cfg_layout.addWidget(self.cfg_view)
+        cfg_layout.setStretch(1, 1)
 
         hw_widget = QtWidgets.QGroupBox("Hardware")
         hw_layout = QtWidgets.QVBoxLayout(hw_widget)
         hw_layout.setContentsMargins(2, 2, 2, 2)
         hw_layout.addWidget(self.hw_toolbar)
         hw_layout.addWidget(self.hw_view)
+        hw_layout.setStretch(1, 1)
 
         center_widget = QtWidgets.QGroupBox("Actions")
         center_layout = QtWidgets.QVBoxLayout(center_widget)
