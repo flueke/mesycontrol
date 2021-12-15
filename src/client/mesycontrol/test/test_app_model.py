@@ -60,7 +60,7 @@ def test_app_model_using_local_setup():
     mrc_model.controller            = mrc_controller.MRCController(con, mrc_model)
     mrc_config                      = config.MRCConfig()
     mrc_config.connection_config    = config.make_connection_config(con)
-    mrc                             = app_model.MRC(mrc_model=mrc_model, mrc_config=mrc_config)
+    mrc                             = app_model.AppMrc(mrc_model=mrc_model, mrc_config=mrc_config)
     setup                           = config.Setup()
     setup.add_mrc_config(mrc_config)
 

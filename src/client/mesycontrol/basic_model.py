@@ -153,7 +153,7 @@ class BasicMrc(QtCore.QObject):
     def get_device(self, bus, address):
         compare = lambda d: (d.bus, d.address) == (bus, address)
         return next((dev for dev in self._devices if compare(dev)), None)
-    
+
     def get_devices(self, bus=None):
         if bus is None:
             return list(self._devices)

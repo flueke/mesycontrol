@@ -308,7 +308,7 @@ def run_edit_mrc_config(mrc, registry, parent_widget=None):
             name = mrc.cfg.name
             registry.cfg.remove_mrc(mrc.cfg)
 
-            new_mrc = cm.MRC(url)
+            new_mrc = cm.ConfigMrc(url)
             new_mrc.name = name
             new_mrc.autoconnect = autoconnect
 
@@ -350,7 +350,7 @@ def run_add_device_config_dialog(device_registry, registry, mrc, bus=None, addre
             device_config = cm.make_device_config(bus, address, idc, name,
                     device_registry.get_device_profile(idc))
             if not mrc.has_cfg:
-                registry.cfg.add_mrc(cm.MRC(mrc.url))
+                registry.cfg.add_mrc(cm.ConfigMrc(mrc.url))
             mrc.cfg.add_device(device_config)
 
         dialog.accepted.connect(accepted)

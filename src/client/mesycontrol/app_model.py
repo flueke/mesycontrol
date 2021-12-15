@@ -212,7 +212,7 @@ class AppMrc(AppObject):
         return iter(self._devices)
 
     def __str__(self):
-        return "am.MRC(id=%s, url=%s, hw=%s, cfg=%s)" % (
+        return "am.AppMrc(id=%s, url=%s, hw=%s, cfg=%s)" % (
                 hex(id(self)), self.url, self.hw, self.cfg)
 
     url     = Property(str, get_url)
