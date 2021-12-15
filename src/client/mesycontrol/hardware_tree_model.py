@@ -24,6 +24,7 @@ __email__  = 'f.lueke@mesytec.com'
 from mesycontrol.qt import QtCore
 from mesycontrol.qt import QtGui
 from mesycontrol.qt import Qt
+from mesycontrol import app_model
 
 import mesycontrol.basic_tree_model as btm
 
@@ -58,7 +59,7 @@ class HardwareTreeNode(btm.BasicTreeNode):
         if ref.hw is not None:
             self._on_hardware_set(ref, None, ref.hw)
 
-    def _on_hardware_set(self, app_model, old_hw, new_hw):
+    def _on_hardware_set(self, appModel, oldHw, newHw):
         raise NotImplementedError()
 
 class RegistryNode(HardwareTreeNode):
@@ -74,8 +75,7 @@ class RegistryNode(HardwareTreeNode):
             return "Connections"
 
 class MRCNode(HardwareTreeNode):
-    def __init__(self, mrc, parent=None):
-        """mrc should be an instance of app_model.MRC"""
+    def __init__(self, mrc: app_model.AppMrc, parent=None):
         super(MRCNode, self).__init__(ref=mrc, parent=parent)
 
     def _on_hardware_set(self, app_mrc, old_mrc, new_mrc):
@@ -97,7 +97,10 @@ class MRCNode(HardwareTreeNode):
         mrc = self.ref
 
         if column == 0 and role == Qt.DisplayRole:
-            return mrc.get_display_url()
+            ret = mrc.get_display_url()
+            if mrc.hw.is_silenced():
+                ret += " (silenced)"
+            return ret
 
         if column == 0:
             if mrc.hw is not None and not mrc.hw.is_connected() and mrc.hw.last_connection_error is not None:
