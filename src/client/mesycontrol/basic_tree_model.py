@@ -102,7 +102,7 @@ class BasicTreeModel(QtCore.QAbstractItemModel):
         node.parent.children.remove(node)
         node.parent = None
         self.endRemoveRows()
-        
+
     def notify_data_changed(self, node, col1=None, col2=None):
         if col1 is None: col1 = 0
         if col2 is None: col2 = self.columnCount()

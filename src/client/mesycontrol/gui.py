@@ -789,6 +789,9 @@ class GUIApplication(QtCore.QObject):
         self.actions['toggle_linked_mode'].setText(
                 "Views Linked" if self.linked_mode else "Views Unlinked")
 
+        self.treeview.hw_view.resizeColumnToContents(0)
+        self.treeview.cfg_view.resizeColumnToContents(0)
+
     def _tree_node_selected(self, node):
         self.log.debug("_tree_node_selected: %s", node)
 

@@ -147,7 +147,10 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                 'connecting': self._all_fields_changed,
                 'disconnected': self._all_fields_changed,
                 'connection_error': self._all_fields_changed,
-                'address_conflict_changed': self._all_fields_changed
+                'address_conflict_changed': self._all_fields_changed,
+                'status_changed': self._all_fields_changed,
+                'write_access_changed': self._all_fields_changed,
+                'silenced_changed': self._all_fields_changed,
                 }
 
         if old_hw is not None:
