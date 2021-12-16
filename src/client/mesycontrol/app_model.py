@@ -57,8 +57,8 @@ class AppObject(QtCore.QObject):
         return self._hw
 
     def set_hardware(self, hw):
-        self.log.debug("set_hardware: self.hw=%s, hw=%s", self.hw, hw)
         if self.hw != hw:
+            self.log.debug("set_hardware: old hw=%s, new hw=%s", self.hw, hw)
             old = self.hw
             self._hw = hw
             self.hardware_set.emit(self, old, self.hw)
@@ -67,8 +67,8 @@ class AppObject(QtCore.QObject):
         return self._cfg
 
     def set_config(self, cfg):
-        self.log.debug("set_config: self.cfg=%s, cfg=%s", self.cfg, cfg)
         if self.cfg != cfg:
+            self.log.debug("set_config: old cfg=%s, new cfg=%s", self.cfg, cfg)
             old = self.cfg
             self._cfg = cfg
             self.config_set.emit(self, old, self.cfg)
@@ -255,6 +255,8 @@ class Device(AppObject):
             raise ValueError("Device address out of range")
 
         super(Device, self).__init__(hardware=hw_device, config=cfg_device, parent=parent)
+
+        self.log  = util.make_logging_source_adapter(__name__, self)
 
         self.log.debug("am.Device(b=%d, a=%d, hw_device=%s, cfg_device=%s, hw_mod=%s, cfg_mod=%s",
                 bus, address, hw_device, cfg_device, hw_module, cfg_module)
@@ -480,7 +482,7 @@ class Device(AppObject):
 
         def on_done(f):
             self._config_addresses = set((p.address for p in f.result()))
-            self.log.debug("_update_config_addresses: %s", self._config_addresses)
+            #self.log.debug("_update_config_addresses: %s", self._config_addresses)
             self.update_config_applied()
 
         self.get_config_parameters().add_done_callback(on_done)
