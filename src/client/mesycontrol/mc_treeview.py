@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # mesycontrol - Remote control for mesytec devices.
-# Copyright (C) 2015-2016 mesytec GmbH & Co. KG <info@mesytec.com>
+# Copyright (C) 2015-2021 mesytec GmbH & Co. KG <info@mesytec.com>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License

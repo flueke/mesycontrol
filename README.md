@@ -1,5 +1,8 @@
-Dependencies
-------------
+# mesycontrol - Remote control for mesytec NIM devices.
+
+See https://mesytec.com/products/mesycontrol/mesycontrol.html for more info and downloads.
+
+## Dependencies
 
 * System packages:
 
@@ -9,9 +12,9 @@ Dependencies
   - libxcb-util
   - patchelf
 
-* pip packages:
+* Python dependencies
 
   - PySide2
-  - cx_freeze
+  - cx-Freeze
   - pyqtgraph
   - protobuf
