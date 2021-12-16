@@ -96,11 +96,14 @@ class MRCNode(HardwareTreeNode):
     def data(self, column, role):
         mrc = self.ref
 
+        if not mrc:
+            return None
+
         if column == 0 and role == Qt.DisplayRole:
             ret = mrc.get_display_url()
-            if mrc.hw.is_silenced():
+            if mrc.hw is not None and mrc.hw.is_silenced():
                 ret += " (silenced)"
-            if not mrc.hw.has_write_access():
+            if mrc.hw is not None and not mrc.hw.has_write_access():
                 ret += " (read-only)"
             return ret
 
