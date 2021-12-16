@@ -546,7 +546,7 @@ def run_close_setup(context, parent_widget):
             return False
 
         if answer == QtWidgets.QMessageBox.Yes:
-            run_save_setup_as_dialog(context, parent_widget)
+            return run_save_setup_as_dialog(context, parent_widget)
 
     context.reset_setup()
     return True
