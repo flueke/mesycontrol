@@ -795,8 +795,13 @@ def read_config_parameters(devices):
         log.debug("read_config_parameters: params=%s", [p.address for p in params])
         progress.subprogress.current = 0
         progress.subprogress.total   = len(params)
-        progress.text  = "Reading from (%s, %d, %X)" % (
+        pt = "Reading from (%s, %d, %X" % (
                 device.mrc.get_display_url(), device.bus, device.address)
+        if device.get_device_name():
+            pt += f", {device.get_device_name()})"
+        else:
+            pt += ")"
+        progress.text = pt
         yield progress
 
         for param in params:
