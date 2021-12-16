@@ -119,12 +119,8 @@ class ServerProcess(QtCore.QObject):
         self.tcp_port = tcp_port
         self.verbosity = verbosity
 
-        self.process = QProcess()
-        self.process.setProcessChannelMode(QProcess.MergedChannels)
-
-        self.process.error.connect(self._error)
-        self.process.finished.connect(self._finished)
-        self.process.readyReadStandardOutput.connect(self._output)
+        self.process = None
+        self.lastExitCode = None
 
         self._startup_delay_timer = QtCore.QTimer()
         self._startup_delay_timer.setSingleShot(True)
@@ -142,6 +138,17 @@ class ServerProcess(QtCore.QObject):
         ret = Future()
 
         try:
+            if self.process is not None:
+                ret.set_result(True)
+                return ret
+
+            self.process = QProcess()
+            self.process.setProcessChannelMode(QProcess.MergedChannels)
+
+            self.process.error.connect(self._error)
+            self.process.finished.connect(self._finished)
+            self.process.readyReadStandardOutput.connect(self._output)
+
             if self.process.state() != QProcess.NotRunning:
                 raise ServerIsRunning()
 
@@ -169,6 +176,15 @@ class ServerProcess(QtCore.QObject):
 
             def on_startup_delay_expired():
                 if ret.done():
+                    return
+
+                if self.process is None:
+                    if self.exit_code()[0] != 0:
+                        # Uses self.lastExitCode
+                        ret.set_exception(ServerError(self.exit_code()))
+                    else:
+                        # An unknown error caused the process to stop and _finished() or _error() to set self.process to None
+                        ret.set_result(False)
                     return
 
                 self._startup_delay_timer.timeout.disconnect(on_startup_delay_expired)
@@ -217,11 +233,6 @@ class ServerProcess(QtCore.QObject):
         if self.process.state() != QProcess.NotRunning:
             def on_finished(code, status):
                 self.log.debug("Process finished with code=%d (%s)", code, ServerProcess.exit_code_string(code))
-                try:
-                    self.process.finished.disconnect(on_finished)
-                except RuntimeError:
-                    # Might have been disconnected in start::dc
-                    pass
                 ret.set_result(True)
 
             self.process.finished.connect(on_finished)
@@ -237,13 +248,15 @@ class ServerProcess(QtCore.QObject):
         return self.stop(True)
 
     def is_starting(self):
-        return self.process.state() == QProcess.Starting
+        return self.process is not None and self.process.state() == QProcess.Starting
 
     def is_running(self):
-        return self.process.state() == QProcess.Running
+        return self.process is not None and self.process.state() == QProcess.Running
 
     def exit_code(self):
-        code = self.process.exitCode()
+        code = self.lastExitCode
+        if self.process is not None:
+            code = self.process.exitCode()
         return (code, ServerProcess.exit_code_string(code))
 
     @staticmethod
@@ -282,10 +295,16 @@ class ServerProcess(QtCore.QObject):
         self.error.emit(error, self.process.errorString(),
                 exit_code, ServerProcess.exit_code_string(exit_code))
 
+        self.lastExitCode = exit_code
+        self.process = None
+
     def _finished(self, code, status):
         self.log.debug("Finished: status=%d, code=%d, str=%s", status, code,
                 ServerProcess.exit_code_string(code))
         self.finished.emit(status, code, ServerProcess.exit_code_string(code))
+
+        self.lastExitCode = code
+        self.process = None
 
     def _output(self):
         data = bytes(self.process.readAllStandardOutput()).decode("unicode_escape")
