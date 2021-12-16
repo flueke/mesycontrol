@@ -613,6 +613,9 @@ class GUIApplication(QtCore.QObject):
             a.setText(a.toolTip())
             a.setStatusTip(a.toolTip())
 
+        a = self.actions['edit_mrc_config']
+        a.setEnabled(is_mrc(node) and node.ref.has_cfg)
+
         # Toggle RC
         a = self.actions['toggle_rc']
         a.setEnabled(is_device(node) and node.ref.has_hw and not node.ref.hw.address_conflict
