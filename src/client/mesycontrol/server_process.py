@@ -236,7 +236,7 @@ class ServerProcess(QtCore.QObject):
                 ret.set_result(True)
 
             self.process.finished.connect(on_finished)
-            if not kill and not sys.platform.startswith('win32'):
+            if not kill:
                 self.process.terminate()
             else:
                 self.process.kill()

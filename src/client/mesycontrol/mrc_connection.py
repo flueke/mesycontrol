@@ -263,19 +263,19 @@ class LocalMRCConnection(AbstractMrcConnection):
         return ret
 
     def disconnectMrc(self):
-        self.log.debug("disconnect")
+        self.log.debug("disconnectMrc")
 
         ret = Future()
 
         def on_server_stopped(f):
-            self.log.debug("disconnect: on_server_stopped")
+            self.log.debug("disconnectMrc: on_server_stopped")
             try:
                 ret.set_result(f.result())
             except Exception as e:
                 ret.set_exception(e)
 
         def on_connection_disconnected(f):
-            self.log.debug("disconnect: on_connection_disconnected")
+            self.log.debug("disconnectMrc: on_connection_disconnected")
             self._is_connected = False
             self._is_connecting = False
             if self.server.is_running():
