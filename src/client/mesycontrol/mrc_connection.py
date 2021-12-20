@@ -175,7 +175,7 @@ class MRCConnection(AbstractMrcConnection):
         self.connection_error.emit(error)
 
     def disconnectMrc(self):
-        self.log.debug("disconnect")
+        self.log.debug("disconnectMrc")
         return self.client.disconnectClient()
 
     def is_connected(self):
@@ -262,28 +262,62 @@ class LocalMRCConnection(AbstractMrcConnection):
 
         return ret
 
+    #def disconnectMrc_old(self):
+    #    self.log.debug("disconnectMrc")
+
+    #    ret = Future()
+
+    #    def on_server_stopped(f):
+    #        self.log.debug("disconnectMrc: on_server_stopped")
+    #        try:
+    #            ret.set_result(f.result())
+    #        except Exception as e:
+    #            ret.set_exception(e)
+
+    #    def on_connection_disconnected(f):
+    #        self.log.debug("disconnectMrc.on_connection_disconnected: Stopping server process.")
+    #        self._is_connected = False
+    #        self._is_connecting = False
+    #        if self.server.is_running():
+    #            self.server.stop().add_done_callback(on_server_stopped)
+    #        else:
+    #            ret.set_result(True)
+
+    #    self.connection.disconnectMrc().add_done_callback(on_connection_disconnected)
+
+    #    return ret
+
     def disconnectMrc(self):
         self.log.debug("disconnectMrc")
-
         ret = Future()
 
-        def on_server_stopped(f):
-            self.log.debug("disconnectMrc: on_server_stopped")
-            try:
-                ret.set_result(f.result())
-            except Exception as e:
-                ret.set_exception(e)
+        if self.server.is_running():
+            def handle_quit_response(f):
+                self.log.info(f"disconnectMrc.handle_quit_response result: {f.result().response.response_bool}")
+                r = f.result()
 
-        def on_connection_disconnected(f):
-            self.log.debug("disconnectMrc: on_connection_disconnected")
-            self._is_connected = False
-            self._is_connecting = False
-            if self.server.is_running():
-                self.server.stop().add_done_callback(on_server_stopped)
-            else:
-                ret.set_result(True)
+                if r.response.response_bool:
+                    def on_server_stopped(stopFuture):
+                        self.log.debug(f"disconnectMrc.on_server_stopped {stopFuture}")
+                        self._is_connected = False
+                        self._is_connecting = False
+                        ret.set_result(True)
 
-        self.connection.disconnectMrc().add_done_callback(on_connection_disconnected)
+                    def stop_server(disconnectFuture):
+                        self.log.debug(f"disconnectMrc.stop_server {disconnectFuture}")
+                        self.server.stop().add_done_callback(on_server_stopped)
+
+                    self.connection.disconnectMrc().add_done_callback(stop_server)
+
+                else:
+                    self.log.debug("disconnectMrc.handle_quit_response: quit response was False!")
+                    ret.set_result(False)
+
+            req = proto.Message()
+            req.type = proto.Message.REQ_QUIT
+            self.queue_request(req).add_done_callback(handle_quit_response)
+        else:
+            ret.set_result(True)
 
         return ret
 

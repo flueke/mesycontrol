@@ -113,36 +113,34 @@ class MCTCPClient(QtCore.QObject):
         """Disconnect. Returns a Future that fullfills once the connection has
         been disconnected or an error occurs."""
 
-        self.log.debug("disconnect()")
+        self.log.debug("disconnectClient()")
 
-        if self.is_disconnected():
-            return Future().set_result(True)
+        if not self.is_disconnected():
+            self._socket.disconnectFromHost()
 
-        ret = Future()
+        return Future().set_result(True)
 
-        host, port = self.host, self.port
+        #host, port = self.host, self.port
 
-        def dc():
-            self._socket.disconnected.disconnect(socket_disconnected)
-            self._socket.error.disconnect(socket_error)
+        #def dc():
+        #    self._socket.disconnected.disconnect(socket_disconnected)
+        #    self._socket.error.disconnect(socket_error)
 
-        def socket_disconnected():
-            self.log.debug("Disconnected from %s:%d", host, port)
-            dc()
-            ret.set_result(True)
+        #def socket_disconnected():
+        #    self.log.debug("Disconnected from %s:%d", host, port)
+        #    dc()
+        #    ret.set_result(True)
 
-        def socket_error(socket_error):
-            #self.log.error("Socket error from %s:%d: %s", host, port,
-            #        self._socket.errorString())
-            dc()
-            ret.set_exception(util.SocketError(socket_error, self._socket.errorString()))
+        #def socket_error(socket_error):
+        #    #self.log.error("Socket error from %s:%d: %s", host, port,
+        #    #        self._socket.errorString())
+        #    dc()
+        #    ret.set_exception(util.SocketError(socket_error, self._socket.errorString()))
 
-        self._socket.disconnected.connect(socket_disconnected)
-        self._socket.error.connect(socket_error)
+        #self._socket.disconnected.connect(socket_disconnected)
+        #self._socket.error.connect(socket_error)
 
-        self._socket.disconnectFromHost()
-
-        return ret
+        #return ret
 
     def is_connected(self):
         """True if connected, False otherwise."""
@@ -288,7 +286,8 @@ class MCTCPClient(QtCore.QObject):
         if self._current_request is not None:
             self.log.debug("_reset_state: aborting current request")
             request, future = self._current_request
-            future.set_exception(exception_object)
+            if not future.done():
+                future.set_exception(exception_object)
             self._current_request = None
 
         self._read_size = 0

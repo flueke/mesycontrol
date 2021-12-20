@@ -1089,7 +1089,9 @@ class GUIApplication(QtCore.QObject):
         node = self._selected_tree_node
 
         def do_remove(f_ignored):
+            self.log.debug("_remove_mrc_connection.do_remove")
             self.app_registry.hw.remove_mrc(node.ref.hw)
+            self._update_actions()
 
         node.ref.hw.disconnectMrc().add_done_callback(do_remove)
 

@@ -77,6 +77,7 @@ def mesycontrol_gui_main():
             hdlr = logging.getLogger().handlers[0]
             hdlr.setFormatter(fmt)
 
+        # Lower the log level for certain loggers.
         for ln in (
                 "basic_tree_model",
                 "future",

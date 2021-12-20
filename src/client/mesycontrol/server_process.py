@@ -39,11 +39,11 @@ MAX_PORT  = 65535 #: The maximum port number.
 # The mesycontrol_server exit codes.
 EXIT_CODES = {
         0:   "exit_success",
-        1:   "exit_options_error",
-        2:   "exit_address_in_use",
-        3:   "exit_address_not_available",
-        4:   "exit_permission_denied",
-        5:   "exit_bad_listen_address",
+        10:  "exit_options_error",
+        20:  "exit_address_in_use",
+        30:  "exit_address_not_available",
+        40:  "exit_permission_denied",
+        50:  "exit_bad_listen_address",
         127: "exit_unknown_error"
         }
 
@@ -91,16 +91,6 @@ class ServerProcess(QtCore.QObject):
     finished = Signal(QProcess.ExitStatus, int, str) #: exit_status, exit_code, exit_code_string
     output   = Signal(str)
 
-    exit_codes = {
-            0:   "exit_success",
-            1:   "exit_options_error",
-            2:   "exit_address_in_use",
-            3:   "exit_address_not_available",
-            4:   "exit_permission_denied",
-            5:   "exit_bad_listen_address",
-            127: "exit_unknown_error"
-            }
-
     startup_delay_ms = 200
 
     def __init__(self, binary='mesycontrol_server', listen_address='127.0.0.1', listen_port=BASE_PORT,
@@ -138,11 +128,12 @@ class ServerProcess(QtCore.QObject):
         ret = Future()
 
         try:
-            if self.process is not None:
+            if self.process is not None and self.process.state != QProcess.NotRunning:
                 ret.set_result(True)
                 return ret
 
-            self.process = QProcess()
+            if self.process is None:
+                self.process = QProcess()
             self.process.setProcessChannelMode(QProcess.MergedChannels)
 
             self.process.error.connect(self._error)
@@ -231,15 +222,16 @@ class ServerProcess(QtCore.QObject):
         ret = Future()
 
         if self.process.state() != QProcess.NotRunning:
-            def on_finished(code, status):
-                self.log.debug("Process finished with code=%d (%s)", code, ServerProcess.exit_code_string(code))
-                ret.set_result(True)
+            #def on_finished(code, status):
+            #    self.log.debug("Process finished with code=%d (%s)", code, ServerProcess.exit_code_string(code))
+            #    ret.set_result(True)
 
-            self.process.finished.connect(on_finished)
-            if not kill:
+            #self.process.finished.connect(on_finished)
+            if not kill:  #and not sys.platform.startswith('win32'):
                 self.process.terminate()
             else:
                 self.process.kill()
+            ret.set_result(True)
         else:
             ret.set_exception(ServerIsStopped())
         return ret
@@ -261,7 +253,7 @@ class ServerProcess(QtCore.QObject):
 
     @staticmethod
     def exit_code_string(code):
-        return ServerProcess.exit_codes.get(code, "exit_unknown_error")
+        return EXIT_CODES.get(code, "exit_unknown_error")
 
     def _prepare_args(self):
         args = list()
@@ -344,7 +336,7 @@ class ServerProcessPool(QtCore.QObject):
 
         raise RuntimeError("No listen ports available")
 
-    def _on_process_finished(self, exit_status, exit_code, exit_code_string, process):
+    def _on_process_finished(self, exit_status: QProcess.ExitStatus, exit_code: int, exit_code_string: str, process: ServerProcess):
 
         self.log.debug("_on_process_finished: exit_code=%d (%s), exit_status=%d",
                 exit_code, exit_code_string, exit_status)
@@ -356,6 +348,10 @@ class ServerProcessPool(QtCore.QObject):
             process.listen_port = self._get_free_port()
             self._procs_by_port[process.listen_port] = process
             process.start()
+
+        elif exit_code != 0:
+            self.log.warning("ServerProcess finished with exit_code=%d (%s), exit_status=%d",
+                            exit_code, exit_code_string, exit_status)
 
 pool = ServerProcessPool()
 

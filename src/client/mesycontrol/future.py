@@ -267,6 +267,7 @@ class FutureObserver(QtCore.QObject):
         super(FutureObserver, self).__init__(parent)
         self.log    = util.make_logging_source_adapter(__name__, self)
         self.future = the_future
+        self.log.debug(f"FutureObserver created with future={self.future}")
 
     def get_future(self):
         return self._future
