@@ -24,11 +24,11 @@ using namespace mesycontrol;
 enum exit_code
 {
   exit_success                = 0,
-  exit_options_error          = 1, // indicates wrong or missing options
-  exit_address_in_use         = 2,
-  exit_address_not_available  = 3,
-  exit_permission_denied      = 4,
-  exit_bad_listen_address     = 5,
+  exit_options_error          = 10, // indicates wrong or missing options
+  exit_address_in_use         = 20,
+  exit_address_not_available  = 30,
+  exit_permission_denied      = 40,
+  exit_bad_listen_address     = 50,
   exit_unknown_error          = 127
 };
 
