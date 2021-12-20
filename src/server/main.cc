@@ -170,6 +170,7 @@ int main(int argc, char *argv[])
         boost::ref(io_service),
         listen_endpoint,
         boost::ref(connection_manager));
+    connection_manager.setServer(tcp_server);
   } catch (const boost::system::system_error &e) {
     std::cerr << "Error: Failed starting TCP server component: " << e.what() << std::endl;
 

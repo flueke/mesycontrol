@@ -3,6 +3,7 @@
 #include <boost/log/trivial.hpp>
 #include <boost/make_shared.hpp>
 #include "tcp_connection_manager.h"
+#include "tcp_server.h"
 
 namespace mesycontrol
 {
@@ -22,6 +23,11 @@ TCPConnectionManager::TCPConnectionManager(MRC1RequestQueue &mrc1_queue)
 
   m_scanbus_poller.register_result_handler(boost::bind(
         &TCPConnectionManager::handle_scanbus_poll_complete, this, _1));
+}
+
+void TCPConnectionManager::setServer(boost::shared_ptr<TCPServer> server)
+{
+    m_tcpServer = server;
 }
 
 void TCPConnectionManager::start(TCPConnectionPtr c)
@@ -205,11 +211,38 @@ void TCPConnectionManager::dispatch_request(const TCPConnectionPtr &connection, 
         }
         break;
 
+      case proto::Message::REQ_QUIT:
+      {
+        if (connection != m_write_connection)
+        {
+          connection->send_message(MessageFactory::make_error_response(proto::ResponseError::PERMISSION_DENIED));
+        }
+        else
+        {
+          BOOST_LOG_SEV(m_log, log::lvl::info) << connection->connection_string() << ": received request to quit";
+
+          if (auto server = m_tcpServer.lock())
+          {
+              response = MessageFactory::make_bool_response(true);
+              connection->send_message(response);
+              server->stop();
+              return;
+          }
+          else
+          {
+              // Should not happen.
+              response = MessageFactory::make_bool_response(false);
+          }
+        }
+      }
+      break;
+
       default:
         BOOST_LOG_SEV(m_log, log::lvl::error) << connection->connection_string()
           << ": invalid message received: " << get_message_info(request);
         response = MessageFactory::make_error_response(proto::ResponseError::INVALID_TYPE);
         stop_connection = true;
+        break;
     }
 
     if (response) {

@@ -12,12 +12,16 @@
 namespace mesycontrol
 {
 
+class TCPServer;
+
 class TCPConnectionManager: private boost::noncopyable
 {
   friend class TCPConnection;
 
   public:
     TCPConnectionManager(MRC1RequestQueue &mrc1_queue);
+
+    void setServer(boost::shared_ptr<TCPServer> server);
 
     /// Add the specified connection to the manager and start it.
     void start(TCPConnectionPtr c);
@@ -61,6 +65,9 @@ class TCPConnectionManager: private boost::noncopyable
 
     /// Handler for MRC commands.
     MRC1RequestQueue& m_mrc1_queue;
+
+    // The TCP server this connection manager is working for.
+    boost::weak_ptr<TCPServer> m_tcpServer;
 
     /// The connection currently having write access.
     TCPConnectionPtr m_write_connection;

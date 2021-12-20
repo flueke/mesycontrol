@@ -75,6 +75,10 @@ message RequestSetPollItems {
   repeated PollItem items = 1;
 }
 
+// response: ResponseBool
+message RequestQuit {
+}
+
 // ===== Responses =====
 
 message ResponseBool {
@@ -199,6 +203,7 @@ message Message {
     REQ_IS_SILENCED           = 14; // response uses response_bool
     REQ_SET_SILENCED          = 15; // response uses response_bool
     REQ_SET_POLL_ITEMS        = 16; // response uses response_bool
+    REQ_QUIT                  = 17; // response uses response_bool
 
     // ===== Responses =====
     RESP_BOOL                 = 20;
@@ -231,17 +236,18 @@ message Message {
   RequestAcquireWriteAccess request_acquire_write_access  = 9;
   RequestSetSilenced        request_set_silenced          = 10;
   RequestSetPollItems       request_set_poll_items        = 11;
+  RequestQuit               request_quit                  = 12;
 
-  ResponseBool              response_bool                 = 12;
-  ResponseError             response_error                = 13;
-  ResponseRead              response_read                 = 14;
-  ResponseReadMulti         response_read_multi           = 15;
+  ResponseBool              response_bool                 = 13;
+  ResponseError             response_error                = 14;
+  ResponseRead              response_read                 = 15;
+  ResponseReadMulti         response_read_multi           = 16;
 
-  SetResult                 set_result                    = 16;
-  ScanbusResult             scanbus_result                = 17;
-  MRCStatus                 mrc_status                    = 18;
-  NotifyWriteAccess         notify_write_access           = 19;
-  NotifySilenced            notify_silenced               = 20;
-  NotifyPolledItems         notify_polled_items           = 21;
-  NotifyClientList          notify_client_list            = 22;
+  SetResult                 set_result                    = 17;
+  ScanbusResult             scanbus_result                = 18;
+  MRCStatus                 mrc_status                    = 19;
+  NotifyWriteAccess         notify_write_access           = 20;
+  NotifySilenced            notify_silenced               = 21;
+  NotifyPolledItems         notify_polled_items           = 22;
+  NotifyClientList          notify_client_list            = 23;
 }
