@@ -1,0 +1,34 @@
+set(PROJECT_NAME        "@CMAKE_PROJECT_NAME@")
+set(PACKAGE_ARCH_STRING "@PACKAGE_ARCH_STRING@")
+set(PACKAGE_VERSION     "@GIT_VERSION_SHORT@")
+set(SOURCE_DIR          "@CMAKE_SOURCE_DIR@")
+set(GIT_BRANCH          "@GIT_BRANCH@")
+
+set(CPACK_PACKAGE_VERSION "${PACKAGE_VERSION}")
+set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${PACKAGE_VERSION}-${CMAKE_SYSTEM_NAME}-${PACKAGE_ARCH_STRING}")
+
+if (GIT_BRANCH AND NOT "${GIT_BRANCH}" STREQUAL "main")
+    string(REPLACE "/" "_" GIT_BRANCH ${GIT_BRANCH})
+
+    set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_FILE_NAME}-${GIT_BRANCH}")
+endif()
+
+set(CPACK_PACKAGE_VENDOR "mesytec")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "mesycontrol")
+
+if (WIN32)
+    # https://cmake.org/cmake/help/v3.10/module/CPackNSIS.html
+
+    set(CPACK_OUTPUT_FILE_PREFIX "packages")
+    set(CPACK_CMAKE_GENERATOR "MSYS Makefiles")
+    set(CPACK_PACKAGE_INSTALL_REGISTRY_KEY "mesytec-mesycontrol")
+    set(CPACK_NSIS_DISPLAY_NAME "mesytec mesycontrol")
+    set(CPACK_PACKAGE_EXECUTABLES "mesycontrol_gui;mesycontrol")
+    #set(CPACK_NSIS_INSTALLED_ICON_NAME "bin\\mvme.exe")
+    #set(CPACK_MONOLITHIC_INSTALL 1)
+else()
+    #set(CPACK_OUTPUT_FILE_PREFIX "$ENV{HOME}/src/mvme-packages")
+endif()
+
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/src/client/mesycontrol/resources/gpl-notice.txt")
+set(CPACK_STRIP_FILES TRUE)

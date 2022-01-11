@@ -54,31 +54,15 @@ endif()
 # the install() command.
 #option(MESYCONTROL_INSTALL_DEPLOY_FILES "Install additional library files from a special deploy directory." OFF)
 
-# CPack configuration used for 'make package'
 if (WIN32)
-  set(CPACK_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${GIT_VERSION_SHORT}")
-else(WIN32)
-  execute_process(COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE ARCHITECTURE)
-  set(CPACK_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${GIT_VERSION_SHORT}-${ARCHITECTURE}")
-endif(WIN32)
-
-set(CPACK_PACKAGE_VERSION "${GIT_VERSION_SHORT}")
-set(CPACK_PACKAGE_VENDOR "mesytec")
-set(CPACK_PACKAGE_EXECUTABLES "mesycontrol_gui;mesycontrol")
-set(CPACK_PACKAGE_INSTALL_DIRECTORY "mesycontrol")
-set(CPACK_OUTPUT_FILE_PREFIX "packages")
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/src/client/mesycontrol/resources/gpl-notice.txt")
-set(CPACK_STRIP_FILES TRUE)
-
-if (WIN32)
-    set(CPACK_GENERATOR "ZIP" "NSIS")
+    set(CPACK_GENERATOR "NSIS") # "NSIS;ZIP"
     set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL "ON")
     set(CPACK_NSIS_PACKAGE_NAME "mesycontrol")
     set(CPACK_NSIS_MUI_FINISHPAGE_RUN "mesycontrol_gui.exe")
     set(CPACK_NSIS_URL_INFO_ABOUT "http://www.mesytec.com")
     set(CPACK_NSIS_CONTACT "info@mesytec.com")
     set(CPACK_NSIS_MENU_LINKS
-        "share/doc/mesycontrol.pdf" "Documentation")
+        "share/doc/mesycontrol.pdf" "mesycontrol Documentation")
     set(CPACK_SOURCE_GENERATOR "ZIP")
 else()
     # This was intended for the Qt4 deploy files but these are now handled in the generated setup.py distutils script.
@@ -93,8 +77,11 @@ else()
     #    endif()
     #endif()
     set(CPACK_GENERATOR "TBZ2")
-    #set(CPACK_SOURCE_GENERATOR "TBZ2")
+    set(CPACK_SOURCE_GENERATOR "TBZ2")
 endif(WIN32)
+
+configure_file("CPackOptions.cmake.in" "${PROJECT_BINARY_DIR}/CPackOptions.cmake" @ONLY)
+set(CPACK_PROJECT_CONFIG_FILE "${PROJECT_BINARY_DIR}/CPackOptions.cmake")
 
 include(CPack)
 
