@@ -47,7 +47,7 @@ Linux installation
 *mesycontrol* requires the Qt libraries >= 4.8 to be installed on your system.
 Also be sure to pick the right archive for your distribution and architecture
 as trying to run the 32 bit version of the software on a 64 bit linux
-installation will most likely result in errors about missing libraries. 
+installation will most likely result in errors about missing libraries.
 
 The installation itself is simple: unpack the tar.bz2 archive and execute the
 *mesycontrol_gui* binary to get started::
@@ -227,7 +227,7 @@ write modes for newly opened device windows. Using two buttons at the top
 toolbar both modes can be changed after window creation.
 
 .. figure:: display-and-write-mode-icons.png
-  
+
    Display and write mode icons.
 
 The modes currently in effect are also displayed in the device windows title
@@ -316,7 +316,7 @@ sub-elements contain information about the device:
   in a **value** sub-element. The value type is set using the **type**
   attribute. Currently the following types are supported: *str*, *int*,
   *float*, *list*, *dict*.
-  
+
   The list and dictionary types may be nested. Lists contain **value**
   subelements, dictionaries contain **key** elements with one mandatory
   attribute called **name** holding the keys name as a string and a
@@ -367,7 +367,7 @@ supported:
 
   Examples:
     - *serial:///dev/ttyUSB0@115200*
-    - *serial:///dev/ttyS0* 
+    - *serial:///dev/ttyS0*
     - *serial://COM4*
 
 * **tcp**
@@ -476,7 +476,7 @@ Sample setup
 
 .. Indices and tables
 .. ==================
-.. 
+..
 .. * :ref:`genindex`
 .. * :ref:`modindex`
 .. * :ref:`search`
