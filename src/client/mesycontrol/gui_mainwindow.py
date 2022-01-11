@@ -176,7 +176,7 @@ class MainWindow(QtWidgets.QMainWindow):
         l.addWidget(label)
 
         l.addWidget(QtWidgets.QLabel("Remote control for mesytec devices."))
-        l.addWidget(QtWidgets.QLabel("© 2014-2021 mesytec GmbH & Co. KG"))
+        l.addWidget(QtWidgets.QLabel("© 2014-2022 mesytec GmbH & Co. KG"))
 
         t = '<a href="mailto:info@mesytec.com">info@mesytec.com</a> - <a href="http://www.mesytec.com">www.mesytec.com</a>'
         label = QtWidgets.QLabel(t)
