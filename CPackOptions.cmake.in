@@ -30,5 +30,5 @@ else()
     #set(CPACK_OUTPUT_FILE_PREFIX "$ENV{HOME}/src/mvme-packages")
 endif()
 
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/src/client/mesycontrol/resources/gpl-notice.txt")
+set(CPACK_RESOURCE_FILE_LICENSE "${SOURCE_DIR}/src/client/mesycontrol/resources/gpl-notice.txt")
 set(CPACK_STRIP_FILES TRUE)
