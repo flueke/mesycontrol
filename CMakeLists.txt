@@ -62,7 +62,7 @@ if (WIN32)
     set(CPACK_NSIS_URL_INFO_ABOUT "http://www.mesytec.com")
     set(CPACK_NSIS_CONTACT "info@mesytec.com")
     set(CPACK_NSIS_MENU_LINKS
-        "share/doc/mesycontrol.pdf" "mesycontrol Documentation")
+        "share/doc/html/index.html" "mesycontrol Documentation")
     set(CPACK_SOURCE_GENERATOR "ZIP")
 else()
     # This was intended for the Qt4 deploy files but these are now handled in the generated setup.py distutils script.
