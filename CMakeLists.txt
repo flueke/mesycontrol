@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-project(mesycontrol)
+project(mesycontrol DESCRIPTION "Remote control for mesytec NIM devices")
 
 set(MESYCONTROL_MAIN_PROJECT OFF)
 if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
