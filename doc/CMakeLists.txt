@@ -1,72 +1,90 @@
-# generate documentation using the sphinx system
+# Build Sphinx documentation.
+# Source: https://eb2.co/blog/2012/03/sphinx-and-cmake-beautiful-documentation-for-c-projects/
+
+# Notes (flueke):
+# * Using different cache directories for each type of build to avoid race
+#   conditions when using multiple make jobs.
+# * add_custom_command() and add_custom_target() together are used to create a
+#   dependency chain for CMake: the command specifies the output, the target
+#   depends on the output.
 find_package(Sphinx)
+find_program(LATEXMK latexmk)
 
-if (SPHINX_FOUND)
-    # Note (flueke): this was probably added for sphinx-apidoc but that's not
-    # used anymore.
-  #find_package(PythonInterp REQUIRED)
+if (SPHINX_EXECUTABLE)
 
-  set(SPHINX_SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/sphinx-source")
+  set(SPHINX_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/sphinx")
   set(SPHINX_BUILD_DIR  "${CMAKE_CURRENT_BINARY_DIR}/sphinx-build")
   set(SPHINX_CACHE_DIR  "${CMAKE_CURRENT_BINARY_DIR}/sphinx-cache")
   set(SPHINX_HTML_DIR   "${CMAKE_CURRENT_BINARY_DIR}/sphinx-html")
   set(SPHINX_LATEX_DIR  "${CMAKE_CURRENT_BINARY_DIR}/sphinx-latex")
+  set(SPHINX_PDF_OUT    "${SPHINX_LATEX_DIR}/mesycontrol.pdf")
 
-  # Copy the conf.py.in template and replace parameters.
-  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sphinx/conf.py.in" "${SPHINX_SOURCE_DIR}/conf.py" @ONLY)
+  # Copies the footer logo for the latex build.
+  configure_file(
+      "${SPHINX_SOURCE_DIR}/mesytec-logo-yellow.png"
+      "${SPHINX_LATEX_DIR}/mesytec-logo-yellow.png"
+      COPYONLY
+      )
 
-  # Build the docs in HTML and PDF format.
-  # First the sphinx source directory is copied from the source tree into the
-  # build directory. This is needed as sphinx only accepts one `source'
-  # directory and the auto-generated API documentation should not be created
-  # inside the source tree but rather in the build directory.
-  #
-  # Second sphinx-apidoc is used to auto generate python API documentation.
-  # Then sphinx-build is used to generate the output.
-  #
-  # Then sphinx is run twice, once for HTML and once for latex output. To
-  # generate the final PDF file from the latex sources a final make invocation
-  # is needed.
-  add_custom_target(doc ALL
-    COMMAND
-    ${CMAKE_COMMAND}
-    -E copy_directory
-    "${CMAKE_CURRENT_SOURCE_DIR}/sphinx"
-    "${SPHINX_SOURCE_DIR}"
+  add_custom_target(mesycontrol_doc ALL)
 
-    #COMMAND
-    #sphinx-apidoc
-    #-f -d 2
-    #-o "${SPHINX_SOURCE_DIR}"
-    #"${CMAKE_SOURCE_DIR}/src/client/mesycontrol"      # package dir
-    #"${CMAKE_SOURCE_DIR}/src/client/mesycontrol/test" # exclude
-    #"${CMAKE_SOURCE_DIR}/src/client/mesycontrol/ui"   # exclude
+  # html
+  # ==================================================
 
-    COMMAND
-    ${SPHINX_EXECUTABLE}
-    -b html
-    -d "${SPHINX_CACHE_DIR}"
-    "${SPHINX_SOURCE_DIR}"
-    "${SPHINX_HTML_DIR}"
+  configure_file(
+      "${SPHINX_SOURCE_DIR}/conf.py.in"
+      "${SPHINX_BUILD_DIR}/html/conf.py"
+      @ONLY
+      )
 
-    #COMMAND
-    #${SPHINX_EXECUTABLE}
-    #-b latex
-    #-d "${SPHINX_CACHE_DIR}"
-    #"${SPHINX_SOURCE_DIR}"
-    #"${SPHINX_LATEX_DIR}"
+  add_custom_target(mesycontrol_doc_html
+      ${SPHINX_EXECUTABLE}
+      -E -b html
+      -c "${SPHINX_BUILD_DIR}/html"
+      -d "${SPHINX_CACHE_DIR}/html"
+      "${SPHINX_SOURCE_DIR}"
+      "${SPHINX_HTML_DIR}"
+      COMMENT "Building HTML documentation with Sphinx"
+      )
 
-    #COMMAND
-    #make -C ${SPHINX_LATEX_DIR} all-pdf
-
-    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/sphinx/index.rst"
-    #BYPRODUCTS "${SPHINX_LATEX_DIR}/mesycontrol.pdf" "${SPHINX_HTML_DIR}/index.html"
-    COMMENT "Building documentation with Sphinx"
-    VERBATIM
-  )
+  add_dependencies(mesycontrol_doc mesycontrol_doc_html)
 
   install(DIRECTORY "${SPHINX_HTML_DIR}/" DESTINATION "share/doc/html" OPTIONAL)
-  install(FILES "${SPHINX_LATEX_DIR}/mesycontrol.pdf" DESTINATION "share/doc" OPTIONAL)
+
+  # latex + pdf
+  # ==================================================
+  if (LATEXMK)
+    configure_file(
+        "${SPHINX_SOURCE_DIR}/conf.py.in"
+        "${SPHINX_BUILD_DIR}/latex/conf.py"
+        @ONLY
+        )
+
+    add_custom_target(mesycontrol_doc_latex
+      ${SPHINX_EXECUTABLE}
+      -E -b latex
+      -c "${SPHINX_BUILD_DIR}/latex"
+      -d "${SPHINX_CACHE_DIR}/latex"
+      "${SPHINX_SOURCE_DIR}"
+      "${SPHINX_LATEX_DIR}"
+      COMMENT "Building latex documentation with Sphinx"
+      )
+
+    add_dependencies(mesycontrol_doc mesycontrol_doc_latex)
+
+    # latex -> pdf
+    add_custom_target(mesycontrol_doc_latex_pdf
+            make -C ${SPHINX_LATEX_DIR}
+            COMMENT "Generating PDF from Sphinx latex output")
+
+    add_dependencies(mesycontrol_doc_latex_pdf mesycontrol_doc_latex)
+    add_dependencies(mesycontrol_doc mesycontrol_doc_latex_pdf)
+
+    install(FILES "${SPHINX_PDF_OUT}" DESTINATION "share/doc" OPTIONAL)
+
+  else(LATEXMK)
+    message("-- The latexmk program was not found on your system. Will not generate PDF documentation.")
+  endif(LATEXMK)
 else()
   message("Sphinx not found, documentation can not be generated.")
 endif()
