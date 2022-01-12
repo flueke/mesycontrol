@@ -44,22 +44,12 @@ Installation
 ------------
 Linux installation
 ^^^^^^^^^^^^^^^^^^
-*mesycontrol* requires the Qt libraries >= 4.8 to be installed on your system.
-Also be sure to pick the right archive for your distribution and architecture
-as trying to run the 32 bit version of the software on a 64 bit linux
-installation will most likely result in errors about missing libraries.
-
-The installation itself is simple: unpack the tar.bz2 archive and execute the
-*mesycontrol_gui* binary to get started::
+Unpack the tar.bz2 archive and execute the *mesycontrol_gui* binary to get
+started::
 
   $ tar xf mesycontrol-1.0.tar.bz2
   $ ./mesycontrol-1.0/bin/mesycontrol_gui
 
-.. note::
-
-  So far *mesycontrol* has only been tested on Debian Wheezy, Ubuntu 12.04
-  and OpenSUSE 12.1 but it should work on other distributions and versions as
-  long as the C++ and Qt libraries stay binary compatible.
 
 Linux USB and serial port permissions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
