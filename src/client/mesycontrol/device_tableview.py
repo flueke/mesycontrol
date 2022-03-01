@@ -70,6 +70,7 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         self._device    = None
         self.device     = device
         self._editing_ignore_paramter_ranges = False
+        self._display_hex_values = False
 
     def set_device(self, device):
         signals_slots = {
@@ -127,6 +128,13 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
     def get_editing_ignore_parameter_ranges(self):
         return self._editing_ignore_paramter_ranges
 
+    def set_display_hex_values(self, showHex: bool):
+        self._display_hex_values = bool(showHex)
+        self._all_fields_changed()
+
+    def get_display_hex_values(self):
+        return self._display_hex_values
+
     device = Property(object, get_device, set_device)
     profile = Property(object, get_profile)
     display_mode = Property(object, get_display_mode, set_display_mode)
@@ -136,6 +144,11 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
             bool,
             get_editing_ignore_parameter_ranges,
             set_editing_ignore_parameter_ranges)
+
+    display_hex_values = Property(
+        bool,
+        get_display_hex_values,
+        set_display_hex_values)
 
     def _on_device_hardware_set(self, app_device, old_hw, new_hw):
         self.log.debug("_on_device_hardware_set: dev=%s, old=%s, new=%s",
@@ -302,7 +315,10 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                     return "<address conflict>"
 
                 try:
-                    return int(hw.get_parameter(row))
+                    value = int(hw.get_parameter(row))
+                    if self.display_hex_values:
+                        return "0x{:04x}".format(value)
+                    return value
                 except future.IncompleteFuture:
                     return "<reading>"
 
@@ -314,7 +330,10 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
                     return "<config not present>"
 
                 try:
-                    return int(cfg.get_parameter(row))
+                    value = int(cfg.get_parameter(row))
+                    if self.display_hex_values:
+                        return "0x{:04x}".format(value)
+                    return value
                 except future.IncompleteFuture:
                     return "<reading>"
                 except KeyError:
@@ -804,6 +823,10 @@ class DeviceTableWidget(QtWidgets.QWidget):
         action = menu.addAction("Ignore param ranges on edit")
         action.setCheckable(True)
         action.triggered.connect(model.set_editing_ignore_parameter_ranges)
+
+        action = menu.addAction("Hexadecimal values")
+        action.setCheckable(True)
+        action.triggered.connect(model.set_display_hex_values)
 
         menu.addSeparator()
 
