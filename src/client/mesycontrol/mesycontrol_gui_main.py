@@ -186,6 +186,13 @@ def mesycontrol_gui_main():
                 QtWidgets.QMessageBox.critical(mainwindow, "Error",
                         "Opening setup file %s failed:\n%s" % (setup_file, e))
 
+        def on_qapp_about_to_quit():
+            logging.debug("received signal QApplication.aboutToQuit(), calling Context.shutdown()")
+            # Call shutdown() here while the eventloop (app.exec_()) is still running.
+            context.shutdown()
+
+        app.aboutToQuit.connect(on_qapp_about_to_quit)
+
         ret = app.exec_()
         logging.debug("app.exec_() returned %d", ret)
 

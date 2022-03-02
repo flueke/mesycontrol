@@ -222,16 +222,16 @@ class ServerProcess(QtCore.QObject):
         ret = Future()
 
         if self.process.state() != QProcess.NotRunning:
-            #def on_finished(code, status):
-            #    self.log.debug("Process finished with code=%d (%s)", code, ServerProcess.exit_code_string(code))
-            #    ret.set_result(True)
+            def on_finished(code, status):
+                self.log.debug("Process finished with code=%d (%s)", code, ServerProcess.exit_code_string(code))
+                ret.set_result(True)
 
-            #self.process.finished.connect(on_finished)
+            self.process.finished.connect(on_finished)
             if not kill:  #and not sys.platform.startswith('win32'):
                 self.process.terminate()
             else:
                 self.process.kill()
-            ret.set_result(True)
+            #ret.set_result(True)
         else:
             ret.set_exception(ServerIsStopped())
         return ret

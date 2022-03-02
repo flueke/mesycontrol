@@ -56,7 +56,7 @@ class Context(QtCore.QObject):
         observer = future.FutureObserver()
 
         def do_disconnect():
-            futures = [mrc.disconnectMrc() for mrc in self.app_registry.hw.get_mrcs()]
+            futures = [mrc.disconnectMrc() for mrc in self.app_registry.hw.get_mrcs() if mrc.is_connected()]
             observer.set_future(future.all_done(*futures))
 
         util.wait_for_signal(signal=observer.done, emitting_callable=do_disconnect, timeout_ms=5000)

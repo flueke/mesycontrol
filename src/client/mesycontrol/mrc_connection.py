@@ -43,8 +43,8 @@ class AbstractMrcConnection(QtCore.QObject):
     connected               = Signal()          #: connected and ready to send requests
     disconnected            = Signal()          #: disconnected; not ready to handle requests
     connecting              = Signal(object)    #: Establishing the connection. The argument is a
-                                                    #: Future instance which fullfills once the connection
-                                                    #: is established or an error occurs.
+                                                #: Future instance which fullfills once the connection
+                                                #: is established or an error occurs.
     connection_error        = Signal(object)    #: error object
 
     request_queued          = Signal(object, object) #: request, Future
