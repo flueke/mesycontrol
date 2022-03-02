@@ -1,3 +1,11 @@
+# 1.1.1
+
+  - Fix broken Device Table View
+
+  - Add option to show register values in hex in the Device Table View
+
+  - CMake build and packaging fixes
+
 # 1.1.0
 
   Major update: ported from Python2/PyQt4 to Python3/PySide2/Qt5 to stay
