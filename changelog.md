@@ -1,9 +1,8 @@
 # 1.1.1
 
   - Fix broken Device Table View
-
   - Add option to show register values in hex in the Device Table View
-
+  - Fix a QProcess related crash on exit
   - CMake build and packaging fixes
 
 # 1.1.0
