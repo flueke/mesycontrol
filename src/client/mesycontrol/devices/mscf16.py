@@ -1343,7 +1343,7 @@ class MiscPage(QtWidgets.QWidget):
             display_mode=util.HARDWARE,
             fixed_modes=True,
             ).add_update_callback(
-                self._version_label_cb,
+                self._fpga_version_label_cb,
                 label=self.version_labels['fpga_version'],
                 getter=self.device.get_fpga_version))
 
@@ -1461,6 +1461,20 @@ class MiscPage(QtWidgets.QWidget):
             try:
                 version = getter_future.result()
                 label.setText("%d.%d" % (version.major, version.minor))
+                label.setToolTip(str())
+            except Exception as e:
+                label.setText("N/A")
+                label.setToolTip(str(e))
+
+            label.setStatusTip(label.toolTip())
+
+        getter().add_done_callback(done)
+
+    def _fpga_version_label_cb(self, read_mem_future, label, getter):
+        def done(getter_future):
+            try:
+                version = getter_future.result();
+                label.setText("%x.%02x" % (version.major, version.minor))
                 label.setToolTip(str())
             except Exception as e:
                 label.setText("N/A")
