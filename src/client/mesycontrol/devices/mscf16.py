@@ -940,7 +940,9 @@ class TimingPage(QtWidgets.QGroupBox):
             profile=device.profile['upper_threshold_common'],
             display_mode=display_mode,
             write_mode=write_mode,
-            target=self.upper_threshold_common))
+            target=self.upper_threshold_common)
+            .add_update_callback(self._on_upper_threshold_value_updated, spin=self.upper_threshold_common)
+            )
 
         upper_threshold_common_layout, self.upper_threshold_common_button = util.make_apply_common_button_layout(
                 self.upper_threshold_common, "Apply to channels", self._apply_upper_common_threshold)
@@ -985,12 +987,17 @@ class TimingPage(QtWidgets.QGroupBox):
                     self.upper_threshold_inputs.append(spin_threshold)
                     self.upper_threshold_labels.append(label_threshold)
 
-                self.bindings.append(pb.factory.make_binding(
+                b = pb.factory.make_binding(
                     device=device,
                     profile=device.profile['%sthreshold_channel%d' % (info['prefix'], chan)],
                     display_mode=display_mode,
                     write_mode=write_mode,
-                    target=spin_threshold))
+                    target=spin_threshold)
+
+                if is_upper:
+                    b.add_update_callback(self._on_upper_threshold_value_updated, spin=spin_threshold)
+
+                self.bindings.append(b)
 
                 self.bindings.append(pb.factory.make_binding(
                     device=device,
@@ -1096,6 +1103,8 @@ class TimingPage(QtWidgets.QGroupBox):
             except Exception:
                 hw_info = HardwareInfo()
 
+            self.device.hw_info = hw_info
+
             en = hw_info.has_upper_thresholds()
             self.log.debug("_hardware_info_cb invoked, has_upper_thresholds=%d", en)
             self.upper_threshold_common.setEnabled(en)
@@ -1105,6 +1114,9 @@ class TimingPage(QtWidgets.QGroupBox):
 
         self.device.get_hardware_info().add_done_callback(done)
 
+    def _on_upper_threshold_value_updated(self, f, spin):
+        if getattr(self.device, 'hw_info'):
+            spin.setEnabled(self.device.hw_info.has_upper_thresholds())
 
     def handle_hardware_connected_changed(self, connected):
         if self.device.read_mode & util.HARDWARE:
