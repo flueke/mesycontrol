@@ -76,7 +76,7 @@ class HardwareInfo(object):
     LN_TYPE         = 1 << 0
     HW_GE_V4        = 1 << 1
     INTEGRATING     = 1 << 2
-    WINDIS        = 1 << 3
+    WINDIS          = 1 << 3
     SUMDIS          = 1 << 6
 
     def __init__(self, hw_info=None):
@@ -918,7 +918,7 @@ class TimingPage(QtWidgets.QGroupBox):
         self.log    = util.make_logging_source_adapter(__name__, self)
 
         # lower thresholds
-        self.threshold_common = make_spinbox(limits=device.profile['threshold_common'].range.to_tuple())
+        #self.threshold_common = make_spinbox(limits=device.profile['threshold_common'].range.to_tuple())
         self.threshold_common = util.DelayedSpinBox()
 
         self.bindings.append(pb.factory.make_binding(
@@ -932,7 +932,7 @@ class TimingPage(QtWidgets.QGroupBox):
                 self.threshold_common, "Apply to channels", self._apply_common_threshold)
 
         # upper thresholds
-        self.upper_threshold_common = make_spinbox(limits=device.profile['upper_threshold_common'].range.to_tuple())
+        #self.upper_threshold_common = make_spinbox(limits=device.profile['upper_threshold_common'].range.to_tuple())
         self.upper_threshold_common = util.DelayedSpinBox()
 
         self.bindings.append(pb.factory.make_binding(
