@@ -140,7 +140,7 @@ class ServerProcess(QtCore.QObject):
             self.process.finished.connect(self._finished)
             self.process.readyReadStandardOutput.connect(self._output)
 
-            if self.process.state() != QProcess.NotRunning:
+            if self.process is not None and self.process.state() != QProcess.NotRunning:
                 raise ServerIsRunning()
 
             args = self._prepare_args()
@@ -180,13 +180,13 @@ class ServerProcess(QtCore.QObject):
 
                 self._startup_delay_timer.timeout.disconnect(on_startup_delay_expired)
 
-                if self.process.state() == QProcess.Running:
+                if self.process is not None and self.process.state() == QProcess.Running:
                     self.started.emit()
                     self.log.debug("[pid=%s] Startup delay expired", self.process.pid())
                     ret.set_progress_text("Started %s" % cmd_line)
                     ret.set_result(True)
                 else:
-                    if self.process.error() != QProcess.UnknownError:
+                    if self.process is not None and self.process.error() != QProcess.UnknownError:
                         self.log.warning("Setting exception with errorString: %s", self.process.errorString())
                         ret.set_exception(ServerError(self.process.errorString()))
                     else:
@@ -221,7 +221,7 @@ class ServerProcess(QtCore.QObject):
     def stop(self, kill=False):
         ret = Future()
 
-        if self.process.state() != QProcess.NotRunning:
+        if self.process is not None and self.process.state() != QProcess.NotRunning:
             def on_finished(code, status):
                 self.log.debug("Process finished with code=%d (%s)", code, ServerProcess.exit_code_string(code))
                 ret.set_result(True)
