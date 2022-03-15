@@ -1,3 +1,10 @@
+# 1.1.2
+
+  - MSCF-16: properly disable upper threshold inputs if WindowDiscriminator is
+    not supported
+  - MSCF-16: show FPGA firmware version in hex so that the value is the same as
+    in the firmware update filenames
+
 # 1.1.1
 
   - Fix broken Device Table View
