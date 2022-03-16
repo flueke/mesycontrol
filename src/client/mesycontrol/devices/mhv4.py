@@ -255,7 +255,7 @@ class ChannelWidget(QtWidgets.QWidget):
             color       = 'red' if current >= limit else 'black'
             css         = 'QLCDNumber { color: %s; }' % color
 
-            self.lcd_current.setStyleSheet(css)
+            self.ui.lcd_current.setStyleSheet(css)
         except (KeyError, TypeError):
             pass
 
