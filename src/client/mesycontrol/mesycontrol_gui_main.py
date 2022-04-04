@@ -82,7 +82,7 @@ def mesycontrol_gui_main():
                 "basic_tree_model",
                 "future",
                 "mc_treeview",
-                "tcp_client.MCTCPClient",
+                #"tcp_client.MCTCPClient",
                 "hardware_controller.Controller",
                 "PyQt4.uic"):
             logging.getLogger(ln).setLevel(logging.INFO)
@@ -97,7 +97,11 @@ def mesycontrol_gui_main():
         except IOError:
             pass
 
+
     logging.info("Starting up...")
+
+    logging.info("Running on Python version %s", sys.version)
+
 
     # Signal handling
     signal.signum_to_name = dict((getattr(signal, n), n)

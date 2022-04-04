@@ -234,6 +234,7 @@ class MCTCPClient(QtCore.QObject):
 
         if self._read_size > 0 and self._socket.bytesAvailable() >= self._read_size:
             message_data = self._socket.read(self._read_size)
+            self.log.debug("_socket_readyRead: read %u bytes from socket", len(message_data))
             try:
                 message = proto.Message()
                 message.ParseFromString(message_data)
