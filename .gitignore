@@ -3,4 +3,3 @@
 **/*.swo
 compile_commands.json
 build*/
-src/client/mesycontrol_server

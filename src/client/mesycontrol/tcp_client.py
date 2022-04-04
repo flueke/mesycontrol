@@ -213,7 +213,7 @@ class MCTCPClient(QtCore.QObject):
         data = str_request
         data = struct.pack('!H', len(data)) + data # prepend message size
         self.log.debug("_start_write_request: writing %s (len=%d)", request, len(data))
-        if self._socket.write(data) == -1:
+        if self._socket.write(bytes(data)) == -1:
             future.set_exception(util.SocketError(self._socket.error(),
                 self._socket.errorString()))
         else:
@@ -233,7 +233,7 @@ class MCTCPClient(QtCore.QObject):
             self.log.debug("_socket_readyRead: incoming msg size = %d", self._read_size)
 
         if self._read_size > 0 and self._socket.bytesAvailable() >= self._read_size:
-            message_data = self._socket.read(self._read_size)
+            message_data = bytes(self._socket.read(self._read_size))
             self.log.debug("_socket_readyRead: read %u bytes from socket", len(message_data))
             try:
                 message = proto.Message()
