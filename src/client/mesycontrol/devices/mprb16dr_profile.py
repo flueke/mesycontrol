@@ -22,7 +22,7 @@ __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
 voltage_10  = { 'label': 'V',       'name': 'volt',             'factor': 10.0 }
-nanoamps    = { 'label': 'nA',      'name': 'nanoamps', 'offset': -2048 } # TODO: factor
+nanoamps    = { 'label': 'nA',      'name': 'nanoamps', 'offset': -2048 }
 
 idc = 28
 
@@ -50,7 +50,6 @@ profile_dict = {
         [
             { 'address': 16, 'name': 'sum_current', 'range': (0, 6000), 'units': [nanoamps], 'read_only': True },
             # 17 is pre-voltage (factory use only)
-
             { 'address': 18, 'name': 'temperature', 'read_only': True }, # TODO: units
             { 'address': 21, 'name': 'error_code', 'read_only': True },
             { 'address': 22, 'name': 'temp_slope', 'range': (0, 255), 'default': 128 },
