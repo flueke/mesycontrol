@@ -22,8 +22,9 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC GIT_SHA1)
 git_describe(GIT_VERSION "--always")
-string(REGEX MATCH "^[0-9.]+(-beta[0-9]*|-rc[0-9]*)?(-[0-9]+)?" GIT_VERSION_SHORT ${GIT_VERSION})
-string(REGEX MATCH "^[0-9.]+" GIT_VERSION_TAG ${GIT_VERSION})
+string(REGEX REPLACE "^v(.*)" "\\1" GIT_VERSION ${GIT_VERSION}) # Remove a leading 'v' letter from the version string
+string(REGEX MATCH "^v?([0-9.]+(-beta[0-9]*|-rc[0-9]*)?(-[0-9]+)?)" GIT_VERSION_SHORT ${GIT_VERSION})
+string(REGEX MATCH "^v?([0-9.]+)" GIT_VERSION_TAG ${GIT_VERSION})
 
 # Add the root build directory to the compiler search path.
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
