@@ -22,8 +22,6 @@ set(PYTHON_SOURCES
     "${VERSION_PY_IN}"
     "${MESYCONTROL_PROTO_IN}"
 
-    #"${CMAKE_CURRENT_SOURCE_DIR}/cxfreeze_init.py"
-
     # mesycontrol
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/app_context.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/app_model.py"
