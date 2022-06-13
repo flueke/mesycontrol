@@ -35,6 +35,7 @@ QTimer  = QtCore.QTimer
 
 import contextlib
 import collections
+import faulthandler
 import gc
 import logging
 import math
@@ -765,3 +766,34 @@ class ReadOnlyCheckBox(QtWidgets.QCheckBox):
 # Caution: this exhausts the iterator!
 def ilen_destructive(iterable):
     return reduce(lambda result, _: result+1, iterable, 0)
+
+# Copied from qutebrowser/misc/earlyinit.py (https://github.com/qutebrowser/qutebrowser)
+def init_faulthandler(fileobj=sys.__stderr__):
+    """Enable faulthandler module if available.
+    This print a nice traceback on segfaults.
+    We use sys.__stderr__ instead of sys.stderr here so this will still work
+    when sys.stderr got replaced, e.g. by "Python Tools for Visual Studio".
+    Args:
+        fobj: An opened file object to write the traceback to.
+    """
+    try:
+        faulthandler.enable(fileobj)
+    except (RuntimeError, AttributeError) as e:
+        # When run with pythonw.exe, sys.__stderr__ can be None:
+        # https://docs.python.org/3/library/sys.html#sys.__stderr__
+        #
+        # With PyInstaller, it can be a NullWriter raising AttributeError on
+        # fileno: https://github.com/pyinstaller/pyinstaller/issues/4481
+        #
+        # Later when we have our data dir available we re-enable faulthandler
+        # to write to a file so we can display a crash to the user at the next
+        # start.
+        logging.getLogger().debug(f"Failed to enable early faulthandler: {e}", exc_info=True)
+        return
+
+    if (hasattr(faulthandler, 'register') and hasattr(signal, 'SIGUSR1') and
+            sys.stderr is not None):
+        # If available, we also want a traceback on SIGUSR1.
+        # pylint: disable=no-member,useless-suppression
+        faulthandler.register(signal.SIGUSR1)
+        # pylint: enable=no-member,useless-suppression

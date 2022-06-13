@@ -1,8 +1,9 @@
 # 1.1.3
 
   - Fix protobuf message truncation issue.
-  - MPRB-16: set correct current offset in device profile
+  - MPRB-16(-DR): set correct current offset in device profile
   - MHV-4: fix LCD update code
+  - Disable console for windows builds.
 
 # 1.1.2
 

@@ -22,7 +22,6 @@ __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
 import argparse
-import faulthandler
 import logging
 import os
 import signal
@@ -53,7 +52,7 @@ from mesycontrol.qt import QtWidgets
 
 #if __name__ == "__main__":
 def mesycontrol_gui_main():
-    faulthandler.enable()
+    util.init_faulthandler()
 
     if not is_windows:
         parser = argparse.ArgumentParser(description='mesycontrol GUI command line arguments')
