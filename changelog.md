@@ -1,3 +1,9 @@
+# 1.1.3
+
+  - Fix protobuf message truncation issue.
+  - MPRB-16: set correct current offset in device profile
+  - MHV-4: fix LCD update code
+
 # 1.1.2
 
   - MSCF-16: properly disable upper threshold inputs if WindowDiscriminator is
