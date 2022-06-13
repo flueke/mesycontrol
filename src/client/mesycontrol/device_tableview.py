@@ -717,29 +717,45 @@ class DeviceTableView(QtWidgets.QTableView):
 
     def _paste_action(self):
         selected = self._get_selected_indexes()
-        row, col = selected[0].row(), selected[0].column()
+        row0, col0 = selected[0].row(), selected[0].column()
         values = str(self._clipboard.text()).split('\n')
+
         try:
             values = [int(value) for value in values]
         except ValueError:
             return
 
-        for value in values:
+        def maybe_paste_value(value, modelIndex) -> bool:
             min_, max_ = bm.SET_VALUE_MIN, bm.SET_VALUE_MAX
 
             try:
-                pp = self.profile[row]
+                pp = self.profile[modelIndex.row()]
                 if pp.range is not None:
                     min_, max_ = pp.range.to_tuple()
             except (KeyError, AttributeError):
                 pass
 
-            idx = self.table_model.index(row, col)
+            idx = self.table_model.index(modelIndex.row(), modelIndex.column())
 
             if min_ <= value <= max_ and self.table_model.flags(idx) & Qt.ItemIsEditable:
-                self.table_model.setData(idx, QtCore.QVariant(value))
+                self.table_model.setData(idx, value)
+                return True
 
-            row += 1
+            return False
+
+        if len(values) == 1:
+            # Paste the single value from the clipboard into all selected cells.
+           value = values[0]
+           for idx in selected:
+               if idx.column() == col0:
+                   maybe_paste_value(value, idx)
+        else:
+            # Multiple values from the clipboard text. Paste them into
+            # increasing rows.
+            row = row0
+            for value in values:
+                maybe_paste_value(value, self.table_model.index(row, col0))
+                row += 1
 
         #selection_model = self.selectionModel()
 
