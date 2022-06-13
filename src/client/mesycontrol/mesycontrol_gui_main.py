@@ -82,7 +82,7 @@ def mesycontrol_gui_main():
                 "basic_tree_model",
                 "future",
                 "mc_treeview",
-                #"tcp_client.MCTCPClient",
+                "tcp_client.MCTCPClient",
                 "hardware_controller.Controller",
                 "PyQt4.uic"):
             logging.getLogger(ln).setLevel(logging.INFO)
