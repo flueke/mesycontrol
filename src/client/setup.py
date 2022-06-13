@@ -8,12 +8,13 @@ import sys
 from setuptools import setup, find_packages
 from setuptools.command.install import install
 
-class InstallWrapper(install):
-    def run(self):
-        super().run()
-        from pyshortcuts import make_shortcut
-        make_shortcut(os.path.join(self.install_base, 'Scripts', 'cad_gui.exe'), name="Cad Gui")
-        make_shortcut(os.path.join(self.install_base, 'Scripts', 'prod_gui.exe'), name="Prod Gui")
+# InstallWrapper example taken from mesyprod
+#class InstallWrapper(install):
+#    def run(self):
+#        super().run()
+#        from pyshortcuts import make_shortcut
+#        make_shortcut(os.path.join(self.install_base, 'Scripts', 'cad_gui.exe'), name="Cad Gui")
+#        make_shortcut(os.path.join(self.install_base, 'Scripts', 'prod_gui.exe'), name="Prod Gui")
 
 setup(
     name='mesycontrol',
