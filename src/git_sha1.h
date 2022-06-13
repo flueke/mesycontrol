@@ -3,5 +3,7 @@
 
 extern const char g_GIT_SHA1[];
 extern const char g_GIT_VERSION[];
+extern const char g_GIT_VERSION_SHORT[];
+extern const char g_GIT_VERSION_TAG[];
 
 #endif
