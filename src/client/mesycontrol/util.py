@@ -34,7 +34,7 @@ QObject = QtCore.QObject
 QTimer  = QtCore.QTimer
 
 import contextlib
-import collections
+import collections.abc
 import faulthandler
 import gc
 import logging
@@ -543,7 +543,7 @@ def make_spinbox(min_value=None, max_value=None, value=None, limits=None,
     return ret
 
 # http://code.activestate.com/recipes/576694/
-class OrderedSet(collections.MutableSet):
+class OrderedSet(collections.abc.MutableSet):
 
     def __init__(self, iterable=None):
         self.end = end = [] 
