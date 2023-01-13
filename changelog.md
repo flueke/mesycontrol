@@ -1,3 +1,9 @@
+# 1.1.4
+
+  - Fix the windows start menu icon
+  - Fix version display in 'Help -> About'
+  - Releases are now built against Qt-5.15 and more recent python versions
+
 # 1.1.3
 
   - Fix protobuf message truncation issue.
@@ -30,7 +36,7 @@
 
   Note: as these where major changes some new issues may have been introduced
   due to subtle differences between PyQt4 and PySide2.
-  
+
 # 1.0.6.2
 
   - Linux only: the package now contains the Qt4 libraries to make the client
@@ -45,4 +51,3 @@
   - Support the Window Discriminator found on some newer MSCF-16 versions. In
     the MSCF GUI a column called "Upper Thresholds" has been added
     and is enabled if WinDis support has been detected.
-
