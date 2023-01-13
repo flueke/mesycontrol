@@ -34,6 +34,7 @@ from mesycontrol.util import make_icon
 import mesycontrol.gui_util as gui_util
 import mesycontrol.log_view as log_view
 import mesycontrol.util as util
+import mesycontrol.mc_version as mc_version
 
 class MCMdiArea(QtWidgets.QMdiArea):
     def __init__(self, parent=None):
@@ -138,12 +139,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @Slot()
     def on_actionAbout_triggered(self):
-        try:
-            from . import mc_version
-            version = mc_version.version
-        except ImportError:
-            version = "devel version"
-
         d = QtWidgets.QDialog(self)
         d.setWindowTitle("About mesycontrol")
 
@@ -167,7 +162,7 @@ class MainWindow(QtWidgets.QMainWindow):
             ).scaledToWidth(300, Qt.SmoothTransformation))
         l.addWidget(logo)
 
-        t = "mesycontrol - %s" % version
+        t = "mesycontrol - %s" % mc_version.version
         label = QtWidgets.QLabel(t)
         font  = label.font()
         font.setPointSize(15)
@@ -183,8 +178,8 @@ class MainWindow(QtWidgets.QMainWindow):
         label.setOpenExternalLinks(True)
         l.addWidget(label)
 
-        t = 'Running on Python %s using PySide2 %s with Qt %s.' % (
-                platform.python_version(), PySide2.__version__, PySide2.QtCore.__version__)
+        t = 'Running on Python %s using PySide2 %s.' % (
+                platform.python_version(), PySide2.__version__)
         l.addWidget(QtWidgets.QLabel(t))
 
         l.addSpacing(20)
@@ -225,4 +220,3 @@ class MainWindow(QtWidgets.QMainWindow):
     def closeEvent(self, event):
         self.store_settings()
         super(MainWindow, self).closeEvent(event)
-
