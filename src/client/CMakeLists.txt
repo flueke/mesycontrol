@@ -2,7 +2,7 @@ find_package(Python3)
 find_package(Protobuf REQUIRED)
 
 set(VERSION_PY_IN "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/mc_version.py.in")
-set(VERSION_PY    "${CMAKE_CURRENT_BINARY_DIR}/mesycontrol/mc_version.py")
+set(VERSION_PY    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/mc_version.py")
 
 set(STAMP         "${CMAKE_CURRENT_BINARY_DIR}/build/timestamp")
 
