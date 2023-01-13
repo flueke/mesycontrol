@@ -17,7 +17,7 @@ a = Analysis(['mesycontrol_gui.py'],
              pathex=[],
              binaries=binaries,
              datas=[],
-             # Buggy pyinstaller does not evaulate __all__ nor do the star imports work
+             # pyinstaller does not evaulate __all__ nor do the star imports work
              hiddenimports=[
                  'pyqtgraph.console.template_pyside2',
                  'pyqtgraph.graphicsItems.ViewBox.axisCtrlTemplate_pyside2',
