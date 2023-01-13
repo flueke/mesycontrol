@@ -41,6 +41,7 @@ import logging
 import math
 import os
 import re
+import signal
 import sys
 
 from functools import reduce
@@ -546,7 +547,7 @@ def make_spinbox(min_value=None, max_value=None, value=None, limits=None,
 class OrderedSet(collections.abc.MutableSet):
 
     def __init__(self, iterable=None):
-        self.end = end = [] 
+        self.end = end = []
         end += [None, end, end]         # sentinel node for doubly linked list
         self.map = {}                   # key --> [key, prev, next]
         if iterable is not None:
