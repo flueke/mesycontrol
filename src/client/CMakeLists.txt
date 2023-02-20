@@ -108,10 +108,12 @@ else (WIN32)
   set(DISTUTILS_PREFIX "${CMAKE_BINARY_DIR}/python-install")
 endif (WIN32)
 
+find_program(PYINSTALLER_EXECUTABLE pyinstaller REQUIRED)
+
 # Run pyinstaller
 add_custom_command(
     OUTPUT ${STAMP}
-    COMMAND pyinstaller -y ${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol_gui.spec
+    COMMAND ${PYINSTALLER_EXECUTABLE} -y ${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol_gui.spec
     COMMAND ${CMAKE_COMMAND} -E touch ${STAMP}
     DEPENDS ${PYTHON_SOURCES} ${QRC_OUT} ${PROTO_PY_OUT})
 
