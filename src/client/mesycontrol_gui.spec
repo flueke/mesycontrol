@@ -19,10 +19,12 @@ a = Analysis(['mesycontrol_gui.py'],
              datas=[],
              # pyinstaller does not evaulate __all__ nor do the star imports work
              hiddenimports=[
-                 'pyqtgraph.console.template_pyside2',
-                 'pyqtgraph.graphicsItems.ViewBox.axisCtrlTemplate_pyside2',
-                 'pyqtgraph.graphicsItems.PlotItem.plotConfigTemplate_pyside2',
-                 'pyqtgraph.imageview.ImageViewTemplate_pyside2',
+                 'google.protobuf.text_format',
+                 # Keep these here, they might be needed again for python-3.11..
+                 #'pyqtgraph.console.template_pyside2',
+                 #'pyqtgraph.graphicsItems.ViewBox.axisCtrlTemplate_pyside2',
+                 #'pyqtgraph.graphicsItems.PlotItem.plotConfigTemplate_pyside2',
+                 #'pyqtgraph.imageview.ImageViewTemplate_pyside2',
                  'mesycontrol.devices.mcfd16',
                  'mesycontrol.devices.mhv4' ,
                  'mesycontrol.devices.mhv4_v20' ,
@@ -33,13 +35,29 @@ a = Analysis(['mesycontrol_gui.py'],
                  'mesycontrol.devices.mscf16',
                  'mesycontrol.devices.mux16',
                  'mesycontrol.devices.stm16',
+                 'mesycontrol.mesycontrol_pb2',
                  ],
              runtime_hooks=[],
-             excludes=[],
+             excludes=[
+                 'pyqtgraph.opengl',
+                 ],
              win_no_prefer_redirects=False,
              win_private_assemblies=False,
              cipher=block_cipher,
              noarchive=False)
+
+# Do not package fontconfig. It will fail to load the fonts.conf file on newer
+# systems. Instead at runtime the system libfontconfig must be loaded. This
+# seems to work for now.
+# Credit to: https://stackoverflow.com/a/17595149/17562886
+excluded_libs = TOC([
+    ('libfontconfig.so.1', None, None),
+])
+
+a.binaries = a.binaries - excluded_libs
+
+#print(a.binaries)
+
 pyz = PYZ(a.pure, a.zipped_data,
              cipher=block_cipher)
 
