@@ -23,8 +23,8 @@ setup(
     install_requires=[
         #'importlib-resources',
         'pyshortcuts==1.8.0',
-        'PySide2==5.15.2',
-        'shiboken2==5.15.2',
+        'PySide2>=5.15.2',
+        'shiboken2>=5.15.2',
         'numpy',
         'pyqtgraph',
         'protobuf',
