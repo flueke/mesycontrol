@@ -5,3 +5,4 @@ compile_commands.json
 build*/
 src/client/mesycontrol/mc_version.py
 src/client/mesycontrol/mesycontrol_pb2.py
+src/client/mesycontrol_server
