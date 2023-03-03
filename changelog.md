@@ -1,3 +1,8 @@
+# 1.1.5
+
+  - MPD-4: make **qwin** values read-only. Workaround for a bug in the MPD-4
+    where qwin values cannot be properly set via the RC-Bus.
+
 # 1.1.4
 
   - Fix the windows start menu icon
