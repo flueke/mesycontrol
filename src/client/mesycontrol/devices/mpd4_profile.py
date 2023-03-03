@@ -47,7 +47,7 @@ profile_dict = {
         [ { 'address': i+4, 'name': 'ndis%d' % i, 'index': i, 'range': (0, 255) } for i in range(NUM_CHANNELS) ]
         +
         # 100=no correction
-        [ { 'address': i+8, 'name': 'qwin%d' % i, 'index': i, 'range': (0, 200), 'default': 100 } for i in range(NUM_CHANNELS) ]
+        [ { 'address': i+8, 'name': 'qwin%d' % i, 'index': i, 'range': (0, 200), 'default': 100, 'read_only': True } for i in range(NUM_CHANNELS) ]
         +
         [ { 'address': i+12, 'name': 'threshold%d' % i, 'index': i, 'range': (0, 255) } for i in range(NUM_CHANNELS) ]
         +
