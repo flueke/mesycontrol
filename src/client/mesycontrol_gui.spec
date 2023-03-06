@@ -20,11 +20,6 @@ a = Analysis(['mesycontrol_gui.py'],
              # pyinstaller does not evaulate __all__ nor do the star imports work
              hiddenimports=[
                  'google.protobuf.text_format',
-                 # Keep these here, they might be needed again for python-3.11..
-                 #'pyqtgraph.console.template_pyside2',
-                 #'pyqtgraph.graphicsItems.ViewBox.axisCtrlTemplate_pyside2',
-                 #'pyqtgraph.graphicsItems.PlotItem.plotConfigTemplate_pyside2',
-                 #'pyqtgraph.imageview.ImageViewTemplate_pyside2',
                  'mesycontrol.devices.mcfd16',
                  'mesycontrol.devices.mhv4' ,
                  'mesycontrol.devices.mhv4_v20' ,
@@ -36,6 +31,11 @@ a = Analysis(['mesycontrol_gui.py'],
                  'mesycontrol.devices.mux16',
                  'mesycontrol.devices.stm16',
                  'mesycontrol.mesycontrol_pb2',
+                 # These are required for the windows package to work
+                 'pyqtgraph.console.template_pyside2',
+                 'pyqtgraph.graphicsItems.ViewBox.axisCtrlTemplate_pyside2',
+                 'pyqtgraph.graphicsItems.PlotItem.plotConfigTemplate_pyside2',
+                 'pyqtgraph.imageview.ImageViewTemplate_pyside2',
                  ],
              runtime_hooks=[],
              excludes=[
