@@ -52,6 +52,8 @@ a = Analysis(['mesycontrol_gui.py'],
 # Credit to: https://stackoverflow.com/a/17595149/17562886
 excluded_libs = TOC([
     ('libfontconfig.so.1', None, None),
+    ('libfreetype.so.6', None, None),
+    #('libharf', None, None),
 ])
 
 a.binaries = a.binaries - excluded_libs
