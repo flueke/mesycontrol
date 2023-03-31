@@ -68,7 +68,7 @@ class MCTCPClient(QtCore.QObject):
     def connectClient(self, host, port):
         """Connect to the given host and port.
         Returns a Future that fullfills once the connection has been
-        established or an errors occurs.
+        established or an error occurs.
         Disconnects if the client currently is connected.
         """
 

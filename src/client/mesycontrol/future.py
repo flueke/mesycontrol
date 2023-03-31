@@ -314,6 +314,9 @@ class FutureObserver(QtCore.QObject):
 
     future = Property(object, get_future, set_future)
 
+    def result(self):
+        return self.future.result()
+
 def set_result_on(result_future):
     def deco(f):
         @wraps(f)
