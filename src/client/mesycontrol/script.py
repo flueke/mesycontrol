@@ -62,7 +62,7 @@ class MRCWrapper(QtCore.QObject):
 
     def connectMrc(self):
         fo = future.FutureObserver(self._wrapped.connectMrc())
-        if not fo.done():
+        if not fo.future.done():
             util.wait_for_signal(signal=fo.done)
         return fo.result()
 
@@ -111,12 +111,10 @@ def get_script_context():
                     for n in dir(signal) if n.startswith('SIG') and '_' not in n)
             signal.signal(signal.SIGINT, signal_handler)
 
-            context = app_context.Context(
-                    sys.executable if getattr(sys, 'frozen', False) else __file__)
+        context = app_context.Context(
+                sys.executable if getattr(sys, 'frozen', False) else __file__)
 
         yield ScriptContext(context)
-    except CommandInterrupted:
-        pass
     finally:
         if context is not None:
             context.shutdown()
