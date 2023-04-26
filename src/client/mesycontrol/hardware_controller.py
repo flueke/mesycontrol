@@ -60,6 +60,7 @@ class Controller(object):
         self._connect_future = None
 
         def on_connected():
+            self.log.debug("on_connected: scannning MRC busses")
             for i in bm.BUS_RANGE:
                 self.scanbus(i)
 

@@ -8,7 +8,8 @@ import contextlib
 import sys
 
 from mesycontrol.qt import QtCore, Property
-from mesycontrol import app_context, util, mrc_connection, hardware_controller, hardware_model, future
+from mesycontrol import app_context, util, mrc_connection, hardware_controller, hardware_model
+from mesycontrol.future import get_future_result
 
 class DeviceWrapper(QtCore.QObject):
     def __init__(self, device, parent=None):
@@ -16,24 +17,31 @@ class DeviceWrapper(QtCore.QObject):
         self._wrapped = device
 
     def __getitem__(self, key):
-        return ReadParameter(self._wrapped, key)()
+        return self.read_parameter(key)
 
     def __setitem__(self, key, value):
-        return SetParameter(self._wrapped, key, value)()
+        return self.set_parameter(key, value)
 
     def __getattr__(self, attr):
         return getattr(self._wrapped, attr)
 
-    def get_rc(self):
-        return self._wrapped.rc
-
-    def set_rc(self, rc):
-        SetRc(self._wrapped, rc)()
-
     def __str__(self):
         return str(self._wrapped)
 
+    def get_rc(self):
+        return self._wrapped.rc
+
+    def set_rc(self, onOff):
+        return get_future_result(self._wrapped.set_rc(onOff))
+
     rc = Property(bool, get_rc, set_rc)
+
+    def read_parameter(self, addr):
+        return get_future_result(self._wrapped.read_parameter(key))
+
+    def set_parameter(self, addr, value):
+        return get_future_result(self._wrapped.set_parameter(addr, value))
+
 
 class MRCWrapper(QtCore.QObject):
     def __init__(self, mrc, parent=None):
@@ -60,14 +68,14 @@ class MRCWrapper(QtCore.QObject):
     def __getattr__(self, attr):
         return getattr(self._wrapped, attr)
 
-    def connectMrc(self):
-        fo = future.FutureObserver(self._wrapped.connectMrc())
-        if not fo.future.done():
-            util.wait_for_signal(signal=fo.done)
-        return fo.result()
-
     def __str__(self):
         return str(self._wrapped)
+
+    def connectMrc(self):
+        return get_future_result(self._wrapped.connectMrc())
+
+    def scanbus(self, bus):
+        return get_future_result(self._wrapped.scanbus(bus))
 
 class ScriptContext(object):
     def __init__(self, app_context):
@@ -81,8 +89,11 @@ class ScriptContext(object):
         self.context.app_registry.add_mrc(mrc)
         return MRCWrapper(mrc)
 
+    def get_device_profile(self, device_idc):
+        return self.context.device_registry.get_device_profile(device_idc)
+
 @contextlib.contextmanager
-def get_script_context():
+def get_script_context(log_level=logging.INFO):
     try:
         context = None
 
@@ -90,7 +101,7 @@ def get_script_context():
         logging.basicConfig(level=logging.NOTSET,
                 format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
         if logging.getLogger().level == logging.NOTSET:
-            logging.getLogger().handlers[0].setLevel(logging.DEBUG)
+            logging.getLogger().handlers[0].setLevel(log_level)
 
         # If a QCoreApplication or QApplication instance exists assume
         # everything is setup and ready. Otherwise install the custom garbage

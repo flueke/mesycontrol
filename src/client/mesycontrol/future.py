@@ -367,6 +367,13 @@ def future_progress_dialog(cancelable=True):
 
     return deco
 
+# Waits for the result of the given future to be available and returns the
+# result.
+def get_future_result(theFuture):
+    observer = FutureObserver(theFuture)
+    if not observer.future.done():
+        util.wait_for_signal(signal=observer.done)
+    return observer.result()
 
 if __name__ == "__main__":
     ret = Future()
