@@ -75,7 +75,10 @@ class MRCWrapper(QtCore.QObject):
         return get_future_result(self._wrapped.connectMrc())
 
     def scanbus(self, bus):
-        return get_future_result(self._wrapped.scanbus(bus))
+        # Response is a protobuf ScanbusResult. Each object in the 'entries'
+        # member is a ScanbusEntry object.
+        response = get_future_result(self._wrapped.scanbus(bus)).response
+        return response.scanbus_result.entries
 
 class ScriptContext(object):
     def __init__(self, app_context):
@@ -95,9 +98,7 @@ class ScriptContext(object):
 @contextlib.contextmanager
 def get_script_context(log_level=logging.INFO):
     try:
-        context = None
-
-        # Setup logging. Has no effect if logging has already been setup
+        # Setup logging. Has no effect if logging has already been setup.
         logging.basicConfig(level=logging.NOTSET,
                 format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
         if logging.getLogger().level == logging.NOTSET:
