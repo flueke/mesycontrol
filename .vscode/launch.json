@@ -9,6 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
+            "args": ["/dev/ttyUSB0"],
             "console": "internalConsole",
             "cwd": "${workspaceFolder}/src/client/",
             "env": { "PYTHONPATH": "${cwd}" }
