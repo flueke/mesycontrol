@@ -1,5 +1,17 @@
 #!/usr/bin/env python
 
+# This script shows how to automatically poll all "volatile" (meaning possibly
+# fast changing parameters) from all devices connected to the target MRC.
+#
+# The script periodically scans both MRC buses for devices. For each found
+# device the mesycontrol DeviceProfile is looked up. All device parameters
+# marked as "to be polled" are then read from the device using the MRC. For each
+# parameter the associated ParameterProfile is loaded and uses to look up the
+# parameter name, unit, unit conversion, etc. values.
+#
+# Found devices and parameter read results are printed to standard output.
+# Press Ctrl-C to exit.
+
 import signal
 import sys
 import time
@@ -66,6 +78,8 @@ Accepted mrc-url schemes:
         tPoll = 0.0
 
         mrc = ctx.make_mrc(mrcUrl)
+
+        print("Entering polling loop, press Ctrl-C to quit")
 
         while not g_quit:
             if not mrc.is_connected():
