@@ -1,0 +1,14 @@
+# syntax=docker/dockerfile:1
+
+FROM debian:stable
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates build-essential git cmake python3 python3-pip \
+    libboost-all-dev libprotobuf-dev protobuf-compiler && \
+    pip3 install pyinstaller
+
+WORKDIR /root
+RUN git clone --recurse-submodules https://github.com/flueke/mesycontrol.git \
+    && mkdir build && cd build \
+    && cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/mesycontrol \
+    && make -j6 && make -j6 install
