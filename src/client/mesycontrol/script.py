@@ -37,7 +37,7 @@ class DeviceWrapper(QtCore.QObject):
     rc = Property(bool, get_rc, set_rc)
 
     def read_parameter(self, addr):
-        return get_future_result(self._wrapped.read_parameter(key))
+        return get_future_result(self._wrapped.read_parameter(addr))
 
     def set_parameter(self, addr, value):
         return get_future_result(self._wrapped.set_parameter(addr, value))
@@ -80,6 +80,10 @@ class MRCWrapper(QtCore.QObject):
         response = get_future_result(self._wrapped.scanbus(bus)).response
         return response.scanbus_result.entries
 
+    def get_devices(self, bus=None):
+        devices = self._wrapped.get_devices(bus)
+        return [DeviceWrapper(dev) for dev in devices]
+
 class ScriptContext(object):
     def __init__(self, app_context):
         self.context = app_context
@@ -113,15 +117,15 @@ def get_script_context(log_level=logging.INFO):
             qapp = QtCore.QCoreApplication(sys.argv)
             gc   = util.GarbageCollector()
 
-            # Signal handling
-            def signal_handler(signum, frame):
-                logging.info("Received signal %s. Quitting...",
-                        signal.signum_to_name.get(signum, "%d" % signum))
-                qapp.quit()
+            ## Signal handling
+            #def signal_handler(signum, frame):
+            #    logging.info("Received signal %s. Quitting...",
+            #            signal.signum_to_name.get(signum, "%d" % signum))
+            #    qapp.quit()
 
-            signal.signum_to_name = dict((getattr(signal, n), n)
-                    for n in dir(signal) if n.startswith('SIG') and '_' not in n)
-            signal.signal(signal.SIGINT, signal_handler)
+            #signal.signum_to_name = dict((getattr(signal, n), n)
+            #        for n in dir(signal) if n.startswith('SIG') and '_' not in n)
+            #signal.signal(signal.SIGINT, signal_handler)
 
         context = app_context.Context(
                 sys.executable if getattr(sys, 'frozen', False) else __file__)
