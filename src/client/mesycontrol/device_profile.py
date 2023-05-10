@@ -69,7 +69,7 @@ class Unit(object):
         if 'factor' in d: ret.factor = d['factor']
         if 'offset' in d: ret.offset = d['offset']
         return ret
-        
+
 raw_unit = Unit(label=None, name='raw', factor=1.0, offset=0.0)
 
 class Range(object):
@@ -204,11 +204,6 @@ class ParameterProfile(object):
 
         return ret;
 
-
-# TODO: add get_poll_items() and use it for polling instead of get_volatile_addresses().
-# difference: get_poll_items() returns a combination of single parameters and
-# parameter ranges whereas get_volatile_addresses() returns a list of parameter
-# addresses
 class DeviceProfile(object):
     def __init__(self, idc):
         self.idc        = int(idc)  #: Device Identifier Code
@@ -269,6 +264,8 @@ class DeviceProfile(object):
     def get_static_addresses(self):
         return map(lambda p: p.address, filter(lambda p: not p.poll, self.parameters))
 
+    # Returns a list-generator of numeric parameter addresses for which
+    # ParameterProfile.poll is True
     def get_volatile_addresses(self):
         return map(lambda p: p.address, filter(lambda p: p.poll, self.parameters))
 
