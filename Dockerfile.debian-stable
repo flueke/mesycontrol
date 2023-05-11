@@ -4,9 +4,14 @@
 # Dockerfile for building mesycontrol_server and the python client package
 # under debian:stable. Attempts to verify that the build and installation steps
 # are working by running the server binary and importing the python client
-# libs.
+# libs. No build artifacts are copied back to the docker host! This file is
+# purely for testing dependency installation and the build process.
+#
 # Note: pip caching only works with modern docker versions and
 # DOCKER_BUILDKIT=1 in the environment.
+#
+# Example docker build invocation from the root of the source tree:
+#   DOCKER_BUILDKIT=1 docker build  -f ./Dockerfile.debian-stable .
 
 FROM debian:stable
 
