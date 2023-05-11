@@ -3,10 +3,13 @@
 #!/usr/bin/env python3
 
 import os
+import os.path
 import sys
 
 from setuptools import setup, find_packages
 from setuptools.command.install import install
+
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # InstallWrapper example taken from mesyprod
 #class InstallWrapper(install):
@@ -15,6 +18,7 @@ from setuptools.command.install import install
 #        from pyshortcuts import make_shortcut
 #        make_shortcut(os.path.join(self.install_base, 'Scripts', 'cad_gui.exe'), name="Cad Gui")
 #        make_shortcut(os.path.join(self.install_base, 'Scripts', 'prod_gui.exe'), name="Prod Gui")
+
 
 setup(
     name='mesycontrol',
