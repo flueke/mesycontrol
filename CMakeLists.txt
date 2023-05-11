@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.13)
 project(mesycontrol DESCRIPTION "Remote control for mesytec NIM devices")
 
 set(MESYCONTROL_MAIN_PROJECT OFF)
@@ -38,7 +38,7 @@ if (MESYCONTROL_BUILD_DOCS)
 endif()
 
 #install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ DESTINATION share/scripts USE_SOURCE_PERMISSIONS)
-install(FILES "${CMAKE_SOURCE_DIR}/LICENSE.TXT" DESTINATION .)
+install(FILES "${CMAKE_SOURCE_DIR}/LICENSE.TXT" DESTINATION share/doc/mesycontrol)
 
 
 if ("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")

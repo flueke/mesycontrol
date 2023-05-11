@@ -49,7 +49,7 @@ if (SPHINX_EXECUTABLE)
 
   add_dependencies(mesycontrol_doc mesycontrol_doc_html)
 
-  install(DIRECTORY "${SPHINX_HTML_DIR}/" DESTINATION "share/doc/html" OPTIONAL)
+  install(DIRECTORY "${SPHINX_HTML_DIR}/" DESTINATION "share/doc/mesycontrol/html" OPTIONAL)
 
   # latex + pdf
   # ==================================================
@@ -80,7 +80,7 @@ if (SPHINX_EXECUTABLE)
     add_dependencies(mesycontrol_doc_latex_pdf mesycontrol_doc_latex)
     add_dependencies(mesycontrol_doc mesycontrol_doc_latex_pdf)
 
-    install(FILES "${SPHINX_PDF_OUT}" DESTINATION "share/doc" OPTIONAL)
+    install(FILES "${SPHINX_PDF_OUT}" DESTINATION "share/doc/mesycontrol" OPTIONAL)
 
   else(LATEXMK)
     message("-- The latexmk program was not found on your system. Will not generate PDF documentation.")
