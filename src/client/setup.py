@@ -9,8 +9,6 @@ import sys
 from setuptools import setup, find_packages
 from setuptools.command.install import install
 
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
 # InstallWrapper example taken from mesyprod
 #class InstallWrapper(install):
 #    def run(self):
@@ -43,7 +41,7 @@ setup(
     #    "root": ".",
     #    "relative_to": __file__
     #},
-    packages=['mesycontrol'],
+    packages=['mesycontrol', 'mesycontrol.devices', 'mesycontrol.ui'],
     include_package_data=True,
     package_data={
         #"mesycontrol": ["data/*.dbf"],
