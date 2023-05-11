@@ -1,6 +1,10 @@
 configure_file("git_sha1.cc.in" "git_sha1.cc" @ONLY)
 configure_file("config.in.h" "config.h" ESCAPE_QUOTES @ONLY)
 
+set(VERSION_PY_IN "${CMAKE_CURRENT_SOURCE_DIR}/client/mesycontrol/mc_version.py.in")
+set(VERSION_PY    "${CMAKE_CURRENT_SOURCE_DIR}/client/mesycontrol/mc_version.py")
+configure_file(${VERSION_PY_IN} ${VERSION_PY})
+
 set(MESYCONTROL_GLOBAL_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/git_sha1.cc")
 set(MESYCONTROL_PROTO_IN "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol.proto")
 set(PROTOBUF_IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}")

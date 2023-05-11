@@ -1,9 +1,6 @@
 find_package(Python3)
 find_package(Protobuf REQUIRED)
 
-set(VERSION_PY_IN "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/mc_version.py.in")
-set(VERSION_PY    "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/mc_version.py")
-
 set(STAMP         "${CMAKE_CURRENT_BINARY_DIR}/build/timestamp")
 
 # Note: The resources file is updated directly inside the source tree before
@@ -96,8 +93,6 @@ set(PYTHON_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/ui/mscf16_settings.ui"
     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/ui/subprogress_widget.ui"
 )
-
-configure_file(${VERSION_PY_IN} ${VERSION_PY})
 
 # Note: for some reason pyside2-rcc is not included in the msys2 pyside2
 # package (or the "tools" variant). As the generated resources.py is included
