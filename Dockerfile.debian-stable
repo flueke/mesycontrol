@@ -1,0 +1,27 @@
+# syntax=docker/dockerfile:1
+
+FROM debian:stable
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates build-essential git cmake python3 python3-pip \
+    libboost-all-dev libprotobuf-dev protobuf-compiler libqt5widgets5
+
+COPY . /mesycontrol-source
+
+WORKDIR /mesycontrol-build
+RUN cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/mesycontrol-install /mesycontrol-source \
+    && make -j && make install
+
+#RUN git clone --recurse-submodules https://github.com/flueke/mesycontrol.git \
+#    && mkdir build && cd build \
+#    && cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/mesycontrol ../mesycontrol \
+#    && make -j && make install
+
+WORKDIR /mesycontrol-source/src/client
+RUN python3 setup.py generate_py_protobufs
+
+WORKDIR /mesycontrol-source/src/client
+RUN pip3 install protobuf==3.20.3 && pip3 install .
+
+RUN /mesycontrol-install/bin/mesycontrol_server --help
+RUN python3 -c 'import mesycontrol'
