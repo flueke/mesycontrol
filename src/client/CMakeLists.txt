@@ -99,24 +99,6 @@ set(PYTHON_SOURCES
 
 configure_file(${VERSION_PY_IN} ${VERSION_PY})
 
-if (WIN32)
-  # On Windows the command line does not work correctly:
-  # "C:\<some-path>" becomes "C:<some-path>"
-  # Using a relative prefix works and installs under the current binary dir.
-  set(DISTUTILS_PREFIX "python-install")
-else (WIN32)
-  set(DISTUTILS_PREFIX "${CMAKE_BINARY_DIR}/python-install")
-endif (WIN32)
-
-find_program(PYINSTALLER_EXECUTABLE pyinstaller REQUIRED)
-
-# Run pyinstaller
-add_custom_command(
-    OUTPUT ${STAMP}
-    COMMAND ${PYINSTALLER_EXECUTABLE} -y ${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol_gui.spec
-    COMMAND ${CMAKE_COMMAND} -E touch ${STAMP}
-    DEPENDS ${PYTHON_SOURCES} ${QRC_OUT} ${PROTO_PY_OUT})
-
 # Note: for some reason pyside2-rcc is not included in the msys2 pyside2
 # package (or the "tools" variant). As the generated resources.py is included
 # in the git repo I made the command optional.
@@ -136,14 +118,18 @@ add_custom_command(
             "${MESYCONTROL_PROTO_IN}"
     DEPENDS ${MESYCONTROL_PROTO_IN})
 
+find_program(PYINSTALLER_EXECUTABLE pyinstaller REQUIRED)
+
+# Run pyinstaller
+add_custom_command(
+    OUTPUT ${STAMP}
+    COMMAND ${PYINSTALLER_EXECUTABLE} -y ${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol_gui.spec
+    COMMAND ${CMAKE_COMMAND} -E touch ${STAMP}
+    DEPENDS ${PYTHON_SOURCES} ${VERSION_PY} ${QRC_OUT} ${PROTO_PY_OUT})
+
 add_custom_target(mesycontrol_clients ALL DEPENDS ${STAMP} ${QRC_IN})
 
-if (WIN32)
-    install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/dist/mesycontrol_gui/"
-        DESTINATION bin USE_SOURCE_PERMISSIONS)
-else()
-    install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/dist/mesycontrol_gui/"
-        DESTINATION bin USE_SOURCE_PERMISSIONS)
-endif()
+install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/dist/mesycontrol_gui/"
+    DESTINATION bin USE_SOURCE_PERMISSIONS)
 
 # vim:tw=0
