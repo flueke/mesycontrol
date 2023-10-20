@@ -224,54 +224,59 @@ class MCTCPClient(QtCore.QObject):
             self._socket.bytesWritten.connect(bytes_written)
 
     def _socket_readyRead(self):
-        if self._read_size <= 0 and self._socket.bytesAvailable() >= 2:
-            # Note: added the bytes() conversion when porting to PySide2.
-            # Without it the struct.unpack() call would lead to a segmentation
-            # fault.
-            data = bytes(self._socket.read(2))
-            self._read_size = struct.unpack('!H', data)[0]
-            self.log.debug("_socket_readyRead: incoming msg size = %d", self._read_size)
-
-        if self._read_size > 0 and self._socket.bytesAvailable() >= self._read_size:
-            message_data = bytes(self._socket.read(self._read_size))
-            self.log.debug("_socket_readyRead: read %u bytes from socket", len(message_data))
-            try:
-                message = proto.Message()
-                message.ParseFromString(message_data)
-                self.log.debug("_socket_readyRead: received %s", message)
-            except proto_message.DecodeError as e:
-                self.log.error("Could not deserialize incoming message: %s.", e)
-                self.disconnectClient()
+        while True:
+            # Changed on 231019 to avoid a recursive call to _socket_readyRead.
+            if self._read_size <= 0 and self._socket.bytesAvailable() < 2:
                 return
 
-            self._read_size = 0
-            self.message_received.emit(message)
+            if self._read_size > 0 and self._socket.bytesAvailable() < self._read_size:
+                return
 
-            if proto.is_response(message):
-                request, future = self._current_request
+            if self._read_size <= 0 and self._socket.bytesAvailable() >= 2:
+                # Note: added the bytes() conversion when porting to PySide2.
+                # Without it the struct.unpack() call would lead to a segmentation
+                # fault.
+                data = bytes(self._socket.read(2))
+                self._read_size = struct.unpack('!H', data)[0]
+                self.log.debug("_socket_readyRead: incoming msg size = %d", self._read_size)
 
-                if proto.is_error_response(message):
-                    future.set_exception(proto.MessageError(
-                        message=message, request=request))
+            if self._read_size > 0 and self._socket.bytesAvailable() >= self._read_size:
+                message_data = bytes(self._socket.read(self._read_size))
+                self.log.debug("_socket_readyRead: read %u bytes from socket, %u bytes left to read",
+                            len(message_data), self._socket.bytesAvailable())
+                try:
+                    message = proto.Message()
+                    message.ParseFromString(message_data)
+                    self.log.debug("_socket_readyRead: received %s", message.Type.Name(message.type))
+                except proto_message.DecodeError as e:
+                    self.log.error("Could not deserialize incoming message: %s.", e)
+                    self.disconnectClient()
+                    return
 
-                    self.error_received.emit(message)
-                else:
-                    future.set_result(RequestResult(request, message))
+                self._read_size = 0
+                self.message_received.emit(message)
 
-                self.response_received.emit(request, message, future)
-                self._current_request = None
+                if proto.is_response(message):
+                    request, future = self._current_request
 
-                if self.get_queue_size() > 0:
-                    self._start_write_request()
-                else:
-                    self.queue_empty.emit()
+                    if proto.is_error_response(message):
+                        future.set_exception(proto.MessageError(
+                            message=message, request=request))
 
-            elif proto.is_notification(message):
-                self.notification_received.emit(message)
+                        self.error_received.emit(message)
+                    else:
+                        future.set_result(RequestResult(request, message))
 
-            if self._socket.bytesAvailable() >= 2:
-                # Handle additional available data.
-                self._socket_readyRead()
+                    self.response_received.emit(request, message, future)
+                    self._current_request = None
+
+                    if self.get_queue_size() > 0:
+                        self._start_write_request()
+                    else:
+                        self.queue_empty.emit()
+
+                elif proto.is_notification(message):
+                    self.notification_received.emit(message)
 
     def _socket_disconnected(self):
         self._reset_state(util.Disconnected())
