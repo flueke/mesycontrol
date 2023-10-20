@@ -247,7 +247,7 @@ class AbstractParameterBinding(object):
                 pass
             except Exception as e:
                 log.warning("target=%s, update callback raised %s: %s", self.target, type(e), e)
-                log.warning("traceback=%s", traceback.format_exception(*sys.exc_info()))
+                #log.warning("traceback=%s", traceback.format_exception(*sys.exc_info()))
                 #raise e
 
     def _on_device_hw_set(self, device, old_hw, new_hw):
