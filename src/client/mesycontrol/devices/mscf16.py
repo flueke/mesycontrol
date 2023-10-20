@@ -188,7 +188,7 @@ def decode_cpu_software_version(val):
 def decode_hardware_info(val):
     return HardwareInfo(int(val))
 
-# ==========  Device ========== 
+# ==========  Device ==========
 class MSCF16(DeviceBase):
     gain_jumper_changed     = Signal(int, float) # group, value
     auto_pz_channel_changed = Signal(int)
@@ -442,7 +442,7 @@ class MSCF16(DeviceBase):
             # auto_pz = 0 means auto pz is not currently running
             # 0 < auto_pz <= NUM_CHANNELS means auto pz is running for that channel
             # self._auto_pz_channel is the last channel that auto pz was running for
-            if 0 < self._auto_pz_channel <= NUM_CHANNELS:
+            if self._auto_pz_channel is not None and 0 < self._auto_pz_channel <= NUM_CHANNELS:
                 self.read_hw_parameter('pz_value_channel%d' % (self._auto_pz_channel-1))
 
             self._auto_pz_channel = value
@@ -1660,7 +1660,7 @@ class SettingsWidget(QtWidgets.QWidget):
         self.device.set_extension('discriminator', discriminator)
         self.device.set_extension('cfd_delay', cfd_delay)
 
-# ==========  Module ========== 
+# ==========  Module ==========
 idc             = 20
 device_class    = MSCF16
 device_ui_class = MSCF16Widget
