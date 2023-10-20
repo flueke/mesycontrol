@@ -9,7 +9,17 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "args": ["/dev/ttyUSB0"],
+            "args": [],
+            "console": "internalConsole",
+            "cwd": "${workspaceFolder}/src/client/",
+            "env": { "PYTHONPATH": "${cwd}" }
+        },
+        {
+            "name": "mesycontrol_gui",
+            "type": "python",
+            "request": "launch",
+            "program": "mesycontrol_gui.py",
+            "args": [],
             "console": "internalConsole",
             "cwd": "${workspaceFolder}/src/client/",
             "env": { "PYTHONPATH": "${cwd}" }
