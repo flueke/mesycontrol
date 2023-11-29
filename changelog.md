@@ -1,3 +1,15 @@
+# 1.1.7-rc
+
+  - MPRB-16-DR: auto poll sum_current, temperature and error_code registers.
+  - MSCF-16: fix runtime error from auto_pz logic
+  - Fix stack overflow due to recursion in the TCP client code.
+  - Add Dockerfile to test building under debian stable.
+  - Internal packaging fixes.
+
+# 1.1.6
+
+  - Revive scripting support which did not work since porting to python3.
+
 # 1.1.5
 
   - MPD-4: make **qwin** values read-only. Workaround for a bug in the MPD-4
