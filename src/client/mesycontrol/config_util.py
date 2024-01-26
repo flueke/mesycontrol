@@ -179,7 +179,7 @@ class GeneratorRunner(QtCore.QObject):
         default action is to reraise the exception with the original
         traceback."""
 
-        raise(e, None, sys.exc_info()[2])
+        raise e.with_traceback(sys.exc_info()[2])
 
 class ProgressUpdate(object):
     def __init__(self, current, total, text=str()):
