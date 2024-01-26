@@ -75,6 +75,6 @@ def refresh_device_memory(devices):
                     arg = yield obj
             except (GeneratorExit, StopIteration):
                 gen.close()
-                break
+                return
 
         yield progress.increment()
