@@ -1,9 +1,11 @@
-# 1.1.7-rc
+# 1.1.7
 
+  - Better log handling: avoid excessive log spam on error.
   - MPRB-16-DR: auto poll sum_current, temperature and error_code registers.
   - MSCF-16: fix runtime error from auto_pz logic
   - Fix stack overflow due to recursion in the TCP client code.
   - Add Dockerfile to test building under debian stable.
+  - Internal python2 to python3 related fixes.
   - Internal packaging fixes.
 
 # 1.1.6
