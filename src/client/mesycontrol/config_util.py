@@ -38,6 +38,7 @@ import mesycontrol.util as util
 import itertools
 import logging
 import sys
+import typing
 
 log = logging.getLogger(__name__)
 
@@ -132,7 +133,6 @@ class GeneratorRunner(QtCore.QObject):
                 except Exception as e:
                     self.result.set_exception(e)
                     self.generator.close()
-                    self.log.exception("Generator")
                     return
 
     def _start(self):
@@ -186,6 +186,7 @@ class ProgressUpdate(object):
         self._current = int(current)
         self._total   = int(total)
         self.text    = text
+        self.subprogress: typing.Optional[ProgressUpdate] = None
 
         self._check()
 
@@ -204,7 +205,7 @@ class ProgressUpdate(object):
         else:
             ret = "ProgressUpdate(%d/%d: %s" % (self.current, self.total, self.text)
 
-        if hasattr(self, 'subprogress'):
+        if self.subprogress is not None:
             sp = self.subprogress
             if not len(sp.text):
                 sub = "%d/%d" % (sp.current, sp.total)

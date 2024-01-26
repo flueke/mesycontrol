@@ -35,7 +35,7 @@ DEFAULT_CONNECT_TIMEOUT_MS = 10000
 
 class AddressConflict(RuntimeError):
     def __str__(self):
-        return "Address conflict"
+        return "Address conflict on RC-Bus"
 
 class HardwareMrc(bm.BasicMrc):
     connected                   = Signal()

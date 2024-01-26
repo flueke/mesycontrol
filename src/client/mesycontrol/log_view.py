@@ -62,6 +62,7 @@ class LogView(QtWidgets.QTextEdit):
     def handle_log_record(self, log_record):
         with QtCore.QMutexLocker(self._mutex):
             try:
+                #self.append(">>>>> LogView.handle_log_record() ------")
                 if log_record.levelno >= logging.ERROR:
                     self.setTextColor(QtGui.QColor("#ff0000"))
                     self.append(self.err_fmt.format(log_record), prepend_time=False)
@@ -69,16 +70,19 @@ class LogView(QtWidgets.QTextEdit):
                     self.append(self.fmt.format(log_record), prepend_time=False)
             finally:
                 self.setTextColor(self._original_text_color)
+                #self.append("<<<<< LogView.handle_log_record() ------")
 
     def handle_exception(self, exc_type, exc_value, exc_trace):
         with QtCore.QMutexLocker(self._mutex):
             try:
                 self.setTextColor(QtGui.QColor("#ff0000"))
+                #self.append(">>>>> LogView.handle_exception() ------")
                 lines = exc_value.traceback_lines
                 self.append("".join(lines).strip())
             except AttributeError:
                 self.append("".join(traceback.format_exception(exc_type, exc_value, exc_trace)).strip())
             finally:
+                #self.append("<<<<< LogView.handle_exception() ------")
                 self.setTextColor(self._original_text_color)
 
     def contextMenuEvent(self, event):
