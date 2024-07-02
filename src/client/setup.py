@@ -33,7 +33,7 @@ setup(
         'pyshortcuts==1.8.0',
         'PySide2',
         'shiboken2',
-        'numpy',
+        'numpy<2',
         'pyqtgraph',
         'protobuf',
     ],
