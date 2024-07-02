@@ -734,7 +734,7 @@ class PreampPage(QtWidgets.QGroupBox):
         for i in range(NUM_GROUPS):
             offset      = layout.rowCount()
             group_range = cg_helper.group_channel_range(i)
-            group_label = QtWidgets.QLabel("%d-%d" % (group_range[0], group_range[-1])) 
+            group_label = QtWidgets.QLabel("%d-%d" % (group_range[0], group_range[-1]))
 
             pol_button  = QtWidgets.QPushButton()
             pol_button.setMaximumSize(PreampPage.polarity_button_size)
@@ -887,7 +887,7 @@ class DiscriminatorPage(QtWidgets.QGroupBox):
             offset              = layout.rowCount()
 
             if i % channels_per_group == 0:
-                group_label = QtWidgets.QLabel("%d-%d" % (group_range[0], group_range[-1])) 
+                group_label = QtWidgets.QLabel("%d-%d" % (group_range[0], group_range[-1]))
                 delay_input = util.DelayedSpinBox()
                 delay_input.setPrefix("Tap ")
                 delay_input = make_delay_combo()
@@ -908,7 +908,7 @@ class DiscriminatorPage(QtWidgets.QGroupBox):
                 self.delay_inputs.append(delay_input)
                 self.delay_labels.append(delay_label)
                 self.fraction_inputs.append(fraction_input)
-                
+
                 layout.addWidget(group_label,           offset, 0, 1, 1, Qt.AlignRight)
                 layout.addWidget(delay_input,           offset, 1)
                 layout.addWidget(delay_label,           offset, 2)
@@ -1095,7 +1095,7 @@ class WidthAndDeadtimePage(QtWidgets.QGroupBox):
         for i in range(NUM_GROUPS):
             offset      = layout.rowCount()
             group_range = cg_helper.group_channel_range(i)
-            group_label = QtWidgets.QLabel("%d-%d" % (group_range[0], group_range[-1])) 
+            group_label = QtWidgets.QLabel("%d-%d" % (group_range[0], group_range[-1]))
 
             width_input = util.DelayedSpinBox()
             width_label = make_dynamic_label(longest_value="%d ns" % width_ns_max)
@@ -1375,7 +1375,7 @@ class MCFD16ControlsWidget(QtWidgets.QWidget):
             label.setStatusTip(label.toolTip())
 
         getter().add_done_callback(done)
-                
+
 class BitPatternHelper(QtCore.QObject):
     value_changed = Signal(int)
 
@@ -1384,6 +1384,10 @@ class BitPatternHelper(QtCore.QObject):
         self.checkboxes = checkboxes
         for cb in checkboxes:
             cb.stateChanged.connect(self._on_cb_stateChanged)
+            def on_cb_destroyed(theCheckBox):
+                if theCheckBox in self.checkboxes:
+                    self.checkboxes.remove(theCheckBox)
+            cb.destroyed.connect(on_cb_destroyed)
 
     def _on_cb_stateChanged(self, state):
         self.value_changed.emit(self.value)
