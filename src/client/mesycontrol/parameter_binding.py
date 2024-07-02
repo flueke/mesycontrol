@@ -731,7 +731,9 @@ class RadioButtonGroupParameterBinding(DefaultParameterBinding):
     def _update(self, rf):
         try:
             with util.block_signals(self.target):
-                self.target.button(int(rf.result())).setChecked(True)
+                button = self.target.button(int(rf.result()))
+                if button is not None:
+                    button.setChecked(True)
 
             for b in self.target.buttons():
                 b.setToolTip(self._get_tooltip(rf))
