@@ -23,6 +23,7 @@ __email__  = 'f.lueke@mesytec.com'
 
 from mesycontrol.qt import QtCore
 import functools
+import typing
 import weakref
 
 import mesycontrol.basic_model as bm
@@ -49,7 +50,7 @@ class Controller(object):
         self.log        = util.make_logging_source_adapter(__name__, self)
 
         self.connection = connection
-        self._mrc       = None
+        self._mrc: typing.Optional[weakref.ref[hm.HardwareMrc]] = None
 
         # Maps subscribers to a set of poll items
         self._poll_subscriptions = dict()

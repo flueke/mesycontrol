@@ -85,19 +85,25 @@ class MRCWrapper(QtCore.QObject):
         return [DeviceWrapper(dev) for dev in devices]
 
 class ScriptContext(object):
-    def __init__(self, app_context):
-        self.context = app_context
+    def __init__(self, appContext):
+        self.appContext: app_context.Context = appContext
 
     def make_mrc(self, url):
         connection = mrc_connection.factory(url=url)
         controller = hardware_controller.Controller(connection)
         mrc = hardware_model.HardwareMrc(url)
         mrc.set_controller(controller)
-        self.context.app_registry.add_mrc(mrc)
+        self.appContext.app_registry.add_mrc(mrc)
         return MRCWrapper(mrc)
 
     def get_device_profile(self, device_idc):
-        return self.context.device_registry.get_device_profile(device_idc)
+        return self.appContext.device_registry.get_device_profile(device_idc)
+
+    def get_all_mrcs(self):
+        return [mrc for mrc in self.appContext.app_registry.get_mrcs()]
+
+    def shutdown(self):
+        self.appContext.shutdown()
 
 @contextlib.contextmanager
 def get_script_context(log_level=logging.INFO):
@@ -127,13 +133,13 @@ def get_script_context(log_level=logging.INFO):
             #        for n in dir(signal) if n.startswith('SIG') and '_' not in n)
             #signal.signal(signal.SIGINT, signal_handler)
 
-        context = app_context.Context(
+        appContext = app_context.Context(
                 sys.executable if getattr(sys, 'frozen', False) else __file__)
-
-        yield ScriptContext(context)
+        scriptContext = ScriptContext(appContext)
+        yield scriptContext
     finally:
-        if context is not None:
-            context.shutdown()
+        if scriptContext is not None:
+            scriptContext.shutdown()
         try:
             del gc
         except NameError:

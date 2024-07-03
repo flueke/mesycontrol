@@ -18,6 +18,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+from __future__ import annotations
+
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
@@ -26,10 +28,13 @@ from mesycontrol.qt import Signal
 
 import mesycontrol.basic_model as bm
 import mesycontrol.future as future
+import mesycontrol.hardware_controller as hardware_controller
 import mesycontrol.proto as proto
 import mesycontrol.util as util
 
 import os
+import typing
+
 
 DEFAULT_CONNECT_TIMEOUT_MS = 10000
 
@@ -52,7 +57,7 @@ class HardwareMrc(bm.BasicMrc):
     def __init__(self, url, parent=None):
         super(HardwareMrc, self).__init__(url, parent)
         self.log   = util.make_logging_source_adapter(__name__, self)
-        self._controller = None
+        self._controller: typing.Optional[hardware_controller.Controller] = None
 
         self._connected  = False
         self._connecting = False
