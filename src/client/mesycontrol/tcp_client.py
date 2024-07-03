@@ -262,6 +262,9 @@ class MCTCPClient(QtCore.QObject):
 
                 if proto.is_response(message):
                     request, future = self._current_request
+                    self._current_request = None
+
+                    self.response_received.emit(request, message, future)
 
                     if proto.is_error_response(message):
                         future.set_exception(proto.MessageError(
@@ -271,8 +274,6 @@ class MCTCPClient(QtCore.QObject):
                     else:
                         future.set_result(RequestResult(request, message))
 
-                    self.response_received.emit(request, message, future)
-                    self._current_request = None
 
                     if self.get_queue_size() > 0:
                         self._start_write_request()
