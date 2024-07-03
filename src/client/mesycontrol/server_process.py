@@ -134,6 +134,9 @@ class ServerProcess(QtCore.QObject):
 
             if self.process is None:
                 self.process = QProcess()
+                def on_process_destroyed():
+                    self.process = None
+                self.process.destroyed.connect(lambda: on_process_destroyed())
             self.process.setProcessChannelMode(QProcess.MergedChannels)
 
             self.process.error.connect(self._error)
