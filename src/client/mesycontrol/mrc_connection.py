@@ -268,25 +268,25 @@ class LocalMRCConnection(AbstractMrcConnection):
 
         if self.server.is_running():
             def handle_quit_response(f):
-                self.log.info(f"disconnectMrc.handle_quit_response result: {f.result().response.response_bool}")
-                r = f.result()
+                try:
+                    f.result()
+                except util.Disconnected:
+                    self.log.info(f"disconnectMrc: was already disconnected")
+                    pass # Already had lost the connection to the server.
+                except Exception as e:
+                    self.log.info(f"disconnectMrc: exception from 'Quit' request: {e}")
 
-                if r.response.response_bool:
-                    def on_server_stopped(stopFuture):
-                        self.log.debug(f"disconnectMrc.on_server_stopped {stopFuture}")
-                        self._is_connected = False
-                        self._is_connecting = False
-                        ret.set_result(True)
+                def on_server_stopped(stopFuture):
+                    self.log.debug(f"disconnectMrc.on_server_stopped {stopFuture}")
+                    self._is_connected = False
+                    self._is_connecting = False
+                    ret.set_result(True)
 
-                    def stop_server(disconnectFuture):
-                        self.log.debug(f"disconnectMrc.stop_server {disconnectFuture}")
-                        self.server.stop().add_done_callback(on_server_stopped)
+                def stop_server(disconnectFuture):
+                    self.log.debug(f"disconnectMrc.stop_server {disconnectFuture}")
+                    self.server.stop().add_done_callback(on_server_stopped)
 
-                    self.connection.disconnectMrc().add_done_callback(stop_server)
-
-                else:
-                    self.log.debug("disconnectMrc.handle_quit_response: quit response was False!")
-                    ret.set_result(False)
+                self.connection.disconnectMrc().add_done_callback(stop_server)
 
             req = proto.Message()
             req.type = proto.Message.REQ_QUIT
