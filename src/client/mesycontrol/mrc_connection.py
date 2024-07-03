@@ -286,6 +286,7 @@ class LocalMRCConnection(AbstractMrcConnection):
                     self.log.debug(f"disconnectMrc.stop_server {disconnectFuture}")
                     self.server.stop().add_done_callback(on_server_stopped)
 
+                self.log.debug(f"disconnecting MRC connection instance {self.connection}")
                 self.connection.disconnectMrc().add_done_callback(stop_server)
 
             req = proto.Message()

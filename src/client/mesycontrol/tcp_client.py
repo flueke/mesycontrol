@@ -177,7 +177,10 @@ class MCTCPClient(QtCore.QObject):
         was_empty = self.get_queue_size() == 0
         hashable_request = request.SerializeToString()
         self._queue.add((hashable_request, ret))
-        self.log.debug("Queueing request %s, queue size=%d", request, self.get_queue_size())
+        self.log.debug("Queueing request %s, queue size=%d",
+                       proto.message_type_name(request),
+                       self.get_queue_size())
+
         self.request_queued.emit(request, ret)
         self.queue_size_changed.emit(self.get_queue_size())
         if was_empty:
@@ -207,18 +210,19 @@ class MCTCPClient(QtCore.QObject):
             self._current_request = None
             return
 
-        self.log.debug("_start_write_request: request=%s, str_request=%s, len(str_request)=%d",
-                request, str_request, len(str_request));
+        #self.log.debug("_start_write_request: request=%s, str_request=%s, len(str_request)=%d",
+        #        request, str_request, len(str_request));
 
         data = str_request
         data = struct.pack('!H', len(data)) + data # prepend message size
-        self.log.debug("_start_write_request: writing %s (len=%d)", request, len(data))
+        self.log.debug("_start_write_request: writing %s (len=%d)", proto.message_type_name(request), len(data))
+
         if self._socket.write(bytes(data)) == -1:
             future.set_exception(util.SocketError(self._socket.error(),
                 self._socket.errorString()))
         else:
             def bytes_written():
-                self.log.debug("_start_write_request: request %s sent", request)
+                self.log.debug("_start_write_request: request %s sent", proto.message_type_name(request))
                 self._socket.bytesWritten.disconnect(bytes_written)
                 self.request_sent.emit(request, future)
             self._socket.bytesWritten.connect(bytes_written)
@@ -247,7 +251,7 @@ class MCTCPClient(QtCore.QObject):
                 try:
                     message = proto.Message()
                     message.ParseFromString(message_data)
-                    self.log.debug("_socket_readyRead: received %s", message.Type.Name(message.type))
+                    self.log.debug("_socket_readyRead: received %s", proto.message_type_name(message))
                 except proto_message.DecodeError as e:
                     self.log.error("Could not deserialize incoming message: %s.", e)
                     self.disconnectClient()
@@ -290,7 +294,7 @@ class MCTCPClient(QtCore.QObject):
 
     def _reset_state(self, exception_object=RuntimeError()):
         if self._current_request is not None:
-            self.log.debug("_reset_state: aborting current request")
+            self.log.debug(f"_reset_state: aborting current request {proto.message_type_name(self._current_request[0])}")
             request, future = self._current_request
             if not future.done():
                 future.set_exception(exception_object)

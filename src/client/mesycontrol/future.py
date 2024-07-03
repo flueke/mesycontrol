@@ -209,7 +209,7 @@ class Future(object):
         elif self.exception() is not None:
             self.log.debug("%s done: %s", self, self.exception())
         else:
-            self.log.debug("%s done: %s", self, self.result())
+            self.log.debug("%s done: %s", self, type(self.result()))
 
         for cb in self._callbacks:
             self._exec_callback(cb)

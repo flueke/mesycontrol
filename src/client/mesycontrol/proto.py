@@ -36,6 +36,9 @@ def is_notification(msg):
 def is_error_response(msg):
     return msg.type == Message.RESP_ERROR
 
+def message_type_name(msg) -> str:
+    return msg.Type.Name(msg.type)
+
 class MessageError(RuntimeError):
     def __init__(self, message=None, request=None, text=str(), *args):
         super(MessageError, self).__init__(*args)

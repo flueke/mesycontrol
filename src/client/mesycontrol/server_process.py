@@ -18,6 +18,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+from __future__ import annotations
+
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
@@ -27,6 +29,7 @@ from functools import partial
 import collections
 import weakref
 import sys
+import typing
 
 from mesycontrol import util
 from mesycontrol.future import Future
@@ -109,7 +112,7 @@ class ServerProcess(QtCore.QObject):
         self.tcp_port = tcp_port
         self.verbosity = verbosity
 
-        self.process = None
+        self.process: typing.Optional[QProcess] = None
         self.lastExitCode = None
 
         self._startup_delay_timer = QtCore.QTimer()
@@ -128,23 +131,9 @@ class ServerProcess(QtCore.QObject):
         ret = Future()
 
         try:
-            if self.process is not None and self.process.state != QProcess.NotRunning:
-                ret.set_result(True)
-                return ret
-
-            if self.process is None:
-                self.process = QProcess()
-                def on_process_destroyed():
-                    self.process = None
-                self.process.destroyed.connect(lambda: on_process_destroyed())
-            self.process.setProcessChannelMode(QProcess.MergedChannels)
-
-            self.process.error.connect(self._error)
-            self.process.finished.connect(self._finished)
-            self.process.readyReadStandardOutput.connect(self._output)
-
             if self.process is not None and self.process.state() != QProcess.NotRunning:
-                raise ServerIsRunning()
+                ret.set_result(True) # was already running -> True
+                return ret
 
             args = self._prepare_args()
             program = util.which(self.binary)
@@ -154,61 +143,63 @@ class ServerProcess(QtCore.QObject):
 
             cmd_line = "%s %s" % (program, " ".join(args))
 
-            def on_started():
-                self.log.debug("[pid=%s] Started %s", self.process.pid(), cmd_line)
-                dc()
-                self._startup_delay_timer.timeout.connect(on_startup_delay_expired)
-                self._startup_delay_timer.start()
+            if self.process is None:
+                self.process = QProcess()
+                self.process.setProcessChannelMode(QProcess.MergedChannels)
+                self.process.error.connect(self._error)
+                self.process.finished.connect(self._finished)
+                self.process.readyReadStandardOutput.connect(self._output)
 
-            def on_error(error):
-                self.log.debug("Error starting %s: %d", error)
-                dc()
-                ret.set_exception(ServerError(error))
+                # Cleanup on C++ object destruction
+                def on_process_destroyed():
+                    self.process = None
 
-            def on_finished(exit_code, exit_status):
-                self.log.debug("pid=%s finished: code=%d, status=%d", self.process.pid(), exit_code, exit_status)
+                self.process.destroyed.connect(lambda: on_process_destroyed())
 
-            def on_startup_delay_expired():
-                if ret.done():
-                    return
 
-                if self.process is None:
-                    if self.exit_code()[0] != 0:
-                        # Uses self.lastExitCode
-                        ret.set_exception(ServerError(self.exit_code()))
+                def on_started():
+                    self.log.debug("[pid=%s] Started %s", self.process.pid(), cmd_line)
+                    self._startup_delay_timer.timeout.connect(on_startup_delay_expired)
+                    self._startup_delay_timer.start()
+
+                def on_error(error):
+                    self.log.debug("Error starting %s: %d", error)
+                    ret.set_exception(ServerError(error))
+
+                def on_finished(exit_code, exit_status):
+                    self.log.debug("pid=%s finished: code=%d, status=%d", self.process.pid(), exit_code, exit_status)
+
+                def on_startup_delay_expired():
+                    if ret.done():
+                        return
+
+                    if self.process is None:
+                        if self.exit_code()[0] != 0:
+                            # Uses self.lastExitCode
+                            ret.set_exception(ServerError(self.exit_code()))
+                        else:
+                            # An unknown error caused the process to stop and _finished() or _error() to set self.process to None
+                            ret.set_result(False)
+                        return
+
+                    self._startup_delay_timer.timeout.disconnect(on_startup_delay_expired)
+
+                    if self.process is not None and self.process.state() == QProcess.Running:
+                        self.started.emit()
+                        self.log.debug("[pid=%s] Startup delay expired", self.process.pid())
+                        ret.set_progress_text("Started %s" % cmd_line)
+                        ret.set_result(True)
                     else:
-                        # An unknown error caused the process to stop and _finished() or _error() to set self.process to None
-                        ret.set_result(False)
-                    return
+                        if self.process is not None and self.process.error() != QProcess.UnknownError:
+                            self.log.warning("Setting exception with errorString: %s", self.process.errorString())
+                            ret.set_exception(ServerError(self.process.errorString()))
+                        else:
+                            self.log.warning("Setting exception with exit_code: %s", self.exit_code())
+                            ret.set_exception(ServerError(self.exit_code()))
 
-                self._startup_delay_timer.timeout.disconnect(on_startup_delay_expired)
-
-                if self.process is not None and self.process.state() == QProcess.Running:
-                    self.started.emit()
-                    self.log.debug("[pid=%s] Startup delay expired", self.process.pid())
-                    ret.set_progress_text("Started %s" % cmd_line)
-                    ret.set_result(True)
-                else:
-                    if self.process is not None and self.process.error() != QProcess.UnknownError:
-                        self.log.warning("Setting exception with errorString: %s", self.process.errorString())
-                        ret.set_exception(ServerError(self.process.errorString()))
-                    else:
-                        self.log.warning("Setting exception with exit_code: %s", self.exit_code())
-                        ret.set_exception(ServerError(self.exit_code()))
-
-            def dc():
-                self.process.started.disconnect(on_started)
-                self.process.error.disconnect(on_error)
-                try:
-                    self.process.finished.disconnect(on_finished)
-                except RuntimeError:
-                    # Might have been disconnected in stop::on_finished
-                    pass
-
-
-            self.process.started.connect(on_started)
-            self.process.error.connect(on_error)
-            self.process.finished.connect(on_finished)
+                self.process.started.connect(on_started)
+                self.process.error.connect(on_error)
+                self.process.finished.connect(on_finished)
 
             self.log.debug("Starting %s", cmd_line)
             self.process.start(program, args, QtCore.QIODevice.ReadOnly)
@@ -216,7 +207,7 @@ class ServerProcess(QtCore.QObject):
             ret.set_progress_text("Starting %s" % cmd_line)
 
         except Exception as e:
-            self.log.exception("ServerProcess")
+            self.log.exception("ServerProcess.start()")
             ret.set_exception(e)
 
         return ret
@@ -234,7 +225,6 @@ class ServerProcess(QtCore.QObject):
                 self.process.terminate()
             else:
                 self.process.kill()
-            #ret.set_result(True)
         else:
             ret.set_exception(ServerIsStopped())
         return ret
