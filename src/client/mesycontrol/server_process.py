@@ -70,6 +70,14 @@ class ServerIsStopping(ServerError):
 class ServerIsStopped(ServerError):
     pass
 
+class ServerRuntimeError(ServerError):
+    def __init__(self, error: QProcess.ProcessError):
+        super(ServerRuntimeError, self).__init__()
+        self.error = error
+
+    def __str__(self):
+        return f"ServerRuntimeError(error={self.error})"
+
 def get_exit_code_string(exit_code):
     return EXIT_CODES.get(exit_code, "exit_unknown_error")
 
@@ -103,6 +111,14 @@ class ServerProcess(QtCore.QObject):
         super(ServerProcess, self).__init__(parent)
 
         self.log  = util.make_logging_source_adapter(__name__, self)
+
+        # XXX: I'm debug code, please remove me!
+        import logging
+        consoleSink = logging.StreamHandler()
+        consoleSink.setLevel(logging.DEBUG)
+        consoleSink.setFormatter(logging.Formatter('foobar [%(asctime)-15s] [%(name)s.%(levelname)-8s] %(message)s'))
+        self.log.logger.addHandler(consoleSink)
+
         self.binary = binary
         self.listen_address = listen_address
         self.listen_port = listen_port
@@ -121,11 +137,19 @@ class ServerProcess(QtCore.QObject):
 
         self.output_buffer = collections.deque(maxlen=output_buffer_maxlen)
 
+    def __del__(self):
+        self.log.warn(f"ServerProcess being destroyed (py): {self=}")
+        if self.process is not None:
+            self.log.warn(f"Waiting for ServerProcess to finish: {self=}")
+            self.process.waitForFinished(1000)
+            self.log.warn(f"ServerProcess finished after waiting: {self=}")
+
     def start(self):
         # Startup procedure:
         # - start the server process and wait for it to emit started() or error()
-        # - on error: set result to ServerError
-        # - on started: start a timer waiting for startup_delay_ms
+        # - on error:   set result to ServerError
+        # - on started: start a timer waiting for startup_delay_ms. This is to gives the
+        #               server time to bind to its listen port.
         # - on timeout: if the process is still running: set result to True
         #               else set result to ServerError
         ret = Future()
@@ -144,6 +168,7 @@ class ServerProcess(QtCore.QObject):
             cmd_line = "%s %s" % (program, " ".join(args))
 
             if self.process is None:
+                #self.process = QProcess(parent=self)
                 self.process = QProcess()
                 self.process.setProcessChannelMode(QProcess.MergedChannels)
                 self.process.error.connect(self._error)
@@ -152,10 +177,10 @@ class ServerProcess(QtCore.QObject):
 
                 # Cleanup on C++ object destruction
                 def on_process_destroyed():
+                    self.log.warn("on_process_destroyed was called, setting self.process=None!")
                     self.process = None
 
                 self.process.destroyed.connect(lambda: on_process_destroyed())
-
 
                 def on_started():
                     self.log.debug("[pid=%s] Started %s", self.process.pid(), cmd_line)
@@ -163,7 +188,9 @@ class ServerProcess(QtCore.QObject):
                     self._startup_delay_timer.start()
 
                 def on_error(error):
-                    self.log.debug("Error starting %s: %d", error)
+                    self.log.debug(f"Error starting process: {error=}")
+                    if ret.done:
+                        raise RuntimeError("Future already done! Nooooooooooooooooo!")
                     ret.set_exception(ServerError(error))
 
                 def on_finished(exit_code, exit_status):
@@ -229,6 +256,12 @@ class ServerProcess(QtCore.QObject):
             ret.set_exception(ServerIsStopped())
         return ret
 
+    def waitForFinished(self, msecs: int = 30000):
+        if self.process is None:
+            return True
+
+        return self.process.waitForFinished(msecs)
+
     def kill(self):
         return self.stop(True)
 
@@ -281,7 +314,6 @@ class ServerProcess(QtCore.QObject):
                 exit_code, ServerProcess.exit_code_string(exit_code))
 
         self.lastExitCode = exit_code
-        self.process = None
 
     def _finished(self, code, status):
         self.log.debug("Finished: status=%d, code=%d, str=%s", status, code,
@@ -289,7 +321,6 @@ class ServerProcess(QtCore.QObject):
         self.finished.emit(status, code, ServerProcess.exit_code_string(code))
 
         self.lastExitCode = code
-        self.process = None
 
     def _output(self):
         data = bytes(self.process.readAllStandardOutput()).decode("unicode_escape")
