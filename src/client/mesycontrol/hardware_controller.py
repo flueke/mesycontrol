@@ -124,6 +124,7 @@ class Controller(object):
         return self._connect_future
 
     def disconnectMrc(self):
+        self.log.debug(f"disconnectMrc: {self=}, {self.connection=}")
         return self.connection.disconnectMrc()
 
     def read_parameter(self, bus, device, address):

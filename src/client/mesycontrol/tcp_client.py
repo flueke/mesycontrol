@@ -113,7 +113,7 @@ class MCTCPClient(QtCore.QObject):
         """Disconnect. Returns a Future that fullfills once the connection has
         been disconnected or an error occurs."""
 
-        self.log.debug("disconnectClient()")
+        self.log.debug(f"disconnectClient: {self=}")
 
         if not self.is_disconnected():
             self._socket.disconnectFromHost()

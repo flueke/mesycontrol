@@ -180,6 +180,7 @@ class HardwareMrc(bm.BasicMrc):
         return ret
 
     def disconnectMrc(self):
+        self.log.debug(f"disconnectMrc: {self=}, {self.controller=}")
         return self.controller.disconnectMrc()
 
     def is_connected(self):

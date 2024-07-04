@@ -65,6 +65,7 @@ class Future(object):
         if self._exception is not None and not self._exception_observed:
             self.log.error("Unobserved exception in Future: %s %s",
                     type(self._exception), self._exception)
+        self.log.debug(f"future being destroyed! {self=}, {self.done()=}")
 
     # ===== Client functionality =====
     def done(self):
@@ -207,9 +208,11 @@ class Future(object):
         if self.cancelled():
             self.log.debug("%s done: canceled", self)
         elif self.exception() is not None:
-            self.log.debug("%s done: %s", self, self.exception())
+            self.log.debug("%s done: exception: %s", self, self.exception())
+        elif self.done():
+            self.log.debug("%s done: resultType: %s", self, type(self.result()))
         else:
-            self.log.debug("%s done: %s", self, type(self.result()))
+            self.log.debug("%s NOT done!", self)
 
         for cb in self._callbacks:
             self._exec_callback(cb)

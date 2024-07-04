@@ -175,7 +175,7 @@ class MRCConnection(AbstractMrcConnection):
         self.connection_error.emit(error)
 
     def disconnectMrc(self):
-        self.log.debug("disconnectMrc")
+        self.log.debug(f"disconnectMrc: {self=}, {self.client=}")
         return self.client.disconnectClient()
 
     def is_connected(self):

@@ -93,7 +93,7 @@ class ScriptContext(object):
         controller = hardware_controller.Controller(connection)
         mrc = hardware_model.HardwareMrc(url)
         mrc.set_controller(controller)
-        self.appContext.app_registry.add_mrc(mrc)
+        self.appContext.app_registry.hw.add_mrc(mrc)
         return MRCWrapper(mrc)
 
     def get_device_profile(self, device_idc):
