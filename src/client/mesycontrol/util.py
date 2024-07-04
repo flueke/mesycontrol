@@ -434,14 +434,14 @@ def wait_for_signal(signal, expected_args=None, timeout_ms=0, emitting_callable=
 
     def the_slot(*args):
         if expected_args is None or do_args_match(expected_args, args):
-            log.debug("slot arguments match expected arguments")
+            log.debug(f"emitter={emitting_callable}, signal={signal}: slot arguments match expected arguments")
             loop.exit(0)
         else:
-            log.debug("slot arguments do not match expected arguments")
+            log.debug(f"emitter={emitting_callable}, signal={signal}: slot arguments do NOT match expected arguments")
             loop.exit(1)
 
     def on_timeout():
-        log.debug("timeout reached while waiting for signal")
+        log.debug(f"emitter={emitting_callable}, signal={signal}: timeout reached while waiting for signal (timeout={timeout_ms} ms)")
         loop.exit(1)
 
     signal.connect(the_slot)
@@ -451,16 +451,16 @@ def wait_for_signal(signal, expected_args=None, timeout_ms=0, emitting_callable=
     timer.timeout.connect(on_timeout)
 
     if emitting_callable is not None:
-        log.debug("invoking emitter %s", emitting_callable)
+        log.debug(f"emitter={emitting_callable}, signal={signal}: invoking emitter")
         QtCore.QTimer.singleShot(0, emitting_callable)
 
     if timeout_ms > 0:
-        log.debug("starting timer with timeout=%d", timeout_ms)
+        log.debug(f"emitter={emitting_callable}, signal={signal}: starting timeout of {timeout_ms} ms")
         timer.start(timeout_ms)
 
     exitcode = loop.exec_()
 
-    log.debug("eventloop returned %d", exitcode)
+    log.debug(f"emitter={emitting_callable}, signal={signal}: eventloop returned {exitcode}")
 
     timer.stop()
     timer.timeout.disconnect(on_timeout)
