@@ -21,26 +21,15 @@ from setuptools.command.install import install
 setup(
     name='mesycontrol',
     description='mesytec NIM module control GUI',
-    setup_requires=['setuptools_scm', 'pyshortcuts', 'protobuf_distutils', 'protobuf'],
-    options={
-        'generate_py_protobufs': {
-                'source_dir': '..',
-                'output_dir': 'mesycontrol',
-            },
-        },
+    setup_requires=['setuptools_scm', 'pyshortcuts'],
     install_requires=[
-        #'importlib-resources',
         'pyshortcuts==1.8.0',
-        'PySide2',
+        'PySide2>=5.15',
         'shiboken2',
         'numpy<2',
         'pyqtgraph',
         'protobuf',
     ],
-    #use_scm_version= {
-    #    "root": ".",
-    #    "relative_to": __file__
-    #},
     packages=['mesycontrol', 'mesycontrol.devices', 'mesycontrol.ui'],
     include_package_data=True,
     package_data={
