@@ -841,6 +841,8 @@ class GUIApplication(QtCore.QObject):
                     getattr(obj, sig).disconnect(self._update_actions)
                 except TypeError:
                     pass
+                except RuntimeError:
+                    pass
 
         def connect_signals(obj, signals):
             self.log.debug("_tree_node_selected: connecting '%s' to '%s'", signals, obj)
