@@ -53,6 +53,7 @@ from mesycontrol.qt import QtWidgets
 #if __name__ == "__main__":
 def mesycontrol_gui_main():
     util.init_faulthandler()
+    logging.raiseExceptions = False
 
     if not is_windows:
         parser = argparse.ArgumentParser(description='mesycontrol GUI command line arguments')
