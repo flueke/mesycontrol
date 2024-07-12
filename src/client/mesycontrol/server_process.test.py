@@ -45,14 +45,14 @@ class ServerProcess2(QtCore.QObject):
         self.process = QProcess()
         self.process.setProcessChannelMode(QProcess.MergedChannels)
         if 1:
-            self.log.warn("using bound method!")
+            self.log.warning("using bound method!")
             self.process.started.connect(self._on_process_started)
             self.process.errorOccurred.connect(self._on_process_error)
             self.process.finished.connect(self._on_process_finished)
             self.process.readyReadStandardOutput.connect(self._on_process_output)
             self.process.destroyed.connect(self._on_process_destroyed)
         elif 0:
-            self.log.warn("using bound lambdas!")
+            self.log.warning("using bound lambdas!")
             l_on_started = lambda: self._on_process_started
             l_on_finished = lambda exit_code, exit_status: self._on_process_finished(exit_code, exit_status)
             l_on_error = lambda error: self._on_process_error(error)
@@ -70,7 +70,7 @@ class ServerProcess2(QtCore.QObject):
             self.log.error("__del__(): child process did not finish!")
 
     def _on_process_destroyed(self):
-        self.log.warn("c++ QProcess instance was destroyed just now!")
+        self.log.warning("c++ QProcess instance was destroyed just now!")
 
     def is_starting(self):
         return self.startFuture is not None
@@ -136,7 +136,7 @@ class ServerProcess2(QtCore.QObject):
             return ret
 
         args = self._prepare_args()
-        cmd_line = "%s %s" % (program, " ".join(args))
+        cmd_line = "%s %s" % (program, " ".join(args))]
         self.process.start(program, args, QtCore.QIODevice.ReadOnly)
         self.startFuture = ret
 
