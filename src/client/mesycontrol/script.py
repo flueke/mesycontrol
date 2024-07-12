@@ -109,7 +109,7 @@ class ScriptContext(object):
 def get_script_context(log_level=logging.INFO):
     try:
         # Setup logging. Has no effect if logging has already been setup.
-        logging.basicConfig(level=logging.NOTSET,
+        logging.basicConfig(level=logging.INFO,
                 format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
         if logging.getLogger().level == logging.NOTSET:
             logging.getLogger().handlers[0].setLevel(log_level)
