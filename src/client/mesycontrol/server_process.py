@@ -130,12 +130,12 @@ class ServerProcess(QtCore.QObject):
 
         self.output_buffer = collections.deque(maxlen=output_buffer_maxlen)
 
-    def __del__(self):
-        self.log.warn(f"ServerProcess being destroyed (py): {self=}")
-        if self.process is not None:
-            self.log.warn(f"Waiting for ServerProcess to finish: {self=}")
-            self.process.waitForFinished(1000)
-            self.log.warn(f"ServerProcess finished after waiting: {self=}")
+    #def __del__(self):
+    #    self.log.warn(f"ServerProcess being destroyed (py): {self=}")
+    #    if self.process is not None:
+    #        self.log.warn(f"Waiting for ServerProcess to finish: {self=}")
+    #        self.process.waitForFinished(1000)
+    #        self.log.warn(f"ServerProcess finished after waiting: {self=}")
 
     def start(self):
         # Startup procedure:
@@ -182,9 +182,8 @@ class ServerProcess(QtCore.QObject):
 
                 def on_error(error):
                     self.log.debug(f"Error starting process: {error=}")
-                    if ret.done:
-                        raise RuntimeError("Future already done! Nooooooooooooooooo!")
-                    ret.set_exception(ServerError(error))
+                    if not ret.done:
+                        ret.set_exception(ServerError(error))
 
                 def on_finished(exit_code, exit_status):
                     self.log.debug("pid=%s finished: code=%d, status=%d", self.process.pid(), exit_code, exit_status)
