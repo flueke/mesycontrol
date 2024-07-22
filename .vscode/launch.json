@@ -4,9 +4,10 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
         {
             "name": "Python: Current File",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${file}",
             "args": [],
@@ -16,10 +17,20 @@
         },
         {
             "name": "mesycontrol_gui",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "mesycontrol_gui.py",
             "args": [],
+            "console": "internalConsole",
+            "cwd": "${workspaceFolder}/src/client/",
+            "env": { "PYTHONPATH": "${cwd}" }
+        },
+        {
+            "name": "scanbus_script",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/scanbus_device_profiles.py",
+            "args": ["/dev/ttyUSB0"],
             "console": "internalConsole",
             "cwd": "${workspaceFolder}/src/client/",
             "env": { "PYTHONPATH": "${cwd}" }

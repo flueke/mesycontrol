@@ -112,13 +112,6 @@ class ServerProcess(QtCore.QObject):
 
         self.log  = util.make_logging_source_adapter(__name__, self)
 
-        # XXX: I'm debug code, please remove me!
-        import logging
-        consoleSink = logging.StreamHandler()
-        consoleSink.setLevel(logging.DEBUG)
-        consoleSink.setFormatter(logging.Formatter('foobar [%(asctime)-15s] [%(name)s.%(levelname)-8s] %(message)s'))
-        self.log.logger.addHandler(consoleSink)
-
         self.binary = binary
         self.listen_address = listen_address
         self.listen_port = listen_port
