@@ -298,9 +298,9 @@ class ServerProcess(QtCore.QObject):
 
     def _error(self, error):
         exit_code = self.process.exitCode()
-        self.log.error("error=%d (%s), exit_code=%d (%s)",
-                error, self.process.errorString(),
-                exit_code, ServerProcess.exit_code_string(exit_code))
+        #self.log.error("error=%d (%s), exit_code=%d (%s)",
+        #        error, self.process.errorString(),
+        #        exit_code, ServerProcess.exit_code_string(exit_code))
 
         self.error.emit(error, self.process.errorString(),
                 exit_code, ServerProcess.exit_code_string(exit_code))
@@ -366,8 +366,9 @@ class ServerProcessPool(QtCore.QObject):
             process.start()
 
         elif exit_code != 0:
-            self.log.warning("ServerProcess finished with exit_code=%d (%s), exit_status=%d",
-                            exit_code, exit_code_string, exit_status)
+            pass
+            #self.log.warning("ServerProcess finished with exit_code=%d (%s), exit_status=%d",
+            #                exit_code, exit_code_string, exit_status)
 
 pool = ServerProcessPool()
 
