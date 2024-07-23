@@ -24,7 +24,7 @@ setup(
     setup_requires=['setuptools_scm', 'pyshortcuts', 'protobuf_distutils'],
     install_requires=[
         'pyshortcuts==1.8.0',
-        'PySide2>=5.15',
+        'PySide2>=5.13',
         'shiboken2',
         'numpy<2',
         'pyqtgraph',
