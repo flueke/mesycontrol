@@ -17,7 +17,7 @@ import sys
 import time
 from mesycontrol.script import get_script_context
 
-def poll_volatile_parameters(mrc):
+def poll_volatile_parameters(ctx, mrc):
     for device in mrc.get_devices():
         # device is a script.DeviceWrapper instance
         # profile is a device_profile.DeviceProfile instance
@@ -95,7 +95,7 @@ Accepted mrc-url schemes:
 
                 if time.monotonic() - tPoll >= PollInterval:
                     print("poll")
-                    poll_volatile_parameters(mrc)
+                    poll_volatile_parameters(ctx, mrc)
                     tPoll = time.monotonic()
                 else:
                     time.sleep(0.1)
