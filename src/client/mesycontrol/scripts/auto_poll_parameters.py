@@ -49,7 +49,7 @@ g_quit = False
 def signal_handler(signum, frame):
     g_quit = True
 
-if __name__ == "__main__":
+def main():
     if len(sys.argv) != 2:
         print(f"""Usage: {sys.argv[0]} <mrc-url>
 
@@ -99,3 +99,6 @@ Accepted mrc-url schemes:
                     tPoll = time.monotonic()
                 else:
                     time.sleep(0.1)
+
+if __name__ == "__main__":
+    main()
