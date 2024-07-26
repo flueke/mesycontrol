@@ -18,12 +18,6 @@ dependencies = [
 [tool.setuptools_scm]
 root = "../../"
 
-#[tool.setuptools]
-#include-package-data = true
-#
-#[tool.setuptools.packages.find]
-#where = "mesycontrol/scripts"
-
 [project.gui-scripts]
 mesycontrol_gui = "mesycontrol:mesycontrol_gui_main"
 
