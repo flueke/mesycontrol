@@ -31,8 +31,7 @@ RUN cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/mesycontrol-install
 # client package.
 WORKDIR /mesycontrol-source/src/client
 RUN --mount=type=cache,target=/root/.cache \
-    python3 setup.py generate_py_protobufs \
-    && pip3 install --break-system-packages .
+    pip3 install --break-system-packages .
 
 # Try to start the server and import the mesycontrol python package.
 RUN /mesycontrol-install/bin/mesycontrol_server --help

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=42", "wheel", "setuptools_scm[toml]>=3.4", "pyshortcuts", "protobuf_distutils"]
+requires = ["setuptools>=42", "wheel", "setuptools_scm[toml]>=3.4", "pyshortcuts", "setuptools-protobuf"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -17,6 +17,11 @@ dependencies = [
 
 [tool.setuptools_scm]
 root = "../../"
+
+# FIXME: It doesn't work with the .proto file residing in the parent directory.
+#[tool.setuptools-protobuf]
+#protobufs = ["../mesycontrol.proto"]
+#mypy = true # To also generate typing hints
 
 [project.gui-scripts]
 mesycontrol_gui = "mesycontrol:mesycontrol_gui_main"
