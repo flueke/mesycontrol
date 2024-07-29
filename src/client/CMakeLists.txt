@@ -130,4 +130,7 @@ install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/dist/mesycontrol_gui/"
 install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/dist/mesycontrol_script_runner/"
     DESTINATION bin USE_SOURCE_PERMISSIONS)
 
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/scripts
+    DESTINATION share/scripts)
+
 # vim:tw=0

@@ -49,56 +49,25 @@ g_quit = False
 def signal_handler(signum, frame):
     g_quit = True
 
-def main():
-    if len(sys.argv) != 2:
-        print(f"""Usage: {sys.argv[0]} <mrc-url>
+def main(ctx, mrc, args):
+    ScanbusInterval = 5.0 # in seconds
+    PollInterval = 1.0 # in seconds
 
-Accepted mrc-url schemes:
-  - For serial connections:
-      <serial_port>@<baud> | serial://<serial_port>[@<baud>]
-      e.g. /dev/ttyUSB0, /dev/ttyUSB0@115200
-  - For TCP connections (serial server connected to an MRC1):
-      <host>:<port>
-      tcp://<host>[:<port=4001>]
-  - For connections to a mesycontrol server:
-      mc://<host>[:<port=23000>]
-"""
-    )
-        sys.exit(1)
+    tScanbus = 0.0
+    tPoll = 0.0
 
-    signal.signal(signal.SIGINT, signal_handler)
+    print("Entering polling loop, press Ctrl-C to quit")
 
-    mrcUrl = sys.argv[1]
+    while not g_quit:
+        if time.monotonic() - tScanbus >= ScanbusInterval:
+            print("scanbus")
+            for bus in range(2):
+                mrc.scanbus(bus)
+            tScanbus = time.monotonic()
 
-    with get_script_context() as ctx:
-        ScanbusInterval = 5.0 # in seconds
-        PollInterval = 1.0 # in seconds
-
-        tScanbus = 0.0
-        tPoll = 0.0
-
-        mrc = ctx.make_mrc(mrcUrl)
-
-        print("Entering polling loop, press Ctrl-C to quit")
-
-        while not g_quit:
-            if not mrc.is_connected():
-                mrc.connectMrc()
-                if mrc.is_connected():
-                    print("Connected to mrc {}".format(mrcUrl))
-            else:
-                if time.monotonic() - tScanbus >= ScanbusInterval:
-                    print("scanbus")
-                    for bus in range(2):
-                        mrc.scanbus(bus)
-                    tScanbus = time.monotonic()
-
-                if time.monotonic() - tPoll >= PollInterval:
-                    print("poll")
-                    poll_volatile_parameters(ctx, mrc)
-                    tPoll = time.monotonic()
-                else:
-                    time.sleep(0.1)
-
-if __name__ == "__main__":
-    main()
+        if time.monotonic() - tPoll >= PollInterval:
+            print("poll")
+            poll_volatile_parameters(ctx, mrc)
+            tPoll = time.monotonic()
+        else:
+            time.sleep(0.1)
