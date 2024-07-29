@@ -19,6 +19,8 @@ dependencies = [
 root = "../../"
 
 # FIXME: It doesn't work with the .proto file residing in the parent directory.
+# Nothing ever just works. No tool can just use a relative path and be stupid
+# about it and not do any magic.
 #[tool.setuptools-protobuf]
 #protobufs = ["../mesycontrol.proto"]
 #mypy = true # To also generate typing hints
