@@ -127,4 +127,7 @@ add_custom_target(mesycontrol_clients ALL DEPENDS ${STAMP} ${QRC_IN})
 install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/dist/mesycontrol_gui/"
     DESTINATION bin USE_SOURCE_PERMISSIONS)
 
+install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/dist/mesycontrol_script_runner/"
+    DESTINATION bin USE_SOURCE_PERMISSIONS)
+
 # vim:tw=0
