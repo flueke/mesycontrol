@@ -53,12 +53,12 @@ started::
 
 Linux USB and serial port permissions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-In order to access local USB and serial ports the user running mesycontrol
-needs write access to the corresponding device files. The device files for USB
-ports are /dev/ttyUSB0, /dev/ttyUSB1, etc. - serial ports are usually named
-/dev/ttyS0, /dev/ttyS1, etc.
+In order to access local USB and serial ports the user running mesycontrol needs
+write access to the corresponding device files. The device files for USB ports
+are ``/dev/ttyUSB0``, ``/dev/ttyUSB1``, etc. - serial ports are usually named
+``/dev/ttyS0``, ``/dev/ttyS1``, etc.
 
-These device files are usually group writeable and owned by the *dialout* group.
+These device files are usually group writeable and owned by the ``dialout`` group.
 
 The following contains example shell commands for various Linux distributions
 to add a user to the dialout group.
@@ -111,8 +111,9 @@ multiple MRC-1/MRCCs.
 
   \newpage
 
-Using mesycontrol
------------------
+The mesycontrol GUI
+-------------------
+
 Terms and Concepts
 ^^^^^^^^^^^^^^^^^^
 
@@ -227,12 +228,12 @@ bar.
 
   \newpage
 
-Stand-alone server operation
-----------------------------
+Stand-alone mesycontrol_server operation
+----------------------------------------
 * Binary location:
 
-  * Linux: bin/mesycontrol_server
-  * Windows: mesycontrol_server.exe in the installation path
+  * Linux: ``bin/mesycontrol_server``
+  * Windows: ``mesycontrol_server.exe`` in the installation path
 
 * Handles all MRC communication
 * Opens a listening socket and waits for mesycontrol clients to connect
@@ -262,6 +263,12 @@ Stand-alone server operation
 .. raw:: latex
 
   \newpage
+
+Scripting
+---------
+
+mesycontrol provides a small Python API for scripting, a standalone script
+runner binary (since mesycontrol-1.1.8) and several example scripts.
 
 XML format
 ----------
@@ -470,4 +477,3 @@ Sample setup
 .. * :ref:`genindex`
 .. * :ref:`modindex`
 .. * :ref:`search`
-

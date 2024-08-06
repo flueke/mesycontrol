@@ -1,3 +1,12 @@
+# 1.1.8
+
+  - Improved scripting support and more example scripts.
+
+  - Rewrite internal packaging recipe to use pyproject.toml instead of the obsolete setup.py.
+
+  - Fixes for dangling references to c++ objects. Issues with QProcess still
+    remain but these only manifest on system shutdown.
+
 # 1.1.7
 
   - Better log handling: avoid excessive log spam on error.
