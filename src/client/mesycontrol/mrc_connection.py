@@ -238,6 +238,7 @@ class LocalMRCConnection(AbstractMrcConnection):
                 ret.set_exception(e)
 
         def on_connect_timer_expired():
+            self.log.debug("on_connect_timer_expired")
             self.connection.host = self.server.listen_address
             self.connection.port = self.server.listen_port
             f = self.connection.connectMrc().add_done_callback(on_connection_connected)
