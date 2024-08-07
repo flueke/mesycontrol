@@ -86,13 +86,15 @@ class MCTCPClient(QtCore.QObject):
             def socket_connected():
                 self.log.debug("Connected to %s:%d", host, port)
                 dc()
-                ret.set_result(True)
+                if not ret.done():
+                    ret.set_result(True)
 
             def socket_error(socket_error):
                 #self.log.error("Error connecting to %s:%d: %s", host, port,
                 #        self._socket.errorString())
                 dc()
-                ret.set_exception(util.SocketError(socket_error, self._socket.errorString()))
+                if not ret.done():
+                    ret.set_exception(util.SocketError(socket_error, self._socket.errorString()))
                 #self.log.error("%s", ret.exception())
 
             self._reset_state()
@@ -119,28 +121,6 @@ class MCTCPClient(QtCore.QObject):
             self._socket.disconnectFromHost()
 
         return Future().set_result(True)
-
-        #host, port = self.host, self.port
-
-        #def dc():
-        #    self._socket.disconnected.disconnect(socket_disconnected)
-        #    self._socket.error.disconnect(socket_error)
-
-        #def socket_disconnected():
-        #    self.log.debug("Disconnected from %s:%d", host, port)
-        #    dc()
-        #    ret.set_result(True)
-
-        #def socket_error(socket_error):
-        #    #self.log.error("Socket error from %s:%d: %s", host, port,
-        #    #        self._socket.errorString())
-        #    dc()
-        #    ret.set_exception(util.SocketError(socket_error, self._socket.errorString()))
-
-        #self._socket.disconnected.connect(socket_disconnected)
-        #self._socket.error.connect(socket_error)
-
-        #return ret
 
     def is_connected(self):
         """True if connected, False otherwise."""
