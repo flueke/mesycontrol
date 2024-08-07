@@ -370,16 +370,16 @@ def which(program):
 
     log.debug("searching for '%s'", program)
 
-    fpath, fname = os.path.split(program)
+    fpath, _ = os.path.split(program)
     if fpath:
-        log.debug("checking %s", program)
+        log.log(5, "checking %s", program)
         if is_exe(program):
-            log.debug("found %s", program)
+            log.info("found %s", program)
             return program
 
     for path in os.environ["PATH"].split(os.pathsep):
         path = path.strip('"')
-        log.debug("checking %s" % path)
+        log.log(5, "checking %s", path)
         exe_file = os.path.join(path, program)
         if is_exe(exe_file):
             log.debug("found %s", exe_file)
