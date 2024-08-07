@@ -25,6 +25,7 @@ __email__  = 'f.lueke@mesytec.com'
 
 from mesycontrol.qt import QtCore
 from mesycontrol.qt import Signal
+from enum import Enum, unique
 from functools import partial
 import collections
 import weakref
@@ -56,6 +57,10 @@ EXIT_CODES = {
 STARTUP_DELAY_MS = 500
 
 class ServerError(Exception):
+    pass
+
+class InternalServerError(ServerError):
+    # For State violations
     pass
 
 class ServerIsStarting(ServerError):
@@ -95,6 +100,19 @@ def get_exit_code_string(exit_code):
 # Just scrap the code recording used ports and start the server until a free
 # base port for the address is found or we run out of ports.
 
+
+@unique
+class State(Enum):
+    INIT = 0                # initial state, no process running
+    START_PROCESS = 1       # start the process. can fail if e.g. the server binary cannot be found
+    WAIT_FOR_STARTUP = 2    # QProcess startup
+    WAIT_FOR_BIND = 3       # give the server some time to bind to its listen port
+    CHECK_STATUS = 4        # check status of the launched process.
+                            # exit_address_in_use ? incr port => START_PROCESS : RUNNING
+    RUNNING = 5             # running. server should be ready to accept connections
+    STOP_PROCESS = 6        # entered in stop() or kill(). process is being terminated
+
+
 class ServerProcess(QtCore.QObject):
     finished = Signal(QProcess.ExitStatus, int, str) #: exit_status, exit_code, exit_code_string
     output   = Signal(str)
@@ -120,14 +138,11 @@ class ServerProcess(QtCore.QObject):
 
         self.process = QProcess()
         self.process.setProcessChannelMode(QProcess.MergedChannels)
-        self.process.error.connect(self._error)
         self.process.started.connect(self._started)
+        self.process.errorOccurred.connect(self._errorOccured)
         self.process.finished.connect(self._finished)
         self.process.readyReadStandardOutput.connect(self._output)
 
-        self.lastExitCode = 0
-        self.lastExitSatus = QProcess.ExitStatus.NormalExit
-        self.lastError = typing.Optional[QProcess.ProcessError]
         self.currentFuture: typing.Optional[Future] = None
 
         self._startup_delay_timer = QtCore.QTimer()
@@ -135,16 +150,38 @@ class ServerProcess(QtCore.QObject):
         self._startup_delay_timer.setInterval(ServerProcess.startup_delay_ms)
         self._startup_delay_timer.timeout.connect(self._on_startup_delay_expired)
 
-        # State
         self.output_buffer = collections.deque(maxlen=output_buffer_maxlen)
-        self.program = str()
-        self.cmd_line = str() # for logging only
+        self.state = State.INIT
 
     def _do_start_process(self):
-        program = util.which(self.binary)
-        args = self._prepare_args()
+        assert self.state == State.START_PROCESS
 
+        if self.state != State.START_PROCESS:
+            raise InternalServerError(f"Attempting to start process in state {self.state}")
+
+        program = util.which(self.binary)
+
+        if program is None:
+            raise ServerError("Could not find server binary '%s'" % self.binary)
+
+        args = self._prepare_args()
+        self.cmd_line = cmd_line = "%s %s" % (program, " ".join(args))
+
+        # Only create a new future if we do not have one already.
+        # _do_start_process() can be called multiple times during the
+        # WAIT_FOR_BIND phase while the client still holds the future returnd
+        # from start().
+        if not self.currentFuture or self.currentFuture.done():
+            self.currentFuture = Future()
+            self.currentFuture.name = str(State.START_PROCESS)
+
+        ret = self.currentFuture
+        ret.set_progress_text(f"Starting ${cmd_line}")
+        self.log.debug(f"Starting {cmd_line} ({self.currentFuture=})")
+
+        self.state = State.WAIT_FOR_STARTUP
         self.process.start(program, args, QtCore.QIODevice.ReadOnly)
+        return ret
 
     # Attempts to start the server. Raises ServerError if the process is already
     # running or another operation is in progress.
@@ -159,50 +196,25 @@ class ServerProcess(QtCore.QObject):
         # - on timeout: if the process is still running: set result to True
         #               else set result to ServerError
 
-        if self.currentFuture is not None and not self.currentFuture.done():
-            raise ServerError("Operation in progress")
+        if self.state != State.INIT:
+            raise ServerIsRunning(f"Attempting to start process in state {self.state}")
 
-        if self.process.state() != QProcess.NotRunning:
-            raise ServerIsRunning()
-
-        try:
-            self.lastExitCode = 0
-            self.lastExitStatus = QProcess.ExitStatus.NormalExit
-            self.currentFuture = ret = Future()
-
-            self.args = args = self._prepare_args()
-            self.program = program = util.which(self.binary)
-
-            if program is None:
-                raise ServerError("Could not find server binary '%s'" % self.binary)
-
-            self.cmd_line = cmd_line = "%s %s" % (program, " ".join(args))
-            self.log.debug("Starting %s", cmd_line)
-            ret.set_progress_text("Starting %s" % cmd_line)
-            self._do_start_process()
-            #self.process.start(program, args, QtCore.QIODevice.ReadOnly)
-
-        except Exception as e:
-            self.log.exception("ServerProcess.start()")
-            if self.currentFuture is not None and not self.currentFuture.done():
-                self.currentFuture.set_exception(e)
-
-        return ret
+        self.state = State.START_PROCESS
+        return self._do_start_process()
 
     # Stops the server process. Raises ServerError if the process is not running
     # or another operation is in progress.
     # Otherwise returns a Future which will hold the result of the stop
     # operation.
     def stop(self, kill=False):
-        if self.currentFuture is not None and not self.currentFuture.done():
-            raise ServerError("Operation in progress")
 
-        if self.process.state() == QProcess.NotRunning:
-            raise ServerIsStopped()
+        if self.state != State.RUNNING:
+            raise ServerIsStopped(f"Attempting to stop process in state {self.state}")
 
+        self.state = State.STOP_PROCESS
         self.currentFuture = ret = Future()
-        if not kill:
 
+        if not kill:
             self.process.terminate()
         else:
             self.process.kill()
@@ -215,17 +227,20 @@ class ServerProcess(QtCore.QObject):
     def kill(self):
         return self.stop(True)
 
-    def is_starting(self):
-        return self.process.state() == QProcess.Starting
+    #def is_starting(self):
+    #    return self.process.state() == QProcess.Starting
 
     def is_running(self):
         return self.process.state() == QProcess.Running
 
     def exit_code(self):
-        code = self.lastExitCode
-        if self.process is not None:
-            code = self.process.exitCode()
+        code = self.process.exitCode()
         return (code, ServerProcess.exit_code_string(code))
+
+    def get_internal_state(self):
+        return self.state
+
+    internal_state = property(get_internal_state)
 
     @staticmethod
     def exit_code_string(code):
@@ -250,58 +265,74 @@ class ServerProcess(QtCore.QObject):
             args.extend(['--mrc-host', self.tcp_host])
             args.extend(['--mrc-port', str(self.tcp_port)])
         else:
-            raise RuntimeError("Neither serial_port nor tcp_host given.")
+            raise ServerRuntimeError("Neither serial_port nor tcp_host given.")
 
         return args
 
     def _started(self):
-        self.log.debug("[pid=%s] Started %s", self.process.pid(), self.cmd_line)
+        if self.state != State.WAIT_FOR_STARTUP:
+            self.log.warn("ServerProcess._started() called in state %s", self.state)
+            return
+
+        self.log.debug("[pid=%s] Started %s; giving process time to bind()", self.process.pid(), self.cmd_line)
+
+        self.state = State.WAIT_FOR_BIND
         self._startup_delay_timer.start()
 
-    def _on_startup_delay_expired(self):
-        if self.currentFuture and not self.currentFuture.done():
-            if self.process.state() != QProcess.Running:
-                self.log.debug(f"startup delay expired, exit_code={self.exit_code()}")
-                self.currentFuture.set_exception(ServerError(self.exit_code()))
-            else:
-                self.log.debug("startup delay expired, process is running")
-                self.currentFuture.set_progress_text("Started %s" % self.cmd_line)
-                self.currentFuture.set_result(True)
+    def _errorOccured(self, error):
+        exit_code = self.process.exitCode()
 
-    def _error(self, error):
-            self.lastError = error
+        self.log.error("errorOccured=%d (%s), exit_code=%d (%s), state=%s",
+                error, self.process.errorString(),
+                exit_code, ServerProcess.exit_code_string(exit_code), self.state)
+
+        if self.state == State.WAIT_FOR_STARTUP:
+            self.state = State.INIT
             if self.currentFuture and not self.currentFuture.done():
                 self.currentFuture.set_exception(ServerError(error))
 
-        #exit_code = self.process.exitCode()
-        #self.log.error("error=%d (%s), exit_code=%d (%s)",
-        #        error, self.process.errorString(),
-        #        exit_code, ServerProcess.exit_code_string(exit_code))
+    def _on_startup_delay_expired(self):
+        self.log.debug(f"startup delay expired, state={self.state}")
 
-        #self.lastExitCode = exit_code
+        if self.state == State.WAIT_FOR_BIND:
+            if self.process.state() == QProcess.Running:
+                self.log.debug("startup delay expired, process is running")
+                self.state = State.RUNNING
+                if self.currentFuture is not None and not self.currentFuture.done():
+                    self.currentFuture.set_progress_text("Started %s" % self.cmd_line)
+                    self.currentFuture.set_result(True)
+                return
+
+            self.log.debug(f"startup delay expired, process is not running! exit_code={self.exit_code()}")
+
+            # If the local listen address is in use. Increment the local port
+            # number and try again.
+            if self.exit_code()[1] == 'exit_address_in_use':
+                self.log.info("listen address %s:%d is in use. Trying next local port...",
+                        self.listen_address, self.listen_port)
+                self.listen_port += 1
+                self.state = State.START_PROCESS
+                self._do_start_process()
+            else:
+                self.log.error("ServerProcess startup failed: %s", self.exit_code())
+                self.state = State.INIT
+                if self.currentFuture is not None and not self.currentFuture.done():
+                    self.currentFuture.set_progress_text("Failed to start %s" % self.cmd_line)
+                    self.currentFuture.set_result(False)
 
     def _finished(self, exit_code, exit_status):
         exit_code_string = ServerProcess.exit_code_string(exit_code)
-        self.log.debug("_finished(): pid=%s finished: code=%d, status=%d (%s)",
-                       self.process.pid(), exit_code, exit_status, exit_code_string)
+        self.log.debug("_finished(): pid=%s finished: code=%d, status=%d (%s), state=%s",
+                       self.process.pid(), exit_code, exit_status, exit_code_string, self.state)
 
-        # The local listen address is in use. Increment the local port number
-        # and try again.
-        if exit_code_string == 'exit_address_in_use':
-            self.log.info("listen address %s:%d is in use. Trying next local port...",
-                    self.listen_address, self.listen_port)
-            self.listen_port += 1
-            self._do_start_process()
-        else:
-            self.lastExitCode = exit_code
-            self.lastExitStatus = exit_status
-            self.finished.emit(exit_status, exit_code, ServerProcess.exit_code_string(exit_code))
-            if self.currentFuture and not self.currentFuture.done():
-                self.currentFuture.set_result(exit_code == 0)
+        if self.state == State.STOP_PROCESS:
+            self.state = State.INIT
+            if self.currentFuture is not None and not self.currentFuture.done():
+                self.currentFuture.set_progress_text("Stopped %s" % self.cmd_line)
+                self.currentFuture.set_result(True)
 
     def _output(self):
         data = bytes(self.process.readAllStandardOutput()).decode("unicode_escape")
-        #print("--->", data)
         self.output_buffer.append(data)
 
 class ServerProcessPool(QtCore.QObject):
@@ -362,7 +393,7 @@ if __name__ == "__main__":
     import logging
     import signal
 
-    logging.basicConfig(level=logging.DEBUG,
+    logging.basicConfig(level=logging.INFO,
             format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
 
     app = QtCore.QCoreApplication([])
@@ -371,17 +402,47 @@ if __name__ == "__main__":
         app.quit()
     signal.signal(signal.SIGINT, signal_handler)
 
+    # Should succeed
     sp1 = ServerProcess(serial_port='/dev/ttyUSB0')
+    # Should fail due to the serial port being in use. # FIXME: start() does return True!
     sp2 = ServerProcess(serial_port='/dev/ttyUSB0')
+    # Both set to fail: exit_bad_listen_address and exit_address_not_available
     sp3 = ServerProcess(serial_port='/dev/ttyUSB0', listen_address="foobar")
     sp4 = ServerProcess(serial_port='/dev/ttyUSB0', listen_address="1.2.3.4")
 
-    def sp_start_done(f):
-        print("start() done:", f.result())
+    for sp in (sp1, sp2, sp3, sp4):
+        def sp_start_done(f):
+            print(f"start() done: {sp=} {f=}, {f.result()=}")
 
-    sp1.start().add_done_callback(sp_start_done)
-    sp2.start().add_done_callback(sp_start_done)
-    sp3.start().add_done_callback(sp_start_done)
-    sp4.start().add_done_callback(sp_start_done)
+        f = sp.start().add_done_callback(sp_start_done)
 
-    sys.exit(app.exec_())
+        while not f.done():
+            app.processEvents()
+
+    sleepTime = 2000
+    print(f"Started servers, sleeping in event loop for {sleepTime} ms")
+
+    timer = QtCore.QTimer()
+    timer.setInterval(sleepTime)
+    timer.setSingleShot(True)
+    timer.timeout.connect(app.quit)
+    timer.start()
+
+    ret = app.exec_()
+
+    for sp in (sp1, sp2, sp3, sp4):
+        def sp_stop_done(f):
+            print(f"stop() done: {f}, {f.result()}")
+
+        if sp.is_running():
+            f = sp.stop().add_done_callback(sp_stop_done)
+            while not f.done():
+                app.processEvents()
+
+    # Wait for the stop() call to finish. Alternatively the futures could be
+    # used and polled.
+    for sp in (sp1, sp2, sp3, sp4):
+        while sp.is_running():
+            app.processEvents()
+
+    sys.exit(ret)
