@@ -21,13 +21,14 @@
 __author__ = 'Florian Lüke'
 __email__  = 'f.lueke@mesytec.com'
 
-from mesycontrol.qt import QtCore
-from mesycontrol.qt import Signal
-from mesycontrol.qt import Slot
 import errno
+import typing
 
 from mesycontrol.future import Future
 from mesycontrol.future import progress_forwarder
+from mesycontrol.qt import QtCore
+from mesycontrol.qt import Signal
+from mesycontrol.qt import Slot
 from mesycontrol.tcp_client import MCTCPClient
 import mesycontrol.proto as proto
 import mesycontrol.server_process as server_process
@@ -108,6 +109,7 @@ class MRCConnection(AbstractMrcConnection):
         self.client.queue_empty.connect(self.queue_empty)
         self.client.queue_size_changed.connect(self.queue_size_changed)
 
+        self.currentFuture: typing.Optional[Future] = None
         self._is_connecting = False
         self._is_connected  = False
 
@@ -122,16 +124,7 @@ class MRCConnection(AbstractMrcConnection):
             raise IsConnected()
 
         self._is_connecting = True
-        ret = self._connecting_future = Future()
-
-        def on_client_connect_done(f):
-            #self.log.debug("connect: on_client_connect_done: ret.done()=%s", ret.done())
-            if self._connecting_future is not None and f.exception() is not None:
-                self._connecting_future.set_exception(f.exception())
-            #else:
-            #    ret.set_progress_text("Connected to %s:%d" % (self.host, self.port))
-
-        self.client.connectClient(self.host, self.port).add_done_callback(on_client_connect_done)
+        ret = self.currentFuture = self.client.connectClient(self.host, self.port)
         # FIXME: emitting this causes the gui to see it twice
         #self.log.debug("connect: emitting connecting")
         #self.connecting.emit(ret)
@@ -143,35 +136,37 @@ class MRCConnection(AbstractMrcConnection):
             if msg.mrc_status.code == proto.MRCStatus.RUNNING:
                 self._is_connecting = False
                 self._is_connected  = True
-                self._connecting_future.set_result(True)
-                self._connecting_future = None
+                if self.currentFuture is not None and not self.currentFuture.done():
+                    self.currentFuture.set_result(True)
+                    self.currentFuture = None
                 self.connected.emit()
                 self.log.debug("%s: connected & running", self.url)
             elif (msg.mrc_status.code not in (SC.CONNECTING, SC.INITIALIZING)):
-                self._connecting_future.set_progress_text("MRC status: %s%s%s" % (
-                        proto.MRCStatus.StatusCode.Name(msg.mrc_status.code),
-                        " - " if len(msg.mrc_status.info) else str(),
-                        msg.mrc_status.info
-                        ))
+                if self.currentFuture is not None and not self.currentFuture.done():
+                    self.currentFuture.set_progress_text("MRC status: %s%s%s" % (
+                            proto.MRCStatus.StatusCode.Name(msg.mrc_status.code),
+                            " - " if len(msg.mrc_status.info) else str(),
+                            msg.mrc_status.info))
+        self.notification_received.emit(msg)
 
     @Slot()
     def on_client_disconnected(self):
-        self.log.debug("_on_client_disconnected: connecting_future=%s", self._connecting_future)
+        self.log.debug("_on_client_disconnected: connecting_future=%s", self.currentFuture)
         self._is_connected = False
         self._is_connecting = False
-        if self._connecting_future is not None:
-            self._connecting_future.set_exception(RuntimeError("Socket disconnected"))
-            self._connecting_future = None
+        if self.currentFuture is not None and not self.currentFuture.done():
+            self.currentFuture.set_exception(RuntimeError("Socket disconnected"))
+            self.currentFuture = None
         self.disconnected.emit()
 
     @Slot(object)
     def on_client_socket_error(self, error):
-        self.log.debug("_on_client_socket_error: error=%s, connecting_future=%s", error, self._connecting_future)
+        self.log.debug("_on_client_socket_error: error=%s, connecting_future=%s", error, self.currentFuture)
         self._is_connected = False
         self._is_connecting = False
-        if self._connecting_future is not None:
-            self._connecting_future.set_exception(error)
-            self._connecting_future = None
+        if self.currentFuture is not None and not self.currentFuture.done():
+            self.currentFuture.set_exception(error)
+            self.currentFuture = None
         self.connection_error.emit(error)
 
     def disconnectMrc(self):
@@ -208,29 +203,28 @@ class LocalMRCConnection(AbstractMrcConnection):
         self.connection.request_queued.connect(self.request_queued)
         self.connection.request_sent.connect(self.request_sent)
         self.connection.message_received.connect(self.message_received)
-        self.connection.notification_received.connect(self.notification_received)
         self.connection.notification_received.connect(self._on_connection_notification_received)
         self.connection.error_message_received.connect(self.error_message_received)
         self.connection.queue_empty.connect(self.queue_empty)
         self.connection.queue_size_changed.connect(self.queue_size_changed)
 
-        self._connecting_future = None
+        self.currentFuture = None
         self._is_connecting = False
         self._is_connected  = False
 
     def connectMrc(self):
-        if self._connecting_future is not None and not self._connecting_future.done():
-            return self._connecting_future
+        if self.currentFuture is not None and not self.currentFuture.done():
+            return self.currentFuture
 
         # Start server, wait for connect_delay_ms, connect to server, done
-        self._connecting_future = ret = Future()
+        self.currentFuture = ret = Future()
 
         def on_connection_connected(f):
             try:
                 self._is_connecting = False
                 ret.set_result(f.result())
                 self._is_connected  = True
-                self._connecting_future = None
+                self.currentFuture = None
                 self.log.debug("Connected to %s", self.url)
 
             except Exception as e:
@@ -330,7 +324,7 @@ class LocalMRCConnection(AbstractMrcConnection):
                 p   = oct(fs.st_mode & 0o0777)
                 txt = "No write permission on %s (owner=%s,group=%s,perms=%s)!" % (
                         ser, o, g, p)
-                self._connecting_future.set_progress_text(txt)
+                self.currentFuture.set_progress_text(txt)
                 return
             except ImportError:
                 self.log.exception()

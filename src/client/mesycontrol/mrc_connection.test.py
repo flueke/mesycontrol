@@ -1,6 +1,7 @@
 import signal
 import logging
 import sys
+import time
 try:
     import colorlog
 except ImportError:
@@ -10,6 +11,7 @@ from mesycontrol.qt import QtCore, Property
 
 def do_connect(mrcCon, qapp):
     fres = mrcCon.connectMrc()
+    logging.info(f"do_connect: got {fres=}")
     while not fres.done():
         qapp.processEvents()
     assert fres.result()
@@ -21,19 +23,17 @@ def do_disconnect(mrcCon, qapp):
     assert fres.result()
 
 def do_connection_test(mrcCon, qapp):
-    assert mrcCon.is_disconnected()
-
-    logging.warning("connect1...")
-    do_connect(mrcCon, qapp)
-    logging.warning("disconnect1...")
-    do_disconnect(mrcCon, qapp);
-
-    print("\n\n\n\n")
-
-    logging.warning("(re)connect2...")
-    do_connect(mrcCon, qapp)
-    logging.warning("disconnect2...")
-    do_disconnect(mrcCon, qapp);
+    for _ in range(5):
+        assert mrcCon.is_disconnected()
+        logging.warning("connect...")
+        do_connect(mrcCon, qapp)
+        # FIXME: there's a race here. without sleep the server will still to
+        # scanbus polling. With the sleep it correctly detects that all clients
+        # have disconnected and suspends scanbus polling.
+        time.sleep(1)
+        logging.warning("disconnect...")
+        do_disconnect(mrcCon, qapp);
+        print("\n\n")
 
 def do_server_process_test(qapp):
     server_options = { "serial_port": "/dev/ttyUSB0" }
@@ -60,7 +60,6 @@ def do_server_process_test(qapp):
     for _ in range(10):
         start_server()
         stop_server()
-
 
 def main():
     logging.basicConfig(level=logging.DEBUG,
@@ -89,17 +88,18 @@ def main():
     gc   = util.GarbageCollector()
 
     #do_server_process_test(qapp)
-    print("==================================================")
+    #print("==================================================")
 
     # Try a running server first to keep it simple.
-    #mrcCon = mrc_connection.factory(url="mc://localhost")
-    #do_connection_test(mrcCon, qapp)
+    mrcCon = mrc_connection.factory(url="mc://localhost")
+    logging.info(f"Got {mrcCon=}")
+    do_connection_test(mrcCon, qapp)
     print("==================================================")
 
     # Now use a LocalMrcConnetion
-    mrcCon = mrc_connection.factory(url="serial:///dev/ttyUSB0")
-    do_connection_test(mrcCon, qapp)
-    print("==================================================")
+    #mrcCon = mrc_connection.factory(url="serial:///dev/ttyUSB0")
+    #do_connection_test(mrcCon, qapp)
+    #print("==================================================")
 
     sys.exit(0)
 
