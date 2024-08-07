@@ -219,7 +219,7 @@ class Future(object):
         elif self.exception() is not None:
             self.log.debug("%s done: exception: %s", self, self.exception())
         elif self.done():
-            self.log.debug("%s done: resultType: %s", self, type(self.result()))
+            self.log.debug("%s done: resultType: %s, result: %s", self, type(self.result()), self.result())
         else:
             self.log.debug("%s NOT done!", self)
 
