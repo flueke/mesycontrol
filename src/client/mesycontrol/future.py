@@ -58,6 +58,7 @@ class Future(object):
         self._progress_max = 100
         self._progress = 0
         self._progress_text = str()
+        self._name = str()
 
         self.log = util.make_logging_source_adapter(__name__, self)
 
@@ -141,6 +142,14 @@ class Future(object):
             self._progress_callbacks.append(fn)
 
         return self
+
+    def get_name(self):
+        return self._name
+
+    def set_name(self, name):
+        self._name = name
+
+    name = property(get_name, set_name)
 
     # ===== Executor functionality =====
     def set_result(self, result):
