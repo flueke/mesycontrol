@@ -203,6 +203,7 @@ class LocalMRCConnection(AbstractMrcConnection):
         self.connection.request_queued.connect(self.request_queued)
         self.connection.request_sent.connect(self.request_sent)
         self.connection.message_received.connect(self.message_received)
+        self.connection.notification_received.connect(self.notification_received)
         self.connection.notification_received.connect(self._on_connection_notification_received)
         self.connection.error_message_received.connect(self.error_message_received)
         self.connection.queue_empty.connect(self.queue_empty)

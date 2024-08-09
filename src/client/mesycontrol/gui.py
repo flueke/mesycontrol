@@ -1073,6 +1073,8 @@ class GUIApplication(QtCore.QObject):
 
             f = mrc.acquire_write_access(force)
 
+        assert f is not None
+
         if f is not None:
             f.add_done_callback(self._update_actions_cb)
 
