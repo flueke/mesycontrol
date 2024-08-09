@@ -66,7 +66,7 @@ class Future(object):
         if self._exception is not None and not self._exception_observed:
             self.log.error("Unobserved exception in Future: %s %s",
                     type(self._exception), self._exception)
-        self.log.debug(f"future being destroyed! {self=}, {self.done()=}")
+        self.log.log(5, f"future being destroyed! {self=}, {self.done()=}")
 
     # ===== Client functionality =====
     def done(self):
