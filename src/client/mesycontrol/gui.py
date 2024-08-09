@@ -552,6 +552,9 @@ class GUIApplication(QtCore.QObject):
     def _update_actions_cb(self, *args, **kwargs):
         """Calls _update_actions(), ignoring args and kwargs. Usable as a
         Future callback."""
+        if len(args) > 0:
+            if isinstance(args[0], future.Future):
+                self.log.debug(args[0].result())
         return self._update_actions()
 
     @Slot()
