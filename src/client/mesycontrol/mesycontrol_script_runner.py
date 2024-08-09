@@ -70,9 +70,6 @@ Accepted mrc-url schemes:
     scriptArgs = sys.argv[3:]
     doDebug = "--debug" in sys.argv
 
-    logging.basicConfig(level=logging.INFO if not doDebug else logging.DEBUG,
-            format='[%(asctime)-15s] [%(name)s.%(levelname)-8s] %(message)s')
-
     print(f"{mrcUrl=}, {scriptFile=}, {scriptArgs=}")
 
     try:
@@ -82,7 +79,7 @@ Accepted mrc-url schemes:
         print(f"Failed to load script file {scriptFile}: {e}")
         sys.exit(1)
 
-    with get_script_context() as ctx:
+    with get_script_context(logging.DEBUG if doDebug else logging.INFO) as ctx:
         def signal_handler(ctx, signum, frame):
             ctx.quit = True
 

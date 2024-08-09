@@ -87,6 +87,7 @@ class MRCWrapper(QtCore.QObject):
 class ScriptContext(object):
     def __init__(self, appContext):
         self.appContext: app_context.Context = appContext
+        self.quit = False
 
     def make_mrc(self, url):
         connection = mrc_connection.factory(url=url)
@@ -109,7 +110,7 @@ class ScriptContext(object):
 def get_script_context(log_level=logging.INFO):
     try:
         # Setup logging. Has no effect if logging has already been setup.
-        logging.basicConfig(level=logging.INFO,
+        logging.basicConfig(level=log_level,
                 format='[%(asctime)-15s] [%(name)s.%(levelname)s] %(message)s')
         if logging.getLogger().level == logging.NOTSET:
             logging.getLogger().handlers[0].setLevel(log_level)

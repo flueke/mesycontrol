@@ -44,11 +44,6 @@ def poll_volatile_parameters(ctx, mrc):
                 paramUnit.label))
 
 
-g_quit = False
-
-def signal_handler(signum, frame):
-    g_quit = True
-
 def main(ctx, mrc, args):
     ScanbusInterval = 5.0 # in seconds
     PollInterval = 1.0 # in seconds
@@ -58,7 +53,7 @@ def main(ctx, mrc, args):
 
     print("Entering polling loop, press Ctrl-C to quit")
 
-    while not g_quit:
+    while not ctx.quit:
         if time.monotonic() - tScanbus >= ScanbusInterval:
             print("scanbus")
             for bus in range(2):
