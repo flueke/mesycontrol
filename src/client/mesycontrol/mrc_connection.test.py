@@ -1,5 +1,6 @@
 import signal
 import logging
+import subprocess
 import sys
 import time
 try:
@@ -23,13 +24,14 @@ def do_disconnect(mrcCon, qapp):
     assert fres.result()
 
 def do_connection_test(mrcCon, qapp):
-    for _ in range(5):
+    for _ in range(3):
         assert mrcCon.is_disconnected()
         logging.warning("connect...")
         do_connect(mrcCon, qapp)
-        # FIXME: there's a race here. without sleep the server will still to
+        # FIXME: there's a race here. without sleep the server will still do
         # scanbus polling. With the sleep it correctly detects that all clients
-        # have disconnected and suspends scanbus polling.
+        # have disconnected and suspends scanbus polling. Maybe the server is
+        # missing a 'QUIT' message or something from the client.
         time.sleep(1)
         logging.warning("disconnect...")
         do_disconnect(mrcCon, qapp);
@@ -87,19 +89,25 @@ def main():
     qapp = QtCore.QCoreApplication(sys.argv)
     gc   = util.GarbageCollector()
 
-    #do_server_process_test(qapp)
-    #print("==================================================")
+    print(">>>>> server process test ==============================")
+    do_server_process_test(qapp)
+    print("<<<<< server process test ==============================")
 
-    # Try a running server first to keep it simple.
+    # Try a manually started server first to keep it simple.
+    serverProc = subprocess.Popen(["mesycontrol_server", "--mrc-serial-port", "/dev/ttyUSB0"])
+    time.sleep(1)
     mrcCon = mrc_connection.factory(url="mc://localhost")
     logging.info(f"Got {mrcCon=}")
+    print(">>>>> connection with externally spawned server ========")
     do_connection_test(mrcCon, qapp)
-    print("==================================================")
+    serverProc.terminate()
+    print("<<<<< connection with externally spawned server ========")
 
-    # Now use a LocalMrcConnetion
-    #mrcCon = mrc_connection.factory(url="serial:///dev/ttyUSB0")
-    #do_connection_test(mrcCon, qapp)
-    #print("==================================================")
+    # Now use a LocalMrcConnetion which internally spawns a server
+    mrcCon = mrc_connection.factory(url="serial:///dev/ttyUSB0")
+    print(">>>>> connection with internally spawned server ========")
+    do_connection_test(mrcCon, qapp)
+    print("<<<<< connection with internally spawned server ========")
 
     sys.exit(0)
 
