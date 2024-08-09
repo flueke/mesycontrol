@@ -122,7 +122,6 @@ class HardwareMrc(bm.BasicMrc):
     def set_write_access(self, has_write_access, can_acquire):
         """Updates the local write access and can_acquire flags.
         Emits write_access_changed() if one of the two flags changed."""
-        self.log.warning(f"HardwareMrc.set_write_access: {has_write_access=}, {can_acquire=}")
         if (self._has_write_access != has_write_access or
                 self._can_acquire_write_access != can_acquire):
 

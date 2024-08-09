@@ -84,6 +84,7 @@ def write_poll_results_to_influxdb(ctx, mesyfluxWriteApi: influxdb_client.WriteA
 g_quit = False
 
 def signal_handler(signum, frame):
+    global g_quit
     g_quit = True
 
 def main():

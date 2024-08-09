@@ -95,6 +95,7 @@ class MRCConnection(AbstractMrcConnection):
         self.port   = port
         self.client = MCTCPClient()
 
+        self.client.connected.connect(self.on_client_connected)
         self.client.disconnected.connect(self.on_client_disconnected)
         self.client.socket_error.connect(self.on_client_socket_error)
 
@@ -148,6 +149,11 @@ class MRCConnection(AbstractMrcConnection):
                             " - " if len(msg.mrc_status.info) else str(),
                             msg.mrc_status.info))
         self.notification_received.emit(msg)
+
+    @Slot()
+    def on_client_connected(self):
+        self.log.debug("on_client_connected: connecting_future=%s", self.currentFuture)
+        self.connected.emit()
 
     @Slot()
     def on_client_disconnected(self):

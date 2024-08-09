@@ -34,6 +34,16 @@
             "console": "internalConsole",
             "cwd": "${workspaceFolder}/src/client/",
             "env": { "PYTHONPATH": "${cwd}" }
+        },
+        {
+            "name": "script_runner_test_script mc://",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/client/mesycontrol/mesycontrol_script_runner.py",
+            "args": ["mc://localhost", "src/client/mesycontrol/scripts/script_runner_test_script.py"],
+            "console": "internalConsole",
+            "cwd": "${workspaceFolder}/",
+            "env": { "PYTHONPATH": "${cwd}" }
         }
     ]
 }
