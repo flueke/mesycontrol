@@ -282,9 +282,10 @@ class ServerProcess(QtCore.QObject):
     def _errorOccured(self, error):
         exit_code = self.process.exitCode()
 
-        self.log.error("errorOccured=%d (%s), exit_code=%d (%s), state=%s",
-                error, self.process.errorString(),
-                exit_code, ServerProcess.exit_code_string(exit_code), self.state)
+        if self.state != State.STOP_PROCESS:
+            self.log.error("errorOccured: error=%d (%s), exit_code=%d (%s), state=%s",
+                    error, self.process.errorString(),
+                    exit_code, ServerProcess.exit_code_string(exit_code), self.state)
 
         if self.state == State.WAIT_FOR_STARTUP:
             self.state = State.INIT
