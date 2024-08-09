@@ -1,1 +1,2 @@
 from .mesycontrol_gui_main import mesycontrol_gui_main
+from .mesycontrol_script_runner import script_runner_main

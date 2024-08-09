@@ -1,7 +1,9 @@
+import functools
 import importlib.util
+import logging
+import secrets
 import signal
 import string
-import secrets
 import sys
 from mesycontrol.script import get_script_context
 
@@ -38,14 +40,9 @@ def load_module(source, module_name=None):
 
     return module
 
-g_quit = False
-
-def signal_handler(signum, frame):
-    g_quit = True
-
-def main():
+def script_runner_main():
     if len(sys.argv) < 3:
-        print(f"""Usage: {sys.argv[0]} <mrc-url> <script-py> [script-args]
+        print(f"""Usage: {sys.argv[0]} <mrc-url> <script-py> [--debug] [script-args]
 
 Generic runner for mesycontrol scripts. The script-py file must contain a main()
 function taking a context object and an optional list of arguments:
@@ -67,11 +64,14 @@ Accepted mrc-url schemes:
     )
         sys.exit(1)
 
-    signal.signal(signal.SIGINT, signal_handler)
 
     mrcUrl = sys.argv[1]
     scriptFile = sys.argv[2]
     scriptArgs = sys.argv[3:]
+    doDebug = "--debug" in sys.argv
+
+    logging.basicConfig(level=logging.INFO if not doDebug else logging.DEBUG,
+            format='[%(asctime)-15s] [%(name)s.%(levelname)-8s] %(message)s')
 
     print(f"{mrcUrl=}, {scriptFile=}, {scriptArgs=}")
 
@@ -83,14 +83,19 @@ Accepted mrc-url schemes:
         sys.exit(1)
 
     with get_script_context() as ctx:
+        def signal_handler(ctx, signum, frame):
+            ctx.quit = True
+
+        signal.signal(signal.SIGINT, functools.partial(signal_handler, ctx))
+
         mrc = ctx.make_mrc(mrcUrl)
-        mrc.connectMrc()
-        if not mrc.is_connected():
-            print(f"Failed to connect to mrc {mrcUrl}")
+        connectResult = mrc.connectMrc()
+        if not connectResult:
+            print(f"Failed to connect to mrc {mrcUrl}, {connectResult=}")
             sys.exit(1)
 
         print(f"Connected to mrc {mrcUrl=}, executing 'main' from {scriptFile}")
         scriptMain(ctx, mrc, scriptArgs)
 
 if __name__ == "__main__":
-    main()
+    script_runner_main()

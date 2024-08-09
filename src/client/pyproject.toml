@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=42", "wheel", "setuptools_scm[toml]>=3.4", "pyshortcuts", "setuptools-protobuf"]
+requires = ["setuptools>=42", "wheel", "setuptools_scm[toml]>=3.4", "pyshortcuts"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -18,13 +18,6 @@ dependencies = [
 [tool.setuptools_scm]
 root = "../../"
 
-# FIXME: It doesn't work with the .proto file residing in the parent directory.
-# Nothing ever just works. No tool can just use a relative path and be stupid
-# about it and not do any magic.
-#[tool.setuptools-protobuf]
-#protobufs = ["../mesycontrol.proto"]
-#mypy = true # To also generate typing hints
-
 [project.gui-scripts]
 mesycontrol_gui = "mesycontrol:mesycontrol_gui_main"
 
@@ -32,4 +25,4 @@ mesycontrol_gui = "mesycontrol:mesycontrol_gui_main"
 mesycontrol_auto_poll_parameters = "mesycontrol.scripts:auto_poll_parameters_main"
 mesycontrol_scanbus_device_profiles = "mesycontrol.scripts:scanbus_device_profiles_main"
 mesycontrol_scanbus = "mesycontrol.scripts:scanbus_main"
-mesycontrol_script_runner = "mesycontrol.scripts:script_runner_main"
+mesycontrol_script_runner = "mesycontrol:script_runner_main"
