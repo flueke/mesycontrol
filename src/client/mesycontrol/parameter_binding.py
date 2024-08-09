@@ -480,7 +480,7 @@ class DefaultParameterBinding(AbstractParameterBinding):
             result = rf.result()
             if isinstance(result, bm.SetResult) and not result:
                 raise RuntimeError()
-        except Exception:
+        except (Exception, util.Disconnected):
             pal.setColor(QtGui.QPalette.Base, QtGui.QColor('red'))
             log.debug("_get_palette: Exception from result future; setting red background color")
             return future.Future().set_result(pal)

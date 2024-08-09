@@ -105,7 +105,10 @@ class ChannelEnablePolarityBinding(pb.DefaultParameterBinding):
         super(ChannelEnablePolarityBinding, self).__init__(**kwargs)
 
     def _update(self, rf):
-        self.target.setEnabled(int(rf.result()))
+        try:
+            self.target.setEnabled(int(rf.result()))
+        except util.Disconnected:
+            pass
 
 class ChannelEnableButtonBinding(pb.DefaultParameterBinding):
     def __init__(self, **kwargs):
@@ -113,9 +116,12 @@ class ChannelEnableButtonBinding(pb.DefaultParameterBinding):
         self.target.clicked.connect(self._button_clicked)
 
     def _update(self, rf):
-        is_enabled = int(rf.result())
-        self.target.setChecked(is_enabled)
-        self.target.setText("On" if is_enabled else "Off")
+        try:
+            is_enabled = int(rf.result())
+            self.target.setChecked(is_enabled)
+            self.target.setText("On" if is_enabled else "Off")
+        except util.Disconnected:
+            pass
 
     def _button_clicked(self, checked):
         self._write_value(int(checked))
@@ -225,12 +231,15 @@ class ChannelWidget(QtWidgets.QWidget):
             ).add_update_callback(self._tcomp_source_changed))
 
     def _voltage_limit_updated(self, rf):
-        unit    = self.device.profile[rf.result().address].get_unit('volt')
-        voltage = unit.unit_value(int(rf.result()))
+        try:
+            unit    = self.device.profile[rf.result().address].get_unit('volt')
+            voltage = unit.unit_value(int(rf.result()))
 
-        self.ui.spin_target_voltage.setMaximum(voltage)
-        self.ui.slider_target_voltage.setMaximum(voltage)
-        self.ui.slider_target_voltage.setTickInterval(100 if voltage > 200.0 else 10)
+            self.ui.spin_target_voltage.setMaximum(voltage)
+            self.ui.slider_target_voltage.setMaximum(voltage)
+            self.ui.slider_target_voltage.setTickInterval(100 if voltage > 200.0 else 10)
+        except util.Disconnected:
+            pass
 
     def _current_updated(self, f_current):
         def done(f_current_limit):
@@ -256,7 +265,7 @@ class ChannelWidget(QtWidgets.QWidget):
             css         = 'QLCDNumber { color: %s; }' % color
 
             self.ui.lcd_current.setStyleSheet(css)
-        except (KeyError, TypeError):
+        except (KeyError, TypeError, util.Disconnected):
             pass
 
     def _sensor_temperature_changed(self, rf_sensor):
@@ -267,10 +276,13 @@ class ChannelWidget(QtWidgets.QWidget):
             return
 
         def tcomp_source_done(rf_source):
-            source = int(rf_source)
+            try:
+                source = int(rf_source)
 
-            if source == sensor_num:
-                self._update_temperature_display(rf_source, rf_sensor)
+                if source == sensor_num:
+                    self._update_temperature_display(rf_source, rf_sensor)
+            except util.Disconnected:
+                pass
 
         if self.device.read_mode != util.HARDWARE:
             return
@@ -279,7 +291,10 @@ class ChannelWidget(QtWidgets.QWidget):
                 ).add_done_callback(tcomp_source_done)
 
     def _tcomp_source_changed(self, rf_source):
-        source = int(rf_source)
+        try:
+            source = int(rf_source)
+        except util.Disconnected:
+            return
 
         if source == TCOMP_SOURCE_OFF:
             self._update_temperature_display(rf_source, None)
@@ -301,7 +316,7 @@ class ChannelWidget(QtWidgets.QWidget):
             source_str  = TCOMP_SOURCES[int(f_source)]
             try:
                 temp_raw    = int(f_sensor)
-            except (KeyError, IndexError):
+            except (KeyError, IndexError, util.Disconnected):
                 temp_raw    = TEMP_NO_SENSOR
 
             if temp_raw == TEMP_NO_SENSOR:
