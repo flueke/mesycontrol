@@ -302,7 +302,7 @@ void MRC1Connection::handle_command_response_read(const boost::system::error_cod
 
   if (!ec) {
     m_timeout_timer.cancel();
-    
+
     BOOST_LOG_SEV(m_log, log::lvl::trace) << "received line '" << data << "'";
 
     // FIXME: data might contain the mrc-1> prompt at the very end
@@ -317,7 +317,7 @@ void MRC1Connection::handle_command_response_read(const boost::system::error_cod
     std::for_each(std::begin(lines), std::end(lines), [](std::string &line) { boost::trim(line); });
 
     lines.erase(std::remove_if(std::begin(lines), std::end(lines),
-          [this](const std::string &str) { return str.empty(); }),
+          [](const std::string &str) { return str.empty(); }),
         std::end(lines));
 
     BOOST_LOG_SEV(m_log, log::lvl::trace) << "got " << lines.size() << " lines after trim and erase empty";
@@ -374,7 +374,7 @@ void MRC1Connection::handle_command_response_read(const boost::system::error_cod
 }
 
 void MRC1Connection::start_write(
-    const std::string &data, 
+    const std::string &data,
     ReadWriteCallback completion_handler)
 {
   if (is_running() || is_initializing()) {

@@ -82,7 +82,7 @@ void TCPConnection::start_read_message_size()
       boost::bind(&TCPConnection::handle_read_message_size, shared_from_this(), _1, _2));
 }
 
-void TCPConnection::handle_read_message_size(const boost::system::error_code &ec, std::size_t n_bytes)
+void TCPConnection::handle_read_message_size(const boost::system::error_code &ec, std::size_t /*n_bytes*/)
 {
   if (m_stopping)
     return;
@@ -126,7 +126,7 @@ void TCPConnection::start_read_message()
       boost::bind(&TCPConnection::handle_read_message, shared_from_this(), _1, _2));
 }
 
-void TCPConnection::handle_read_message(const boost::system::error_code &ec, std::size_t n_bytes)
+void TCPConnection::handle_read_message(const boost::system::error_code &ec, std::size_t /*n_bytes*/)
 {
   if (!ec) {
     try {
@@ -169,7 +169,7 @@ void TCPConnection::start_write_message()
   m_write_in_progress = true;
 
   MessagePtr msg(m_write_queue.front());
-  
+
   msg->SerializeToString(&m_write_buf);
   m_write_size = htons(m_write_buf.size());
 
@@ -183,7 +183,7 @@ void TCPConnection::start_write_message()
       boost::bind(&TCPConnection::handle_write_message, shared_from_this(), _1, _2));
 }
 
-void TCPConnection::handle_write_message(const boost::system::error_code &ec, std::size_t n_bytes)
+void TCPConnection::handle_write_message(const boost::system::error_code &ec, std::size_t /*n_bytes*/)
 {
   m_write_in_progress = false;
   if (!ec) {

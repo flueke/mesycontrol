@@ -86,7 +86,7 @@ class MRC1Connection:
      * The caller has to ensure the reference to data remains valid until the
      * write completes so no copy has to be created. */
     void start_write(
-        const std::string &data, 
+        const std::string &data,
         ReadWriteCallback completion_handler);
 
     void start_read(MRCComm::ReadHandler read_handler);
@@ -161,9 +161,9 @@ class MRC1SerialConnection: public MRC1Connection
     static const std::vector<unsigned int> default_baud_rates;
 
   protected:
-    virtual void start_impl(ErrorCodeCallback completion_handler);
-    virtual void stop_impl();
-    virtual void cancel_io();
+    void start_impl(ErrorCodeCallback completion_handler) override;
+    void stop_impl() override;
+    void cancel_io() override;
 
     virtual void handle_init(
         const boost::system::error_code &ec) override;
@@ -188,9 +188,9 @@ class MRC1TCPConnection: public MRC1Connection
         const std::string &address, const std::string &service);
 
   protected:
-    virtual void start_impl(ErrorCodeCallback completion_handler);
-    virtual void stop_impl();
-    virtual void cancel_io();
+    void start_impl(ErrorCodeCallback completion_handler) override;
+    void stop_impl() override;
+    void cancel_io() override;
 
   private:
     std::string m_host;

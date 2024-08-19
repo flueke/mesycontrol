@@ -56,12 +56,12 @@ public:
 
     /// Requiring one or more appearances is unlikely.
     virtual bool is_required() const { return false; }
-    
+
     /// Every appearance of the option simply increments the value
     //
     /// There should never be any tokens.
-    virtual void parse(boost::any& value_store, 
-                       const std::vector<std::string>& new_tokens,
+    virtual void parse(boost::any& value_store,
+                       const std::vector<std::string>& /*new_tokens*/,
                        bool /*utf8*/) const
     {
         if (value_store.empty()) value_store = T();
@@ -73,14 +73,14 @@ public:
         value_store = _default;
         return true;
     }
- 
+
     /// Notify the user function with the value of the value store.
     virtual void notify(const boost::any& value_store) const {
 	const T* val = boost::any_cast<T>(&value_store);
         if (_store) *_store = *val;
         if (_notifier) _notifier(*val);
     }
-    
+
     virtual ~accumulator_type() {}
 
 private:
