@@ -8,7 +8,7 @@ description='mesytec NIM module control GUI'
 dynamic = ["version"]
 dependencies = [
     'pyshortcuts==1.8.0',
-    'PySide2>=5.13',
+    'PySide2',
     'shiboken2',
     'numpy<2',
     'pyqtgraph',
@@ -22,7 +22,6 @@ root = "../../"
 mesycontrol_gui = "mesycontrol:mesycontrol_gui_main"
 
 [project.scripts]
-mesycontrol_auto_poll_parameters = "mesycontrol.scripts:auto_poll_parameters_main"
 mesycontrol_scanbus_device_profiles = "mesycontrol.scripts:scanbus_device_profiles_main"
 mesycontrol_scanbus = "mesycontrol.scripts:scanbus_main"
 mesycontrol_script_runner = "mesycontrol:script_runner_main"

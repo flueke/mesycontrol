@@ -42,7 +42,7 @@ def load_module(source, module_name=None):
 
 def script_runner_main():
     if len(sys.argv) < 3:
-        print(f"""Usage: {sys.argv[0]} <mrc-url> <script-py> [--debug] [script-args]
+        print(f"""Usage: <mrc-url> <script-py> [--debug] [script-args]
 
 Generic runner for mesycontrol scripts. The script-py file must contain a main()
 function taking a context object and an optional list of arguments:

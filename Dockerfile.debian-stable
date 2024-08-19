@@ -1,19 +1,21 @@
 # syntax=docker/dockerfile:1.5
 # vim:ft=dockerfile
 
-# Dockerfile for building mesycontrol_server and the python client package
-# under debian:stable. Attempts to verify that the build and installation steps
-# are working by running the server binary and importing the python client
-# libs. No build artifacts are copied back to the docker host! This file is
-# purely for testing dependency installation and the build process.
-#
-# Note: pip caching only works with modern docker versions and
-# DOCKER_BUILDKIT=1 in the environment.
-#
-# Example docker build invocation from the root of the source tree:
-#   DOCKER_BUILDKIT=1 docker build  -f ./Dockerfile.debian-stable .
+# Dockerfile for building mesycontrol_server and a frozen/binary version of
+# mesycontrol_script_runner.
+
+# Image creation:
+#   docker build  -f ./Dockerfile.debian-stable . -t mesycontrol:latest
+
+# Running the server:
+#   docker run --rm mesycontrol:latest /dev/ttyUSB0
+
+# Using the script runner:
 
 FROM debian:stable
+
+ENV DEBIAN_FRONTEND="noninteractive"
+ENV TZ="Etc/UTC"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates build-essential git cmake python3 python3-pip \
@@ -21,19 +23,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 libgl1
 
 COPY . /mesycontrol-source
-WORKDIR /mesycontrol-build
 
-# Run cmake then compile and install the server binary.
-RUN cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/mesycontrol-install /mesycontrol-source \
+# Use pip to install the python client package, its dependencies and
+# pyinstaller. TODO: use a venv here.
+WORKDIR /mesycontrol-source/src/client
+RUN --mount=type=cache,target=/root/.cache \
+    pip3 install --break-system-packages . pyinstaller
+
+# Run cmake to build both the server and frozen client packages.
+WORKDIR /mesycontrol-build
+RUN cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/mesycontrol \
+    -DMESYCONTROL_BUILD_CLIENT=ON /mesycontrol-source \
     && make -j && make install
 
-# Client part: use pip to install the client package.
-WORKDIR /mesycontrol-source/src/client
-
-RUN --mount=type=cache,target=/root/.cache \
-    pip3 install --break-system-packages .
-
 # Try to start the server and import the mesycontrol python package.
-RUN /mesycontrol-install/bin/mesycontrol_server --help
+ENV PATH="$PATH:/mesycontrol/bin"
+WORKDIR /mesycontrol
+RUN ./bin/mesycontrol_server --help
 RUN python3 -c 'import mesycontrol'
 RUN python3 -c 'from mesycontrol.mesycontrol_script_runner import script_runner_main; script_runner_main()'
+
+# Default entrypoint is the server binary.
+ENTRYPOINT ["/mesycontrol/bin/mesycontrol_server"]
