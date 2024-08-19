@@ -18,7 +18,10 @@ def main(ctx, mrc, args):
 
     # Find our MHV-4 by bus and address
     devices = mrc.get_devices(bus)
-    mhv4 = next((d for d in devices if d.address == address))
+    try:
+        mhv4 = next((d for d in devices if d.address == address))
+    except StopIteration:
+        print(f"Error: MHV-4 not found on bus {bus}, address 0x{address:02x}")
 
     if mhv4.address_conflict:
         print(f"Error: Address conflict detected for {mhv4=}")

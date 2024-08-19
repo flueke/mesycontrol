@@ -33,7 +33,11 @@ def main(ctx, mrc, args):
 
     # Find our MCFD-16 by bus and address
     devices = mrc.get_devices(bus)
-    dev = next((d for d in devices if d.address == address))
+    try:
+        dev = next((d for d in devices if d.address == address))
+    except StopIteration:
+        print(f"Error: MCFD-16 not found on bus {bus}, address 0x{address:02x}")
+        sys.exit(1)
 
     if dev.address_conflict:
         print(f"Error: Address conflict detected for {dev=}")
