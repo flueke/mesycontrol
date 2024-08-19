@@ -83,7 +83,8 @@ class MainWindow(QtWidgets.QMainWindow):
         dw_tree = QtWidgets.QDockWidget("Device tree", self)
         dw_tree.setObjectName("dw_treeview")
         dw_tree.setWidget(self.treeview)
-        dw_tree.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable | QtWidgets.QDockWidget.DockWidgetFloatable)
+        features = int(QtWidgets.QDockWidget.DockWidgetMovable) | int(QtWidgets.QDockWidget.DockWidgetFloatable)
+        dw_tree.setFeatures(QtWidgets.QDockWidget.DockWidgetFeature(features))
         self.addDockWidget(Qt.BottomDockWidgetArea, dw_tree)
 
         # Log view
@@ -91,7 +92,8 @@ class MainWindow(QtWidgets.QMainWindow):
         dw_logview = QtWidgets.QDockWidget("Application Log", self)
         dw_logview.setObjectName("dw_logview")
         dw_logview.setWidget(self.logview)
-        dw_logview.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable | QtWidgets.QDockWidget.DockWidgetFloatable)
+        features = int(QtWidgets.QDockWidget.DockWidgetMovable) | int(QtWidgets.QDockWidget.DockWidgetFloatable)
+        dw_logview.setFeatures(QtWidgets.QDockWidget.DockWidgetFeature(features))
         self.addDockWidget(Qt.BottomDockWidgetArea, dw_logview)
 
         # Note: do not call restore_settings() here. It needs to be called

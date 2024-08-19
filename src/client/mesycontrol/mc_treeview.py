@@ -52,7 +52,9 @@ class HardwareTreeView(QtWidgets.QTreeView):
         self.setTextElideMode(Qt.ElideNone)
         self.setRootIsDecorated(False)
         self.setExpandsOnDoubleClick(False)
-        self.setEditTriggers(QtWidgets.QAbstractItemView.EditKeyPressed | QtWidgets.QAbstractItemView.DoubleClicked)
+
+        editTriggers = int(QtWidgets.QAbstractItemView.EditKeyPressed) | int(QtWidgets.QAbstractItemView.DoubleClicked)
+        self.setEditTriggers(QtWidgets.QAbstractItemView.EditTriggers(editTriggers))
         self.setMouseTracking(True)
 
 def find_insertion_index(items, test_fun):
