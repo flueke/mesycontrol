@@ -46,7 +46,7 @@ a_mc_gui = Analysis(['mesycontrol_gui.py'],
              cipher=block_cipher,
              noarchive=False)
 
-a_mc_script = Analysis(['mesycontrol_script_runner.py'],
+a_mc_script = Analysis(['mesycontrol_script.py'],
              pathex=[],
              binaries=binaries,
              datas=[],
