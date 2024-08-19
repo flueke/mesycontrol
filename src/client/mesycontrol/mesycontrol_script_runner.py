@@ -62,7 +62,7 @@ Accepted mrc-url schemes:
       mc://<host>[:<port=23000>]
 """
     )
-        sys.exit(1)
+        sys.exit(0)
 
 
     mrcUrl = sys.argv[1]
