@@ -1,8 +1,9 @@
 # syntax=docker/dockerfile:1.5
 # vim:ft=dockerfile
 
-# Dockerfile for building mesycontrol_server and a frozen binary version of
-# mesycontrol_script_runner.
+# docker run --rm -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:rw --ipc=host --user $(id -u):$(id -g) mesycontrol:latest mesycontrol_gui
+
+# Dockerfile for building mesycontrol_server and the full client package.
 
 # Image creation:
 #   docker build  -f ./Dockerfile.debian-stable -t mesycontrol:latest .
@@ -16,11 +17,15 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND="noninteractive"
 ENV TZ="Etc/UTC"
+# Set to 1 for extra info to debug Qt plugin loading and find possible missing
+# libraries.
+#ENV QT_DEBUG_PLUGINS=1
+
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates build-essential git cmake python3-venv \
     libboost-all-dev libprotobuf-dev protobuf-compiler \
-    libglib2.0-0 libgl1
+    libglib2.0-0 libgl1 libqt5widgets5
 
 COPY . /mesycontrol-source
 
