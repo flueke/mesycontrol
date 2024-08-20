@@ -3,8 +3,8 @@
 See https://mesytec.com/products/mesycontrol/mesycontrol.html for info and downloads.
 
 Binary releases are available from https://mesytec.com/downloads/mesycontrol/ .
-This includes a precompiled `mesycontrol_server` binary for running the server on
-Raspberry Pi computers.
+This includes a precompiled `mesycontrol_server` binary to run the server on
+Raspberry Pi machines.
 
 # Installation
 

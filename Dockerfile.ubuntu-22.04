@@ -1,17 +1,25 @@
 # syntax=docker/dockerfile:1.5
 # vim:ft=dockerfile
 
-# docker run --rm -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:rw --ipc=host --user $(id -u):$(id -g) mesycontrol:latest mesycontrol_gui
-
 # Dockerfile for building mesycontrol_server and the full client package.
 
 # Image creation:
-#   docker build  -f ./Dockerfile.debian-stable -t mesycontrol:latest .
+#   docker build -f ./Dockerfile.ubuntu-22.04 -t mesycontrol:latest .
 
 # Running the server:
-#   docker run --rm mesycontrol:latest /dev/ttyUSB0
+#   docker run --rm -t --network=host --device /dev/ttyUSB0 mesycontrol:latest --mrc-serial-port /dev/ttyUSB0
+
+# Running the gui from within the container:
+#  xhost +local
+#  docker run --rm -t --network=host --device /dev/ttyUSB0 -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
+#    --ipc=host --entrypoint mesycontrol_gui mesycontrol:latest
 
 # Using the script runner:
+#   docker run --rm -t --network=host --device /dev/ttyUSB0 --entrypoint mesycontrol_script_runner mesycontrol:latest \
+#     /dev/ttyUSB0 /mesycontrol/share/scripts/auto_poll_parameters.py
+
+# Starting a shell to explore the container:
+#  docker run --rm -it --network=host --device /dev/ttyUSB0 --entrypoint bash mesycontrol:latest
 
 FROM ubuntu:22.04
 
@@ -20,7 +28,6 @@ ENV TZ="Etc/UTC"
 # Set to 1 for extra info to debug Qt plugin loading and find possible missing
 # libraries.
 #ENV QT_DEBUG_PLUGINS=1
-
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates build-essential git cmake python3-venv \
@@ -34,26 +41,23 @@ COPY . /mesycontrol-source
 RUN python3 -m venv /mesycontrol-venv
 ENV PATH="/mesycontrol-venv/bin:$PATH"
 RUN python3 -m pip install --upgrade pip
-WORKDIR /mesycontrol-source/src/client
 RUN --mount=type=cache,target=/root/.cache \
-    pip3 install . pyinstaller
+    pip3 install /mesycontrol-source/src/client pyinstaller sphinx
 
-# Run cmake to build both the server and frozen client packages.
+# Run cmake to build the server and a frozen client package.
 WORKDIR /mesycontrol-build
 RUN cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/mesycontrol \
-    -DMESYCONTROL_BUILD_CLIENT=ON /mesycontrol-source \
+    -DMESYCONTROL_BUILD_CLIENT=ON -DMESYCONTROL_BUILD_DOCS=ON /mesycontrol-source \
     && make -j && make install
 
-# Try to start the server and import the mesycontrol python package.
+# Some basic tests: try to start the server, import the python package, etc.
 ENV PATH="/mesycontrol/bin:$PATH"
 RUN mesycontrol_server --help
 RUN python3 -c 'import mesycontrol'
 RUN python3 -c 'from mesycontrol.mesycontrol_script_runner import script_runner_main; script_runner_main()'
-
-# TODO: Keep the server running in the background and test if clients can
-# connect and do work. If testing scripts like the auto poller, how do I tell
-# these to exit? Add a singleshot or timeout option or kill via the shell? How
-# to get the exit code?
+RUN mesycontrol_script_runner
+RUN test -e /mesycontrol/share/doc/mesycontrol/html/index.html
 
 # Default entrypoint is the server binary.
+WORKDIR /mesycontrol
 ENTRYPOINT ["/mesycontrol/bin/mesycontrol_server"]
