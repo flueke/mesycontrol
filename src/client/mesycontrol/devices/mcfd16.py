@@ -558,8 +558,9 @@ The current version is %d.%d. Disabling the GUI.
         self.device.get_cpu_firmware_version().add_done_callback(on_cpu_firmware_done)
 
 
+DefaultLabelAlign = Qt.AlignmentFlag(int(Qt.AlignRight) | int(Qt.AlignVCenter))
 def make_dynamic_label(initial_value="", longest_value=None, fixed_width=True, fixed_height=False,
-        alignment=Qt.AlignRight | Qt.AlignVCenter):
+        alignment=DefaultLabelAlign):
     """Creates a label used for displaying dynamic values.
     The labels initial text is given by `initial_value'.  If longest_value is a
     non-empty string it is used to calculate the maximum size of the label. If
