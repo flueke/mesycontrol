@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1.5
 # vim:ft=dockerfile
 
-# Dockerfile for building mesycontrol_server and a frozen/binary version of
+# Dockerfile for building mesycontrol_server and a frozen binary version of
 # mesycontrol_script_runner.
 
 # Image creation:
-#   docker build  -f ./Dockerfile.debian-stable . -t mesycontrol:latest
+#   docker build  -f ./Dockerfile.debian-stable -t mesycontrol:latest .
 
 # Running the server:
 #   docker run --rm mesycontrol:latest /dev/ttyUSB0
@@ -33,8 +33,6 @@ WORKDIR /mesycontrol-source/src/client
 RUN --mount=type=cache,target=/root/.cache \
     pip3 install . pyinstaller
 
-RUN pip3 list
-
 # Run cmake to build both the server and frozen client packages.
 WORKDIR /mesycontrol-build
 RUN cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/mesycontrol \
@@ -43,10 +41,14 @@ RUN cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/mesycontrol \
 
 # Try to start the server and import the mesycontrol python package.
 ENV PATH="/mesycontrol/bin:$PATH"
-WORKDIR /mesycontrol
-RUN ./bin/mesycontrol_server --help
+RUN mesycontrol_server --help
 RUN python3 -c 'import mesycontrol'
 RUN python3 -c 'from mesycontrol.mesycontrol_script_runner import script_runner_main; script_runner_main()'
+
+# TODO: Keep the server running in the background and test if clients can
+# connect and do work. If testing scripts like the auto poller, how do I tell
+# these to exit? Add a singleshot or timeout option or kill via the shell? How
+# to get the exit code?
 
 # Default entrypoint is the server binary.
 ENTRYPOINT ["/mesycontrol/bin/mesycontrol_server"]
