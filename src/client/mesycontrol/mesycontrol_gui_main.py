@@ -67,7 +67,7 @@ def mesycontrol_gui_main():
     if opts is not None and opts.logging_config is not None:
         logging.config.fileConfig(opts.logging_config)
     else:
-        logging.basicConfig(level=logging.DEBUG,
+        logging.basicConfig(level=logging.INFO,
                 format='[%(asctime)-15s] [%(name)s.%(levelname)-8s] %(message)s')
 
         if colorlog and (not is_windows or colorama):
