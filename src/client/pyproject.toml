@@ -22,6 +22,8 @@ root = "../../"
 mesycontrol_gui = "mesycontrol:mesycontrol_gui_main"
 
 [project.scripts]
+mesycontrol_script_runner = "mesycontrol:script_runner_main"
 mesycontrol_scanbus = "mesycontrol.scripts:scanbus_main"
 mesycontrol_scanbus_basic = "mesycontrol.scripts:scanbus_basic_main"
-mesycontrol_script_runner = "mesycontrol:script_runner_main"
+mesycontrol_auto_poll = "mesycontrol.scripts:auto_poll_parameters_main"
+mesycontrol_auto_poll_to_influxdb = "mesycontrol.scripts:auto_poll_to_influxdb_main"

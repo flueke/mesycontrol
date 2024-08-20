@@ -2,26 +2,30 @@
 
 # This script shows how to automatically poll all "volatile" (meaning possibly
 # fast changing parameters) from all devices connected to the target MRC and
-# writes the obtained values and additional meta data to an influxdb bucket.
+# write the obtained values and additional meta data to an influxdb bucket.
 
 # Change the values of the 'mesyflux_*' variables according to your influxdb
-# setup. By default the script tries to obtain the influxdb API access token
-# from the environment variable 'INFLUXDB_TOKEN'.
+# setup. By default the script tries to obtain the influxdb API access token and
+# other settings from the environment variables INFLUXDB_TOKEN, INFLUXDB_ORG,
+# INFLUXDB_URL and INFLUXDB_BUCKET. INFLUXDB_TOKEN is required, the other values
+# have defaults.
 
 import influxdb_client
-from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
+from influxdb_client import InfluxDBClient, Point, WritePrecision
+
 import os
 import signal
 import sys
 import time
-from mesycontrol.script import get_script_context
+
+from mesycontrol.script import script_runner_run
 
 # InfluxDB settings
-mesyflux_token = os.environ.get("INFLUXDB_TOKEN")
-mesyflux_org = "mesytec"
-mesyflux_url = "http://localhost:8086"
-mesyflux_bucket = "mesycontrol"
+mesyflux_token  = os.environ.get("INFLUXDB_TOKEN")
+mesyflux_org    = os.environ.get("INFLUXDB_ORG", default="mesytec")
+mesyflux_url    = os.environ.get("INFLUXDB_URL", default="http://localhost:8086")
+mesyflux_bucket = os.environ.get("INFLUXDB_BUCKET", default="mesycontrol")
 
 def poll_volatile_parameters(ctx, mrc):
     ret = dict()
@@ -87,37 +91,17 @@ def signal_handler(signum, frame):
     global g_quit
     g_quit = True
 
-def main():
-    if len(sys.argv) != 2:
-        print(f"""Usage: {sys.argv[0]} <mrc-url>
+def main(ctx, mrc, args):
 
-Accepted mrc-url schemes:
-  - For serial connections:
-      <serial_port>@<baud> | serial://<serial_port>[@<baud>]
-      e.g. /dev/ttyUSB0, /dev/ttyUSB0@115200
-  - For TCP connections (serial server connected to an MRC1):
-      <host>:<port>
-      tcp://<host>[:<port=4001>]
-  - For connections to a mesycontrol server:
-      mc://<host>[:<port=23000>]
-"""
-    )
-        sys.exit(1)
-
-    signal.signal(signal.SIGINT, signal_handler)
-
-    mrcUrl = sys.argv[1]
     mesyfluxClient = influxdb_client.InfluxDBClient(url=mesyflux_url, token=mesyflux_token, org=mesyflux_org)
     mesyfluxWriteApi = mesyfluxClient.write_api(write_options=SYNCHRONOUS)
 
-    with get_script_context() as ctx, mesyfluxClient, mesyfluxWriteApi:
+    with mesyfluxClient, mesyfluxWriteApi:
         ScanbusInterval = 5.0 # in seconds
         PollInterval = 1.0 # in seconds
 
         tScanbus = 0.0
         tPoll = 0.0
-
-        mrc = ctx.make_mrc(mrcUrl)
 
         print("Entering polling loop, press Ctrl-C to quit")
 
@@ -125,7 +109,7 @@ Accepted mrc-url schemes:
             if not mrc.is_connected():
                 mrc.connectMrc()
                 if mrc.is_connected():
-                    print("Connected to mrc {}".format(mrcUrl))
+                    print("Connected to mrc {}".format(mrc))
             else:
                 if time.monotonic() - tScanbus >= ScanbusInterval:
                     print("scanbus")
@@ -142,4 +126,4 @@ Accepted mrc-url schemes:
                     time.sleep(0.1)
 
 if __name__ == "__main__":
-    main()
+    script_runner_run(main)
