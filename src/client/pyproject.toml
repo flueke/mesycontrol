@@ -22,6 +22,6 @@ root = "../../"
 mesycontrol_gui = "mesycontrol:mesycontrol_gui_main"
 
 [project.scripts]
-mesycontrol_scanbus_device_profiles = "mesycontrol.scripts:scanbus_device_profiles_main"
 mesycontrol_scanbus = "mesycontrol.scripts:scanbus_main"
+mesycontrol_scanbus_basic = "mesycontrol.scripts:scanbus_basic_main"
 mesycontrol_script_runner = "mesycontrol:script_runner_main"

@@ -1,5 +1,5 @@
 import sys
-from mesycontrol.script import get_script_context
+from mesycontrol.script import script_runner_run
 
 def main(ctx, mrc, args):
     # Bus and bus address of the target MCFD-16
@@ -57,3 +57,6 @@ def main(ctx, mrc, args):
         addr = dev_profile[f'threshold_channel{chan}'].address
         dev.set_parameter(addr, threshold)
         print(f"Set channel {chan} threshold to {threshold}")
+
+if __name__ == "__main__":
+    script_runner_run(main)

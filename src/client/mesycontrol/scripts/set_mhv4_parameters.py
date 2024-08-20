@@ -1,5 +1,5 @@
 import sys
-from mesycontrol.script import get_script_context
+from mesycontrol.script import script_runner_run
 
 def main(ctx, mrc, args):
     # Bus and bus address of the target MHV-4
@@ -47,3 +47,6 @@ def main(ctx, mrc, args):
         addr = mhv4_profile[f'channel{chan}_enable_write'].address
         mhv4.set_parameter(addr, enable)
         print(f"Set channel {chan} {'enabled' if enable else 'disabled'}")
+
+if __name__ == "__main__":
+    script_runner_run(main)
