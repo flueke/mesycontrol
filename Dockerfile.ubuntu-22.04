@@ -59,7 +59,7 @@ RUN cmake --build . && cmake --install .
 ENV PATH="/mesycontrol/bin:$PATH"
 RUN mesycontrol_server --help
 RUN python3 -c 'import mesycontrol'
-RUN python3 -c 'from mesycontrol.mesycontrol_script_runner import script_runner_main; script_runner_main()'
+RUN python3 -c 'from mesycontrol.script import script_runner_main; script_runner_main()'
 RUN mesycontrol_script_runner
 RUN test -e /mesycontrol/share/doc/mesycontrol/html/index.html
 
