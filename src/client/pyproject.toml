@@ -12,7 +12,7 @@ dependencies = [
     'shiboken2',
     'numpy<2',
     'pyqtgraph',
-    'protobuf',
+    'protobuf==3.20.3',
 ]
 
 [tool.setuptools_scm]
