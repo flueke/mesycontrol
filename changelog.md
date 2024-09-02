@@ -1,4 +1,4 @@
-# 1.1.8
+# 1.2.0
 
   - Improved scripting support and more example scripts.
 
@@ -6,6 +6,8 @@
 
   - Fixes for dangling references to c++ objects. Issues with QProcess still
     remain but these only manifest on system shutdown.
+
+  - Fully dockerized use is now possible. See Dockerfile.ubuntu-22.04 for details.
 
 # 1.1.7
 
