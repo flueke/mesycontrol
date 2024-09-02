@@ -53,7 +53,7 @@ RUN cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/mesycontrol \
 RUN --mount=type=cache,target=/root/.cache pip3 install /mesycontrol-source/src/client
 
 # Build the server and a frozen client package.
-RUN cmake --build . && cmake --install .
+RUN cmake --build . -j && cmake --install .
 
 # Some basic tests: try to start the server, import the python package, etc.
 ENV PATH="/mesycontrol/bin:$PATH"
