@@ -16,6 +16,9 @@
 # Using the script runner to start the autopoller script:
 #  docker run --rm -t --network=host --device /dev/ttyUSB0 --entrypoint mesycontrol_script_runner mesycontrol:latest /dev/ttyUSB0 /mesycontrol/share/scripts/auto_poll_parameters.py
 
+# Viewing the python scripting documentation:
+#  docker run --rm -it  --entrypoint python mesycontrol:latest -c 'import mesycontrol.script, pydoc; help(mesycontrol.script)'
+
 # Starting a shell to explore the container:
 #  docker run --rm -it --network=host --entrypoint bash mesycontrol:latest
 #  ls -l /mesycontrol
