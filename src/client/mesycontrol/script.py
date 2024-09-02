@@ -10,20 +10,25 @@ import secrets
 import signal
 import string
 import sys
+import typing
 
 from mesycontrol.qt import QtCore, Property
 from mesycontrol import app_context, util, mrc_connection, hardware_controller, hardware_model
 from mesycontrol.future import get_future_result
 
 class DeviceWrapper(QtCore.QObject):
+    """Represents a device connected to one of the busses on a MRC."""
+
     def __init__(self, device, parent=None):
         super(DeviceWrapper, self).__init__(parent)
         self._wrapped = device
 
     def __getitem__(self, key):
+        """Shortcut for read_parameter()."""
         return self.read_parameter(key)
 
     def __setitem__(self, key, value):
+        """Shortcut for set_parameter()."""
         return self.set_parameter(key, value)
 
     def __getattr__(self, attr):
@@ -33,30 +38,40 @@ class DeviceWrapper(QtCore.QObject):
         return str(self._wrapped)
 
     def get_rc(self):
+        """Get the state of the devices 'remote control' flag."""
         return self._wrapped.rc
 
     def set_rc(self, onOff):
+        """Set the state of the devices 'remote control' flag."""
         return get_future_result(self._wrapped.set_rc(onOff))
 
     rc = Property(bool, get_rc, set_rc)
 
     def read_parameter(self, addr):
+        """Read from the specified address of the device and return the result."""
         return get_future_result(self._wrapped.read_parameter(addr))
 
     def set_parameter(self, addr, value):
+        """Write to the specified address on the device."""
         return get_future_result(self._wrapped.set_parameter(addr, value))
 
 
 class MRCWrapper(QtCore.QObject):
+    """Represents an MRC object with its two busses."""
     def __init__(self, mrc, parent=None):
         super(MRCWrapper, self).__init__(parent)
         self._wrapped = mrc
 
     def __getitem__(self, bus):
+        """
+        Access to the devices connected to the specified bus.
+        :return: bus_proxy object
+        """
         if bus not in range(2):
             raise KeyError("No such bus: %d" % bus)
 
         class bus_proxy(object):
+            """Holds a list of devices connected to a specific bus on a MRC."""
             def __getitem__(proxy_self, dev):
                 return DeviceWrapper(self._wrapped.get_device(bus, dev))
 
@@ -76,19 +91,42 @@ class MRCWrapper(QtCore.QObject):
         return str(self._wrapped)
 
     def connectMrc(self):
+        """Try to connect to the MRC. Depending on the connection method this
+        may spawn an internal mesycontrol_server instance."""
         return get_future_result(self._wrapped.connectMrc())
 
-    def scanbus(self, bus):
-        # Response is a protobuf ScanbusResult. Each object in the 'entries'
-        # member is a ScanbusEntry object.
+    def scanbus(self, bus: int):
+        """
+        Issues the scanbus (SC) command for the specified bus and populates
+        the internal devices list of this MRCWrapper object.
+
+           Response is a list of ScanbusResult.ScanbusEntry objects:
+           message ScanbusEntry {
+               uint32 idc    = 1;
+               bool rc       = 2;
+               bool conflict = 3;
+           }
+        """
         response = get_future_result(self._wrapped.scanbus(bus)).response
         return response.scanbus_result.entries
 
-    def get_devices(self, bus=None):
+    def get_devices(self, bus=typing.Optional[int]):
+        """
+        Returns a list of DeviceWrapper objects present on the given bus.
+        scanbus() must be called first to populate the internal device list.
+        If no bus is specified the devices connected to all busses is returned.
+        """
         devices = self._wrapped.get_devices(bus)
         return [DeviceWrapper(dev) for dev in devices]
 
 class ScriptContext(object):
+    """
+    The main context object for mesycontrol scripting.
+
+    Holds a list of MRCs registered with the system (get_all_mrcs()) and allows
+    adding new MRC connections via make_mrc(). Additionally the device profiles
+    included with mesycontrol can be accessed using get_device_profiles().
+    """
     def __init__(self, appContext):
         self.appContext: app_context.Context = appContext
         self.quit = False
@@ -112,6 +150,19 @@ class ScriptContext(object):
 
 @contextlib.contextmanager
 def get_script_context(log_level=logging.INFO):
+    """
+    Script context creation and cleanup on shutdown.
+
+    Example:
+
+        from mesycontrol.script import get_script_context
+        with get_script_context(logging.DEBUG) as ctx:
+            mrc = ctx.make_mrc(mrcUrl)
+            mrc.scanbus(0)
+            ...
+
+    :return: ScriptContext object wrapped in a context manager.
+    """
     try:
         # Setup logging. Has no effect if logging has already been setup.
         logging.basicConfig(level=log_level,
@@ -184,6 +235,12 @@ def load_module(source, module_name=None):
     return module
 
 def script_runner_main():
+    """
+    Main entry point for the cli script runner.
+    mrcUrl, scriptFile and scriptArgs are exepceted to be passed in via sys.argv:
+    <mrc-url> <script-py> [--debug] [script-args]
+    """
+
     if len(sys.argv) < 3:
         print(f"""Usage: <mrc-url> <script-py> [--debug] [script-args]
 
@@ -238,6 +295,11 @@ Accepted mrc-url schemes:
         scriptMain(ctx, mrc, scriptArgs)
 
 def script_runner_run(scriptMain):
+    """
+    Alternative entry point for the cli script runner: the scripts main function is
+    directly given to script_runner_run(), other parameters are taken from sys.argv.
+    """
+
     if len(sys.argv) != 2:
         print(f"""Usage: {sys.argv[0]} <mrc-url>
 
