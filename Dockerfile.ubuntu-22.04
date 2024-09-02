@@ -23,13 +23,11 @@
 #  docker run --rm -it --network=host --entrypoint bash mesycontrol:latest
 #  ls -l /mesycontrol
 
-FROM ubuntu:22.04
+FROM ubuntu:22.04 as build
 
 ENV DEBIAN_FRONTEND="noninteractive"
 ENV TZ="Etc/UTC"
-# Set to 1 for extra info to debug Qt plugin loading and find possible missing
-# libraries.
-#ENV QT_DEBUG_PLUGINS=1
+#ENV QT_DEBUG_PLUGINS=1 # Set to 1 for extra info to debug Qt plugin loading and find possible missing libraries.
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates build-essential git cmake python3-venv \
@@ -42,7 +40,7 @@ WORKDIR /mesycontrol-build
 # venv creation and activation
 RUN python3 -m venv /mesycontrol-venv
 ENV PATH="/mesycontrol-venv/bin:$PATH"
-RUN python3 -m pip install --upgrade pip
+RUN --mount=type=cache,target=/root/.cache python3 -m pip install --upgrade pip
 
 # Use pip to install the build dependencies.
 RUN --mount=type=cache,target=/root/.cache pip3 install pyinstaller sphinx
@@ -56,6 +54,24 @@ RUN --mount=type=cache,target=/root/.cache pip3 install /mesycontrol-source/src/
 
 # Build the server and a frozen client package.
 RUN cmake --build . -j && cmake --install .
+
+FROM ubuntu:22.04 as final
+ENV DEBIAN_FRONTEND="noninteractive"
+ENV TZ="Etc/UTC"
+#ENV QT_DEBUG_PLUGINS=1 # Set to 1 for extra info to debug Qt plugin loading and find possible missing libraries.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-venv git libglib2.0-0 libgl1 libqt5widgets5
+COPY --from=build /mesycontrol-source /mesycontrol-source
+COPY --from=build /mesycontrol /mesycontrol
+
+# venv creation and activation
+RUN python3 -m venv /mesycontrol-venv
+ENV PATH="/mesycontrol-venv/bin:$PATH"
+# install the client package
+RUN --mount=type=cache,target=/root/.cache python3 -m pip install --upgrade pip
+RUN --mount=type=cache,target=/root/.cache pip3 install /mesycontrol-source/src/client
+# cleanup
+RUN apt-get clean && rm -rf /mesycontrol-source
 
 # Some basic tests: try to start the server, import the python package, etc.
 ENV PATH="/mesycontrol/bin:$PATH"
