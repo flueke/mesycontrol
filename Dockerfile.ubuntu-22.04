@@ -10,16 +10,15 @@
 #   docker run --rm -t --network=host --device /dev/ttyUSB0 mesycontrol:latest --mrc-serial-port /dev/ttyUSB0
 
 # Running the gui from within the container:
-#  xhost +local
-#  docker run --rm -t --network=host --device /dev/ttyUSB0 -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-#    --ipc=host --entrypoint mesycontrol_gui mesycontrol:latest
+#  xhost +
+#  docker run --rm -t --network=host --device /dev/ttyUSB0 -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:rw --ipc=host --entrypoint mesycontrol_gui mesycontrol:latest
 
-# Using the script runner:
-#   docker run --rm -t --network=host --device /dev/ttyUSB0 --entrypoint mesycontrol_script_runner mesycontrol:latest \
-#     /dev/ttyUSB0 /mesycontrol/share/scripts/auto_poll_parameters.py
+# Using the script runner to start the autopoller script:
+#  docker run --rm -t --network=host --device /dev/ttyUSB0 --entrypoint mesycontrol_script_runner mesycontrol:latest /dev/ttyUSB0 /mesycontrol/share/scripts/auto_poll_parameters.py
 
 # Starting a shell to explore the container:
-#  docker run --rm -it --network=host --device /dev/ttyUSB0 --entrypoint bash mesycontrol:latest
+#  docker run --rm -it --network=host --entrypoint bash mesycontrol:latest
+#  ls -l /mesycontrol
 
 FROM ubuntu:22.04
 
