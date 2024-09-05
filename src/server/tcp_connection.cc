@@ -1,6 +1,7 @@
 #ifndef __MINGW32__
 #include <arpa/inet.h>
 #endif
+#include <array>
 #include <boost/bind.hpp>
 #include <boost/format.hpp>
 #include <boost/log/trivial.hpp>
@@ -173,7 +174,7 @@ void TCPConnection::start_write_message()
   msg->SerializeToString(&m_write_buf);
   m_write_size = htons(m_write_buf.size());
 
-  boost::array<asio::const_buffer, 2> buffers =
+  std::array<asio::const_buffer, 2> buffers =
   {
       asio::buffer(&m_write_size, 2),
       asio::buffer(m_write_buf)
