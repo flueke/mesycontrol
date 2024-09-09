@@ -7,11 +7,10 @@ set(Boost_USE_STATIC_LIBS   ON)
 find_package(Boost 1.67 REQUIRED COMPONENTS chrono program_options system date_time log log_setup log regex thread)
 find_package(Threads REQUIRED)
 
-set(Protobuf_USE_STATIC_LIBS OFF)
+# Such horrors: https://github.com/protocolbuffers/protobuf/issues/12292#issuecomment-1789955750
+set(Protobuf_USE_STATIC_LIBS ON)
+find_package(Protobuf CONFIG)
 find_package(Protobuf REQUIRED)
-find_package(absl REQUIRED)
-
-include_directories(${Boost_INCLUDE_DIRS} ${PROTOBUF_INCLUDE_DIRS})
 
 #if(NOT WIN32)
 #    set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
@@ -21,7 +20,8 @@ include_directories(${Boost_INCLUDE_DIRS} ${PROTOBUF_INCLUDE_DIRS})
 #endif()
 
 #include_directories(${CMAKE_CURRENT_BINARY_DIR})
-PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${MESYCONTROL_PROTO_IN})
+
+protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${MESYCONTROL_PROTO_IN})
 
 add_executable(mesycontrol_server
     logging.cc
@@ -37,13 +37,15 @@ add_executable(mesycontrol_server
     tcp_connection_manager.cc
     tcp_server.cc
     ${MESYCONTROL_GLOBAL_SOURCES}
-    ${PROTO_SRCS} ${PROTO_HDRS})
+    ${PROTO_SRCS}
+    ${PROTO_HDRS}
+    )
 
 target_link_libraries(mesycontrol_server
     PRIVATE Boost::disable_autolinking
     PRIVATE ${Boost_LIBRARIES}
-    PRIVATE ${CMAKE_THREAD_LIBS_INIT}
-    PRIVATE ${Protobuf_LIBRARIES}
+    PRIVATE Threads::Threads
+    PRIVATE protobuf::libprotobuf
     PRIVATE absl::log_internal_check_op
     PRIVATE absl::log_internal_message
     )
