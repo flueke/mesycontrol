@@ -6,7 +6,6 @@ set(STAMP         "${CMAKE_CURRENT_BINARY_DIR}/build/timestamp")
 # Note: The resources file is updated directly inside the source tree before
 # being included in the cx_freeze library.zip by running setup.py.
 find_program(PYRCC "pyside2-rcc")
-#set(PYRCC       "pyside2-rcc")
 set(QRC_IN      "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/resources.qrc")
 set(QRC_OUT     "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol/resources.py")
 
