@@ -7,45 +7,14 @@ set(Boost_USE_STATIC_LIBS   ON)
 find_package(Boost 1.67 REQUIRED COMPONENTS chrono program_options system date_time log log_setup log regex thread)
 find_package(Threads REQUIRED)
 
-# https://stackoverflow.com/a/74545214 and https://stackoverflow.com/a/75299170
-message("Fetching protobuf")
-set(protobuf_VERBOSE ON)
-set(protobuf_INSTALL OFF)
-set(protobuf_BUILD_TESTS OFF)
-set(protobuf_BUILD_SHARED_LIBS OFF)
-set(protobuf_BUILD_PROTOC_BINARIES ON)
-#set(protobuf_MSVC_STATIC_RUNTIME OFF)
-
-include(FetchContent)
-FetchContent_Declare(protobuf
-  GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
-  GIT_TAG        v21.12
-  OVERRIDE_FIND_PACKAGE
-)
-
-FetchContent_MakeAvailable(protobuf)
-FetchContent_GetProperties(protobuf)
-#find_package(protobuf CONFIG REQUIRED)
-
-#if(NOT WIN32)
-#    set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
-#    find_library(PROTOBUF_STATIC protobuf NAMES libprotobuf.a)
-#    MESSAGE(STATUS "Using static protobuf library ${PROTOBUF_STATIC}")
-#    set(PROTOBUF_LIBRARY ${PROTOBUF_STATIC})
-#endif()
+include(FindProtobuf)
+find_package(Protobuf REQUIRED)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-#protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${MESYCONTROL_PROTO_IN})
 set(PROTO_HDRS "${CMAKE_CURRENT_BINARY_DIR}/mesycontrol.pb.h")
 set(PROTO_SRCS "${CMAKE_CURRENT_BINARY_DIR}/mesycontrol.pb.cpp")
-set(PROTOC ${protobuf_BINARY_DIR}/protoc)
-
-add_custom_command(
-    OUTPUT ${PROTO_HDRS} ${PROTO_SRCS}
-    COMMAND ${PROTOC} -I ${PROTOBUF_IMPORT_DIRS} --cpp_out ${CMAKE_CURRENT_BINARY_DIR} ${MESYCONTROL_PROTO_IN}
-    DEPENDS ${PROTOC} ${MESYCONTROL_PROTO_IN}
-)
+protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${MESYCONTROL_PROTO_IN})
 message("PROTO_SRCS=${PROTO_SRCS}")
 
 add_executable(mesycontrol_server
