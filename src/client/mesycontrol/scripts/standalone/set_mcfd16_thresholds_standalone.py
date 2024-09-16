@@ -63,7 +63,7 @@ Accepted mrc-url schemes:
         # Load the device profile, in this case it's devices/mcfd16_profile.py
         dev_profile= ctx.get_device_profile(dev.idc)
 
-        print(f"{dev=}, {dev_profile=}")
+        #print(f"{dev=}, {dev_profile=}")
 
         if dev.idc != dev_profile.idc:
             print(f"Error: ID code mistmatch, wanted {dev_profile.idc=}, got {dev.idc=}")

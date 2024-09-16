@@ -48,7 +48,7 @@ Accepted mrc-url schemes:
         # Load the device profile, in this case it's devices/mhv4_profile.py
         mhv4_profile = ctx.get_device_profile(mhv4.idc)
 
-        print(f"{mhv4=}, {mhv4_profile=}")
+        #print(f"{mhv4=}, {mhv4_profile=}")
 
         if mhv4.idc != mhv4_profile.idc:
             print(f"Error: ID code mistmatch, wanted {mhv4_profile.idc=}, got {mhv4.idc=}")
