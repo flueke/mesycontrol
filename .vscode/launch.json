@@ -44,6 +44,16 @@
             "console": "internalConsole",
             "cwd": "${workspaceFolder}/",
             "env": { "PYTHONPATH": "${cwd}" }
+        },
+        {
+            "name": "mesycontrol_script_runner 0",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/home/florian/.virtualenvs/mesycontrol-dev-py3.10/bin/mesycontrol_script_runner",
+            "args": ["/dev/ttyUSB2", "src/client/mesycontrol/scripts/scanbus.py", "--debug"],
+            "console": "internalConsole",
+            "cwd": "${workspaceFolder}/",
+            "env": { "PYTHONPATH": "${cwd}" }
         }
     ]
 }
