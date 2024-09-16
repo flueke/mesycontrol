@@ -110,7 +110,7 @@ class MRCWrapper(QtCore.QObject):
         response = get_future_result(self._wrapped.scanbus(bus)).response
         return response.scanbus_result.entries
 
-    def get_devices(self, bus=typing.Optional[int]):
+    def get_devices(self, bus:typing.Optional[int] = None):
         """
         Returns a list of DeviceWrapper objects present on the given bus.
         scanbus() must be called first to populate the internal device list.
