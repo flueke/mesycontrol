@@ -39,13 +39,13 @@ Features
 * Cross-platform: both client and server run on Linux and Windows
 * Offline editing: device configurations can be created/edited without access
   to the hardware.
-* Since v1.20: python scripting support; example scripts included
+* Since v1.2.0: python scripting support; example scripts included
 
 Installation
 ------------
 Docker based deployment
 ^^^^^^^^^^^^^^^^^^^^^^^
-Since v1.20 mesycontrol can be run from within a docker container::
+Since v1.2.0 mesycontrol can be run from within a docker container::
 
   $ git clone https://github.com/flueke/mesycontrol
   $ cd mesycontrol
@@ -287,7 +287,7 @@ Python Scripting
 ----------------
 
 mesycontrol provides a small Python API for scripting, a standalone script
-runner binary (since mesycontrol-1.1.8, API updated for v1.20) and several
+runner binary (since mesycontrol-1.1.8, API updated for v1.2.0) and several
 example scripts under ``share/scripts``.
 
 Generated API docs can be found under ``share/doc/mesycontrol-py-help.txt`` or
