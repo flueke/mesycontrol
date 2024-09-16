@@ -1,3 +1,7 @@
+
+# Install the pydoc generated api reference.
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/mesycontrol-py-help.txt" DESTINATION "share/doc/mesycontrol")
+
 # Build Sphinx documentation.
 # Source: https://eb2.co/blog/2012/03/sphinx-and-cmake-beautiful-documentation-for-c-projects/
 

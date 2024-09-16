@@ -39,9 +39,29 @@ Features
 * Cross-platform: both client and server run on Linux and Windows
 * Offline editing: device configurations can be created/edited without access
   to the hardware.
+* Since v1.20: python scripting support; example scripts included
 
 Installation
 ------------
+Docker based deployment
+^^^^^^^^^^^^^^^^^^^^^^^
+Since v1.20 mesycontrol can be run from within a docker container::
+
+  $ git clone https://github.com/flueke/mesycontrol
+  $ cd mesycontrol
+
+  $ docker build -f ./Dockerfile.ubuntu-22.04 -t mesycontrol:latest .
+
+  # Manually running mesycontrol_server:
+  $ docker run --rm -t --network=host --device /dev/ttyUSB0 mesycontrol:latest --mrc-serial-port /dev/ttyUSB0
+
+  # Running the GUI from within the container:
+  $ xhost +
+  $ docker run --rm -t --network=host --device /dev/ttyUSB0 -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:rw --ipc=host --entrypoint mesycontrol_gui mesycontrol:latest
+
+  # Using the script_runner to execute an auto poller script:
+  $ docker run --rm -t --network=host --device /dev/ttyUSB0 --entrypoint mesycontrol_script_runner mesycontrol:latest /dev/ttyUSB0 /mesycontrol/share/scripts/auto_poll_parameters.py
+
 Linux installation
 ^^^^^^^^^^^^^^^^^^
 Unpack the tar.bz2 archive and execute the *mesycontrol_gui* binary to get
@@ -49,7 +69,6 @@ started::
 
   $ tar xf mesycontrol-1.0.tar.bz2
   $ ./mesycontrol-1.0/bin/mesycontrol_gui
-
 
 Linux USB and serial port permissions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -264,18 +283,37 @@ Stand-alone mesycontrol_server operation
 
   \newpage
 
-Scripting
----------
+Python Scripting
+----------------
 
 mesycontrol provides a small Python API for scripting, a standalone script
-runner binary (since mesycontrol-1.1.8) and several example scripts.
+runner binary (since mesycontrol-1.1.8, API updated for v1.20) and several
+example scripts under ``share/scripts``.
+
+Generated API docs can be found under ``share/doc/mesycontrol-py-help.txt`` or
+viewed directly on the CLI, e.g.:
+::
+
+    $ docker run --rm -it  --entrypoint python mesycontrol:latest -c 'import mesycontrol.script, pydoc; help(mesycontrol.script)'
+
+Linux CLI
+^^^^^^^^^
+::
+
+    $ mesycontrol_script_runner COM3 set_mhv4_parameters.py
+
+Windows CLI
+^^^^^^^^^^^
+::
+
+    $ mesycontrol_script_runner COM3 "c:\Program Files\mesycontrol\share\scripts\set_mhv4_parameters.py"
+
 
 XML format
 ----------
 Mesycontrol stores device configurations and setups in XML files. The root
 element required for all XML files is **mesycontrol** with one optional
-attribute called **version** specifying the config file version (defaults to
-1).
+attribute called **version** specifying the config file version (defaults to 1).
 
 Device config
 ^^^^^^^^^^^^^

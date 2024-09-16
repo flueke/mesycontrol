@@ -1,0 +1,514 @@
+# Generated Mon Sep 16 11:23:28 AM CEST 2024 via `pydoc mesycontrol.script`.
+Help on module mesycontrol.script in mesycontrol:
+
+NAME
+    mesycontrol.script
+
+DESCRIPTION
+    # -*- coding: utf-8 -*-
+    # Author: Florian Lüke <florianlueke@gmx.net>
+
+CLASSES
+    PySide2.QtCore.QObject(Shiboken.Object)
+        DeviceWrapper
+        MRCWrapper
+    builtins.object
+        ScriptContext
+    
+    class DeviceWrapper(PySide2.QtCore.QObject)
+     |  DeviceWrapper(device, parent=None)
+     |  
+     |  Represents a device connected to one of the busses on a MRC.
+     |  
+     |  Method resolution order:
+     |      DeviceWrapper
+     |      PySide2.QtCore.QObject
+     |      Shiboken.Object
+     |      builtins.object
+     |  
+     |  Methods defined here:
+     |  
+     |  __getattr__(self, attr)
+     |  
+     |  __getitem__(self, key)
+     |      Shortcut for read_parameter().
+     |  
+     |  __init__(self, device, parent=None)
+     |      Initialize self.  See help(type(self)) for accurate signature.
+     |  
+     |  __setitem__(self, key, value)
+     |      Shortcut for set_parameter().
+     |  
+     |  __str__(self)
+     |      Return str(self).
+     |  
+     |  get_rc(self)
+     |      Get the state of the devices 'remote control' flag.
+     |  
+     |  read_parameter(self, addr)
+     |      Read from the specified address of the device and return the result.
+     |  
+     |  set_parameter(self, addr, value)
+     |      Write to the specified address on the device.
+     |  
+     |  set_rc(self, onOff)
+     |      Set the state of the devices 'remote control' flag.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data and other attributes defined here:
+     |  
+     |  rc = <PySide2.QtCore.Property object>
+     |      Get the state of the devices 'remote control' flag.
+     |  
+     |  
+     |  staticMetaObject = <PySide2.QtCore.QMetaObject object>
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from PySide2.QtCore.QObject:
+     |  
+     |  __delattr__(self, name, /)
+     |      Implement delattr(self, name).
+     |  
+     |  __getattribute__(self, name, /)
+     |      Return getattr(self, name).
+     |  
+     |  __repr__(self, /)
+     |      Return repr(self).
+     |  
+     |  __setattr__(self, name, value, /)
+     |      Implement setattr(self, name, value).
+     |  
+     |  blockSignals(self, b: bool) -> bool
+     |      blockSignals(self, b: bool) -> bool
+     |  
+     |  childEvent(self, event: PySide2.QtCore.QChildEvent) -> None
+     |      childEvent(self, event: PySide2.QtCore.QChildEvent) -> None
+     |  
+     |  children(self) -> typing.List[PySide2.QtCore.QObject]
+     |      children(self) -> typing.List[PySide2.QtCore.QObject]
+     |  
+     |  connectNotify(self, signal: PySide2.QtCore.QMetaMethod) -> None
+     |      connectNotify(self, signal: PySide2.QtCore.QMetaMethod) -> None
+     |  
+     |  customEvent(self, event: PySide2.QtCore.QEvent) -> None
+     |      customEvent(self, event: PySide2.QtCore.QEvent) -> None
+     |  
+     |  deleteLater(self) -> None
+     |      deleteLater(self) -> None
+     |  
+     |  destroyed = <PySide2.QtCore.Signal object>
+     |  disconnectNotify(self, signal: PySide2.QtCore.QMetaMethod) -> None
+     |      disconnectNotify(self, signal: PySide2.QtCore.QMetaMethod) -> None
+     |  
+     |  dumpObjectInfo(self) -> None
+     |      dumpObjectInfo(self) -> None
+     |  
+     |  dumpObjectTree(self) -> None
+     |      dumpObjectTree(self) -> None
+     |  
+     |  dynamicPropertyNames(self) -> typing.List[PySide2.QtCore.QByteArray]
+     |      dynamicPropertyNames(self) -> typing.List[PySide2.QtCore.QByteArray]
+     |  
+     |  emit(self, arg__1: bytes, *args: None) -> bool
+     |      emit(self, arg__1: bytes, *args: None) -> bool
+     |  
+     |  event(self, event: PySide2.QtCore.QEvent) -> bool
+     |      event(self, event: PySide2.QtCore.QEvent) -> bool
+     |  
+     |  eventFilter(self, watched: PySide2.QtCore.QObject, event: PySide2.QtCore.QEvent) -> bool
+     |      eventFilter(self, watched: PySide2.QtCore.QObject, event: PySide2.QtCore.QEvent) -> bool
+     |  
+     |  findChild(self, arg__1: type, arg__2: str = '') -> object
+     |      findChild(self, arg__1: type, arg__2: str = '') -> object
+     |  
+     |  findChildren(...)
+     |      findChildren(self, arg__1: type, arg__2: PySide2.QtCore.QRegExp) -> typing.Iterable
+     |      findChildren(self, arg__1: type, arg__2: PySide2.QtCore.QRegularExpression) -> typing.Iterable
+     |      findChildren(self, arg__1: type, arg__2: str = '') -> typing.Iterable
+     |  
+     |  inherits(self, classname: bytes) -> bool
+     |      inherits(self, classname: bytes) -> bool
+     |  
+     |  installEventFilter(self, filterObj: PySide2.QtCore.QObject) -> None
+     |      installEventFilter(self, filterObj: PySide2.QtCore.QObject) -> None
+     |  
+     |  isSignalConnected(self, signal: PySide2.QtCore.QMetaMethod) -> bool
+     |      isSignalConnected(self, signal: PySide2.QtCore.QMetaMethod) -> bool
+     |  
+     |  isWidgetType(self) -> bool
+     |      isWidgetType(self) -> bool
+     |  
+     |  isWindowType(self) -> bool
+     |      isWindowType(self) -> bool
+     |  
+     |  killTimer(self, id: int) -> None
+     |      killTimer(self, id: int) -> None
+     |  
+     |  metaObject(self) -> PySide2.QtCore.QMetaObject
+     |      metaObject(self) -> PySide2.QtCore.QMetaObject
+     |  
+     |  moveToThread(self, thread: PySide2.QtCore.QThread) -> None
+     |      moveToThread(self, thread: PySide2.QtCore.QThread) -> None
+     |  
+     |  objectName(self) -> str
+     |      objectName(self) -> str
+     |  
+     |  objectNameChanged = <PySide2.QtCore.Signal object>
+     |  parent(self) -> PySide2.QtCore.QObject
+     |      parent(self) -> PySide2.QtCore.QObject
+     |  
+     |  property(self, name: bytes) -> typing.Any
+     |      property(self, name: bytes) -> typing.Any
+     |  
+     |  receivers(self, signal: bytes) -> int
+     |      receivers(self, signal: bytes) -> int
+     |  
+     |  removeEventFilter(self, obj: PySide2.QtCore.QObject) -> None
+     |      removeEventFilter(self, obj: PySide2.QtCore.QObject) -> None
+     |  
+     |  sender(self) -> PySide2.QtCore.QObject
+     |      sender(self) -> PySide2.QtCore.QObject
+     |  
+     |  senderSignalIndex(self) -> int
+     |      senderSignalIndex(self) -> int
+     |  
+     |  setObjectName(self, name: str) -> None
+     |      setObjectName(self, name: str) -> None
+     |  
+     |  setParent(self, parent: PySide2.QtCore.QObject) -> None
+     |      setParent(self, parent: PySide2.QtCore.QObject) -> None
+     |  
+     |  setProperty(self, name: bytes, value: typing.Any) -> bool
+     |      setProperty(self, name: bytes, value: typing.Any) -> bool
+     |  
+     |  signalsBlocked(self) -> bool
+     |      signalsBlocked(self) -> bool
+     |  
+     |  startTimer(self, interval: int, timerType: PySide2.QtCore.Qt.TimerType = PySide2.QtCore.Qt.TimerType.CoarseTimer) -> int
+     |      startTimer(self, interval: int, timerType: PySide2.QtCore.Qt.TimerType = PySide2.QtCore.Qt.TimerType.CoarseTimer) -> int
+     |  
+     |  thread(self) -> PySide2.QtCore.QThread
+     |      thread(self) -> PySide2.QtCore.QThread
+     |  
+     |  timerEvent(self, event: PySide2.QtCore.QTimerEvent) -> None
+     |      timerEvent(self, event: PySide2.QtCore.QTimerEvent) -> None
+     |  
+     |  tr(self, arg__1: bytes, arg__2: bytes = b'', arg__3: int = -1) -> str
+     |      tr(self, arg__1: bytes, arg__2: bytes = b'', arg__3: int = -1) -> str
+     |  
+     |  ----------------------------------------------------------------------
+     |  Static methods inherited from PySide2.QtCore.QObject:
+     |  
+     |  __new__(*args, **kwargs) from Shiboken.ObjectType
+     |      Create and return a new object.  See help(type) for accurate signature.
+     |  
+     |  connect(...)
+     |      connect(arg__1: PySide2.QtCore.QObject, arg__2: bytes, arg__3: typing.Callable, type: PySide2.QtCore.Qt.ConnectionType = PySide2.QtCore.Qt.ConnectionType.AutoConnection) -> bool
+     |      connect(self, arg__1: bytes, arg__2: typing.Callable, type: PySide2.QtCore.Qt.ConnectionType = PySide2.QtCore.Qt.ConnectionType.AutoConnection) -> bool
+     |      connect(self, arg__1: bytes, arg__2: PySide2.QtCore.QObject, arg__3: bytes, type: PySide2.QtCore.Qt.ConnectionType = PySide2.QtCore.Qt.ConnectionType.AutoConnection) -> bool
+     |      connect(self, sender: PySide2.QtCore.QObject, signal: bytes, member: bytes, type: PySide2.QtCore.Qt.ConnectionType = PySide2.QtCore.Qt.ConnectionType.AutoConnection) -> PySide2.QtCore.QMetaObject.Connection
+     |      connect(sender: PySide2.QtCore.QObject, signal: PySide2.QtCore.QMetaMethod, receiver: PySide2.QtCore.QObject, method: PySide2.QtCore.QMetaMethod, type: PySide2.QtCore.Qt.ConnectionType = PySide2.QtCore.Qt.ConnectionType.AutoConnection) -> PySide2.QtCore.QMetaObject.Connection
+     |      connect(sender: PySide2.QtCore.QObject, signal: bytes, receiver: PySide2.QtCore.QObject, member: bytes, type: PySide2.QtCore.Qt.ConnectionType = PySide2.QtCore.Qt.ConnectionType.AutoConnection) -> PySide2.QtCore.QMetaObject.Connection
+     |  
+     |  disconnect(...)
+     |      disconnect(arg__1: PySide2.QtCore.QMetaObject.Connection) -> bool
+     |      disconnect(arg__1: PySide2.QtCore.QObject, arg__2: bytes, arg__3: typing.Callable) -> bool
+     |      disconnect(self, arg__1: bytes, arg__2: typing.Callable) -> bool
+     |      disconnect(self, receiver: PySide2.QtCore.QObject, member: typing.Optional[bytes] = None) -> bool
+     |      disconnect(self, signal: bytes, receiver: PySide2.QtCore.QObject, member: bytes) -> bool
+     |      disconnect(sender: PySide2.QtCore.QObject, signal: PySide2.QtCore.QMetaMethod, receiver: PySide2.QtCore.QObject, member: PySide2.QtCore.QMetaMethod) -> bool
+     |      disconnect(sender: PySide2.QtCore.QObject, signal: bytes, receiver: PySide2.QtCore.QObject, member: bytes) -> bool
+     |  
+     |  registerUserData() -> int
+     |      registerUserData() -> int
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors inherited from Shiboken.Object:
+     |  
+     |  __dict__
+    
+    class MRCWrapper(PySide2.QtCore.QObject)
+     |  MRCWrapper(mrc, parent=None)
+     |  
+     |  Represents an MRC object with its two busses.
+     |  
+     |  Method resolution order:
+     |      MRCWrapper
+     |      PySide2.QtCore.QObject
+     |      Shiboken.Object
+     |      builtins.object
+     |  
+     |  Methods defined here:
+     |  
+     |  __getattr__(self, attr)
+     |  
+     |  __getitem__(self, bus)
+     |      Access to the devices connected to the specified bus.
+     |      :return: bus_proxy object
+     |  
+     |  __init__(self, mrc, parent=None)
+     |      Initialize self.  See help(type(self)) for accurate signature.
+     |  
+     |  __str__(self)
+     |      Return str(self).
+     |  
+     |  connectMrc(self)
+     |      Try to connect to the MRC. Depending on the connection method this
+     |      may spawn an internal mesycontrol_server instance.
+     |  
+     |  get_devices(self, bus: typing.Optional[int] = None)
+     |      Returns a list of DeviceWrapper objects present on the given bus.
+     |      scanbus() must be called first to populate the internal device list.
+     |      If no bus is specified the devices connected to all busses is returned.
+     |  
+     |  scanbus(self, bus: int)
+     |      Issues the scanbus (SC) command for the specified bus and populates
+     |      the internal devices list of this MRCWrapper object.
+     |      
+     |         Response is a list of ScanbusResult.ScanbusEntry objects:
+     |         message ScanbusEntry {
+     |             uint32 idc    = 1;
+     |             bool rc       = 2;
+     |             bool conflict = 3;
+     |         }
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data and other attributes defined here:
+     |  
+     |  staticMetaObject = <PySide2.QtCore.QMetaObject object>
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from PySide2.QtCore.QObject:
+     |  
+     |  __delattr__(self, name, /)
+     |      Implement delattr(self, name).
+     |  
+     |  __getattribute__(self, name, /)
+     |      Return getattr(self, name).
+     |  
+     |  __repr__(self, /)
+     |      Return repr(self).
+     |  
+     |  __setattr__(self, name, value, /)
+     |      Implement setattr(self, name, value).
+     |  
+     |  blockSignals(self, b: bool) -> bool
+     |      blockSignals(self, b: bool) -> bool
+     |  
+     |  childEvent(self, event: PySide2.QtCore.QChildEvent) -> None
+     |      childEvent(self, event: PySide2.QtCore.QChildEvent) -> None
+     |  
+     |  children(self) -> typing.List[PySide2.QtCore.QObject]
+     |      children(self) -> typing.List[PySide2.QtCore.QObject]
+     |  
+     |  connectNotify(self, signal: PySide2.QtCore.QMetaMethod) -> None
+     |      connectNotify(self, signal: PySide2.QtCore.QMetaMethod) -> None
+     |  
+     |  customEvent(self, event: PySide2.QtCore.QEvent) -> None
+     |      customEvent(self, event: PySide2.QtCore.QEvent) -> None
+     |  
+     |  deleteLater(self) -> None
+     |      deleteLater(self) -> None
+     |  
+     |  destroyed = <PySide2.QtCore.Signal object>
+     |  disconnectNotify(self, signal: PySide2.QtCore.QMetaMethod) -> None
+     |      disconnectNotify(self, signal: PySide2.QtCore.QMetaMethod) -> None
+     |  
+     |  dumpObjectInfo(self) -> None
+     |      dumpObjectInfo(self) -> None
+     |  
+     |  dumpObjectTree(self) -> None
+     |      dumpObjectTree(self) -> None
+     |  
+     |  dynamicPropertyNames(self) -> typing.List[PySide2.QtCore.QByteArray]
+     |      dynamicPropertyNames(self) -> typing.List[PySide2.QtCore.QByteArray]
+     |  
+     |  emit(self, arg__1: bytes, *args: None) -> bool
+     |      emit(self, arg__1: bytes, *args: None) -> bool
+     |  
+     |  event(self, event: PySide2.QtCore.QEvent) -> bool
+     |      event(self, event: PySide2.QtCore.QEvent) -> bool
+     |  
+     |  eventFilter(self, watched: PySide2.QtCore.QObject, event: PySide2.QtCore.QEvent) -> bool
+     |      eventFilter(self, watched: PySide2.QtCore.QObject, event: PySide2.QtCore.QEvent) -> bool
+     |  
+     |  findChild(self, arg__1: type, arg__2: str = '') -> object
+     |      findChild(self, arg__1: type, arg__2: str = '') -> object
+     |  
+     |  findChildren(...)
+     |      findChildren(self, arg__1: type, arg__2: PySide2.QtCore.QRegExp) -> typing.Iterable
+     |      findChildren(self, arg__1: type, arg__2: PySide2.QtCore.QRegularExpression) -> typing.Iterable
+     |      findChildren(self, arg__1: type, arg__2: str = '') -> typing.Iterable
+     |  
+     |  inherits(self, classname: bytes) -> bool
+     |      inherits(self, classname: bytes) -> bool
+     |  
+     |  installEventFilter(self, filterObj: PySide2.QtCore.QObject) -> None
+     |      installEventFilter(self, filterObj: PySide2.QtCore.QObject) -> None
+     |  
+     |  isSignalConnected(self, signal: PySide2.QtCore.QMetaMethod) -> bool
+     |      isSignalConnected(self, signal: PySide2.QtCore.QMetaMethod) -> bool
+     |  
+     |  isWidgetType(self) -> bool
+     |      isWidgetType(self) -> bool
+     |  
+     |  isWindowType(self) -> bool
+     |      isWindowType(self) -> bool
+     |  
+     |  killTimer(self, id: int) -> None
+     |      killTimer(self, id: int) -> None
+     |  
+     |  metaObject(self) -> PySide2.QtCore.QMetaObject
+     |      metaObject(self) -> PySide2.QtCore.QMetaObject
+     |  
+     |  moveToThread(self, thread: PySide2.QtCore.QThread) -> None
+     |      moveToThread(self, thread: PySide2.QtCore.QThread) -> None
+     |  
+     |  objectName(self) -> str
+     |      objectName(self) -> str
+     |  
+     |  objectNameChanged = <PySide2.QtCore.Signal object>
+     |  parent(self) -> PySide2.QtCore.QObject
+     |      parent(self) -> PySide2.QtCore.QObject
+     |  
+     |  property(self, name: bytes) -> typing.Any
+     |      property(self, name: bytes) -> typing.Any
+     |  
+     |  receivers(self, signal: bytes) -> int
+     |      receivers(self, signal: bytes) -> int
+     |  
+     |  removeEventFilter(self, obj: PySide2.QtCore.QObject) -> None
+     |      removeEventFilter(self, obj: PySide2.QtCore.QObject) -> None
+     |  
+     |  sender(self) -> PySide2.QtCore.QObject
+     |      sender(self) -> PySide2.QtCore.QObject
+     |  
+     |  senderSignalIndex(self) -> int
+     |      senderSignalIndex(self) -> int
+     |  
+     |  setObjectName(self, name: str) -> None
+     |      setObjectName(self, name: str) -> None
+     |  
+     |  setParent(self, parent: PySide2.QtCore.QObject) -> None
+     |      setParent(self, parent: PySide2.QtCore.QObject) -> None
+     |  
+     |  setProperty(self, name: bytes, value: typing.Any) -> bool
+     |      setProperty(self, name: bytes, value: typing.Any) -> bool
+     |  
+     |  signalsBlocked(self) -> bool
+     |      signalsBlocked(self) -> bool
+     |  
+     |  startTimer(self, interval: int, timerType: PySide2.QtCore.Qt.TimerType = PySide2.QtCore.Qt.TimerType.CoarseTimer) -> int
+     |      startTimer(self, interval: int, timerType: PySide2.QtCore.Qt.TimerType = PySide2.QtCore.Qt.TimerType.CoarseTimer) -> int
+     |  
+     |  thread(self) -> PySide2.QtCore.QThread
+     |      thread(self) -> PySide2.QtCore.QThread
+     |  
+     |  timerEvent(self, event: PySide2.QtCore.QTimerEvent) -> None
+     |      timerEvent(self, event: PySide2.QtCore.QTimerEvent) -> None
+     |  
+     |  tr(self, arg__1: bytes, arg__2: bytes = b'', arg__3: int = -1) -> str
+     |      tr(self, arg__1: bytes, arg__2: bytes = b'', arg__3: int = -1) -> str
+     |  
+     |  ----------------------------------------------------------------------
+     |  Static methods inherited from PySide2.QtCore.QObject:
+     |  
+     |  __new__(*args, **kwargs) from Shiboken.ObjectType
+     |      Create and return a new object.  See help(type) for accurate signature.
+     |  
+     |  connect(...)
+     |      connect(arg__1: PySide2.QtCore.QObject, arg__2: bytes, arg__3: typing.Callable, type: PySide2.QtCore.Qt.ConnectionType = PySide2.QtCore.Qt.ConnectionType.AutoConnection) -> bool
+     |      connect(self, arg__1: bytes, arg__2: typing.Callable, type: PySide2.QtCore.Qt.ConnectionType = PySide2.QtCore.Qt.ConnectionType.AutoConnection) -> bool
+     |      connect(self, arg__1: bytes, arg__2: PySide2.QtCore.QObject, arg__3: bytes, type: PySide2.QtCore.Qt.ConnectionType = PySide2.QtCore.Qt.ConnectionType.AutoConnection) -> bool
+     |      connect(self, sender: PySide2.QtCore.QObject, signal: bytes, member: bytes, type: PySide2.QtCore.Qt.ConnectionType = PySide2.QtCore.Qt.ConnectionType.AutoConnection) -> PySide2.QtCore.QMetaObject.Connection
+     |      connect(sender: PySide2.QtCore.QObject, signal: PySide2.QtCore.QMetaMethod, receiver: PySide2.QtCore.QObject, method: PySide2.QtCore.QMetaMethod, type: PySide2.QtCore.Qt.ConnectionType = PySide2.QtCore.Qt.ConnectionType.AutoConnection) -> PySide2.QtCore.QMetaObject.Connection
+     |      connect(sender: PySide2.QtCore.QObject, signal: bytes, receiver: PySide2.QtCore.QObject, member: bytes, type: PySide2.QtCore.Qt.ConnectionType = PySide2.QtCore.Qt.ConnectionType.AutoConnection) -> PySide2.QtCore.QMetaObject.Connection
+     |  
+     |  disconnect(...)
+     |      disconnect(arg__1: PySide2.QtCore.QMetaObject.Connection) -> bool
+     |      disconnect(arg__1: PySide2.QtCore.QObject, arg__2: bytes, arg__3: typing.Callable) -> bool
+     |      disconnect(self, arg__1: bytes, arg__2: typing.Callable) -> bool
+     |      disconnect(self, receiver: PySide2.QtCore.QObject, member: typing.Optional[bytes] = None) -> bool
+     |      disconnect(self, signal: bytes, receiver: PySide2.QtCore.QObject, member: bytes) -> bool
+     |      disconnect(sender: PySide2.QtCore.QObject, signal: PySide2.QtCore.QMetaMethod, receiver: PySide2.QtCore.QObject, member: PySide2.QtCore.QMetaMethod) -> bool
+     |      disconnect(sender: PySide2.QtCore.QObject, signal: bytes, receiver: PySide2.QtCore.QObject, member: bytes) -> bool
+     |  
+     |  registerUserData() -> int
+     |      registerUserData() -> int
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors inherited from Shiboken.Object:
+     |  
+     |  __dict__
+    
+    class ScriptContext(builtins.object)
+     |  ScriptContext(appContext)
+     |  
+     |  The main context object for mesycontrol scripting.
+     |  
+     |  Holds a list of MRCs registered with the system (get_all_mrcs()) and allows
+     |  adding new MRC connections via make_mrc(). Additionally the device profiles
+     |  included with mesycontrol can be accessed using get_device_profiles().
+     |  
+     |  Methods defined here:
+     |  
+     |  __init__(self, appContext)
+     |      Initialize self.  See help(type(self)) for accurate signature.
+     |  
+     |  get_all_mrcs(self)
+     |  
+     |  get_device_profile(self, device_idc)
+     |  
+     |  make_mrc(self, url)
+     |  
+     |  shutdown(self)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors defined here:
+     |  
+     |  __dict__
+     |      dictionary for instance variables (if defined)
+     |  
+     |  __weakref__
+     |      list of weak references to the object (if defined)
+
+FUNCTIONS
+    gensym(length=32, prefix='gensym_')
+        generates a fairly unique symbol, used to make a module name,
+        used as a helper function for load_module
+        
+        :return: generated symbol
+    
+    get_script_context(log_level=20)
+        Script context creation and cleanup on shutdown.
+        
+        Example:
+        
+            from mesycontrol.script import get_script_context
+            with get_script_context(logging.DEBUG) as ctx:
+                mrc = ctx.make_mrc(mrcUrl)
+                mrc.scanbus(0)
+                ...
+        
+        :return: ScriptContext object wrapped in a context manager.
+    
+    load_module(source, module_name=None)
+        reads file source and loads it as a module
+        
+        :param source: file to load
+        :param module_name: name of module to register in sys.modules
+        :return: loaded module
+    
+    script_runner_main()
+        Main entry point for the cli script runner.
+        mrcUrl, scriptFile and scriptArgs are exepceted to be passed in via sys.argv:
+        <mrc-url> <script-py> [--debug] [script-args]
+    
+    script_runner_run(scriptMain)
+        Alternative entry point for the cli script runner: the scripts main function is
+        directly given to script_runner_run(), other parameters are taken from sys.argv.
+
+FILE
+    /home/florian/src/mesycontrol/src/client/mesycontrol/script.py
+
+
