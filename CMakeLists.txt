@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.16)
 project(mesycontrol DESCRIPTION "Remote control for mesytec NIM devices")
 
 set(MESYCONTROL_MAIN_PROJECT OFF)
