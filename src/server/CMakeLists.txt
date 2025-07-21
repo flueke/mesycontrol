@@ -73,4 +73,10 @@ endif()
 
 install(TARGETS mesycontrol_server RUNTIME DESTINATION bin)
 
+install(CODE [[
+    file(GET_RUNTIME_DEPENDENCIES
+        EXECUTABLES mesycontrol_server)
+    ]]
+)
+
 # vim:tw=0
