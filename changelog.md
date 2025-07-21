@@ -1,3 +1,8 @@
+# 1.2.1
+
+cmake: add libprotobuf and its dependencies to the output package
+Intended as a fix for mesycontrol_server not starting on ubuntu-24.04
+
 # 1.2.0
 
   - Improved scripting support and more example scripts.
