@@ -8,6 +8,17 @@ endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# RPATH handling
+# https://gitlab.kitware.com/cmake/community/wikis/doc/cmake/RPATH-handling
+
+# use, i.e. don't skip the full RPATH for the build tree
+SET(CMAKE_SKIP_BUILD_RPATH FALSE)
+
+# Enable $ORIGIN in the rpath if supported by the target platform.
+SET(CMAKE_BUILD_RPATH_USE_ORIGIN TRUE)
+
+SET(CMAKE_INSTALL_RPATH "$ORIGIN/../lib:$ORIGIN/")
+
 # Create binaries in the root of the build directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
