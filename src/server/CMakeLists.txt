@@ -72,7 +72,9 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "armv
 endif()
 
 install(TARGETS mesycontrol_server RUNTIME DESTINATION bin)
-# Invoke a script to install additional shared library dependencies.
-install(SCRIPT install_server_deps.cmake)
+if (NOT WIN32)
+    # Invoke a script to install additional shared library dependencies.
+    install(SCRIPT install_server_deps.cmake)
+endif()
 
 # vim:tw=0
